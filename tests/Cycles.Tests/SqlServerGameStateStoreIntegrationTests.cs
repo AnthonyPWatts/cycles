@@ -41,4 +41,78 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
         Assert.Contains(updated.Events, item => item.CycleId == cycle.CycleId && item.TickNumber == 1 && item.EventType == EventType.ResourcesGenerated);
     }
+
+    [Fact]
+    public void Store_persists_order_submission_and_tick_outcome_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var fleet = state.Fleets.Single();
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+
+        store.Replace(state);
+
+        var order = store.Update(current => OrderService.SubmitMoveOrder(
+            current,
+            fleet.FleetId,
+            destination.SystemId,
+            TestState.Now));
+
+        Assert.Equal(FleetOrderStatus.Pending, order.Status);
+
+        var afterOrder = store.LoadOrCreate();
+        Assert.Single(afterOrder.FleetOrders, item => item.FleetOrderId == order.FleetOrderId);
+
+        var result = store.Update(current => new TickEngine().RunTick(current, cycle.CycleId, TestState.Now));
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+
+        var updated = store.LoadOrCreate();
+        var movedFleet = updated.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        var processedOrder = updated.FleetOrders.Single(item => item.FleetOrderId == order.FleetOrderId);
+
+        Assert.Equal(destination.SystemId, movedFleet.CurrentSystemId);
+        Assert.Equal(FleetOrderStatus.Processed, processedOrder.Status);
+        Assert.Equal(1, processedOrder.ProcessedTick);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
+    }
+
+    [Fact]
+    public void Store_rolls_back_when_duplicate_running_tick_is_detected()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now,
+            Status = TickLogStatus.Running
+        });
+
+        store.Replace(state);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => store.Update(current => new TickEngine().RunTick(current, cycle.CycleId, TestState.Now)));
+
+        Assert.Contains("already running", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        var updated = store.LoadOrCreate();
+        Assert.Equal(0, updated.GetActiveCycle()?.CurrentTickNumber);
+        Assert.Single(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.Status == TickLogStatus.Running);
+    }
 }

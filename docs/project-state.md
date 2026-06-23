@@ -137,7 +137,7 @@ Additional smoke checks performed:
 These are known gaps, not defects in the current MVP claim:
 
 - No migration command or schema versioning yet.
-- SQL Server integration coverage is opt-in and currently covers the state-store round trip and one tick only.
+- SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
