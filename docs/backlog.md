@@ -78,13 +78,13 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Define future production auth option before deployment.
 - [ ] Add player/empire authorisation checks.
 - [ ] Stop trusting caller-supplied empire IDs where auth context can derive them.
-- [ ] Add pending orders endpoint.
-- [ ] Add processed/rejected orders endpoint.
+- [x] Add pending orders endpoint.
+- [x] Add processed/rejected orders endpoint.
 - [ ] Consider order cancellation before execution.
 - [ ] Add system detail API response with influence breakdown.
 - [ ] Add fleet detail API response.
 - [ ] Add last tick summary endpoint.
-- [ ] Add dashboard pending order list.
+- [x] Add dashboard pending order list.
 - [ ] Add dashboard system detail panel.
 - [ ] Add dashboard fleet detail panel.
 - [x] Add dashboard priority editing.

@@ -63,7 +63,7 @@ dotnet run --project src/Cycles.Cli -- recovery data/cycles-state.json
 Run the API and dashboard:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:StatePath data/cycles-state.json
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:StatePath ../../data/cycles-state.json
 ```
 
 Open `http://127.0.0.1:5086/` for the public site and `http://127.0.0.1:5086/app.html` for the dashboard.

@@ -3,6 +3,7 @@ const state = {
     empire: null,
     galaxy: null,
     fleets: [],
+    orders: [],
     events: [],
     chronicle: []
 };
@@ -28,6 +29,7 @@ const elements = {
     moveForm: document.querySelector("#moveForm"),
     attackForm: document.querySelector("#attackForm"),
     orderMessage: document.querySelector("#orderMessage"),
+    orders: document.querySelector("#orders"),
     events: document.querySelector("#events"),
     chronicle: document.querySelector("#chronicle"),
     galaxyMap: document.querySelector("#galaxyMap"),
@@ -114,11 +116,13 @@ async function login(username) {
 
 async function refresh() {
     const empireQuery = state.playerId ? `?playerId=${state.playerId}` : "";
-    const [cycle, empire, galaxy, fleets, events, chronicle] = await Promise.all([
+    const ordersQuery = state.empire ? `?empireId=${state.empire.empireId}` : "";
+    const [cycle, empire, galaxy, fleets, orders, events, chronicle] = await Promise.all([
         getJson("/cycles/current"),
         getJson(`/empire${empireQuery}`),
         getJson("/galaxy"),
         state.empire ? getJson(`/fleets?empireId=${state.empire.empireId}`) : getJson("/fleets"),
+        getJson(`/orders${ordersQuery}`),
         getJson("/events/recent?limit=20"),
         getJson("/chronicle")
     ]);
@@ -126,6 +130,7 @@ async function refresh() {
     state.empire = empire;
     state.galaxy = galaxy;
     state.fleets = fleets;
+    state.orders = orders;
     state.events = events;
     state.chronicle = chronicle;
 
@@ -134,6 +139,7 @@ async function refresh() {
     renderPriorities(empire.priorities);
     renderFleets(fleets);
     renderOrders();
+    renderOrderQueue(orders);
     renderEvents(events);
     renderChronicle(chronicle);
     renderGalaxy(galaxy, empire);
@@ -189,6 +195,22 @@ function renderOrders() {
 
     elements.fleetSelect.onchange = renderOrders;
     elements.attackFleetSelect.onchange = renderOrders;
+}
+
+function renderOrderQueue(orders) {
+    elements.orders.innerHTML = orders.length === 0
+        ? `<article class="item"><span>No fleet orders yet.</span></article>`
+        : orders.map(order => {
+            const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+            const processed = order.processedTick === null ? `executes after T${order.executeAfterTick}` : `processed T${order.processedTick}`;
+            const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
+            return `
+                <article class="item order-${escapeHtml(order.status)}">
+                    <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
+                    <span>${escapeHtml(order.status)} | ${escapeHtml(target)} | ${escapeHtml(processed)}${escapeHtml(rejection)}</span>
+                </article>
+            `;
+        }).join("");
 }
 
 function collectTargetEmpires(selectedFleet) {
@@ -278,6 +300,13 @@ function fillSelect(select, items, value, label, includeEmpty = false) {
     if ([...select.options].some(option => option.value === previous)) {
         select.value = previous;
     }
+}
+
+function formatOrderType(value) {
+    return String(value)
+        .replace("moveFleet", "Move")
+        .replace("hold", "Hold")
+        .replace("attack", "Attack");
 }
 
 async function getJson(url) {

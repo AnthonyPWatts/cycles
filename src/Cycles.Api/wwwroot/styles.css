@@ -223,6 +223,18 @@ dd {
     line-height: 1.45;
 }
 
+.order-pending {
+    border-color: rgba(143, 209, 189, 0.48);
+}
+
+.order-processed {
+    border-color: rgba(223, 186, 104, 0.34);
+}
+
+.order-rejected {
+    border-color: rgba(211, 101, 86, 0.48);
+}
+
 .compact .item {
     padding: 9px 11px;
 }

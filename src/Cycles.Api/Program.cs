@@ -75,6 +75,22 @@ app.MapGet("/fleets", (Guid? empireId, IGameStateStore store) =>
             .ToArray();
     }));
 
+app.MapGet("/orders", (Guid? empireId, IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var cycle = GetActiveCycle(state);
+        return state.FleetOrders
+            .Where(order => order.CycleId == cycle.CycleId)
+            .Where(order => !empireId.HasValue || state.Fleets.Any(fleet => fleet.FleetId == order.FleetId && fleet.EmpireId == empireId.Value))
+            .OrderBy(order => order.Status == FleetOrderStatus.Pending ? 0 : 1)
+            .ThenBy(order => order.ExecuteAfterTick)
+            .ThenByDescending(order => order.CreatedAt)
+            .Take(50)
+            .Select(order => ToOrderResponse(state, order))
+            .ToArray();
+    }));
+
 app.MapPost("/orders/fleet/move", (MoveFleetRequest request, IGameStateStore store) =>
     TryResult(() => store.Update(state => OrderService.SubmitMoveOrder(
         state,
@@ -249,6 +265,29 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
     return new FleetResponse(fleet, empire.EmpireName, currentSystem.SystemName, destination?.SystemName);
 }
 
+static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
+{
+    var fleet = state.Fleets.SingleOrDefault(item => item.FleetId == order.FleetId);
+    var targetSystem = order.TargetSystemId.HasValue
+        ? state.Systems.SingleOrDefault(item => item.SystemId == order.TargetSystemId.Value)
+        : null;
+    var targetEmpire = order.TargetEmpireId.HasValue
+        ? state.Empires.SingleOrDefault(item => item.EmpireId == order.TargetEmpireId.Value)
+        : null;
+
+    return new FleetOrderResponse(
+        order.FleetOrderId,
+        order.OrderType,
+        order.Status,
+        order.SubmitTick,
+        order.ExecuteAfterTick,
+        order.ProcessedTick,
+        order.RejectionReason,
+        fleet?.FleetName ?? "Unknown fleet",
+        targetSystem?.SystemName,
+        targetEmpire?.EmpireName);
+}
+
 public sealed record LoginRequest(string Username, string? EmpireName);
 
 public sealed record LoginResponse(Guid PlayerId, string Username, EmpireResponse Empire);
@@ -271,6 +310,18 @@ public sealed record GalaxyResponse(
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
 
 public sealed record FleetResponse(Fleet Fleet, string EmpireName, string CurrentSystemName, string? DestinationSystemName);
+
+public sealed record FleetOrderResponse(
+    Guid FleetOrderId,
+    FleetOrderType OrderType,
+    FleetOrderStatus Status,
+    int SubmitTick,
+    int ExecuteAfterTick,
+    int? ProcessedTick,
+    string? RejectionReason,
+    string FleetName,
+    string? TargetSystemName,
+    string? TargetEmpireName);
 
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 
