@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cycles</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <h1>Cycles</h1>
+            <p id="cycleStatus">Loading...</p>
+        </div>
+        <form id="loginForm" class="login-form">
+            <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username">
+            <button type="submit">Login</button>
+        </form>
+    </header>
+
+    <main class="shell">
+        <section class="map-panel" aria-label="Galaxy map">
+            <div class="toolbar">
+                <strong id="empireName">Empire</strong>
+                <button id="refreshButton" type="button">Refresh</button>
+            </div>
+            <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+        </section>
+
+        <aside class="side-panel">
+            <section class="summary">
+                <h2>Resources</h2>
+                <dl id="resources"></dl>
+            </section>
+
+            <section>
+                <h2>Fleets</h2>
+                <div id="fleets" class="list"></div>
+            </section>
+
+            <section>
+                <h2>Orders</h2>
+                <form id="moveForm" class="order-form">
+                    <label>
+                        Fleet
+                        <select id="fleetSelect"></select>
+                    </label>
+                    <label>
+                        Destination
+                        <select id="destinationSelect"></select>
+                    </label>
+                    <button type="submit">Queue move</button>
+                </form>
+                <form id="attackForm" class="order-form">
+                    <label>
+                        Attacker
+                        <select id="attackFleetSelect"></select>
+                    </label>
+                    <label>
+                        Target
+                        <select id="targetEmpireSelect"></select>
+                    </label>
+                    <button type="submit">Queue attack</button>
+                </form>
+                <p id="orderMessage" class="message" role="status"></p>
+            </section>
+
+            <section>
+                <h2>Events</h2>
+                <div id="events" class="list compact"></div>
+            </section>
+
+            <section>
+                <h2>Chronicle</h2>
+                <div id="chronicle" class="list compact"></div>
+            </section>
+        </aside>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

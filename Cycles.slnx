@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cycles.Api/Cycles.Api.csproj" />
+    <Project Path="src/Cycles.Cli/Cycles.Cli.csproj" />
+    <Project Path="src/Cycles.Core/Cycles.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cycles.Tests/Cycles.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,9 @@
+bin/
+obj/
+data/
+*.user
+*.suo
+*.lock
+_codex_*.json
+_codex_*.py
+src/Cycles.Api/_codex_*.json

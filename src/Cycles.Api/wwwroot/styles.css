@@ -1,0 +1,255 @@
+:root {
+    color-scheme: dark;
+    --bg: #111416;
+    --panel: #171d20;
+    --panel-strong: #20272b;
+    --line: #344047;
+    --text: #ecf2ef;
+    --muted: #9fb0aa;
+    --accent: #5ec2a8;
+    --accent-2: #d9a441;
+    --danger: #d66a58;
+    --system: #f0e4c1;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    min-height: 36px;
+    border: 1px solid #6bd3ba;
+    border-radius: 6px;
+    background: #173b34;
+    color: var(--text);
+    cursor: pointer;
+}
+
+button:hover {
+    background: #205247;
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #0d1113;
+    color: var(--text);
+    padding: 0 10px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    background: #0d1011;
+}
+
+.topbar h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: 0;
+}
+
+.topbar p {
+    margin: 3px 0 0;
+    color: var(--muted);
+}
+
+.login-form {
+    display: grid;
+    grid-template-columns: minmax(150px, 220px) 86px;
+    gap: 8px;
+}
+
+.shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    min-height: calc(100vh - 70px);
+}
+
+.map-panel {
+    display: grid;
+    grid-template-rows: auto minmax(360px, 1fr);
+    min-width: 0;
+    border-right: 1px solid var(--line);
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 56px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+}
+
+#galaxyMap {
+    width: 100%;
+    height: 100%;
+    min-height: 520px;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(94, 194, 168, 0.16), transparent 28%),
+        radial-gradient(circle at 78% 62%, rgba(217, 164, 65, 0.12), transparent 30%),
+        #101517;
+}
+
+.side-panel {
+    display: grid;
+    grid-auto-rows: min-content;
+    gap: 0;
+    overflow: auto;
+    background: var(--panel);
+}
+
+.side-panel section {
+    padding: 14px;
+    border-bottom: 1px solid var(--line);
+}
+
+.side-panel h2 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    margin: 0;
+}
+
+dt {
+    color: var(--muted);
+}
+
+dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.list {
+    display: grid;
+    gap: 8px;
+}
+
+.item {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-strong);
+}
+
+.item strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.item span {
+    color: var(--muted);
+}
+
+.compact .item {
+    padding: 8px 10px;
+}
+
+.order-form {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.order-form label {
+    display: grid;
+    gap: 5px;
+    color: var(--muted);
+}
+
+.message {
+    min-height: 20px;
+    margin: 0;
+    color: var(--accent-2);
+}
+
+.link {
+    stroke: #415057;
+    stroke-width: 2;
+}
+
+.system {
+    fill: var(--system);
+    stroke: #161a1c;
+    stroke-width: 2;
+}
+
+.system.historic {
+    fill: var(--accent-2);
+}
+
+.system.home {
+    fill: var(--accent);
+}
+
+.presence {
+    fill: none;
+    stroke: var(--danger);
+    stroke-width: 3;
+    opacity: 0.8;
+}
+
+.system-label {
+    fill: var(--text);
+    font-size: 13px;
+    paint-order: stroke;
+    stroke: #101517;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+@media (max-width: 900px) {
+    .topbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .login-form {
+        grid-template-columns: minmax(0, 1fr) 86px;
+    }
+
+    .shell {
+        grid-template-columns: 1fr;
+    }
+
+    .map-panel {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    #galaxyMap {
+        min-height: 420px;
+    }
+}
