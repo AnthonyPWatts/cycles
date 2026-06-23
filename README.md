@@ -21,6 +21,17 @@ This implementation covers the technical MVP from the supplied design documents:
 - `src/Cycles.Cli`: manual seeding, ticking, inspection, and order submission.
 - `src/Cycles.Api`: Minimal API plus a basic browser dashboard.
 - `tests/Cycles.Tests`: dependency-free executable tests for the core simulation behaviours.
+- `docs`: current state, roadmap, architecture direction, backlog, and decision log.
+
+## Planning Docs
+
+Start here before adding the next substantial feature:
+
+- [Project state](docs/project-state.md)
+- [Development roadmap](docs/development-roadmap.md)
+- [Architecture direction](docs/architecture-direction.md)
+- [Backlog](docs/backlog.md)
+- [Decision log](docs/decision-log.md)
 
 ## Run
 
