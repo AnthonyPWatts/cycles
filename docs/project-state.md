@@ -128,13 +128,14 @@ Additional smoke checks performed:
 - `CyclesDb` container startup, schema creation, and seed verification.
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
+- Opt-in SQL Server integration test with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
 
 ## Known Limitations
 
 These are known gaps, not defects in the current MVP claim:
 
 - No migration command or schema versioning yet.
-- No automated SQL Server integration tests yet.
+- SQL Server integration coverage is opt-in and currently covers the state-store round trip and one tick only.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.

@@ -51,7 +51,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Implement prototype SQL Server application lock for state updates.
 - [x] Move CLI seed/tick/show to relational persistence when SQL Server is configured.
 - [x] Move API state/order endpoints to relational persistence when SQL Server is configured.
-- [ ] Add SQL Server integration tests using the local container.
+- [x] Add opt-in SQL Server integration test using the local container.
+- [ ] Add broader SQL Server integration tests for orders and duplicate tick prevention.
 - [ ] Decide whether temporary SQLite integration tests are still useful.
 - [ ] Decide whether JSON store remains as dev-only support or is removed.
 - [ ] Optional: add JSON import/export for developer convenience.

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cycles.Core\Cycles.Core.csproj" />
+    <ProjectReference Include="..\..\src\Cycles.Infrastructure.SqlServer\Cycles.Infrastructure.SqlServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -57,6 +57,17 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Connection
 
 The SQL Server store currently reads and writes the whole prototype `GameState` inside one transaction protected by `sp_getapplock`. This is a practical bridge from JSON persistence to relational persistence. It is not yet a final incremental persistence model or migration system.
 
+## Integration Test
+
+The normal test suite does not require Docker. To include the SQL Server integration test, point `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` at a disposable Cycles database before running `dotnet test`:
+
+```powershell
+$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet test Cycles.slnx --no-build
+```
+
+The integration test replaces the configured database contents, so do not run it against data you want to keep.
+
 ## Clean Up
 
 ```powershell
