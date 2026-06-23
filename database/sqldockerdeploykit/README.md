@@ -2,7 +2,7 @@
 
 This folder contains a Cycles-specific SQL Server container definition based on the SQLDockerDeployKit pattern: a SQL Server image plus ordered `SQLScripts` executed at startup.
 
-It is intentionally separate from the application runtime. At this stage it proves the relational schema and local database bootstrap path; the application still uses JSON persistence until the next persistence slice is implemented.
+The application still uses JSON persistence by default, but the CLI and API can opt into this SQL Server database through the `Cycles.Infrastructure.SqlServer` store.
 
 ## Build
 
@@ -39,6 +39,23 @@ Expected result:
 ```text
 Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
 ```
+
+## Use From The Application
+
+Run the CLI against SQL Server by prefixing the connection string with `sqlserver:`:
+
+```powershell
+dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+```
+
+Run the API against SQL Server with `ConnectionStrings:Cycles`:
+
+```powershell
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+```
+
+The SQL Server store currently reads and writes the whole prototype `GameState` inside one transaction protected by `sp_getapplock`. This is a practical bridge from JSON persistence to relational persistence. It is not yet a final incremental persistence model or migration system.
 
 ## Clean Up
 

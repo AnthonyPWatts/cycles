@@ -26,6 +26,8 @@ Implemented:
 
 - .NET solution with Core, CLI, API, and test projects.
 - JSON state store with local file lock.
+- SQL Server state store behind the same persistence abstraction.
+- SQLDockerDeployKit-style SQL Server bootstrap image.
 - Galaxy generation.
 - Influence-based resources.
 - Fleet orders.
@@ -38,9 +40,10 @@ Implemented:
 Exit evidence:
 
 - Build passes.
-- Test harness passes.
+- xUnit test suite passes.
 - CLI smoke checks work.
 - API and dashboard smoke checks work.
+- SQL Server container, CLI, and API smoke checks work.
 
 ## Stage 1: Simulation Spine Hardening
 
@@ -117,7 +120,9 @@ Goal: replace JSON persistence with a relational store while preserving the curr
 
 ### Recommended Direction
 
-Use SQLite first. It keeps local development simple while forcing the project to model real tables, keys, indexes, transactions, and migrations. PostgreSQL or SQL Server can come later once the schema and tick transaction shape stabilise.
+Use the SQLDockerDeployKit-style SQL Server container as the first relational target. It is already working locally, matches the user's preferred direction for this stage, and forces the project to model real tables, keys, indexes, transactions, and operational startup behaviour.
+
+SQLite can still be useful later for fast isolated tests, but it is no longer the primary implementation path.
 
 ### Outcomes
 
@@ -130,7 +135,7 @@ Use SQLite first. It keeps local development simple while forcing the project to
 ### Work Items
 
 1. Add a persistence project or folder.
-   - Candidate project: `src/Cycles.Infrastructure`.
+   - Current project: `src/Cycles.Infrastructure.SqlServer`.
    - Keep `Cycles.Core` independent of database packages.
    - Put repository/store implementations and migrations outside Core.
 
@@ -165,7 +170,8 @@ Use SQLite first. It keeps local development simple while forcing the project to
    - Battle and Chronicle lookup by Cycle and system.
 
 5. Implement tick locking.
-   - Start with a `TickLocks` or `TickLogs` based lock for SQLite.
+   - The current SQL Server bridge uses transaction-scoped `sp_getapplock` for whole-state updates.
+   - Move toward per-Cycle tick locking as the persistence model becomes incremental.
    - Ensure only one running tick per Cycle.
    - Ensure completed tick numbers cannot be completed again.
    - Treat lock timeouts and abandoned running ticks as explicit recovery cases.
@@ -181,17 +187,18 @@ Use SQLite first. It keeps local development simple while forcing the project to
    - Keep the API order-submission path and CLI tick path using the same validation/application services.
 
 8. Add integration tests.
-   - Use a temporary SQLite database per test.
+   - Use the local SQL Server container for the first integration tests.
+   - Consider temporary SQLite tests only if they materially reduce feedback time.
    - Test a full seed -> submit order -> tick -> query outcome path.
    - Test duplicate tick prevention against the database.
 
 ### Data Migration Position
 
-There is no need to migrate existing JSON state as a product requirement yet. If useful, provide a developer-only importer from current JSON files into SQLite, but do not let importer complexity block the relational implementation.
+There is no need to migrate existing JSON state as a product requirement yet. If useful, provide a developer-only importer from current JSON files into SQL Server, but do not let importer complexity block the relational implementation.
 
 ### Exit Criteria
 
-- SQLite-backed seed, tick, show, API, and dashboard work.
+- SQL Server-backed seed, tick, show, API, and dashboard work.
 - JSON store is either removed from default paths or clearly marked as legacy/dev-only.
 - Tick execution is transactionally committed.
 - Duplicate tick completion is prevented at storage level.
@@ -431,13 +438,13 @@ This order favours history first. Admirals create narrative anchors; diplomacy c
 
 ## Suggested Immediate Next Sprint
 
-The next development sprint should be Stage 1, not Stage 3 or later. A sensible first sprint:
+The next development sprint should continue Stage 2 before moving to Stage 3. A sensible next sprint:
 
-1. Convert tests to a standard test framework.
-2. Split `Simulation.cs` into focused classes without changing behaviour.
-3. Add tick/order lifecycle tests.
-4. Add combat determinism tests.
-5. Add a documented failed-tick recovery rule.
+1. Replace SQL whole-state delete/reinsert writes with targeted persistence operations.
+2. Add schema versioning and an initialisation/migration command.
+3. Add SQL Server integration tests for seed, show, tick, order submission, and duplicate tick prevention.
+4. Define the failed-tick recovery procedure and admin inspection command.
+5. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
 6. Update `docs/project-state.md` after verification.
 
 This produces a better foundation for the relational persistence work that follows.

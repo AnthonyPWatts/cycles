@@ -1,4 +1,5 @@
 using Cycles.Core;
+using Cycles.Infrastructure.SqlServer;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -6,8 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 var configuredStatePath = builder.Configuration["Cycles:StatePath"]
     ?? Environment.GetEnvironmentVariable("CYCLES_STATE_PATH")
     ?? Path.Combine(builder.Environment.ContentRootPath, "data", "cycles-state.json");
+var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
+    ?? builder.Configuration["Cycles:SqlConnectionString"]
+    ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
 
-builder.Services.AddSingleton(new FileGameStateStore(configuredStatePath));
+builder.Services.AddSingleton(GameStateStoreFactory.Create(configuredStatePath, configuredSqlConnectionString));
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
@@ -20,17 +24,17 @@ app.UseStaticFiles();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.MapPost("/auth/login", (LoginRequest request, FileGameStateStore store) =>
+app.MapPost("/auth/login", (LoginRequest request, IGameStateStore store) =>
     TryResult(() => store.Update(state => Login(state, request, DateTimeOffset.UtcNow))));
 
-app.MapGet("/cycles/current", (FileGameStateStore store) =>
+app.MapGet("/cycles/current", (IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         return state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
     }));
 
-app.MapGet("/empire", (Guid? playerId, FileGameStateStore store) =>
+app.MapGet("/empire", (Guid? playerId, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
@@ -43,7 +47,7 @@ app.MapGet("/empire", (Guid? playerId, FileGameStateStore store) =>
         return ToEmpireResponse(state, empire);
     }));
 
-app.MapGet("/galaxy", (FileGameStateStore store) =>
+app.MapGet("/galaxy", (IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
@@ -59,7 +63,7 @@ app.MapGet("/galaxy", (FileGameStateStore store) =>
         return new GalaxyResponse(cycle, systems, links, presence);
     }));
 
-app.MapGet("/fleets", (Guid? empireId, FileGameStateStore store) =>
+app.MapGet("/fleets", (Guid? empireId, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
@@ -71,21 +75,21 @@ app.MapGet("/fleets", (Guid? empireId, FileGameStateStore store) =>
             .ToArray();
     }));
 
-app.MapPost("/orders/fleet/move", (MoveFleetRequest request, FileGameStateStore store) =>
+app.MapPost("/orders/fleet/move", (MoveFleetRequest request, IGameStateStore store) =>
     TryResult(() => store.Update(state => OrderService.SubmitMoveOrder(
         state,
         request.FleetId,
         request.TargetSystemId,
         DateTimeOffset.UtcNow))));
 
-app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, FileGameStateStore store) =>
+app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, IGameStateStore store) =>
     TryResult(() => store.Update(state => OrderService.SubmitAttackOrder(
         state,
         request.FleetId,
         request.TargetEmpireId,
         DateTimeOffset.UtcNow))));
 
-app.MapPost("/orders/priorities", (PriorityRequest request, FileGameStateStore store) =>
+app.MapPost("/orders/priorities", (PriorityRequest request, IGameStateStore store) =>
     TryResult(() => store.Update(state => OrderService.UpdatePriorities(
         state,
         request.EmpireId,
@@ -95,7 +99,7 @@ app.MapPost("/orders/priorities", (PriorityRequest request, FileGameStateStore s
         request.ExpansionWeight,
         DateTimeOffset.UtcNow))));
 
-app.MapGet("/events/recent", (int? limit, FileGameStateStore store) =>
+app.MapGet("/events/recent", (int? limit, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
@@ -107,7 +111,7 @@ app.MapGet("/events/recent", (int? limit, FileGameStateStore store) =>
             .ToArray();
     }));
 
-app.MapGet("/chronicle", (FileGameStateStore store) =>
+app.MapGet("/chronicle", (IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();

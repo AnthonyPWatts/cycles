@@ -40,7 +40,9 @@ Current implementation:
 - `Cycles.Core` owns domain models and simulation behaviour.
 - `Cycles.Cli` manually seeds state, submits orders, runs ticks, and shows summaries.
 - `Cycles.Api` exposes state and accepts orders.
-- `FileGameStateStore` persists the whole `GameState` as JSON.
+- `IGameStateStore` is the current persistence boundary.
+- `FileGameStateStore` persists the whole `GameState` as JSON by default.
+- `Cycles.Infrastructure.SqlServer` can persist the same prototype state through SQL Server when configured.
 - The dashboard is static HTML/CSS/JavaScript served by the API.
 
 This is acceptable for the initial MVP but should not become the production architecture by inertia.
@@ -80,16 +82,21 @@ Owns:
 
 This layer may be small at first. Add it when persistence work begins, not as an empty abstraction exercise.
 
-### `Cycles.Infrastructure`
+### `Cycles.Infrastructure.SqlServer`
 
-Recommended future project.
+Current SQL Server infrastructure project.
 
 Owns:
 
-- SQLite/PostgreSQL/SQL Server persistence implementation;
+- SQL Server state-store implementation;
+- SQL Server connection-string parsing helpers;
+- transaction-scoped application locking for prototype state updates.
+
+Should grow toward:
+
 - schema/migrations;
-- repository/store implementations;
-- tick locking implementation;
+- incremental repository/store implementations;
+- per-Cycle tick locking implementation;
 - optional JSON import/export tooling.
 
 ### `Cycles.Api`
@@ -121,15 +128,16 @@ The CLI can remain a developer convenience, but a worker should become the produ
 
 ## Persistence Direction
 
-The technical design calls for a relational database. The current JSON store should be treated as a temporary prototype store.
+The technical design calls for a relational database. The current JSON store should be treated as a convenient prototype/dev store.
 
 Recommended sequence:
 
-1. Define persistence ports in application/core-friendly terms.
-2. Add SQLite implementation.
-3. Make CLI and API use the same persistence implementation.
-4. Add integration tests around SQLite.
-5. Later evaluate PostgreSQL or SQL Server for hosted/deployed use.
+1. Keep the `IGameStateStore` boundary while the prototype shape is still moving.
+2. Use the SQLDockerDeployKit-style SQL Server container as the local relational target.
+3. Replace whole-state SQL snapshot writes with incremental persistence operations.
+4. Add SQL Server integration tests around seed/show/tick/order flows.
+5. Add schema versioning and a migration/initialisation command.
+6. Decide later whether PostgreSQL, SQLite, or hosted SQL Server should be the production target.
 
 ## Tick Transaction Model
 
@@ -258,7 +266,7 @@ Testing should grow in layers:
 
 1. Domain/unit tests for influence, movement, combat, Chronicle scoring.
 2. Tick tests for order lifecycle and transactional behaviour.
-3. Persistence integration tests using temporary SQLite databases.
+3. Persistence integration tests using the local SQL Server container.
 4. API tests for auth boundaries and endpoint contracts.
 5. Browser smoke tests for the dashboard once UI behaviour becomes more important.
 

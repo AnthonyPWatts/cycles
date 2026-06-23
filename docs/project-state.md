@@ -23,9 +23,10 @@ This is not yet a production game service. It is a working architecture slice.
 
 | Path | Purpose |
 | --- | --- |
-| `src/Cycles.Core` | Domain model, seeding, order submission, tick processing, influence, combat, Chronicle scoring, and file-backed state persistence. |
+| `src/Cycles.Core` | Domain model, seeding, order submission, tick processing, influence, combat, Chronicle scoring, and persistence abstraction. |
 | `src/Cycles.Cli` | Manual local runner for seeding, ticking, showing state, and submitting fleet orders. |
 | `src/Cycles.Api` | ASP.NET Core Minimal API plus a browser dashboard under `wwwroot`. |
+| `src/Cycles.Infrastructure.SqlServer` | SQL Server implementation of the prototype state store. |
 | `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
 | `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
 | `docs` | Working development intent, state, roadmap, backlog, and decision records. |
@@ -99,11 +100,13 @@ This is not yet a production game service. It is a working architecture slice.
 
 ### Persistence
 
-- The current state store is JSON-file-backed.
+- `IGameStateStore` is the current persistence boundary used by the CLI and API.
+- The default state store remains JSON-file-backed for zero-service local development.
 - File locking prevents two local writers from mutating the JSON state file at the same time.
-- Persistence is suitable for prototype development only.
-- A SQL Server schema/bootstrap image now exists under `database/sqldockerdeploykit`.
-- The SQL Server image creates and seeds `CyclesDb`, but the application does not yet read or write through it.
+- A SQL Server schema/bootstrap image exists under `database/sqldockerdeploykit`.
+- `Cycles.Infrastructure.SqlServer` can read, replace, and update `GameState` through SQL Server.
+- SQL Server updates run inside a transaction protected by `sp_getapplock`.
+- The SQL Server implementation writes the whole prototype state snapshot across relational tables; it is a bridge, not yet the final incremental repository model.
 
 ## Verified Checks
 
@@ -123,17 +126,19 @@ Additional smoke checks performed:
 - Browser dashboard move-order submission.
 - SQLDockerDeployKit-style SQL Server image build.
 - `CyclesDb` container startup, schema creation, and seed verification.
+- CLI `show` and `tick` against SQL Server.
+- API `/cycles/current` against SQL Server.
 
 ## Known Limitations
 
 These are known gaps, not defects in the current MVP claim:
 
-- No application persistence through the relational database yet.
+- No migration command or schema versioning yet.
+- No automated SQL Server integration tests yet.
 - No real authentication or authorisation.
 - No scheduled worker service.
-- No production-grade distributed tick locking.
+- No production-grade per-Cycle tick locking.
 - No real deployment story.
-- No formal test framework yet.
 - No end-of-Cycle rankings, winners, reset, or continuity.
 - No build-ships or spending-priority automation beyond storing priority weights.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
@@ -150,9 +155,9 @@ These are known gaps, not defects in the current MVP claim:
 
 The next stage should harden the simulation spine before adding feature breadth:
 
-1. introduce a persistence abstraction and relational implementation;
+1. replace the snapshot-style SQL Server store with incremental persistence operations;
 2. make tick execution idempotent and auditable against that persistence layer;
-3. expand tests around order processing, arrivals, combat determinism, and recovery;
+3. add automated SQL Server integration tests around seed/show/tick/order flows;
 4. add a minimal build/spending loop so strategic priorities affect gameplay;
 5. only then deepen the Chronicle/history systems.
 

@@ -1,8 +1,9 @@
 using Cycles.Core;
+using Cycles.Infrastructure.SqlServer;
 
 var command = args.ElementAtOrDefault(0)?.ToLowerInvariant() ?? "show";
 var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
-var store = new FileGameStateStore(statePath);
+var store = GameStateStoreFactory.Create(statePath);
 
 try
 {
@@ -39,7 +40,7 @@ catch (Exception ex)
 
 return 0;
 
-static void Seed(string[] args, FileGameStateStore store)
+static void Seed(string[] args, IGameStateStore store)
 {
     var systemCount = ParseOptionalInt(args, 2, 24);
     var empireCount = ParseOptionalInt(args, 3, 4);
@@ -47,12 +48,12 @@ static void Seed(string[] args, FileGameStateStore store)
     var state = GameSeeder.CreateDefault(systemCount, empireCount, seed);
 
     store.Replace(state);
-    Console.WriteLine($"Seeded {store.StatePath}");
+    Console.WriteLine($"Seeded {store.Description}");
     Console.WriteLine($"Cycle: {state.GetActiveCycle()?.Name}");
     Console.WriteLine($"Systems: {state.Systems.Count}; empires: {state.Empires.Count}; fleets: {state.Fleets.Count}");
 }
 
-static void Tick(FileGameStateStore store)
+static void Tick(IGameStateStore store)
 {
     var result = store.Update(state =>
     {
@@ -65,7 +66,7 @@ static void Tick(FileGameStateStore store)
     Console.WriteLine($"Orders: {result.OrdersProcessed}; events: {result.EventsCreated}; battles: {result.BattlesCreated}; Chronicle entries: {result.ChronicleEntriesCreated}");
 }
 
-static void Show(FileGameStateStore store)
+static void Show(IGameStateStore store)
 {
     var state = store.LoadOrCreate();
     var cycle = state.GetActiveCycle()
@@ -115,7 +116,7 @@ static void Show(FileGameStateStore store)
     }
 }
 
-static void SubmitMove(string[] args, FileGameStateStore store)
+static void SubmitMove(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var targetSystemId = ParseRequiredGuid(args, 3, "target system id");
@@ -123,7 +124,7 @@ static void SubmitMove(string[] args, FileGameStateStore store)
     Console.WriteLine($"Move order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
 }
 
-static void SubmitAttack(string[] args, FileGameStateStore store)
+static void SubmitAttack(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var targetEmpireId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
@@ -131,7 +132,7 @@ static void SubmitAttack(string[] args, FileGameStateStore store)
     Console.WriteLine($"Attack order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
 }
 
-static void SubmitHold(string[] args, FileGameStateStore store)
+static void SubmitHold(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var order = store.Update(state => OrderService.SubmitHoldOrder(state, fleetId, DateTimeOffset.UtcNow));
@@ -161,4 +162,6 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");
+    Console.WriteLine();
+    Console.WriteLine("Use sqlserver:<connectionString> instead of a state path to read and write SQL Server state.");
 }

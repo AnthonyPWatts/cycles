@@ -40,16 +40,19 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add indexes for due orders, fleets by system, events by tick, and Chronicle lookups.
 - [x] Enforce unique tick completion per Cycle/tick.
 - [x] Add SQL Server seed data for smoke verification.
-- [ ] Decide database package approach for application persistence.
+- [x] Decide database package approach for initial SQL Server application persistence.
 - [ ] Add `Cycles.Application` if use-case orchestration starts to outgrow Core.
-- [ ] Add `Cycles.Infrastructure` for persistence implementation.
-- [ ] Define persistence interfaces for loading state and committing tick outcomes.
-- [ ] Create initial application persistence schema/migrations.
+- [x] Add `Cycles.Infrastructure.SqlServer` for SQL Server persistence implementation.
+- [x] Define persistence interface for loading, replacing, and updating prototype state.
+- [x] Map application persistence to the initial SQL Server schema.
+- [ ] Replace whole-state SQL snapshot writes with incremental repository operations.
+- [ ] Create schema versioning and migrations.
 - [ ] Add schema initialisation/migration command.
-- [ ] Implement relational tick lock.
-- [ ] Move CLI seed/tick/show to relational persistence.
-- [ ] Move API state/order endpoints to relational persistence.
-- [ ] Add temporary SQLite integration tests.
+- [x] Implement prototype SQL Server application lock for state updates.
+- [x] Move CLI seed/tick/show to relational persistence when SQL Server is configured.
+- [x] Move API state/order endpoints to relational persistence when SQL Server is configured.
+- [ ] Add SQL Server integration tests using the local container.
+- [ ] Decide whether temporary SQLite integration tests are still useful.
 - [ ] Decide whether JSON store remains as dev-only support or is removed.
 - [ ] Optional: add JSON import/export for developer convenience.
 

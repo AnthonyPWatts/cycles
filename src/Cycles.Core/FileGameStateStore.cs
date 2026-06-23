@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Cycles.Core;
 
-public sealed class FileGameStateStore
+public sealed class FileGameStateStore : IGameStateStore
 {
     private readonly string _statePath;
     private readonly Func<GameState> _seedFactory;
@@ -14,6 +14,8 @@ public sealed class FileGameStateStore
     }
 
     public string StatePath => _statePath;
+
+    public string Description => _statePath;
 
     public GameState LoadOrCreate()
     {

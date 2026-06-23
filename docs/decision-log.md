@@ -70,6 +70,8 @@ Consequences:
 
 Decision: the first relational implementation should likely use SQLite unless new constraints appear.
 
+Status: superseded for the current implementation by the SQLDockerDeployKit/SQL Server path below.
+
 Reasoning:
 
 - It satisfies the need for real tables, transactions, indexes, and constraints.
@@ -98,6 +100,22 @@ Consequences:
 - Two SQLDockerDeployKit issues were raised from the adaptation work:
   - https://github.com/AnthonyPWatts/SQLDockerDeployKit/issues/7
   - https://github.com/AnthonyPWatts/SQLDockerDeployKit/issues/8
+
+## 2026-06-23: Add SQL Server As The First Application Persistence Bridge
+
+Decision: add `Cycles.Infrastructure.SqlServer` and let the CLI/API opt into SQL Server while JSON remains the default store.
+
+Reasoning:
+
+- The SQLDockerDeployKit-style container now gives local development a working SQL Server target.
+- A small `IGameStateStore` boundary lets API and CLI share the same persistence choice.
+- A snapshot-style SQL writer is enough to prove relational read/write, transaction, and locking behaviour before designing incremental repositories.
+
+Consequences:
+
+- SQL Server persistence is now usable via `sqlserver:<connectionString>` in the CLI and `ConnectionStrings:Cycles` in the API.
+- SQL writes are protected by a transaction-scoped `sp_getapplock`.
+- The next persistence work should replace full-state delete/reinsert writes with targeted operations and migration/versioning support.
 
 ## 2026-06-23: Do Not Add Future Feature Systems Before Hardening The Simulation Spine
 
