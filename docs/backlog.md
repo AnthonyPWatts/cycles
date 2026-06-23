@@ -15,19 +15,19 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 1: Simulation Spine Hardening
 
-- [ ] Replace executable console test harness with a standard .NET test project.
-- [ ] Add tests for empty tick advancement.
-- [ ] Add tests for future orders not processing early.
-- [ ] Add tests for processed orders not reprocessing.
-- [ ] Add tests for rejected orders remaining rejected.
-- [ ] Add tests for multi-tick movement and arrivals.
-- [ ] Add tests for in-transit fleets not contributing influence.
-- [ ] Add tests for destroyed fleets not contributing influence.
-- [ ] Add tests for multiple fleets aggregating empire presence.
-- [ ] Add tests for combat determinism.
-- [ ] Add tests for multi-fleet defender loss distribution.
-- [ ] Add tests for battle-event fact consistency.
-- [ ] Add tests for Chronicle source references.
+- [x] Replace executable console test harness with a standard .NET test project.
+- [x] Add tests for empty tick advancement.
+- [x] Add tests for future orders not processing early.
+- [x] Add tests for processed orders not reprocessing.
+- [x] Add tests for rejected orders remaining rejected.
+- [x] Add tests for multi-tick movement and arrivals.
+- [x] Add tests for in-transit fleets not contributing influence.
+- [x] Add tests for destroyed fleets not contributing influence.
+- [x] Add tests for multiple fleets aggregating empire presence.
+- [x] Add tests for combat determinism.
+- [x] Add tests for multi-fleet defender loss distribution.
+- [x] Add tests for battle-event fact consistency.
+- [x] Add tests for Chronicle source references.
 - [ ] Split `Simulation.cs` into focused files once tests protect behaviour.
 - [ ] Define explicit failed-tick recovery semantics.
 - [ ] Add developer command or procedure for inspecting recovery-required Cycles.

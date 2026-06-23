@@ -26,7 +26,7 @@ This is not yet a production game service. It is a working architecture slice.
 | `src/Cycles.Core` | Domain model, seeding, order submission, tick processing, influence, combat, Chronicle scoring, and file-backed state persistence. |
 | `src/Cycles.Cli` | Manual local runner for seeding, ticking, showing state, and submitting fleet orders. |
 | `src/Cycles.Api` | ASP.NET Core Minimal API plus a browser dashboard under `wwwroot`. |
-| `tests/Cycles.Tests` | Dependency-free executable test harness for core simulation behaviours. |
+| `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
 | `docs` | Working development intent, state, roadmap, backlog, and decision records. |
 | Repository root Word documents | Original product and technical design source material. |
 
@@ -109,7 +109,7 @@ Last verified on 2026-06-23:
 ```powershell
 dotnet restore Cycles.slnx --configfile NuGet.Config
 dotnet build Cycles.slnx --no-restore
-dotnet run --project tests/Cycles.Tests --no-build
+dotnet test Cycles.slnx --no-build
 ```
 
 Additional smoke checks performed:

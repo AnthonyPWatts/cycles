@@ -20,7 +20,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - `src/Cycles.Core`: domain model, seeding, order validation, simulation, combat, Chronicle scoring, and file-backed state.
 - `src/Cycles.Cli`: manual seeding, ticking, inspection, and order submission.
 - `src/Cycles.Api`: Minimal API plus a basic browser dashboard.
-- `tests/Cycles.Tests`: dependency-free executable tests for the core simulation behaviours.
+- `tests/Cycles.Tests`: xUnit tests for the core simulation behaviours.
 - `docs`: current state, roadmap, architecture direction, backlog, and decision log.
 
 ## Planning Docs
@@ -45,7 +45,7 @@ dotnet build Cycles.slnx --no-restore
 Run the tests:
 
 ```powershell
-dotnet run --project tests/Cycles.Tests --no-build
+dotnet test Cycles.slnx --no-build
 ```
 
 Seed and tick a local state file:
