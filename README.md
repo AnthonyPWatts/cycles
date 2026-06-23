@@ -21,6 +21,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - `src/Cycles.Cli`: manual seeding, ticking, inspection, and order submission.
 - `src/Cycles.Api`: Minimal API plus a basic browser dashboard.
 - `tests/Cycles.Tests`: xUnit tests for the core simulation behaviours.
+- `database/sqldockerdeploykit`: SQL Server container bootstrap based on the SQLDockerDeployKit pattern.
 - `docs`: current state, roadmap, architecture direction, backlog, and decision log.
 
 ## Planning Docs
@@ -63,6 +64,17 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:Sta
 ```
 
 Open `http://127.0.0.1:5086/`.
+
+## Database
+
+The application still uses the JSON state store by default, but a SQL Server schema/bootstrap image is available:
+
+```powershell
+docker build -t cycles-sql -f database/sqldockerdeploykit/Dockerfile .
+docker run --name cycles-sql -d -p 14333:1433 -e "MSSQL_SA_PASSWORD=YourStrong!Passw0rd" cycles-sql
+```
+
+See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for verification queries and cleanup.
 
 ## Notes
 

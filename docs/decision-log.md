@@ -81,6 +81,24 @@ Consequences:
 - The schema and persistence boundary should avoid SQLite-specific assumptions where practical.
 - PostgreSQL or SQL Server can be evaluated after relational tick processing is proven.
 
+## 2026-06-23: Add A SQLDockerDeployKit-Style SQL Server Bootstrap Before Application Persistence
+
+Decision: add a Cycles-specific SQL Server container bootstrap under `database/sqldockerdeploykit` before moving the application off JSON persistence.
+
+Reasoning:
+
+- The user explicitly wanted database progress and preferred using SQLDockerDeployKit if feasible.
+- SQLDockerDeployKit builds locally and provides a useful SQL Server container initialisation pattern.
+- A schema-first SQL Server image gives the project a concrete relational target while keeping the application persistence migration scoped to a later commit.
+
+Consequences:
+
+- The repository now has a working `CyclesDb` SQL Server bootstrap with schema and seed data.
+- Application runtime remains JSON-backed until persistence interfaces and SQL-backed stores are implemented.
+- Two SQLDockerDeployKit issues were raised from the adaptation work:
+  - https://github.com/AnthonyPWatts/SQLDockerDeployKit/issues/7
+  - https://github.com/AnthonyPWatts/SQLDockerDeployKit/issues/8
+
 ## 2026-06-23: Do Not Add Future Feature Systems Before Hardening The Simulation Spine
 
 Decision: admirals, diplomacy, technologies, cloaking, and AI narrative generation should wait until persistence and tick semantics are stronger.

@@ -35,14 +35,17 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 2: Relational Persistence
 
-- [ ] Decide database package approach for SQLite.
+- [x] Add SQLDockerDeployKit-style SQL Server bootstrap image.
+- [x] Create initial SQL Server schema.
+- [x] Add indexes for due orders, fleets by system, events by tick, and Chronicle lookups.
+- [x] Enforce unique tick completion per Cycle/tick.
+- [x] Add SQL Server seed data for smoke verification.
+- [ ] Decide database package approach for application persistence.
 - [ ] Add `Cycles.Application` if use-case orchestration starts to outgrow Core.
 - [ ] Add `Cycles.Infrastructure` for persistence implementation.
 - [ ] Define persistence interfaces for loading state and committing tick outcomes.
-- [ ] Create initial SQLite schema.
+- [ ] Create initial application persistence schema/migrations.
 - [ ] Add schema initialisation/migration command.
-- [ ] Add indexes for due orders, fleets by system, events by tick, and Chronicle lookups.
-- [ ] Enforce unique tick completion per Cycle/tick.
 - [ ] Implement relational tick lock.
 - [ ] Move CLI seed/tick/show to relational persistence.
 - [ ] Move API state/order endpoints to relational persistence.

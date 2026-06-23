@@ -27,6 +27,7 @@ This is not yet a production game service. It is a working architecture slice.
 | `src/Cycles.Cli` | Manual local runner for seeding, ticking, showing state, and submitting fleet orders. |
 | `src/Cycles.Api` | ASP.NET Core Minimal API plus a browser dashboard under `wwwroot`. |
 | `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
+| `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
 | `docs` | Working development intent, state, roadmap, backlog, and decision records. |
 | Repository root Word documents | Original product and technical design source material. |
 
@@ -101,6 +102,8 @@ This is not yet a production game service. It is a working architecture slice.
 - The current state store is JSON-file-backed.
 - File locking prevents two local writers from mutating the JSON state file at the same time.
 - Persistence is suitable for prototype development only.
+- A SQL Server schema/bootstrap image now exists under `database/sqldockerdeploykit`.
+- The SQL Server image creates and seeds `CyclesDb`, but the application does not yet read or write through it.
 
 ## Verified Checks
 
@@ -118,12 +121,14 @@ Additional smoke checks performed:
 - API health, current Cycle, and galaxy endpoints.
 - Browser dashboard desktop and mobile layout checks.
 - Browser dashboard move-order submission.
+- SQLDockerDeployKit-style SQL Server image build.
+- `CyclesDb` container startup, schema creation, and seed verification.
 
 ## Known Limitations
 
 These are known gaps, not defects in the current MVP claim:
 
-- No relational database implementation yet.
+- No application persistence through the relational database yet.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade distributed tick locking.
