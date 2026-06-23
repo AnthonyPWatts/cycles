@@ -443,7 +443,7 @@ The next development sprint should continue Stage 2 before moving to Stage 3. A 
 1. Replace SQL whole-state delete/reinsert writes with targeted persistence operations.
 2. Add schema versioning and an initialisation/migration command.
 3. Add SQL Server integration tests for seed, show, tick, order submission, and duplicate tick prevention.
-4. Define the failed-tick recovery procedure and admin inspection command.
+4. Define the admin recovery clear/retry workflow.
 5. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
 6. Update `docs/project-state.md` after verification.
 

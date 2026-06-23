@@ -34,6 +34,7 @@ Start here before adding the next substantial feature:
 - [Architecture direction](docs/architecture-direction.md)
 - [Backlog](docs/backlog.md)
 - [Decision log](docs/decision-log.md)
+- [Tick recovery](docs/recovery.md)
 
 ## Run
 
@@ -56,6 +57,7 @@ Seed and tick a local state file:
 dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- tick data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- show data/cycles-state.json
+dotnet run --project src/Cycles.Cli -- recovery data/cycles-state.json
 ```
 
 Run the API and dashboard:

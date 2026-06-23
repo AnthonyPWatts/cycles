@@ -41,8 +41,10 @@ This is not yet a production game service. It is a working architecture slice.
 - Tick length is set to 60 minutes.
 - The tick number is the canonical simulation step.
 - `TickEngine.RunTick` rejects a tick when another `TickLog` for the same Cycle is already `Running`.
+- `TickEngine.RunTick` rejects Cycles that are not `Active`, including `RecoveryRequired` Cycles.
 - Tick processing works on a cloned state and commits back only after successful processing.
 - Failed ticks are recorded and mark the Cycle as `RecoveryRequired`.
+- The CLI has a read-only `recovery` command for inspecting failed or unfinished tick logs.
 
 ### Galaxy
 
@@ -148,7 +150,7 @@ These are known gaps, not defects in the current MVP claim:
 - No AI narrative generation.
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
-- No admin recovery tooling for failed ticks.
+- No admin recovery clear/retry workflow for failed ticks.
 - Combat is deliberately primitive and not balanced.
 - The dashboard is a prototype, not a full game client.
 

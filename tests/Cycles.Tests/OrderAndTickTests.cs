@@ -150,4 +150,14 @@ public sealed class OrderAndTickTests
         Assert.Single(state.TickLogs);
         Assert.DoesNotContain(state.Events, item => item.TickNumber == 1);
     }
+
+    [Fact]
+    public void RecoveryRequiredCycleCannotProcessAnotherTick()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        cycle.Status = CycleStatus.RecoveryRequired;
+
+        Assert.Throws<InvalidOperationException>(() => new TickEngine().RunTick(state, cycle.CycleId, TestState.Now));
+    }
 }

@@ -18,6 +18,9 @@ try
         case "show":
             Show(store);
             break;
+        case "recovery":
+            ShowRecovery(store);
+            break;
         case "move":
             SubmitMove(args, store);
             break;
@@ -116,6 +119,51 @@ static void Show(IGameStateStore store)
     }
 }
 
+static void ShowRecovery(IGameStateStore store)
+{
+    var state = store.LoadOrCreate();
+    var recoveryCycles = state.Cycles
+        .Where(cycle => cycle.Status == CycleStatus.RecoveryRequired)
+        .OrderBy(cycle => cycle.Name)
+        .ToArray();
+    var concerningLogs = state.TickLogs
+        .Where(log => log.Status is TickLogStatus.Failed or TickLogStatus.Running)
+        .OrderByDescending(log => log.StartedAt)
+        .ToArray();
+
+    if (recoveryCycles.Length == 0 && concerningLogs.Length == 0)
+    {
+        Console.WriteLine("No recovery-required cycles or unfinished/failed tick logs.");
+        return;
+    }
+
+    if (recoveryCycles.Length > 0)
+    {
+        Console.WriteLine("Recovery-required cycles");
+        foreach (var cycle in recoveryCycles)
+        {
+            Console.WriteLine($"- {cycle.Name} ({cycle.CycleId})");
+            Console.WriteLine($"  Current tick: {cycle.CurrentTickNumber}; status: {cycle.Status}");
+        }
+    }
+
+    if (concerningLogs.Length > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Unfinished or failed tick logs");
+        foreach (var log in concerningLogs)
+        {
+            var cycle = state.Cycles.SingleOrDefault(item => item.CycleId == log.CycleId);
+            Console.WriteLine($"- {cycle?.Name ?? log.CycleId.ToString()} tick {log.TickNumber}: {log.Status}");
+            Console.WriteLine($"  Started: {log.StartedAt:u}; completed: {FormatCompletedAt(log.CompletedAt)}");
+            if (!string.IsNullOrWhiteSpace(log.DiagnosticLog))
+            {
+                Console.WriteLine($"  Diagnostic: {FirstDiagnosticLine(log.DiagnosticLog)}");
+            }
+        }
+    }
+}
+
 static void SubmitMove(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
@@ -152,6 +200,15 @@ static Guid ParseRequiredGuid(string[] args, int index, string label)
     return Guid.Parse(args[index]);
 }
 
+static string FormatCompletedAt(DateTimeOffset? completedAt) =>
+    completedAt.HasValue ? completedAt.Value.ToString("u") : "not completed";
+
+static string FirstDiagnosticLine(string diagnosticLog) =>
+    diagnosticLog
+        .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .FirstOrDefault()
+        ?? diagnosticLog.Trim();
+
 static void PrintUsage()
 {
     Console.WriteLine("Cycles CLI");
@@ -159,6 +216,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");

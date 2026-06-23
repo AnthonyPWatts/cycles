@@ -29,8 +29,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add tests for battle-event fact consistency.
 - [x] Add tests for Chronicle source references.
 - [ ] Split `Simulation.cs` into focused files once tests protect behaviour.
-- [ ] Define explicit failed-tick recovery semantics.
-- [ ] Add developer command or procedure for inspecting recovery-required Cycles.
+- [x] Define explicit failed-tick recovery semantics.
+- [x] Add developer command or procedure for inspecting recovery-required Cycles.
 - [ ] Document the deterministic random seed contract.
 
 ## Stage 2: Relational Persistence
@@ -53,6 +53,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Move API state/order endpoints to relational persistence when SQL Server is configured.
 - [x] Add opt-in SQL Server integration test using the local container.
 - [ ] Add broader SQL Server integration tests for orders and duplicate tick prevention.
+- [ ] Add admin recovery clear/retry workflow once operator semantics are decided.
 - [ ] Decide whether temporary SQLite integration tests are still useful.
 - [ ] Decide whether JSON store remains as dev-only support or is removed.
 - [ ] Optional: add JSON import/export for developer convenience.
