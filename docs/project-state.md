@@ -25,7 +25,7 @@ This is not yet a production game service. It is a working architecture slice.
 | --- | --- |
 | `src/Cycles.Core` | Domain model, seeding, order submission, tick processing, influence, combat, Chronicle scoring, and persistence abstraction. |
 | `src/Cycles.Cli` | Manual local runner for seeding, ticking, showing state, and submitting fleet orders. |
-| `src/Cycles.Api` | ASP.NET Core Minimal API plus a browser dashboard under `wwwroot`. |
+| `src/Cycles.Api` | ASP.NET Core Minimal API plus a public website and browser dashboard under `wwwroot`. |
 | `src/Cycles.Infrastructure.SqlServer` | SQL Server implementation of the prototype state store. |
 | `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
 | `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
@@ -97,7 +97,8 @@ This is not yet a production game service. It is a working architecture slice.
 
 - The API exposes current Cycle, empire summary, galaxy, fleets, movement orders, attack orders, priorities, recent events, and Chronicle entries.
 - The API has a prototype login endpoint that creates or finds a local player and empire.
-- The browser dashboard renders the map, resources, fleets, events, Chronicle placeholder/content, and order forms.
+- The public website is served from `/`.
+- The browser dashboard is served from `/app.html` and renders the map, resources, fleets, events, Chronicle placeholder/content, and order forms.
 - Tick execution is intentionally not exposed through the API.
 
 ### Persistence

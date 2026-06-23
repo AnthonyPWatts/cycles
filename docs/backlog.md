@@ -89,6 +89,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Add dashboard fleet detail panel.
 - [ ] Add dashboard priority editing.
 - [ ] Add API tests for order submission boundaries.
+- [x] Split public website from playable dashboard.
+- [x] Improve dashboard visual polish without changing order flows.
 
 ## Stage 5: History And Cycle Continuity
 

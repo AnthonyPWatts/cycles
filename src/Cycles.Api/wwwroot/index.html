@@ -3,80 +3,122 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cycles</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="description" content="Cycles is a server-authoritative strategy game prototype about galactic pressure, long memory, and history that survives each reset.">
+    <title>Cycles - Strategy Across Repeating Galactic Ages</title>
+    <link rel="stylesheet" href="site.css">
 </head>
 <body>
-    <header class="topbar">
-        <div>
-            <h1>Cycles</h1>
-            <p id="cycleStatus">Loading...</p>
-        </div>
-        <form id="loginForm" class="login-form">
-            <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username">
-            <button type="submit">Login</button>
-        </form>
+    <canvas id="heroScene" class="hero-scene" aria-hidden="true"></canvas>
+
+    <header class="site-nav">
+        <a class="site-brand" href="/">Cycles</a>
+        <nav aria-label="Primary navigation">
+            <a href="#vision">Vision</a>
+            <a href="#systems">Systems</a>
+            <a href="#roadmap">Roadmap</a>
+            <a class="nav-cta" href="/app.html">Launch App</a>
+        </nav>
     </header>
 
-    <main class="shell">
-        <section class="map-panel" aria-label="Galaxy map">
-            <div class="toolbar">
-                <strong id="empireName">Empire</strong>
-                <button id="refreshButton" type="button">Refresh</button>
+    <main>
+        <section class="site-hero" aria-labelledby="hero-title">
+            <div class="hero-copy">
+                <p class="eyebrow">Server-authoritative strategy prototype</p>
+                <h1 id="hero-title">Cycles</h1>
+                <p class="hero-lede">A galactic strategy game where influence matters more than borders, battles become source material, and each reset leaves scars for the next age.</p>
+                <div class="hero-actions">
+                    <a class="primary-action" href="/app.html">Enter Command</a>
+                    <a class="secondary-action" href="#systems">Explore Systems</a>
+                </div>
             </div>
-            <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+
+            <div class="hero-readout" aria-label="Live prototype summary">
+                <span>Tick-driven outcomes</span>
+                <span>Persistent Chronicle</span>
+                <span>Relational state path</span>
+            </div>
         </section>
 
-        <aside class="side-panel">
-            <section class="summary">
-                <h2>Resources</h2>
-                <dl id="resources"></dl>
-            </section>
+        <section id="vision" class="section-band intro-band">
+            <div class="section-copy">
+                <p class="eyebrow">The shape of the game</p>
+                <h2>Pressure over paint. Memory over match resets.</h2>
+            </div>
+            <div class="vision-grid">
+                <article>
+                    <span class="metric">01</span>
+                    <h3>Influence is contested</h3>
+                    <p>Fleets project presence through linked systems. Home worlds resist collapse, but control is a gradient that can be pressured, split, or broken.</p>
+                </article>
+                <article>
+                    <span class="metric">02</span>
+                    <h3>Orders resolve on ticks</h3>
+                    <p>Players submit intentions. The server resolves movement, resources, combat, and history in an auditable sequence.</p>
+                </article>
+                <article>
+                    <span class="metric">03</span>
+                    <h3>The Chronicle remembers</h3>
+                    <p>Important battles and events are preserved as factual records first, with narrative interpretation layered on later.</p>
+                </article>
+            </div>
+        </section>
 
-            <section>
-                <h2>Fleets</h2>
-                <div id="fleets" class="list"></div>
-            </section>
+        <section id="systems" class="section-band signal-band">
+            <div class="signal-panel" aria-label="Prototype interface preview">
+                <div class="signal-map">
+                    <span class="route route-a"></span>
+                    <span class="route route-b"></span>
+                    <span class="route route-c"></span>
+                    <span class="star star-home">Pseudopolis</span>
+                    <span class="star star-frontier">Treaty Gate</span>
+                    <span class="star star-archive">Archive Nine</span>
+                    <span class="star star-wound">Red Meridian</span>
+                </div>
+                <div class="signal-feed">
+                    <strong>Cycle Docker Seed</strong>
+                    <span>Tick 1 completed</span>
+                    <span>Aurelian Compact gained industry and research.</span>
+                    <span>The Chronicle awaits its first historic battle.</span>
+                </div>
+            </div>
+            <div class="section-copy">
+                <p class="eyebrow">Playable prototype</p>
+                <h2>The public face is pretty. The app underneath is real.</h2>
+                <p>Cycles already has a Minimal API, a browser dashboard, a CLI tick runner, xUnit coverage, SQL Server bootstrap scripts, and opt-in SQL integration tests. The site is a front door; the prototype remains the thing worth walking into.</p>
+                <a class="text-link" href="/app.html">Open the dashboard</a>
+            </div>
+        </section>
 
-            <section>
-                <h2>Orders</h2>
-                <form id="moveForm" class="order-form">
-                    <label>
-                        Fleet
-                        <select id="fleetSelect"></select>
-                    </label>
-                    <label>
-                        Destination
-                        <select id="destinationSelect"></select>
-                    </label>
-                    <button type="submit">Queue move</button>
-                </form>
-                <form id="attackForm" class="order-form">
-                    <label>
-                        Attacker
-                        <select id="attackFleetSelect"></select>
-                    </label>
-                    <label>
-                        Target
-                        <select id="targetEmpireSelect"></select>
-                    </label>
-                    <button type="submit">Queue attack</button>
-                </form>
-                <p id="orderMessage" class="message" role="status"></p>
-            </section>
-
-            <section>
-                <h2>Events</h2>
-                <div id="events" class="list compact"></div>
-            </section>
-
-            <section>
-                <h2>Chronicle</h2>
-                <div id="chronicle" class="list compact"></div>
-            </section>
-        </aside>
+        <section id="roadmap" class="section-band roadmap-band">
+            <div class="section-copy">
+                <p class="eyebrow">Near-term direction</p>
+                <h2>From working slice to durable game service.</h2>
+            </div>
+            <ol class="roadmap-list">
+                <li>
+                    <span>Now</span>
+                    <strong>Relational hardening</strong>
+                    <p>Replace snapshot writes with targeted persistence operations, migrations, and deeper SQL integration tests.</p>
+                </li>
+                <li>
+                    <span>Next</span>
+                    <strong>Strategic economy</strong>
+                    <p>Make empire priorities convert resources into ships, research, and expansion pressure.</p>
+                </li>
+                <li>
+                    <span>Then</span>
+                    <strong>History systems</strong>
+                    <p>Promote meaningful facts into Cycle continuity, system scars, and Chronicle-worthy memory.</p>
+                </li>
+            </ol>
+        </section>
     </main>
 
-    <script src="app.js"></script>
+    <footer class="site-footer">
+        <span>Cycles</span>
+        <a href="/app.html">Launch App</a>
+    </footer>
+
+    <script src="site.js"></script>
 </body>
 </html>

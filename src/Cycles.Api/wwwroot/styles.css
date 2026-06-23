@@ -1,15 +1,19 @@
 :root {
     color-scheme: dark;
-    --bg: #111416;
-    --panel: #171d20;
-    --panel-strong: #20272b;
-    --line: #344047;
-    --text: #ecf2ef;
-    --muted: #9fb0aa;
-    --accent: #5ec2a8;
-    --accent-2: #d9a441;
-    --danger: #d66a58;
+    --bg: #0d100f;
+    --panel: #171a18;
+    --panel-strong: #22231d;
+    --surface: #101412;
+    --line: #3c463f;
+    --line-soft: #262f2a;
+    --text: #f0f4ef;
+    --muted: #aab6ad;
+    --accent: #8fd1bd;
+    --accent-strong: #52b69a;
+    --gold: #dfba68;
+    --danger: #d36556;
     --system: #f0e4c1;
+    --shadow: rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -20,7 +24,10 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    background: var(--bg);
+    background:
+        linear-gradient(120deg, rgba(143, 209, 189, 0.08), transparent 36%),
+        linear-gradient(280deg, rgba(223, 186, 104, 0.08), transparent 42%),
+        var(--bg);
     color: var(--text);
     font-family: "Segoe UI", Arial, sans-serif;
 }
@@ -32,25 +39,37 @@ select {
 }
 
 button {
-    min-height: 36px;
-    border: 1px solid #6bd3ba;
+    min-height: 38px;
+    border: 1px solid rgba(143, 209, 189, 0.68);
     border-radius: 6px;
     background: #173b34;
     color: var(--text);
     cursor: pointer;
+    font-weight: 700;
+    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
 button:hover {
-    background: #205247;
+    background: #215a4e;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
 }
 
 input,
 select {
     width: 100%;
-    min-height: 36px;
+    min-height: 38px;
     border: 1px solid var(--line);
     border-radius: 6px;
-    background: #0d1113;
+    background: #0b0f0d;
     color: var(--text);
     padding: 0 10px;
 }
@@ -60,20 +79,37 @@ select {
     align-items: center;
     justify-content: space-between;
     gap: 18px;
+    min-height: 76px;
     padding: 14px 18px;
     border-bottom: 1px solid var(--line);
-    background: #0d1011;
+    background: rgba(10, 13, 12, 0.94);
+    box-shadow: 0 16px 36px var(--shadow);
 }
 
-.topbar h1 {
-    margin: 0;
+.brand-link {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text);
     font-size: 1.35rem;
+    font-weight: 800;
     letter-spacing: 0;
+    text-decoration: none;
+}
+
+.brand-link::before {
+    content: "";
+    width: 11px;
+    height: 11px;
+    margin-right: 10px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px rgba(223, 186, 104, 0.12);
 }
 
 .topbar p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     color: var(--muted);
+    font-size: 0.95rem;
 }
 
 .login-form {
@@ -84,8 +120,8 @@ select {
 
 .shell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 390px;
-    min-height: calc(100vh - 70px);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
+    min-height: calc(100vh - 76px);
 }
 
 .map-panel {
@@ -93,6 +129,7 @@ select {
     grid-template-rows: auto minmax(360px, 1fr);
     min-width: 0;
     border-right: 1px solid var(--line);
+    background: var(--surface);
 }
 
 .toolbar {
@@ -100,10 +137,17 @@ select {
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    min-height: 56px;
-    padding: 10px 14px;
-    background: var(--panel);
+    min-height: 58px;
+    padding: 10px 16px;
+    background: rgba(23, 26, 24, 0.95);
     border-bottom: 1px solid var(--line);
+}
+
+.toolbar strong {
+    min-width: 0;
+    color: var(--accent);
+    font-size: 1rem;
+    overflow-wrap: anywhere;
 }
 
 #galaxyMap {
@@ -111,35 +155,37 @@ select {
     height: 100%;
     min-height: 520px;
     background:
-        radial-gradient(circle at 18% 20%, rgba(94, 194, 168, 0.16), transparent 28%),
-        radial-gradient(circle at 78% 62%, rgba(217, 164, 65, 0.12), transparent 30%),
-        #101517;
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        #0d1210;
+    background-size: 42px 42px;
 }
 
 .side-panel {
     display: grid;
     grid-auto-rows: min-content;
-    gap: 0;
     overflow: auto;
-    background: var(--panel);
+    background: rgba(17, 20, 18, 0.98);
 }
 
 .side-panel section {
-    padding: 14px;
-    border-bottom: 1px solid var(--line);
+    padding: 16px;
+    border-bottom: 1px solid var(--line-soft);
 }
 
 .side-panel h2 {
-    margin: 0 0 10px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--gold);
+    font-size: 0.88rem;
+    font-weight: 800;
     letter-spacing: 0;
+    text-transform: uppercase;
 }
 
 dl {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 6px 12px;
+    gap: 8px 12px;
     margin: 0;
 }
 
@@ -150,64 +196,68 @@ dt {
 dd {
     margin: 0;
     font-variant-numeric: tabular-nums;
+    font-weight: 700;
 }
 
 .list {
     display: grid;
-    gap: 8px;
+    gap: 9px;
 }
 
 .item {
-    padding: 10px;
+    padding: 11px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--panel-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .item strong {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+    overflow-wrap: anywhere;
 }
 
 .item span {
     color: var(--muted);
+    line-height: 1.45;
 }
 
 .compact .item {
-    padding: 8px 10px;
+    padding: 9px 11px;
 }
 
 .order-form {
     display: grid;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 9px;
+    margin-bottom: 13px;
 }
 
 .order-form label {
     display: grid;
-    gap: 5px;
+    gap: 6px;
     color: var(--muted);
 }
 
 .message {
     min-height: 20px;
     margin: 0;
-    color: var(--accent-2);
+    color: var(--gold);
 }
 
 .link {
-    stroke: #415057;
-    stroke-width: 2;
+    stroke: #59645c;
+    stroke-width: 2.2;
 }
 
 .system {
     fill: var(--system);
-    stroke: #161a1c;
-    stroke-width: 2;
+    stroke: #0a0d0c;
+    stroke-width: 2.4;
 }
 
 .system.historic {
-    fill: var(--accent-2);
+    fill: var(--gold);
 }
 
 .system.home {
@@ -217,15 +267,15 @@ dd {
 .presence {
     fill: none;
     stroke: var(--danger);
-    stroke-width: 3;
-    opacity: 0.8;
+    stroke-width: 3.4;
+    opacity: 0.86;
 }
 
 .system-label {
     fill: var(--text);
     font-size: 13px;
     paint-order: stroke;
-    stroke: #101517;
+    stroke: #0d1210;
     stroke-width: 4px;
     stroke-linejoin: round;
 }

@@ -19,7 +19,7 @@ This implementation covers the technical MVP from the supplied design documents:
 
 - `src/Cycles.Core`: domain model, seeding, order validation, simulation, combat, Chronicle scoring, and persistence abstraction.
 - `src/Cycles.Cli`: manual seeding, ticking, inspection, and order submission.
-- `src/Cycles.Api`: Minimal API plus a basic browser dashboard.
+- `src/Cycles.Api`: Minimal API, public website, and browser dashboard.
 - `src/Cycles.Infrastructure.SqlServer`: SQL Server implementation of the prototype state store.
 - `tests/Cycles.Tests`: xUnit tests for the core simulation behaviours.
 - `database/sqldockerdeploykit`: SQL Server container bootstrap based on the SQLDockerDeployKit pattern.
@@ -66,7 +66,7 @@ Run the API and dashboard:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:StatePath data/cycles-state.json
 ```
 
-Open `http://127.0.0.1:5086/`.
+Open `http://127.0.0.1:5086/` for the public site and `http://127.0.0.1:5086/app.html` for the dashboard.
 
 ## Database
 
