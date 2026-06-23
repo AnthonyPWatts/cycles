@@ -34,6 +34,31 @@
             </section>
 
             <section>
+                <h2>Priorities</h2>
+                <form id="priorityForm" class="priority-form">
+                    <label>
+                        Industry
+                        <input id="industryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                    </label>
+                    <label>
+                        Research
+                        <input id="researchWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                    </label>
+                    <label>
+                        Military
+                        <input id="militaryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                    </label>
+                    <label>
+                        Expansion
+                        <input id="expansionWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                    </label>
+                    <div class="priority-total">Total <strong id="priorityTotal">0</strong></div>
+                    <button type="submit">Save priorities</button>
+                    <p id="priorityMessage" class="message" role="status"></p>
+                </form>
+            </section>
+
+            <section>
                 <h2>Fleets</h2>
                 <div id="fleets" class="list"></div>
             </section>
@@ -77,6 +102,6 @@
         </aside>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260623-priorities"></script>
 </body>
 </html>

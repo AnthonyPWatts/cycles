@@ -13,6 +13,13 @@ const elements = {
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
     resources: document.querySelector("#resources"),
+    priorityForm: document.querySelector("#priorityForm"),
+    industryWeight: document.querySelector("#industryWeight"),
+    researchWeight: document.querySelector("#researchWeight"),
+    militaryWeight: document.querySelector("#militaryWeight"),
+    expansionWeight: document.querySelector("#expansionWeight"),
+    priorityTotal: document.querySelector("#priorityTotal"),
+    priorityMessage: document.querySelector("#priorityMessage"),
     fleets: document.querySelector("#fleets"),
     fleetSelect: document.querySelector("#fleetSelect"),
     destinationSelect: document.querySelector("#destinationSelect"),
@@ -33,6 +40,37 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.refreshButton.addEventListener("click", refresh);
+
+elements.priorityForm.addEventListener("input", updatePriorityTotal);
+
+elements.priorityForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!state.empire) {
+        setPriorityMessage("Login before updating priorities.");
+        return;
+    }
+
+    const payload = {
+        empireId: state.empire.empireId,
+        industryWeight: parseWeight(elements.industryWeight.value),
+        researchWeight: parseWeight(elements.researchWeight.value),
+        militaryWeight: parseWeight(elements.militaryWeight.value),
+        expansionWeight: parseWeight(elements.expansionWeight.value)
+    };
+
+    if (Object.values(payload).slice(1).reduce((total, value) => total + value, 0) === 0) {
+        setPriorityMessage("At least one priority must be greater than zero.");
+        return;
+    }
+
+    try {
+        await postJson("/orders/priorities", payload);
+        setPriorityMessage("Priorities saved.");
+        await refresh();
+    } catch (error) {
+        setPriorityMessage(error.message);
+    }
+});
 
 elements.moveForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -93,6 +131,7 @@ async function refresh() {
 
     renderCycle(cycle);
     renderEmpire(empire);
+    renderPriorities(empire.priorities);
     renderFleets(fleets);
     renderOrders();
     renderEvents(events);
@@ -113,6 +152,14 @@ function renderEmpire(empire) {
         <dt>Population</dt><dd>${formatNumber(resources.population)}</dd>
         <dt>Home</dt><dd>${escapeHtml(empire.homeSystem.systemName)}</dd>
     `;
+}
+
+function renderPriorities(priorities) {
+    elements.industryWeight.value = priorities.industryWeight;
+    elements.researchWeight.value = priorities.researchWeight;
+    elements.militaryWeight.value = priorities.militaryWeight;
+    elements.expansionWeight.value = priorities.expansionWeight;
+    updatePriorityTotal();
 }
 
 function renderFleets(fleets) {
@@ -258,6 +305,25 @@ async function readResponse(response) {
 
 function setMessage(message) {
     elements.orderMessage.textContent = message;
+}
+
+function setPriorityMessage(message) {
+    elements.priorityMessage.textContent = message;
+}
+
+function updatePriorityTotal() {
+    const total =
+        parseWeight(elements.industryWeight.value) +
+        parseWeight(elements.researchWeight.value) +
+        parseWeight(elements.militaryWeight.value) +
+        parseWeight(elements.expansionWeight.value);
+
+    elements.priorityTotal.textContent = total.toLocaleString();
+}
+
+function parseWeight(value) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
 function formatNumber(value) {

@@ -233,10 +233,39 @@ dd {
     margin-bottom: 13px;
 }
 
-.order-form label {
+.order-form label,
+.priority-form label {
     display: grid;
     gap: 6px;
     color: var(--muted);
+}
+
+.priority-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.priority-form button,
+.priority-form .message,
+.priority-total {
+    grid-column: 1 / -1;
+}
+
+.priority-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-strong);
+    color: var(--muted);
+}
+
+.priority-total strong {
+    color: var(--text);
 }
 
 .message {
