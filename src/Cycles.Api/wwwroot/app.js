@@ -2,6 +2,7 @@ const state = {
     playerId: localStorage.getItem("cycles.playerId"),
     empire: null,
     galaxy: null,
+    selectedSystemId: null,
     fleets: [],
     orders: [],
     events: [],
@@ -14,6 +15,7 @@ const elements = {
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
     resources: document.querySelector("#resources"),
+    systemDetails: document.querySelector("#systemDetails"),
     priorityForm: document.querySelector("#priorityForm"),
     industryWeight: document.querySelector("#industryWeight"),
     researchWeight: document.querySelector("#researchWeight"),
@@ -42,6 +44,29 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.refreshButton.addEventListener("click", refresh);
+
+elements.galaxyMap.addEventListener("click", event => {
+    const node = event.target.closest(".system-node");
+    if (!node) {
+        return;
+    }
+
+    selectSystem(node.dataset.systemId);
+});
+
+elements.galaxyMap.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    const node = event.target.closest(".system-node");
+    if (!node) {
+        return;
+    }
+
+    event.preventDefault();
+    selectSystem(node.dataset.systemId);
+});
 
 elements.priorityForm.addEventListener("input", updatePriorityTotal);
 
@@ -133,9 +158,13 @@ async function refresh() {
     state.orders = orders;
     state.events = events;
     state.chronicle = chronicle;
+    if (!state.selectedSystemId || !galaxy.systems.some(system => system.systemId === state.selectedSystemId)) {
+        state.selectedSystemId = empire.homeSystem.systemId;
+    }
 
     renderCycle(cycle);
     renderEmpire(empire);
+    renderSystemDetails();
     renderPriorities(empire.priorities);
     renderFleets(fleets);
     renderOrders();
@@ -195,6 +224,40 @@ function renderOrders() {
 
     elements.fleetSelect.onchange = renderOrders;
     elements.attackFleetSelect.onchange = renderOrders;
+}
+
+function renderSystemDetails() {
+    if (!state.galaxy || !state.selectedSystemId) {
+        elements.systemDetails.innerHTML = `<article class="item"><span>No system selected.</span></article>`;
+        return;
+    }
+
+    const system = state.galaxy.systems.find(item => item.systemId === state.selectedSystemId);
+    if (!system) {
+        elements.systemDetails.innerHTML = `<article class="item"><span>No system selected.</span></article>`;
+        return;
+    }
+
+    const presence = state.galaxy.presence.find(item => item.systemId === system.systemId)?.effectivePresence ?? {};
+    const presenceRows = Object.entries(presence)
+        .sort((first, second) => Number(second[1]) - Number(first[1]))
+        .map(([empireId, value]) => {
+            const label = empireId === state.empire.empireId ? state.empire.empireName : empireId.slice(0, 8);
+            return `<dt>${escapeHtml(label)}</dt><dd>${formatNumber(value)}</dd>`;
+        }).join("");
+
+    elements.systemDetails.innerHTML = `
+        <article class="item">
+            <strong>${escapeHtml(system.systemName)}</strong>
+            <span>${system.x}, ${system.y} | strategic ${system.strategicValue} | history ${system.historicalSignificance}</span>
+        </article>
+        <dl class="detail-list">
+            <dt>Industry</dt><dd>${formatNumber(system.industryOutput)}</dd>
+            <dt>Research</dt><dd>${formatNumber(system.researchOutput)}</dd>
+            <dt>Population</dt><dd>${formatNumber(system.populationOutput)}</dd>
+            ${presenceRows || "<dt>Presence</dt><dd>None</dd>"}
+        </dl>
+    `;
 }
 
 function renderOrderQueue(orders) {
@@ -266,17 +329,26 @@ function renderGalaxy(galaxy, empire) {
         const classes = [
             "system",
             system.historicalSignificance > 0 ? "historic" : "",
-            system.systemId === homeId ? "home" : ""
+            system.systemId === homeId ? "home" : "",
+            system.systemId === state.selectedSystemId ? "selected" : ""
         ].filter(Boolean).join(" ");
 
         return `
-            ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
-            <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
-            <text class="system-label" x="${system.x + radius + 6}" y="${system.y + 4}">${escapeHtml(system.systemName)}</text>
+            <g class="system-node" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(system.systemName)}">
+                ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
+                <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
+                <text class="system-label" x="${system.x + radius + 6}" y="${system.y + 4}">${escapeHtml(system.systemName)}</text>
+            </g>
         `;
     }).join("");
 
     elements.galaxyMap.innerHTML = `${lines}${nodes}`;
+}
+
+function selectSystem(systemId) {
+    state.selectedSystemId = systemId;
+    renderSystemDetails();
+    renderGalaxy(state.galaxy, state.empire);
 }
 
 function linkedSystems(systemId) {

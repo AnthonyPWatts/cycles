@@ -280,6 +280,18 @@ dd {
     color: var(--text);
 }
 
+.system-details {
+    display: grid;
+    gap: 10px;
+}
+
+.detail-list {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-strong);
+}
+
 .message {
     min-height: 20px;
     margin: 0;
@@ -319,6 +331,20 @@ dd {
     stroke: #0d1210;
     stroke-width: 4px;
     stroke-linejoin: round;
+}
+
+.system-node {
+    cursor: pointer;
+}
+
+.system-node:focus {
+    outline: none;
+}
+
+.system-node:focus .system,
+.system.selected {
+    stroke: var(--gold);
+    stroke-width: 4;
 }
 
 @media (max-width: 900px) {

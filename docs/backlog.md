@@ -85,7 +85,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Add fleet detail API response.
 - [ ] Add last tick summary endpoint.
 - [x] Add dashboard pending order list.
-- [ ] Add dashboard system detail panel.
+- [x] Add dashboard system detail panel.
 - [ ] Add dashboard fleet detail panel.
 - [x] Add dashboard priority editing.
 - [ ] Add API tests for order submission boundaries.

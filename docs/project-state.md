@@ -98,7 +98,7 @@ This is not yet a production game service. It is a working architecture slice.
 - The API exposes current Cycle, empire summary, galaxy, fleets, order queue, movement orders, attack orders, priorities, recent events, and Chronicle entries.
 - The API has a prototype login endpoint that creates or finds a local player and empire.
 - The public website is served from `/`.
-- The browser dashboard is served from `/app.html` and renders the map, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
+- The browser dashboard is served from `/app.html` and renders the map, selected-system details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
 - Tick execution is intentionally not exposed through the API.
 
 ### Persistence
