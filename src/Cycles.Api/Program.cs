@@ -75,6 +75,17 @@ app.MapGet("/fleets", (Guid? empireId, IGameStateStore store) =>
             .ToArray();
     }));
 
+app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var cycle = GetActiveCycle(state);
+        var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
+            ?? throw new InvalidOperationException("Fleet was not found in the active cycle.");
+
+        return ToFleetDetailResponse(state, cycle, fleet);
+    }));
+
 app.MapGet("/orders", (Guid? empireId, IGameStateStore store) =>
     TryResult(() =>
     {
@@ -265,6 +276,79 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
     return new FleetResponse(fleet, empire.EmpireName, currentSystem.SystemName, destination?.SystemName);
 }
 
+static FleetDetailResponse ToFleetDetailResponse(GameState state, Cycle cycle, Fleet fleet)
+{
+    var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
+    var currentSystem = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
+    var destination = fleet.DestinationSystemId.HasValue
+        ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value)
+        : null;
+
+    var systemsById = state.Systems
+        .Where(system => system.CycleId == cycle.CycleId)
+        .ToDictionary(system => system.SystemId);
+
+    var linkedSystems = state.SystemLinks
+        .Where(link => link.CycleId == cycle.CycleId && (link.SystemAId == currentSystem.SystemId || link.SystemBId == currentSystem.SystemId))
+        .Select(link => systemsById[link.SystemAId == currentSystem.SystemId ? link.SystemBId : link.SystemAId])
+        .OrderBy(system => system.SystemName)
+        .Select(ToSystemSummaryResponse)
+        .ToArray();
+
+    var orders = state.FleetOrders
+        .Where(order => order.CycleId == cycle.CycleId && order.FleetId == fleet.FleetId)
+        .OrderBy(order => order.Status == FleetOrderStatus.Pending ? 0 : 1)
+        .ThenBy(order => order.ExecuteAfterTick)
+        .ThenByDescending(order => order.CreatedAt)
+        .Take(12)
+        .Select(order => ToOrderResponse(state, order))
+        .ToArray();
+
+    var activeFleetsInSystem = state.Fleets
+        .Where(item => item.CycleId == cycle.CycleId
+                       && item.FleetId != fleet.FleetId
+                       && item.CurrentSystemId == fleet.CurrentSystemId
+                       && item.Status == FleetStatus.Active)
+        .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+        .ThenBy(item => item.FleetName)
+        .Select(item =>
+        {
+            var otherEmpire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+            return new FleetAtSystemResponse(
+                item.FleetId,
+                item.FleetName,
+                item.EmpireId,
+                otherEmpire.EmpireName,
+                item.ShipCount,
+                item.Status);
+        })
+        .ToArray();
+
+    return new FleetDetailResponse(
+        fleet.FleetId,
+        fleet.CycleId,
+        fleet.EmpireId,
+        fleet.FleetName,
+        empire.EmpireName,
+        fleet.ShipCount,
+        fleet.Status,
+        ToSystemSummaryResponse(currentSystem),
+        destination is null ? null : ToSystemSummaryResponse(destination),
+        fleet.ArrivalTickNumber,
+        linkedSystems,
+        orders,
+        activeFleetsInSystem);
+}
+
+static SystemSummaryResponse ToSystemSummaryResponse(GalaxySystem system) =>
+    new(
+        system.SystemId,
+        system.SystemName,
+        system.X,
+        system.Y,
+        system.StrategicValue,
+        system.HistoricalSignificance);
+
 static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
 {
     var fleet = state.Fleets.SingleOrDefault(item => item.FleetId == order.FleetId);
@@ -310,6 +394,37 @@ public sealed record GalaxyResponse(
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
 
 public sealed record FleetResponse(Fleet Fleet, string EmpireName, string CurrentSystemName, string? DestinationSystemName);
+
+public sealed record FleetDetailResponse(
+    Guid FleetId,
+    Guid CycleId,
+    Guid EmpireId,
+    string FleetName,
+    string EmpireName,
+    int ShipCount,
+    FleetStatus Status,
+    SystemSummaryResponse CurrentSystem,
+    SystemSummaryResponse? DestinationSystem,
+    int? ArrivalTickNumber,
+    IReadOnlyCollection<SystemSummaryResponse> LinkedSystems,
+    IReadOnlyCollection<FleetOrderResponse> Orders,
+    IReadOnlyCollection<FleetAtSystemResponse> ActiveFleetsInSystem);
+
+public sealed record SystemSummaryResponse(
+    Guid SystemId,
+    string SystemName,
+    int X,
+    int Y,
+    int StrategicValue,
+    int HistoricalSignificance);
+
+public sealed record FleetAtSystemResponse(
+    Guid FleetId,
+    string FleetName,
+    Guid EmpireId,
+    string EmpireName,
+    int ShipCount,
+    FleetStatus Status);
 
 public sealed record FleetOrderResponse(
     Guid FleetOrderId,

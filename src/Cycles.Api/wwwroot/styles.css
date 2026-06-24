@@ -223,6 +223,21 @@ dd {
     line-height: 1.45;
 }
 
+.fleet-item {
+    cursor: pointer;
+}
+
+.fleet-item:hover {
+    border-color: rgba(143, 209, 189, 0.62);
+    background: #29312b;
+}
+
+.fleet-item:focus-visible,
+.fleet-item.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px rgba(223, 186, 104, 0.4);
+}
+
 .order-pending {
     border-color: rgba(143, 209, 189, 0.48);
 }
@@ -285,11 +300,34 @@ dd {
     gap: 10px;
 }
 
+.fleet-details {
+    display: grid;
+    gap: 10px;
+}
+
 .detail-list {
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--panel-strong);
+}
+
+.detail-block {
+    display: grid;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-strong);
+}
+
+.detail-block strong {
+    color: var(--text);
+}
+
+.detail-block span {
+    color: var(--muted);
+    line-height: 1.4;
 }
 
 .message {

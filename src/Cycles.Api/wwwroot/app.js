@@ -3,6 +3,8 @@ const state = {
     empire: null,
     galaxy: null,
     selectedSystemId: null,
+    selectedFleetId: null,
+    fleetDetail: null,
     fleets: [],
     orders: [],
     events: [],
@@ -24,6 +26,7 @@ const elements = {
     priorityTotal: document.querySelector("#priorityTotal"),
     priorityMessage: document.querySelector("#priorityMessage"),
     fleets: document.querySelector("#fleets"),
+    fleetDetails: document.querySelector("#fleetDetails"),
     fleetSelect: document.querySelector("#fleetSelect"),
     destinationSelect: document.querySelector("#destinationSelect"),
     attackFleetSelect: document.querySelector("#attackFleetSelect"),
@@ -66,6 +69,29 @@ elements.galaxyMap.addEventListener("keydown", event => {
 
     event.preventDefault();
     selectSystem(node.dataset.systemId);
+});
+
+elements.fleets.addEventListener("click", event => {
+    const item = event.target.closest("[data-fleet-id]");
+    if (!item) {
+        return;
+    }
+
+    selectFleet(item.dataset.fleetId);
+});
+
+elements.fleets.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    const item = event.target.closest("[data-fleet-id]");
+    if (!item) {
+        return;
+    }
+
+    event.preventDefault();
+    selectFleet(item.dataset.fleetId);
 });
 
 elements.priorityForm.addEventListener("input", updatePriorityTotal);
@@ -158,6 +184,15 @@ async function refresh() {
     state.orders = orders;
     state.events = events;
     state.chronicle = chronicle;
+
+    if (!state.selectedFleetId || !fleets.some(item => item.fleet.fleetId === state.selectedFleetId)) {
+        state.selectedFleetId = fleets[0]?.fleet.fleetId ?? null;
+    }
+
+    state.fleetDetail = state.selectedFleetId
+        ? await getJson(`/fleets/${state.selectedFleetId}`)
+        : null;
+
     if (!state.selectedSystemId || !galaxy.systems.some(system => system.systemId === state.selectedSystemId)) {
         state.selectedSystemId = empire.homeSystem.systemId;
     }
@@ -167,6 +202,7 @@ async function refresh() {
     renderSystemDetails();
     renderPriorities(empire.priorities);
     renderFleets(fleets);
+    renderFleetDetails();
     renderOrders();
     renderOrderQueue(orders);
     renderEvents(events);
@@ -198,16 +234,77 @@ function renderPriorities(priorities) {
 }
 
 function renderFleets(fleets) {
-    elements.fleets.innerHTML = fleets.map(item => {
+    elements.fleets.innerHTML = fleets.length === 0
+        ? `<article class="item"><span>No fleets yet.</span></article>`
+        : fleets.map(item => {
         const fleet = item.fleet;
         const destination = item.destinationSystemName ? ` -> ${item.destinationSystemName}` : "";
+        const selectedClass = fleet.fleetId === state.selectedFleetId ? " selected" : "";
         return `
-            <article class="item">
+            <article class="item fleet-item${selectedClass}" data-fleet-id="${fleet.fleetId}" role="button" tabindex="0">
                 <strong>${escapeHtml(fleet.fleetName)}</strong>
                 <span>${fleet.shipCount} ships | ${fleet.status} | ${escapeHtml(item.currentSystemName)}${escapeHtml(destination)}</span>
             </article>
         `;
     }).join("");
+}
+
+function renderFleetDetails() {
+    const detail = state.fleetDetail;
+    if (!detail) {
+        elements.fleetDetails.innerHTML = `<article class="item"><span>No fleet selected.</span></article>`;
+        return;
+    }
+
+    const destinationRows = detail.destinationSystem
+        ? `
+            <dt>Destination</dt><dd>${escapeHtml(detail.destinationSystem.systemName)}</dd>
+            <dt>Arrival</dt><dd>${detail.arrivalTickNumber === null ? "Unknown" : `T${detail.arrivalTickNumber}`}</dd>
+        `
+        : "";
+
+    const linkedSystems = detail.linkedSystems.length === 0
+        ? `<span>No adjacent systems.</span>`
+        : detail.linkedSystems.map(system => `<span>${escapeHtml(system.systemName)} (${system.strategicValue})</span>`).join("");
+
+    const nearbyFleets = detail.activeFleetsInSystem.length === 0
+        ? `<span>No other active fleets at this system.</span>`
+        : detail.activeFleetsInSystem.map(fleet => `
+            <span>${escapeHtml(fleet.fleetName)} | ${escapeHtml(fleet.empireName)} | ${fleet.shipCount} ships</span>
+        `).join("");
+
+    const orders = detail.orders.length === 0
+        ? `<span>No orders recorded for this fleet.</span>`
+        : detail.orders.map(order => {
+            const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+            const timing = order.processedTick === null ? `after T${order.executeAfterTick}` : `processed T${order.processedTick}`;
+            return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(order.status)} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
+        }).join("");
+
+    elements.fleetDetails.innerHTML = `
+        <article class="item">
+            <strong>${escapeHtml(detail.fleetName)}</strong>
+            <span>${detail.shipCount} ships | ${escapeHtml(detail.status)} | ${escapeHtml(detail.empireName)}</span>
+        </article>
+        <dl class="detail-list">
+            <dt>Current</dt><dd>${escapeHtml(detail.currentSystem.systemName)}</dd>
+            <dt>Strategic</dt><dd>${detail.currentSystem.strategicValue}</dd>
+            <dt>History</dt><dd>${detail.currentSystem.historicalSignificance}</dd>
+            ${destinationRows}
+        </dl>
+        <div class="detail-block">
+            <strong>Adjacent Routes</strong>
+            ${linkedSystems}
+        </div>
+        <div class="detail-block">
+            <strong>Local Fleets</strong>
+            ${nearbyFleets}
+        </div>
+        <div class="detail-block">
+            <strong>Orders</strong>
+            ${orders}
+        </div>
+    `;
 }
 
 function renderOrders() {
@@ -349,6 +446,17 @@ function selectSystem(systemId) {
     state.selectedSystemId = systemId;
     renderSystemDetails();
     renderGalaxy(state.galaxy, state.empire);
+}
+
+async function selectFleet(fleetId) {
+    state.selectedFleetId = fleetId;
+    try {
+        state.fleetDetail = await getJson(`/fleets/${fleetId}`);
+        renderFleets(state.fleets);
+        renderFleetDetails();
+    } catch (error) {
+        setMessage(error.message);
+    }
 }
 
 function linkedSystems(systemId) {
