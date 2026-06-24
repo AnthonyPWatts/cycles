@@ -121,13 +121,15 @@ select {
 .shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
-    min-height: calc(100vh - 76px);
+    height: calc(100vh - 76px);
+    min-height: 0;
 }
 
 .map-panel {
     display: grid;
     grid-template-rows: auto minmax(360px, 1fr);
     min-width: 0;
+    min-height: 0;
     border-right: 1px solid var(--line);
     background: var(--surface);
 }
@@ -153,7 +155,7 @@ select {
 #galaxyMap {
     width: 100%;
     height: 100%;
-    min-height: 520px;
+    min-height: 0;
     background:
         linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
@@ -164,6 +166,7 @@ select {
 .side-panel {
     display: grid;
     grid-auto-rows: min-content;
+    min-height: 0;
     overflow: auto;
     background: rgba(17, 20, 18, 0.98);
 }
@@ -397,6 +400,7 @@ dd {
 
     .shell {
         grid-template-columns: 1fr;
+        height: auto;
     }
 
     .map-panel {
@@ -406,5 +410,9 @@ dd {
 
     #galaxyMap {
         min-height: 420px;
+    }
+
+    .side-panel {
+        overflow: visible;
     }
 }
