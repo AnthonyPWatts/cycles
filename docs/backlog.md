@@ -155,7 +155,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Technical Debt And Risks
 
-- [ ] Current `GameState.DeepClone` serialises the whole state. Replace before state grows large.
+- [x] Replace JSON-backed `GameState.DeepClone` before state grows large.
 - [ ] Current `FactJson` strings are flexible but weakly typed. Consider typed facts or validated schemas.
 - [ ] Current combat model is not balanced.
 - [ ] Current dashboard assumes a small galaxy.

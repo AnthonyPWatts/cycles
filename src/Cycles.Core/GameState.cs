@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Cycles.Core;
 
 public sealed class GameState
@@ -24,12 +22,23 @@ public sealed class GameState
             .OrderByDescending(cycle => cycle.StartAt)
             .FirstOrDefault();
 
-    public GameState DeepClone()
-    {
-        var json = JsonSerializer.Serialize(this, GameStateJson.Options);
-        return JsonSerializer.Deserialize<GameState>(json, GameStateJson.Options)
-            ?? throw new InvalidOperationException("Could not clone game state.");
-    }
+    public GameState DeepClone() =>
+        new()
+        {
+            Players = Players.Select(Clone).ToList(),
+            Cycles = Cycles.Select(Clone).ToList(),
+            Empires = Empires.Select(Clone).ToList(),
+            EmpireResources = EmpireResources.Select(Clone).ToList(),
+            EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
+            Systems = Systems.Select(Clone).ToList(),
+            SystemLinks = SystemLinks.Select(Clone).ToList(),
+            Fleets = Fleets.Select(Clone).ToList(),
+            FleetOrders = FleetOrders.Select(Clone).ToList(),
+            TickLogs = TickLogs.Select(Clone).ToList(),
+            Events = Events.Select(Clone).ToList(),
+            BattleRecords = BattleRecords.Select(Clone).ToList(),
+            ChronicleEntries = ChronicleEntries.Select(Clone).ToList()
+        };
 
     public void ReplaceWith(GameState other)
     {
@@ -47,6 +56,175 @@ public sealed class GameState
         BattleRecords = other.BattleRecords;
         ChronicleEntries = other.ChronicleEntries;
     }
+
+    private static Player Clone(Player item) => new()
+    {
+        PlayerId = item.PlayerId,
+        Username = item.Username,
+        Email = item.Email,
+        PasswordHash = item.PasswordHash,
+        CreatedAt = item.CreatedAt,
+        LastLoginAt = item.LastLoginAt,
+        Status = item.Status
+    };
+
+    private static Cycle Clone(Cycle item) => new()
+    {
+        CycleId = item.CycleId,
+        Name = item.Name,
+        StartAt = item.StartAt,
+        EndAt = item.EndAt,
+        TickLengthMinutes = item.TickLengthMinutes,
+        CurrentTickNumber = item.CurrentTickNumber,
+        Status = item.Status,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static Empire Clone(Empire item) => new()
+    {
+        EmpireId = item.EmpireId,
+        CycleId = item.CycleId,
+        PlayerId = item.PlayerId,
+        EmpireName = item.EmpireName,
+        HomeSystemId = item.HomeSystemId,
+        CreatedAt = item.CreatedAt,
+        Status = item.Status
+    };
+
+    private static EmpireResource Clone(EmpireResource item) => new()
+    {
+        EmpireResourceId = item.EmpireResourceId,
+        EmpireId = item.EmpireId,
+        Industry = item.Industry,
+        Research = item.Research,
+        Population = item.Population,
+        UpdatedAt = item.UpdatedAt
+    };
+
+    private static EmpirePriority Clone(EmpirePriority item) => new()
+    {
+        EmpirePriorityId = item.EmpirePriorityId,
+        EmpireId = item.EmpireId,
+        IndustryWeight = item.IndustryWeight,
+        ResearchWeight = item.ResearchWeight,
+        MilitaryWeight = item.MilitaryWeight,
+        ExpansionWeight = item.ExpansionWeight,
+        UpdatedAt = item.UpdatedAt
+    };
+
+    private static GalaxySystem Clone(GalaxySystem item) => new()
+    {
+        SystemId = item.SystemId,
+        CycleId = item.CycleId,
+        SystemName = item.SystemName,
+        X = item.X,
+        Y = item.Y,
+        IndustryOutput = item.IndustryOutput,
+        ResearchOutput = item.ResearchOutput,
+        PopulationOutput = item.PopulationOutput,
+        StrategicValue = item.StrategicValue,
+        HistoricalSignificance = item.HistoricalSignificance,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static SystemLink Clone(SystemLink item) => new()
+    {
+        SystemLinkId = item.SystemLinkId,
+        CycleId = item.CycleId,
+        SystemAId = item.SystemAId,
+        SystemBId = item.SystemBId,
+        Distance = item.Distance,
+        TravelTicks = item.TravelTicks
+    };
+
+    private static Fleet Clone(Fleet item) => new()
+    {
+        FleetId = item.FleetId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        FleetName = item.FleetName,
+        CurrentSystemId = item.CurrentSystemId,
+        DestinationSystemId = item.DestinationSystemId,
+        ArrivalTickNumber = item.ArrivalTickNumber,
+        ShipCount = item.ShipCount,
+        Status = item.Status,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static FleetOrder Clone(FleetOrder item) => new()
+    {
+        FleetOrderId = item.FleetOrderId,
+        CycleId = item.CycleId,
+        FleetId = item.FleetId,
+        OrderType = item.OrderType,
+        TargetSystemId = item.TargetSystemId,
+        TargetEmpireId = item.TargetEmpireId,
+        SubmitTick = item.SubmitTick,
+        ExecuteAfterTick = item.ExecuteAfterTick,
+        ProcessedTick = item.ProcessedTick,
+        Status = item.Status,
+        RejectionReason = item.RejectionReason,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static TickLog Clone(TickLog item) => new()
+    {
+        TickLogId = item.TickLogId,
+        CycleId = item.CycleId,
+        TickNumber = item.TickNumber,
+        StartedAt = item.StartedAt,
+        CompletedAt = item.CompletedAt,
+        Status = item.Status,
+        DiagnosticLog = item.DiagnosticLog
+    };
+
+    private static EventRecord Clone(EventRecord item) => new()
+    {
+        EventId = item.EventId,
+        CycleId = item.CycleId,
+        TickNumber = item.TickNumber,
+        EventType = item.EventType,
+        SystemId = item.SystemId,
+        EmpireId = item.EmpireId,
+        Severity = item.Severity,
+        FactJson = item.FactJson,
+        DisplayText = item.DisplayText,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static BattleRecord Clone(BattleRecord item) => new()
+    {
+        BattleId = item.BattleId,
+        CycleId = item.CycleId,
+        TickNumber = item.TickNumber,
+        SystemId = item.SystemId,
+        AttackerEmpireId = item.AttackerEmpireId,
+        DefenderEmpireId = item.DefenderEmpireId,
+        AttackerFleetIds = item.AttackerFleetIds,
+        DefenderFleetIds = item.DefenderFleetIds,
+        AttackerShipsBefore = item.AttackerShipsBefore,
+        DefenderShipsBefore = item.DefenderShipsBefore,
+        AttackerLosses = item.AttackerLosses,
+        DefenderLosses = item.DefenderLosses,
+        Outcome = item.Outcome,
+        FactJson = item.FactJson,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static ChronicleEntry Clone(ChronicleEntry item) => new()
+    {
+        ChronicleEntryId = item.ChronicleEntryId,
+        SourceEventId = item.SourceEventId,
+        SourceBattleId = item.SourceBattleId,
+        CycleId = item.CycleId,
+        SystemId = item.SystemId,
+        Title = item.Title,
+        EntryType = item.EntryType,
+        ImportanceScore = item.ImportanceScore,
+        FactualSummary = item.FactualSummary,
+        NarrativeText = item.NarrativeText,
+        CreatedAt = item.CreatedAt
+    };
 }
 
 public sealed class Player
