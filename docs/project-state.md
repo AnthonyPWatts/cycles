@@ -114,7 +114,7 @@ This is not yet a production game service. It is a working architecture slice.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
 - Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final focused repository model.
-- SQL-backed CLI tick execution now uses a dedicated tick runner that persists tick outcome rows without running the generic missing-row deletion pass.
+- SQL-backed CLI tick execution now uses a dedicated tick runner that loads a cycle-scoped tick state and persists tick outcome rows without running the generic missing-row deletion pass.
 
 ## Verified Checks
 
@@ -150,7 +150,7 @@ SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 These are known gaps, not defects in the current MVP claim:
 
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
-- The SQL Server tick runner still loads a full `GameState` instead of focused tick aggregates or repositories.
+- The SQL Server tick runner still uses a cycle-scoped `GameState` shape instead of focused tick aggregates or repositories.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
@@ -170,7 +170,7 @@ These are known gaps, not defects in the current MVP claim:
 
 The next stage should harden the simulation spine before adding feature breadth:
 
-1. move tick execution from full-state synchronisation to focused SQL repository operations;
+1. move tick execution from cycle-scoped state synchronisation to focused SQL repository operations;
 2. make tick execution idempotent and auditable against that persistence layer;
 3. add automated SQL Server integration tests around migrations and new repository operations;
 4. add a minimal build/spending loop so strategic priorities affect gameplay;

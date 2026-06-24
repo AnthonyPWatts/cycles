@@ -1,5 +1,6 @@
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
+using Microsoft.Data.SqlClient;
 
 namespace Cycles.Tests;
 
@@ -111,6 +112,42 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_dedicated_tick_runner_loads_only_the_target_cycle_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var targetState = TestState.CreateMovementState(linkSystems: true);
+        var unrelatedState = TestState.CreateSingleEmpireState();
+        var targetCycle = targetState.GetActiveCycle() ?? throw new InvalidOperationException("Target state must contain an active Cycle.");
+        var unrelatedCycle = unrelatedState.GetActiveCycle() ?? throw new InvalidOperationException("Unrelated state must contain an active Cycle.");
+        var unrelatedFleet = unrelatedState.Fleets.Single();
+        var state = CombineStates(targetState, unrelatedState);
+
+        store.Replace(state);
+        UpdateFleetStatus(connectionString, unrelatedFleet.FleetId, "NotARealStatus");
+
+        try
+        {
+            var result = store.RunTick(targetCycle.CycleId, TestState.Now);
+
+            Assert.Equal(TickLogStatus.Completed, result.Status);
+        }
+        finally
+        {
+            UpdateFleetStatus(connectionString, unrelatedFleet.FleetId, FleetStatus.Active.ToString());
+        }
+
+        var updated = store.LoadOrCreate();
+        Assert.Equal(1, updated.Cycles.Single(item => item.CycleId == targetCycle.CycleId).CurrentTickNumber);
+        Assert.Equal(0, updated.Cycles.Single(item => item.CycleId == unrelatedCycle.CycleId).CurrentTickNumber);
+    }
+
+    [Fact]
     public void Store_rolls_back_when_duplicate_running_tick_is_detected()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -212,5 +249,35 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var updated = store.LoadOrCreate();
         Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
         Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
+    }
+
+    private static GameState CombineStates(params GameState[] states) =>
+        new()
+        {
+            Players = states.SelectMany(state => state.Players).ToList(),
+            Cycles = states.SelectMany(state => state.Cycles).ToList(),
+            Systems = states.SelectMany(state => state.Systems).ToList(),
+            Empires = states.SelectMany(state => state.Empires).ToList(),
+            EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),
+            EmpirePriorities = states.SelectMany(state => state.EmpirePriorities).ToList(),
+            SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
+            Fleets = states.SelectMany(state => state.Fleets).ToList(),
+            FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),
+            TickLogs = states.SelectMany(state => state.TickLogs).ToList(),
+            Events = states.SelectMany(state => state.Events).ToList(),
+            BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),
+            ChronicleEntries = states.SelectMany(state => state.ChronicleEntries).ToList()
+        };
+
+    private static void UpdateFleetStatus(string connectionString, Guid fleetId, string status)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE dbo.Fleets SET Status = @Status WHERE FleetID = @FleetID;";
+        command.Parameters.AddWithValue("@Status", status);
+        command.Parameters.AddWithValue("@FleetID", fleetId);
+        command.ExecuteNonQuery();
     }
 }

@@ -82,26 +82,34 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
         AcquireApplicationLock(connection, transaction);
 
-        var state = LoadUnsafe(connection, transaction);
+        var activeCycleId = cycleId ?? ReadActiveCycleIdUnsafe(connection, transaction);
+        GameState state;
         var createdState = false;
-        if (state.Cycles.Count == 0)
+
+        if (activeCycleId.HasValue)
+        {
+            state = LoadTickStateUnsafe(connection, transaction, activeCycleId.Value);
+        }
+        else if (AnyCycleExistsUnsafe(connection, transaction))
+        {
+            throw new InvalidOperationException("No active cycle exists.");
+        }
+        else
         {
             state = _seedFactory();
             createdState = true;
+            activeCycleId = state.GetActiveCycle()?.CycleId
+                ?? throw new InvalidOperationException("No active cycle exists.");
         }
 
-        var activeCycleId = cycleId
-            ?? state.GetActiveCycle()?.CycleId
-            ?? throw new InvalidOperationException("No active cycle exists.");
-
-        var result = new TickEngine().RunTick(state, activeCycleId, now);
+        var result = new TickEngine().RunTick(state, activeCycleId.Value, now);
         if (createdState)
         {
             SaveUnsafe(connection, transaction, state);
         }
         else
         {
-            SaveTickOutcomeUnsafe(connection, transaction, state, activeCycleId);
+            SaveTickOutcomeUnsafe(connection, transaction, state, activeCycleId.Value);
         }
 
         transaction.Commit();
@@ -152,6 +160,82 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             Events = ReadRows(connection, transaction, "SELECT * FROM dbo.Events", ReadEvent),
             BattleRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.BattleRecords", ReadBattleRecord),
             ChronicleEntries = ReadRows(connection, transaction, "SELECT * FROM dbo.ChronicleEntries", ReadChronicleEntry)
+        };
+
+    private static GameState LoadTickStateUnsafe(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
+        new()
+        {
+            Cycles = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Cycles WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadCycle),
+            Systems = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Systems WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadSystem),
+            Empires = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Empires WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadEmpire),
+            EmpireResources = ReadRows(
+                connection,
+                transaction,
+                """
+                SELECT resources.*
+                FROM dbo.EmpireResources resources
+                INNER JOIN dbo.Empires empires ON empires.EmpireID = resources.EmpireID
+                WHERE empires.CycleID = @CycleID
+                """,
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadEmpireResource),
+            SystemLinks = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.SystemLinks WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadSystemLink),
+            Fleets = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Fleets WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadFleet),
+            FleetOrders = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.FleetOrders WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadFleetOrder),
+            TickLogs = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.TickLogs WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadTickLog),
+            Events = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Events WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadEvent),
+            BattleRecords = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.BattleRecords WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadBattleRecord),
+            ChronicleEntries = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.ChronicleEntries WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadChronicleEntry)
         };
 
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)
@@ -898,6 +982,26 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         command.ExecuteNonQuery();
     }
 
+    private static Guid? ReadActiveCycleIdUnsafe(SqlConnection connection, SqlTransaction transaction)
+    {
+        using var command = CreateCommand(connection, transaction, """
+            SELECT TOP (1) CycleID
+            FROM dbo.Cycles
+            WHERE Status = @Status
+            ORDER BY StartAt DESC;
+            """);
+        AddString(command, "@Status", CycleStatus.Active.ToString(), 32);
+
+        var value = command.ExecuteScalar();
+        return value is Guid cycleId ? cycleId : null;
+    }
+
+    private static bool AnyCycleExistsUnsafe(SqlConnection connection, SqlTransaction transaction)
+    {
+        using var command = CreateCommand(connection, transaction, "SELECT TOP (1) 1 FROM dbo.Cycles;");
+        return command.ExecuteScalar() is not null;
+    }
+
     private static List<T> ReadRows<T>(
         SqlConnection connection,
         SqlTransaction transaction,
@@ -905,6 +1009,25 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Func<SqlDataReader, T> read)
     {
         using var command = CreateCommand(connection, transaction, sql);
+        using var reader = command.ExecuteReader();
+        var rows = new List<T>();
+        while (reader.Read())
+        {
+            rows.Add(read(reader));
+        }
+
+        return rows;
+    }
+
+    private static List<T> ReadRows<T>(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        string sql,
+        Action<SqlCommand> configure,
+        Func<SqlDataReader, T> read)
+    {
+        using var command = CreateCommand(connection, transaction, sql);
+        configure(command);
         using var reader = command.ExecuteReader();
         var rows = new List<T>();
         while (reader.Read())
