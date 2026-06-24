@@ -20,15 +20,24 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     background:
         linear-gradient(120deg, rgba(143, 209, 189, 0.08), transparent 36%),
         linear-gradient(280deg, rgba(223, 186, 104, 0.08), transparent 42%),
         var(--bg);
     color: var(--text);
+    display: flex;
+    flex-direction: column;
     font-family: "Segoe UI", Arial, sans-serif;
 }
 
@@ -75,6 +84,7 @@ select {
 }
 
 .topbar {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -119,9 +129,10 @@ select {
 }
 
 .shell {
+    flex: 1 1 auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
-    height: calc(100vh - 76px);
+    height: auto;
     min-height: 0;
 }
 
@@ -389,6 +400,12 @@ dd {
 }
 
 @media (max-width: 900px) {
+    body {
+        height: auto;
+        overflow: auto;
+        display: block;
+    }
+
     .topbar {
         align-items: stretch;
         flex-direction: column;
