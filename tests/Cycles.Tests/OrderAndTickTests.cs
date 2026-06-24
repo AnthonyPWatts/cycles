@@ -160,4 +160,82 @@ public sealed class OrderAndTickTests
 
         Assert.Throws<InvalidOperationException>(() => new TickEngine().RunTick(state, cycle.CycleId, TestState.Now));
     }
+
+    [Fact]
+    public void RecoveryClearRequiresOperatorAndReason()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        cycle.Status = CycleStatus.RecoveryRequired;
+
+        Assert.Throws<InvalidOperationException>(() => RecoveryService.ClearRecovery(state, cycle.CycleId, "", "fixed", TestState.Now));
+        Assert.Throws<InvalidOperationException>(() => RecoveryService.ClearRecovery(state, cycle.CycleId, "admin", "", TestState.Now));
+    }
+
+    [Fact]
+    public void RecoveryClearMarksCycleActiveAndWritesAuditEvent()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        cycle.Status = CycleStatus.RecoveryRequired;
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now,
+            CompletedAt = TestState.Now,
+            Status = TickLogStatus.Failed,
+            DiagnosticLog = "boom"
+        });
+
+        var recoveryEvent = RecoveryService.ClearRecovery(state, cycle.CycleId, "admin", "restored missing resources", TestState.Now);
+
+        Assert.Equal(CycleStatus.Active, cycle.Status);
+        Assert.Equal(EventType.RecoveryCleared, recoveryEvent.EventType);
+        Assert.Equal(EventSeverity.High, recoveryEvent.Severity);
+        Assert.Contains("admin", recoveryEvent.FactJson, StringComparison.Ordinal);
+        Assert.Contains("restored missing resources", recoveryEvent.FactJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecoveryClearRefusesUnfinishedRunningTickLogs()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        cycle.Status = CycleStatus.RecoveryRequired;
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now,
+            Status = TickLogStatus.Running
+        });
+
+        Assert.Throws<InvalidOperationException>(() => RecoveryService.ClearRecovery(state, cycle.CycleId, "admin", "manual repair", TestState.Now));
+    }
+
+    [Fact]
+    public void ClearedRecoveryCanRetryFailedTickNumber()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var resources = Assert.Single(state.EmpireResources);
+        state.EmpireResources.Clear();
+
+        var failedResult = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Failed, failedResult.Status);
+        Assert.Equal(CycleStatus.RecoveryRequired, cycle.Status);
+
+        state.EmpireResources.Add(resources);
+        RecoveryService.ClearRecovery(state, cycle.CycleId, "admin", "restored missing resources", TestState.Now);
+        var retryResult = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        var committedCycle = state.Cycles.Single(item => item.CycleId == cycle.CycleId);
+
+        Assert.Equal(TickLogStatus.Completed, retryResult.Status);
+        Assert.Equal(1, retryResult.TickNumber);
+        Assert.Equal(1, committedCycle.CurrentTickNumber);
+        Assert.Contains(state.TickLogs, log => log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
+        Assert.Contains(state.TickLogs, log => log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
+    }
 }

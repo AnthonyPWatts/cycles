@@ -195,3 +195,20 @@ Consequences:
 - The Cycles database image now builds from `mcr.microsoft.com/mssql/server:2022-latest`.
 - Startup applies migrations before seed scripts and reports container health through Docker.
 - Live SQL integration tests were verified against a disposable SQL Server 2022 container.
+
+## 2026-06-24: Make Tick Recovery Explicit And Audited
+
+Decision: keep recovery administration in the CLI for now, require an operator and reason to clear a `RecoveryRequired` Cycle, and record recovery clears as high-severity events.
+
+Reasoning:
+
+- Failed ticks should block further simulation until a deliberate admin action confirms the underlying issue has been repaired.
+- The CLI is enough for the current local/private prototype and avoids exposing dangerous recovery actions through the player-facing API.
+- Failed tick attempts are useful history and should not be deleted just to allow retry.
+
+Consequences:
+
+- `recovery details` prints full diagnostics for failed or running tick logs.
+- `recovery clear` marks a repaired Cycle active and writes a `RecoveryCleared` audit event.
+- `recovery retry` clears recovery and immediately reruns the same tick number.
+- SQL tick log uniqueness now applies to running and completed logs separately, allowing failed retry history to coexist with a later successful tick log.

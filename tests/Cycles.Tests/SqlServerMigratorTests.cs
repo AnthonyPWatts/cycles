@@ -27,9 +27,11 @@ public sealed class SqlServerMigratorTests
     {
         var migrations = SqlServerMigrator.LoadEmbeddedMigrations();
         var initialSchema = Assert.Single(migrations, migration => migration.MigrationId == "001_initial_schema");
+        var retryHistory = Assert.Single(migrations, migration => migration.MigrationId == "002_allow_tick_retry_history");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.TickLogs", initialSchema.Script, StringComparison.Ordinal);
+        Assert.Contains("UX_TickLogs_Cycle_Tick_Completed", retryHistory.Script, StringComparison.Ordinal);
     }
 }

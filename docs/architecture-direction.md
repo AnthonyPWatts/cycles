@@ -164,6 +164,7 @@ Failure rule:
 - Failed ticks must not partially apply outcomes.
 - If rollback is not possible, the Cycle must enter `RecoveryRequired`.
 - A new tick must not start while recovery is required.
+- Admin recovery is CLI-only for now. Clearing recovery requires an operator and reason, writes a `RecoveryCleared` event, and can retry the repaired tick with the same tick number while preserving failed tick logs.
 
 ## Domain Modelling Notes
 

@@ -279,7 +279,8 @@ public enum EventType
     OrderRejected,
     CombatResolved,
     PrioritiesChanged,
-    ChronicleCreated
+    ChronicleCreated,
+    RecoveryCleared
 }
 
 public enum EventSeverity

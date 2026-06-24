@@ -10,6 +10,11 @@ try
         return RunDatabaseCommand(args);
     }
 
+    if (command == "recovery")
+    {
+        return RunRecoveryCommand(args);
+    }
+
     var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
     var store = GameStateStoreFactory.Create(statePath);
 
@@ -23,9 +28,6 @@ try
             break;
         case "show":
             Show(store);
-            break;
-        case "recovery":
-            ShowRecovery(store);
             break;
         case "move":
             SubmitMove(args, store);
@@ -125,7 +127,63 @@ static void Show(IGameStateStore store)
     }
 }
 
-static void ShowRecovery(IGameStateStore store)
+static int RunRecoveryCommand(string[] args)
+{
+    var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
+    if (!IsRecoverySubcommand(subcommand))
+    {
+        var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
+        ShowRecovery(GameStateStoreFactory.Create(statePath), showDetails: false);
+        return 0;
+    }
+
+    switch (subcommand)
+    {
+        case "details":
+            {
+                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
+                ShowRecovery(GameStateStoreFactory.Create(statePath), showDetails: true);
+                return 0;
+            }
+
+        case "clear":
+            {
+                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var cycleId = ParseRequiredGuid(args, 3, "cycle id");
+                var operatorName = ParseRequiredOption(args, "--operator");
+                var reason = ParseRequiredOption(args, "--reason");
+                var recoveryEvent = store.Update(state => RecoveryService.ClearRecovery(state, cycleId, operatorName, reason, DateTimeOffset.UtcNow));
+
+                Console.WriteLine($"Recovery cleared for cycle {cycleId}.");
+                Console.WriteLine($"Audit event: {recoveryEvent.EventId}");
+                return 0;
+            }
+
+        case "retry":
+            {
+                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var cycleId = ParseRequiredGuid(args, 3, "cycle id");
+                var operatorName = ParseRequiredOption(args, "--operator");
+                var reason = ParseRequiredOption(args, "--reason");
+                var now = DateTimeOffset.UtcNow;
+                var result = store.Update(state =>
+                {
+                    RecoveryService.ClearRecovery(state, cycleId, operatorName, reason, now);
+                    return new TickEngine().RunTick(state, cycleId, now);
+                });
+
+                Console.WriteLine($"Retry tick {result.TickNumber}: {result.Status}");
+                Console.WriteLine($"Orders: {result.OrdersProcessed}; events: {result.EventsCreated}; battles: {result.BattlesCreated}; Chronicle entries: {result.ChronicleEntriesCreated}");
+                return 0;
+            }
+
+        default:
+            PrintUsage();
+            return 2;
+    }
+}
+
+static void ShowRecovery(IGameStateStore store, bool showDetails)
 {
     var state = store.LoadOrCreate();
     var recoveryCycles = state.Cycles
@@ -164,7 +222,7 @@ static void ShowRecovery(IGameStateStore store)
             Console.WriteLine($"  Started: {log.StartedAt:u}; completed: {FormatCompletedAt(log.CompletedAt)}");
             if (!string.IsNullOrWhiteSpace(log.DiagnosticLog))
             {
-                Console.WriteLine($"  Diagnostic: {FirstDiagnosticLine(log.DiagnosticLog)}");
+                Console.WriteLine($"  Diagnostic: {FormatDiagnostic(log.DiagnosticLog, showDetails)}");
             }
         }
     }
@@ -257,6 +315,30 @@ static string ParseRequiredSqlServerConnectionString(string[] args, int index)
         : args[index];
 }
 
+static string ParseRequiredArgument(string[] args, int index, string label)
+{
+    if (args.Length <= index || string.IsNullOrWhiteSpace(args[index]))
+    {
+        throw new InvalidOperationException($"Missing {label}.");
+    }
+
+    return args[index];
+}
+
+static string ParseRequiredOption(string[] args, string optionName)
+{
+    var optionIndex = Array.FindIndex(args, arg => string.Equals(arg, optionName, StringComparison.OrdinalIgnoreCase));
+    if (optionIndex < 0 || optionIndex + 1 >= args.Length || string.IsNullOrWhiteSpace(args[optionIndex + 1]))
+    {
+        throw new InvalidOperationException($"Missing {optionName} value.");
+    }
+
+    return args[optionIndex + 1];
+}
+
+static bool IsRecoverySubcommand(string? value) =>
+    value is "details" or "clear" or "retry";
+
 static int ParseOptionalInt(string[] args, int index, int defaultValue) =>
     args.Length > index ? int.Parse(args[index]) : defaultValue;
 
@@ -273,11 +355,13 @@ static Guid ParseRequiredGuid(string[] args, int index, string label)
 static string FormatCompletedAt(DateTimeOffset? completedAt) =>
     completedAt.HasValue ? completedAt.Value.ToString("u") : "not completed";
 
-static string FirstDiagnosticLine(string diagnosticLog) =>
-    diagnosticLog
-        .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .FirstOrDefault()
-        ?? diagnosticLog.Trim();
+static string FormatDiagnostic(string diagnosticLog, bool showDetails) =>
+    showDetails
+        ? diagnosticLog.Trim()
+        : diagnosticLog
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault()
+            ?? diagnosticLog.Trim();
 
 static void PrintUsage()
 {
@@ -287,6 +371,9 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <statePath> <cycleId> --operator <name> --reason <reason>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery retry <statePath> <cycleId> --operator <name> --reason <reason>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");

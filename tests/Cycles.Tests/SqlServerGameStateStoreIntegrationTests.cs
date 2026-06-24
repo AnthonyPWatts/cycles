@@ -154,4 +154,37 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Single(replaced.Cycles);
         Assert.Equal(6, replaced.Systems.Count);
     }
+
+    [Fact]
+    public void Store_allows_failed_and_completed_logs_for_retried_tick_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now.AddMinutes(-5),
+            CompletedAt = TestState.Now.AddMinutes(-5),
+            Status = TickLogStatus.Failed,
+            DiagnosticLog = "failed attempt"
+        });
+
+        store.Replace(state);
+
+        var result = store.Update(current => new TickEngine().RunTick(current, cycle.CycleId, TestState.Now));
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+
+        var updated = store.LoadOrCreate();
+        Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
+        Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
+    }
 }

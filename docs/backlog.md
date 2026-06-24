@@ -54,7 +54,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Move API state/order endpoints to relational persistence when SQL Server is configured.
 - [x] Add opt-in SQL Server integration test using the local container.
 - [x] Add broader SQL Server integration tests for orders and duplicate tick prevention.
-- [ ] Add admin recovery clear/retry workflow once operator semantics are decided.
+- [x] Add admin recovery clear/retry workflow once operator semantics are decided.
 - [x] Decide whether temporary SQLite integration tests are still useful.
 - [x] Decide whether JSON store remains as dev-only support or is removed.
 - [ ] Demote JSON persistence to import/export-only once the SQL-backed flow is stable.

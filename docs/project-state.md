@@ -44,7 +44,7 @@ This is not yet a production game service. It is a working architecture slice.
 - `TickEngine.RunTick` rejects Cycles that are not `Active`, including `RecoveryRequired` Cycles.
 - Tick processing works on a cloned state and commits back only after successful processing.
 - Failed ticks are recorded and mark the Cycle as `RecoveryRequired`.
-- The CLI has a read-only `recovery` command for inspecting failed or unfinished tick logs.
+- The CLI has `recovery`, `recovery details`, `recovery clear`, and `recovery retry` commands for inspecting failed ticks, clearing repaired Cycles, and retrying the same tick number.
 
 ### Galaxy
 
@@ -159,7 +159,6 @@ These are known gaps, not defects in the current MVP claim:
 - No AI narrative generation.
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
-- No admin recovery clear/retry workflow for failed ticks.
 - Combat is deliberately primitive and not balanced.
 - The dashboard is a prototype, not a full game client.
 
@@ -170,9 +169,8 @@ The next stage should harden the simulation spine before adding feature breadth:
 1. move tick execution from full-state synchronisation to focused SQL repository operations;
 2. make tick execution idempotent and auditable against that persistence layer;
 3. add automated SQL Server integration tests around migrations and new repository operations;
-4. implement the admin recovery clear/retry workflow;
-5. add a minimal build/spending loop so strategic priorities affect gameplay;
-6. only then deepen the Chronicle/history systems.
+4. add a minimal build/spending loop so strategic priorities affect gameplay;
+5. only then deepen the Chronicle/history systems.
 
 ## Definition Of The Next Stable State
 

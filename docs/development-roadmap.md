@@ -442,9 +442,8 @@ The next development sprint should continue Stage 2 before moving to Stage 3. A 
 
 1. Move tick execution from full-state synchronisation to focused SQL repository operations.
 2. Add SQL Server integration tests around the migration command and any new repository operations.
-3. Define and implement the admin recovery clear/retry workflow.
-4. Add per-Cycle tick locking as the SQL write model becomes incremental.
-5. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
-6. Update `docs/project-state.md` after verification.
+3. Add per-Cycle tick locking as the SQL write model becomes incremental.
+4. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
+5. Update `docs/project-state.md` after verification.
 
 This produces a better foundation for the relational persistence work that follows.
