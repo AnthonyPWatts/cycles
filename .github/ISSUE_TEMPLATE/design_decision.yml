@@ -1,0 +1,37 @@
+name: Design decision
+description: Capture a product, architecture, or operations choice before implementation.
+title: "[Decision]: "
+labels:
+  - decision
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What decision needs to be made?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Current behaviour, constraints, and why the choice matters now.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: List realistic options and trade-offs.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommended default
+      description: The option to take unless new evidence appears.
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: What this would imply for implementation, tests, docs, or operations.

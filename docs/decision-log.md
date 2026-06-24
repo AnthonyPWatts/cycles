@@ -228,3 +228,19 @@ Consequences:
 - A fresh seed with the same integer seed should produce the same system layout and home assignments, but not the same IDs.
 - The same persisted state and tick number should resolve combat the same way.
 - Changes to seeding or combat algorithms should be treated as simulation behaviour changes and covered by tests.
+
+## 2026-06-24: Keep Source Documents Under Docs Source
+
+Decision: move the original Word source documents into `docs/source` and add GitHub issue forms for bug reports, implementation tasks, and design decisions.
+
+Reasoning:
+
+- The repository root should stay focused on runnable project entry points.
+- The Word documents remain useful source artefacts, but the Markdown docs are now the working development layer.
+- Issue forms keep future GitHub tracking aligned with the current backlog categories without adding process-heavy templates.
+
+Consequences:
+
+- Original design documents now live under `docs/source`.
+- Future documentation updates should keep Markdown current and treat the Word documents as source/reference material.
+- New GitHub issues can start from structured forms while still allowing blank issues when needed.

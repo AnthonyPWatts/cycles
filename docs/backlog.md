@@ -10,8 +10,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Record staged roadmap.
 - [x] Record architecture direction.
 - [x] Record known decisions.
-- [ ] Add issue templates once GitHub issue tracking begins.
-- [ ] Decide whether the original Word documents remain source artefacts long-term or move to `docs/source`.
+- [x] Add issue templates once GitHub issue tracking begins.
+- [x] Decide whether the original Word documents remain source artefacts long-term or move to `docs/source`.
 
 ## Stage 1: Simulation Spine Hardening
 

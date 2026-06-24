@@ -15,10 +15,10 @@ This folder records the current project state and the intended development path.
 
 ## Source Documents
 
-The original design source is still the three Word documents in the repository root:
+The original design source is kept under `docs/source`:
 
-- `Cycles_Vision_Statement.docx`
-- `Cycles_Technical_Design_Document_v0_1.docx`
-- `Cycles_Expanded_History_and_Strategy_Spec.docx`
+- `source/Cycles_Vision_Statement.docx`
+- `source/Cycles_Technical_Design_Document_v0_1.docx`
+- `source/Cycles_Expanded_History_and_Strategy_Spec.docx`
 
 The Markdown docs are the working development layer derived from those source documents and the current implementation.

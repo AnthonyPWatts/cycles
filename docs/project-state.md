@@ -29,8 +29,8 @@ This is not yet a production game service. It is a working architecture slice.
 | `src/Cycles.Infrastructure.SqlServer` | SQL Server implementation of the prototype state store. |
 | `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
 | `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
-| `docs` | Working development intent, state, roadmap, backlog, and decision records. |
-| Repository root Word documents | Original product and technical design source material. |
+| `docs` | Working development intent, state, roadmap, backlog, decision records, and original source documents under `docs/source`. |
+| `.github/ISSUE_TEMPLATE` | GitHub issue forms for bug reports, implementation tasks, and design decisions. |
 
 ## Implemented Behaviour
 

@@ -1,0 +1,32 @@
+name: Implementation task
+description: Track a scoped build, test, documentation, or infrastructure task.
+title: "[Task]: "
+labels:
+  - task
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What should be true when this task is done?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What files, systems, or behaviours are expected to change?
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Existing decisions, compatibility concerns, or explicit non-goals.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Tests, smoke checks, or evidence expected before closing.
+    validations:
+      required: true
