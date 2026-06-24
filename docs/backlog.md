@@ -87,7 +87,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Consider order cancellation before execution.
 - [ ] Add system detail API response with influence breakdown.
 - [x] Add fleet detail API response.
-- [ ] Add last tick summary endpoint.
+- [x] Add last tick summary endpoint.
 - [x] Add dashboard pending order list.
 - [x] Add dashboard system detail panel.
 - [x] Add dashboard fleet detail panel.

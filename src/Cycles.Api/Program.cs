@@ -34,6 +34,20 @@ app.MapGet("/cycles/current", (IGameStateStore store) =>
         return state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
     }));
 
+app.MapGet("/ticks/last-summary", (IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var cycle = GetActiveCycle(state);
+        var tickLog = state.TickLogs
+            .Where(log => log.CycleId == cycle.CycleId)
+            .OrderByDescending(log => log.TickNumber)
+            .ThenByDescending(log => log.CompletedAt ?? log.StartedAt)
+            .FirstOrDefault();
+
+        return ToLastTickSummaryResponse(state, cycle, tickLog);
+    }));
+
 app.MapGet("/empire", (Guid? playerId, IGameStateStore store) =>
     TryResult(() =>
     {
@@ -372,6 +386,59 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         targetEmpire?.EmpireName);
 }
 
+static LastTickSummaryResponse ToLastTickSummaryResponse(GameState state, Cycle cycle, TickLog? tickLog)
+{
+    if (tickLog is null)
+    {
+        return new LastTickSummaryResponse(
+            cycle.CycleId,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0,
+            0,
+            0,
+            [],
+            [],
+            []);
+    }
+
+    var events = state.Events
+        .Where(item => item.CycleId == cycle.CycleId && item.TickNumber == tickLog.TickNumber)
+        .OrderBy(item => item.CreatedAt)
+        .ToArray();
+
+    var battles = state.BattleRecords
+        .Where(item => item.CycleId == cycle.CycleId && item.TickNumber == tickLog.TickNumber)
+        .OrderBy(item => item.CreatedAt)
+        .ToArray();
+
+    var eventIds = events.Select(item => item.EventId).ToHashSet();
+    var battleIds = battles.Select(item => item.BattleId).ToHashSet();
+    var chronicleEntries = state.ChronicleEntries
+        .Where(entry => entry.CycleId == cycle.CycleId
+                        && ((entry.SourceEventId.HasValue && eventIds.Contains(entry.SourceEventId.Value))
+                            || (entry.SourceBattleId.HasValue && battleIds.Contains(entry.SourceBattleId.Value))))
+        .OrderByDescending(entry => entry.ImportanceScore)
+        .ToArray();
+
+    return new LastTickSummaryResponse(
+        cycle.CycleId,
+        tickLog.TickNumber,
+        tickLog.Status,
+        tickLog.StartedAt,
+        tickLog.CompletedAt,
+        tickLog.DiagnosticLog,
+        events.Length,
+        battles.Length,
+        chronicleEntries.Length,
+        events,
+        battles,
+        chronicleEntries);
+}
+
 public sealed record LoginRequest(string Username, string? EmpireName);
 
 public sealed record LoginResponse(Guid PlayerId, string Username, EmpireResponse Empire);
@@ -437,6 +504,20 @@ public sealed record FleetOrderResponse(
     string FleetName,
     string? TargetSystemName,
     string? TargetEmpireName);
+
+public sealed record LastTickSummaryResponse(
+    Guid CycleId,
+    int? TickNumber,
+    TickLogStatus? Status,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    string? DiagnosticLog,
+    int EventsCreated,
+    int BattlesCreated,
+    int ChronicleEntriesCreated,
+    IReadOnlyCollection<EventRecord> Events,
+    IReadOnlyCollection<BattleRecord> Battles,
+    IReadOnlyCollection<ChronicleEntry> ChronicleEntries);
 
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 
