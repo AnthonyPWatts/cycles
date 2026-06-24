@@ -1,6 +1,6 @@
 # Cycles SQLDockerDeployKit Database
 
-This folder contains a Cycles-specific SQL Server container definition based on the SQLDockerDeployKit pattern: a SQL Server image plus ordered `SQLScripts` executed at startup.
+This folder contains a Cycles-specific SQL Server container definition based on the SQLDockerDeployKit pattern: a SQL Server image that creates `CyclesDb`, applies the ordered SQL migrations from `database/migrations`, then executes ordered seed scripts from `SQLScripts`.
 
 The application still uses JSON persistence by default, but the CLI and API can opt into this SQL Server database through the `Cycles.Infrastructure.SqlServer` store.
 
@@ -11,6 +11,8 @@ From the repository root:
 ```powershell
 docker build -t cycles-sql -f database/sqldockerdeploykit/Dockerfile .
 ```
+
+The image uses SQL Server 2022 and the SQLDockerDeployKit-style readiness path with `sqlcmd`, accepting `MSSQL_SA_PASSWORD` as the primary password variable and `SA_PASSWORD` as a compatibility alias.
 
 ## Run
 
@@ -25,14 +27,14 @@ The image also accepts `SA_PASSWORD` for compatibility with SQLDockerDeployKit e
 ## Verify
 
 ```powershell
-docker exec cycles-sql /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "YourStrong!Passw0rd" -Q "SELECT COUNT(*) AS CycleCount FROM CyclesDb.dbo.Cycles"
-docker exec cycles-sql /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "YourStrong!Passw0rd" -Q "SELECT TABLE_NAME FROM CyclesDb.INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' ORDER BY TABLE_NAME"
+docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "YourStrong!Passw0rd" -Q "SELECT COUNT(*) AS CycleCount FROM CyclesDb.dbo.Cycles"
+docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "YourStrong!Passw0rd" -Q "SELECT TABLE_NAME FROM CyclesDb.INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' ORDER BY TABLE_NAME"
 ```
 
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `Players`, `Cycles`, `Systems`, `Empires`, `Fleets`, `FleetOrders`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `Fleets`, `FleetOrders`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
 
 ## Connection String
 
@@ -45,6 +47,8 @@ Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd
 Run the CLI against SQL Server by prefixing the connection string with `sqlserver:`:
 
 ```powershell
+dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 ```
@@ -55,7 +59,7 @@ Run the API against SQL Server with `ConnectionStrings:Cycles`:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 ```
 
-The SQL Server store currently reads and writes the whole prototype `GameState` inside one transaction protected by `sp_getapplock`. This is a practical bridge from JSON persistence to relational persistence. It is not yet a final incremental persistence model or migration system.
+The SQL Server store currently reads the whole prototype `GameState` inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. Migrations are explicit and non-destructive, but the state store is still a practical bridge from JSON persistence to the final focused repository model.
 
 ## Integration Test
 
@@ -64,6 +68,12 @@ The normal test suite does not require Docker. To include the SQL Server integra
 ```powershell
 $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 dotnet test Cycles.slnx --no-build
+```
+
+Or pass the variable directly to the test host:
+
+```powershell
+dotnet test Cycles.slnx --no-build --environment CYCLES_SQL_INTEGRATION_CONNECTION_STRING="Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 ```
 
 The integration test replaces the configured database contents, so do not run it against data you want to keep.

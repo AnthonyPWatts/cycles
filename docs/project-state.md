@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 ## Current Status
 
@@ -108,12 +108,15 @@ This is not yet a production game service. It is a working architecture slice.
 - File locking prevents two local writers from mutating the JSON state file at the same time.
 - A SQL Server schema/bootstrap image exists under `database/sqldockerdeploykit`.
 - `Cycles.Infrastructure.SqlServer` can read, replace, and update `GameState` through SQL Server.
+- SQL Server schema migrations are plain SQL scripts under `database/migrations`.
+- The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
+- Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
-- The SQL Server implementation writes the whole prototype state snapshot across relational tables; it is a bridge, not yet the final incremental repository model.
+- The SQL Server implementation loads the whole prototype state, then synchronises mapped rows with targeted deletes and upserts; it is a bridge, not yet the final focused repository model.
 
 ## Verified Checks
 
-Last verified on 2026-06-23:
+Last verified on 2026-06-24:
 
 ```powershell
 dotnet restore Cycles.slnx --configfile NuGet.Config
@@ -121,24 +124,29 @@ dotnet build Cycles.slnx --no-restore
 dotnet test Cycles.slnx --no-build
 ```
 
-Additional smoke checks performed:
+Additional smoke checks performed during the MVP build-out:
 
 - CLI seed/tick/show against a temporary state file.
 - API health, current Cycle, and galaxy endpoints.
 - Browser dashboard desktop and mobile layout checks.
 - Browser dashboard move-order submission.
-- SQLDockerDeployKit-style SQL Server image build.
-- `CyclesDb` container startup, schema creation, and seed verification.
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
-- Opt-in SQL Server integration test with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
+- Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
+
+SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
+
+- SQLDockerDeployKit-style SQL Server 2022 image build.
+- Disposable `CyclesDb` container startup, migration application, healthcheck, and seed verification.
+- CLI `db status` and `show` against the disposable SQL Server container.
+- Full test suite with SQL integration enabled through `dotnet test --environment CYCLES_SQL_INTEGRATION_CONNECTION_STRING=...`.
 
 ## Known Limitations
 
 These are known gaps, not defects in the current MVP claim:
 
-- No migration command or schema versioning yet.
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
+- The SQL Server store still loads a full `GameState` instead of focused tick aggregates or repositories.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
@@ -159,11 +167,12 @@ These are known gaps, not defects in the current MVP claim:
 
 The next stage should harden the simulation spine before adding feature breadth:
 
-1. replace the snapshot-style SQL Server store with incremental persistence operations;
+1. move tick execution from full-state synchronisation to focused SQL repository operations;
 2. make tick execution idempotent and auditable against that persistence layer;
-3. add automated SQL Server integration tests around seed/show/tick/order flows;
-4. add a minimal build/spending loop so strategic priorities affect gameplay;
-5. only then deepen the Chronicle/history systems.
+3. add automated SQL Server integration tests around migrations and new repository operations;
+4. implement the admin recovery clear/retry workflow;
+5. add a minimal build/spending loop so strategic priorities affect gameplay;
+6. only then deepen the Chronicle/history systems.
 
 ## Definition Of The Next Stable State
 

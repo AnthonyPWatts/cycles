@@ -78,6 +78,13 @@ docker build -t cycles-sql -f database/sqldockerdeploykit/Dockerfile .
 docker run --name cycles-sql -d -p 14333:1433 -e "MSSQL_SA_PASSWORD=YourStrong!Passw0rd" cycles-sql
 ```
 
+The container uses SQL Server 2022, creates `CyclesDb`, applies the SQL migrations, and seeds a small smoke-test Cycle. For an existing or empty SQL Server database, apply migrations through the CLI:
+
+```powershell
+dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+```
+
 Run the CLI against SQL Server:
 
 ```powershell
@@ -95,6 +102,6 @@ See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for ver
 
 ## Notes
 
-The current SQL Server store persists the whole prototype `GameState` snapshot through relational tables. That is enough for local durability and transaction/locking smoke tests, but it is not yet the final incremental repository model.
+The current SQL Server store loads the prototype `GameState` as its unit of work, then synchronises mapped rows with targeted deletes and upserts. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the state writer is still a bridge rather than the final focused repository model.
 
 The API exposes state and accepts orders. Tick execution remains in the CLI, matching the design principle that public API calls should not decide simulation outcomes.

@@ -45,17 +45,19 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add `Cycles.Infrastructure.SqlServer` for SQL Server persistence implementation.
 - [x] Define persistence interface for loading, replacing, and updating prototype state.
 - [x] Map application persistence to the initial SQL Server schema.
-- [ ] Replace whole-state SQL snapshot writes with incremental repository operations.
-- [ ] Create schema versioning and migrations.
-- [ ] Add schema initialisation/migration command.
+- [x] Replace whole-state SQL delete/reinsert writes with targeted row-level sync.
+- [ ] Move tick execution from full-state sync to focused incremental repository operations.
+- [x] Create schema versioning and migrations.
+- [x] Add schema initialisation/migration command.
 - [x] Implement prototype SQL Server application lock for state updates.
 - [x] Move CLI seed/tick/show to relational persistence when SQL Server is configured.
 - [x] Move API state/order endpoints to relational persistence when SQL Server is configured.
 - [x] Add opt-in SQL Server integration test using the local container.
 - [x] Add broader SQL Server integration tests for orders and duplicate tick prevention.
 - [ ] Add admin recovery clear/retry workflow once operator semantics are decided.
-- [ ] Decide whether temporary SQLite integration tests are still useful.
-- [ ] Decide whether JSON store remains as dev-only support or is removed.
+- [x] Decide whether temporary SQLite integration tests are still useful.
+- [x] Decide whether JSON store remains as dev-only support or is removed.
+- [ ] Demote JSON persistence to import/export-only once the SQL-backed flow is stable.
 - [ ] Optional: add JSON import/export for developer convenience.
 
 ## Stage 3: Strategic Economy

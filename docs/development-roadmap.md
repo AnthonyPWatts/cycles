@@ -440,10 +440,10 @@ This order favours history first. Admirals create narrative anchors; diplomacy c
 
 The next development sprint should continue Stage 2 before moving to Stage 3. A sensible next sprint:
 
-1. Replace SQL whole-state delete/reinsert writes with targeted persistence operations.
-2. Add schema versioning and an initialisation/migration command.
-3. Add SQL Server integration tests for seed, show, tick, order submission, and duplicate tick prevention.
-4. Define the admin recovery clear/retry workflow.
+1. Move tick execution from full-state synchronisation to focused SQL repository operations.
+2. Add SQL Server integration tests around the migration command and any new repository operations.
+3. Define and implement the admin recovery clear/retry workflow.
+4. Add per-Cycle tick locking as the SQL write model becomes incremental.
 5. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
 6. Update `docs/project-state.md` after verification.
 

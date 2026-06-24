@@ -118,85 +118,71 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
-        ExecuteNonQuery(connection, transaction, """
-            DELETE FROM dbo.ChronicleEntries;
-            DELETE FROM dbo.BattleRecords;
-            DELETE FROM dbo.Events;
-            DELETE FROM dbo.TickLogs;
-            DELETE FROM dbo.FleetOrders;
-            DELETE FROM dbo.Fleets;
-            DELETE FROM dbo.SystemLinks;
-            DELETE FROM dbo.EmpirePriorities;
-            DELETE FROM dbo.EmpireResources;
-            DELETE FROM dbo.Empires;
-            DELETE FROM dbo.Systems;
-            DELETE FROM dbo.Cycles;
-            DELETE FROM dbo.Players;
-            """);
+        DeleteRowsMissingFromState(connection, transaction, state);
 
         foreach (var item in state.Players)
         {
-            InsertPlayer(connection, transaction, item);
+            UpsertPlayer(connection, transaction, item);
         }
 
         foreach (var item in state.Cycles)
         {
-            InsertCycle(connection, transaction, item);
+            UpsertCycle(connection, transaction, item);
         }
 
         foreach (var item in state.Systems)
         {
-            InsertSystem(connection, transaction, item);
+            UpsertSystem(connection, transaction, item);
         }
 
         foreach (var item in state.Empires)
         {
-            InsertEmpire(connection, transaction, item);
+            UpsertEmpire(connection, transaction, item);
         }
 
         foreach (var item in state.EmpireResources)
         {
-            InsertEmpireResource(connection, transaction, item);
+            UpsertEmpireResource(connection, transaction, item);
         }
 
         foreach (var item in state.EmpirePriorities)
         {
-            InsertEmpirePriority(connection, transaction, item);
+            UpsertEmpirePriority(connection, transaction, item);
         }
 
         foreach (var item in state.SystemLinks)
         {
-            InsertSystemLink(connection, transaction, item);
+            UpsertSystemLink(connection, transaction, item);
         }
 
         foreach (var item in state.Fleets)
         {
-            InsertFleet(connection, transaction, item);
+            UpsertFleet(connection, transaction, item);
         }
 
         foreach (var item in state.FleetOrders)
         {
-            InsertFleetOrder(connection, transaction, item);
+            UpsertFleetOrder(connection, transaction, item);
         }
 
         foreach (var item in state.TickLogs)
         {
-            InsertTickLog(connection, transaction, item);
+            UpsertTickLog(connection, transaction, item);
         }
 
         foreach (var item in state.Events)
         {
-            InsertEvent(connection, transaction, item);
+            UpsertEvent(connection, transaction, item);
         }
 
         foreach (var item in state.BattleRecords)
         {
-            InsertBattleRecord(connection, transaction, item);
+            UpsertBattleRecord(connection, transaction, item);
         }
 
         foreach (var item in state.ChronicleEntries)
         {
-            InsertChronicleEntry(connection, transaction, item);
+            UpsertChronicleEntry(connection, transaction, item);
         }
     }
 
@@ -369,10 +355,22 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
-    private static void InsertPlayer(SqlConnection connection, SqlTransaction transaction, Player item) =>
+    private static void UpsertPlayer(SqlConnection connection, SqlTransaction transaction, Player item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Players
+            SET Username = @Username,
+                Email = @Email,
+                PasswordHash = @PasswordHash,
+                CreatedAt = @CreatedAt,
+                LastLoginAt = @LastLoginAt,
+                Status = @Status
+            WHERE PlayerID = @PlayerID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, CreatedAt, LastLoginAt, Status)
             VALUES (@PlayerID, @Username, @Email, @PasswordHash, @CreatedAt, @LastLoginAt, @Status);
+            END;
             """, command =>
         {
             AddGuid(command, "@PlayerID", item.PlayerId);
@@ -384,10 +382,23 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Status", item.Status.ToString(), 32);
         });
 
-    private static void InsertCycle(SqlConnection connection, SqlTransaction transaction, Cycle item) =>
+    private static void UpsertCycle(SqlConnection connection, SqlTransaction transaction, Cycle item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Cycles
+            SET Name = @Name,
+                StartAt = @StartAt,
+                EndAt = @EndAt,
+                TickLengthMinutes = @TickLengthMinutes,
+                CurrentTickNumber = @CurrentTickNumber,
+                Status = @Status,
+                CreatedAt = @CreatedAt
+            WHERE CycleID = @CycleID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedAt)
             VALUES (@CycleID, @Name, @StartAt, @EndAt, @TickLengthMinutes, @CurrentTickNumber, @Status, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@CycleID", item.CycleId);
@@ -400,10 +411,26 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertSystem(SqlConnection connection, SqlTransaction transaction, GalaxySystem item) =>
+    private static void UpsertSystem(SqlConnection connection, SqlTransaction transaction, GalaxySystem item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Systems
+            SET CycleID = @CycleID,
+                SystemName = @SystemName,
+                X = @X,
+                Y = @Y,
+                IndustryOutput = @IndustryOutput,
+                ResearchOutput = @ResearchOutput,
+                PopulationOutput = @PopulationOutput,
+                StrategicValue = @StrategicValue,
+                HistoricalSignificance = @HistoricalSignificance,
+                CreatedAt = @CreatedAt
+            WHERE SystemID = @SystemID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Systems(SystemID, CycleID, SystemName, X, Y, IndustryOutput, ResearchOutput, PopulationOutput, StrategicValue, HistoricalSignificance, CreatedAt)
             VALUES (@SystemID, @CycleID, @SystemName, @X, @Y, @IndustryOutput, @ResearchOutput, @PopulationOutput, @StrategicValue, @HistoricalSignificance, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@SystemID", item.SystemId);
@@ -419,10 +446,22 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertEmpire(SqlConnection connection, SqlTransaction transaction, Empire item) =>
+    private static void UpsertEmpire(SqlConnection connection, SqlTransaction transaction, Empire item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Empires
+            SET CycleID = @CycleID,
+                PlayerID = @PlayerID,
+                EmpireName = @EmpireName,
+                HomeSystemID = @HomeSystemID,
+                CreatedAt = @CreatedAt,
+                Status = @Status
+            WHERE EmpireID = @EmpireID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Empires(EmpireID, CycleID, PlayerID, EmpireName, HomeSystemID, CreatedAt, Status)
             VALUES (@EmpireID, @CycleID, @PlayerID, @EmpireName, @HomeSystemID, @CreatedAt, @Status);
+            END;
             """, command =>
         {
             AddGuid(command, "@EmpireID", item.EmpireId);
@@ -434,10 +473,21 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Status", item.Status.ToString(), 32);
         });
 
-    private static void InsertEmpireResource(SqlConnection connection, SqlTransaction transaction, EmpireResource item) =>
+    private static void UpsertEmpireResource(SqlConnection connection, SqlTransaction transaction, EmpireResource item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.EmpireResources
+            SET EmpireID = @EmpireID,
+                Industry = @Industry,
+                Research = @Research,
+                Population = @Population,
+                UpdatedAt = @UpdatedAt
+            WHERE EmpireResourceID = @EmpireResourceID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.EmpireResources(EmpireResourceID, EmpireID, Industry, Research, Population, UpdatedAt)
             VALUES (@EmpireResourceID, @EmpireID, @Industry, @Research, @Population, @UpdatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@EmpireResourceID", item.EmpireResourceId);
@@ -448,10 +498,22 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
         });
 
-    private static void InsertEmpirePriority(SqlConnection connection, SqlTransaction transaction, EmpirePriority item) =>
+    private static void UpsertEmpirePriority(SqlConnection connection, SqlTransaction transaction, EmpirePriority item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.EmpirePriorities
+            SET EmpireID = @EmpireID,
+                IndustryWeight = @IndustryWeight,
+                ResearchWeight = @ResearchWeight,
+                MilitaryWeight = @MilitaryWeight,
+                ExpansionWeight = @ExpansionWeight,
+                UpdatedAt = @UpdatedAt
+            WHERE EmpirePriorityID = @EmpirePriorityID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.EmpirePriorities(EmpirePriorityID, EmpireID, IndustryWeight, ResearchWeight, MilitaryWeight, ExpansionWeight, UpdatedAt)
             VALUES (@EmpirePriorityID, @EmpireID, @IndustryWeight, @ResearchWeight, @MilitaryWeight, @ExpansionWeight, @UpdatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@EmpirePriorityID", item.EmpirePriorityId);
@@ -463,10 +525,21 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
         });
 
-    private static void InsertSystemLink(SqlConnection connection, SqlTransaction transaction, SystemLink item) =>
+    private static void UpsertSystemLink(SqlConnection connection, SqlTransaction transaction, SystemLink item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.SystemLinks
+            SET CycleID = @CycleID,
+                SystemAID = @SystemAID,
+                SystemBID = @SystemBID,
+                Distance = @Distance,
+                TravelTicks = @TravelTicks
+            WHERE SystemLinkID = @SystemLinkID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.SystemLinks(SystemLinkID, CycleID, SystemAID, SystemBID, Distance, TravelTicks)
             VALUES (@SystemLinkID, @CycleID, @SystemAID, @SystemBID, @Distance, @TravelTicks);
+            END;
             """, command =>
         {
             AddGuid(command, "@SystemLinkID", item.SystemLinkId);
@@ -477,10 +550,25 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@TravelTicks", item.TravelTicks);
         });
 
-    private static void InsertFleet(SqlConnection connection, SqlTransaction transaction, Fleet item) =>
+    private static void UpsertFleet(SqlConnection connection, SqlTransaction transaction, Fleet item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Fleets
+            SET CycleID = @CycleID,
+                EmpireID = @EmpireID,
+                FleetName = @FleetName,
+                CurrentSystemID = @CurrentSystemID,
+                DestinationSystemID = @DestinationSystemID,
+                ArrivalTickNumber = @ArrivalTickNumber,
+                ShipCount = @ShipCount,
+                Status = @Status,
+                CreatedAt = @CreatedAt
+            WHERE FleetID = @FleetID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
             VALUES (@FleetID, @CycleID, @EmpireID, @FleetName, @CurrentSystemID, @DestinationSystemID, @ArrivalTickNumber, @ShipCount, @Status, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@FleetID", item.FleetId);
@@ -495,10 +583,27 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertFleetOrder(SqlConnection connection, SqlTransaction transaction, FleetOrder item) =>
+    private static void UpsertFleetOrder(SqlConnection connection, SqlTransaction transaction, FleetOrder item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.FleetOrders
+            SET CycleID = @CycleID,
+                FleetID = @FleetID,
+                OrderType = @OrderType,
+                TargetSystemID = @TargetSystemID,
+                TargetEmpireID = @TargetEmpireID,
+                SubmitTick = @SubmitTick,
+                ExecuteAfterTick = @ExecuteAfterTick,
+                ProcessedTick = @ProcessedTick,
+                Status = @Status,
+                RejectionReason = @RejectionReason,
+                CreatedAt = @CreatedAt
+            WHERE FleetOrderID = @FleetOrderID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetSystemID, TargetEmpireID, SubmitTick, ExecuteAfterTick, ProcessedTick, Status, RejectionReason, CreatedAt)
             VALUES (@FleetOrderID, @CycleID, @FleetID, @OrderType, @TargetSystemID, @TargetEmpireID, @SubmitTick, @ExecuteAfterTick, @ProcessedTick, @Status, @RejectionReason, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@FleetOrderID", item.FleetOrderId);
@@ -515,10 +620,22 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertTickLog(SqlConnection connection, SqlTransaction transaction, TickLog item) =>
+    private static void UpsertTickLog(SqlConnection connection, SqlTransaction transaction, TickLog item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.TickLogs
+            SET CycleID = @CycleID,
+                TickNumber = @TickNumber,
+                StartedAt = @StartedAt,
+                CompletedAt = @CompletedAt,
+                Status = @Status,
+                DiagnosticLog = @DiagnosticLog
+            WHERE TickLogID = @TickLogID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.TickLogs(TickLogID, CycleID, TickNumber, StartedAt, CompletedAt, Status, DiagnosticLog)
             VALUES (@TickLogID, @CycleID, @TickNumber, @StartedAt, @CompletedAt, @Status, @DiagnosticLog);
+            END;
             """, command =>
         {
             AddGuid(command, "@TickLogID", item.TickLogId);
@@ -530,10 +647,25 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddMaxString(command, "@DiagnosticLog", item.DiagnosticLog);
         });
 
-    private static void InsertEvent(SqlConnection connection, SqlTransaction transaction, EventRecord item) =>
+    private static void UpsertEvent(SqlConnection connection, SqlTransaction transaction, EventRecord item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.Events
+            SET CycleID = @CycleID,
+                TickNumber = @TickNumber,
+                EventType = @EventType,
+                SystemID = @SystemID,
+                EmpireID = @EmpireID,
+                Severity = @Severity,
+                FactJson = @FactJson,
+                DisplayText = @DisplayText,
+                CreatedAt = @CreatedAt
+            WHERE EventID = @EventID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, SystemID, EmpireID, Severity, FactJson, DisplayText, CreatedAt)
             VALUES (@EventID, @CycleID, @TickNumber, @EventType, @SystemID, @EmpireID, @Severity, @FactJson, @DisplayText, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@EventID", item.EventId);
@@ -548,10 +680,30 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertBattleRecord(SqlConnection connection, SqlTransaction transaction, BattleRecord item) =>
+    private static void UpsertBattleRecord(SqlConnection connection, SqlTransaction transaction, BattleRecord item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.BattleRecords
+            SET CycleID = @CycleID,
+                TickNumber = @TickNumber,
+                SystemID = @SystemID,
+                AttackerEmpireID = @AttackerEmpireID,
+                DefenderEmpireID = @DefenderEmpireID,
+                AttackerFleetIDs = @AttackerFleetIDs,
+                DefenderFleetIDs = @DefenderFleetIDs,
+                AttackerShipsBefore = @AttackerShipsBefore,
+                DefenderShipsBefore = @DefenderShipsBefore,
+                AttackerLosses = @AttackerLosses,
+                DefenderLosses = @DefenderLosses,
+                Outcome = @Outcome,
+                FactJson = @FactJson,
+                CreatedAt = @CreatedAt
+            WHERE BattleID = @BattleID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.BattleRecords(BattleID, CycleID, TickNumber, SystemID, AttackerEmpireID, DefenderEmpireID, AttackerFleetIDs, DefenderFleetIDs, AttackerShipsBefore, DefenderShipsBefore, AttackerLosses, DefenderLosses, Outcome, FactJson, CreatedAt)
             VALUES (@BattleID, @CycleID, @TickNumber, @SystemID, @AttackerEmpireID, @DefenderEmpireID, @AttackerFleetIDs, @DefenderFleetIDs, @AttackerShipsBefore, @DefenderShipsBefore, @AttackerLosses, @DefenderLosses, @Outcome, @FactJson, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@BattleID", item.BattleId);
@@ -571,10 +723,26 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void InsertChronicleEntry(SqlConnection connection, SqlTransaction transaction, ChronicleEntry item) =>
+    private static void UpsertChronicleEntry(SqlConnection connection, SqlTransaction transaction, ChronicleEntry item) =>
         Execute(connection, transaction, """
+            UPDATE dbo.ChronicleEntries
+            SET SourceEventID = @SourceEventID,
+                SourceBattleID = @SourceBattleID,
+                CycleID = @CycleID,
+                SystemID = @SystemID,
+                Title = @Title,
+                EntryType = @EntryType,
+                ImportanceScore = @ImportanceScore,
+                FactualSummary = @FactualSummary,
+                NarrativeText = @NarrativeText,
+                CreatedAt = @CreatedAt
+            WHERE ChronicleEntryID = @ChronicleEntryID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
             INSERT INTO dbo.ChronicleEntries(ChronicleEntryID, SourceEventID, SourceBattleID, CycleID, SystemID, Title, EntryType, ImportanceScore, FactualSummary, NarrativeText, CreatedAt)
             VALUES (@ChronicleEntryID, @SourceEventID, @SourceBattleID, @CycleID, @SystemID, @Title, @EntryType, @ImportanceScore, @FactualSummary, @NarrativeText, @CreatedAt);
+            END;
             """, command =>
         {
             AddGuid(command, "@ChronicleEntryID", item.ChronicleEntryId);
@@ -589,6 +757,60 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddMaxString(command, "@NarrativeText", item.NarrativeText);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
+
+    private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
+    {
+        DeleteMissingRows(connection, transaction, "dbo.ChronicleEntries", "ChronicleEntryID", state.ChronicleEntries.Select(item => item.ChronicleEntryId));
+        DeleteMissingRows(connection, transaction, "dbo.BattleRecords", "BattleID", state.BattleRecords.Select(item => item.BattleId));
+        DeleteMissingRows(connection, transaction, "dbo.Events", "EventID", state.Events.Select(item => item.EventId));
+        DeleteMissingRows(connection, transaction, "dbo.TickLogs", "TickLogID", state.TickLogs.Select(item => item.TickLogId));
+        DeleteMissingRows(connection, transaction, "dbo.FleetOrders", "FleetOrderID", state.FleetOrders.Select(item => item.FleetOrderId));
+        DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
+        DeleteMissingRows(connection, transaction, "dbo.SystemLinks", "SystemLinkID", state.SystemLinks.Select(item => item.SystemLinkId));
+        DeleteMissingRows(connection, transaction, "dbo.EmpirePriorities", "EmpirePriorityID", state.EmpirePriorities.Select(item => item.EmpirePriorityId));
+        DeleteMissingRows(connection, transaction, "dbo.EmpireResources", "EmpireResourceID", state.EmpireResources.Select(item => item.EmpireResourceId));
+        DeleteMissingRows(connection, transaction, "dbo.Empires", "EmpireID", state.Empires.Select(item => item.EmpireId));
+        DeleteMissingRows(connection, transaction, "dbo.Systems", "SystemID", state.Systems.Select(item => item.SystemId));
+        DeleteMissingRows(connection, transaction, "dbo.Cycles", "CycleID", state.Cycles.Select(item => item.CycleId));
+        DeleteMissingRows(connection, transaction, "dbo.Players", "PlayerID", state.Players.Select(item => item.PlayerId));
+    }
+
+    private static void DeleteMissingRows(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        string tableName,
+        string keyColumnName,
+        IEnumerable<Guid> retainedIds)
+    {
+        var retainedIdSet = retainedIds.ToHashSet();
+        foreach (var existingId in ReadIds(connection, transaction, tableName, keyColumnName))
+        {
+            if (!retainedIdSet.Contains(existingId))
+            {
+                DeleteRow(connection, transaction, tableName, keyColumnName, existingId);
+            }
+        }
+    }
+
+    private static IReadOnlyList<Guid> ReadIds(SqlConnection connection, SqlTransaction transaction, string tableName, string keyColumnName)
+    {
+        using var command = CreateCommand(connection, transaction, $"SELECT {keyColumnName} FROM {tableName};");
+        using var reader = command.ExecuteReader();
+        var ids = new List<Guid>();
+        while (reader.Read())
+        {
+            ids.Add(reader.GetGuid(0));
+        }
+
+        return ids;
+    }
+
+    private static void DeleteRow(SqlConnection connection, SqlTransaction transaction, string tableName, string keyColumnName, Guid id)
+    {
+        using var command = CreateCommand(connection, transaction, $"DELETE FROM {tableName} WHERE {keyColumnName} = @Id;");
+        AddGuid(command, "@Id", id);
+        command.ExecuteNonQuery();
+    }
 
     private static List<T> ReadRows<T>(
         SqlConnection connection,
@@ -605,12 +827,6 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         }
 
         return rows;
-    }
-
-    private static void ExecuteNonQuery(SqlConnection connection, SqlTransaction transaction, string sql)
-    {
-        using var command = CreateCommand(connection, transaction, sql);
-        command.ExecuteNonQuery();
     }
 
     private static void Execute(

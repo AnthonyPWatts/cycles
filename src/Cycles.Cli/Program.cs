@@ -2,11 +2,17 @@ using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 
 var command = args.ElementAtOrDefault(0)?.ToLowerInvariant() ?? "show";
-var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
-var store = GameStateStoreFactory.Create(statePath);
 
 try
 {
+    if (command == "db")
+    {
+        return RunDatabaseCommand(args);
+    }
+
+    var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
+    var store = GameStateStoreFactory.Create(statePath);
+
     switch (command)
     {
         case "seed":
@@ -187,6 +193,70 @@ static void SubmitHold(string[] args, IGameStateStore store)
     Console.WriteLine($"Hold order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
 }
 
+static int RunDatabaseCommand(string[] args)
+{
+    var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
+    var connectionString = ParseRequiredSqlServerConnectionString(args, 2);
+    var migrator = new SqlServerMigrator(connectionString);
+
+    switch (subcommand)
+    {
+        case "init":
+        case "migrate":
+            var appliedMigrations = migrator.Migrate();
+            if (appliedMigrations.Count == 0)
+            {
+                Console.WriteLine("Database schema is current.");
+                return 0;
+            }
+
+            Console.WriteLine($"Applied {appliedMigrations.Count} migration(s):");
+            foreach (var migration in appliedMigrations)
+            {
+                Console.WriteLine($"- {migration.MigrationId}: {migration.Description}");
+            }
+
+            return 0;
+
+        case "status":
+            var status = migrator.GetStatus();
+            Console.WriteLine(status.DatabaseExists
+                ? "Database exists."
+                : "Database does not exist.");
+            Console.WriteLine($"Applied migrations: {status.AppliedMigrationIds.Count}");
+
+            if (status.PendingMigrations.Count == 0)
+            {
+                Console.WriteLine("Pending migrations: none");
+                return 0;
+            }
+
+            Console.WriteLine($"Pending migrations: {status.PendingMigrations.Count}");
+            foreach (var migration in status.PendingMigrations)
+            {
+                Console.WriteLine($"- {migration.MigrationId}: {migration.Description}");
+            }
+
+            return 0;
+
+        default:
+            PrintUsage();
+            return 2;
+    }
+}
+
+static string ParseRequiredSqlServerConnectionString(string[] args, int index)
+{
+    if (args.Length <= index || string.IsNullOrWhiteSpace(args[index]))
+    {
+        throw new InvalidOperationException("Missing SQL Server connection string. Use sqlserver:<connectionString>.");
+    }
+
+    return GameStateStoreFactory.TryParseSqlServerSpecifier(args[index], out var parsedConnectionString)
+        ? parsedConnectionString
+        : args[index];
+}
+
 static int ParseOptionalInt(string[] args, int index, int defaultValue) =>
     args.Length > index ? int.Parse(args[index]) : defaultValue;
 
@@ -220,6 +290,9 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db init <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db migrate <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");
     Console.WriteLine();
     Console.WriteLine("Use sqlserver:<connectionString> instead of a state path to read and write SQL Server state.");
 }

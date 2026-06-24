@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 ## Architectural Intent
 
@@ -42,7 +42,7 @@ Current implementation:
 - `Cycles.Api` exposes state and accepts orders.
 - `IGameStateStore` is the current persistence boundary.
 - `FileGameStateStore` persists the whole `GameState` as JSON by default.
-- `Cycles.Infrastructure.SqlServer` can persist the same prototype state through SQL Server when configured.
+- `Cycles.Infrastructure.SqlServer` can persist the same prototype state through SQL Server when configured, using row-level deletes and upserts rather than full table resets.
 - The dashboard is static HTML/CSS/JavaScript served by the API.
 
 This is acceptable for the initial MVP but should not become the production architecture by inertia.
@@ -134,9 +134,9 @@ Recommended sequence:
 
 1. Keep the `IGameStateStore` boundary while the prototype shape is still moving.
 2. Use the SQLDockerDeployKit-style SQL Server container as the local relational target.
-3. Replace whole-state SQL snapshot writes with incremental persistence operations.
-4. Add SQL Server integration tests around seed/show/tick/order flows.
-5. Add schema versioning and a migration/initialisation command.
+3. Replace full-table SQL reset writes with targeted row-level synchronisation.
+4. Add schema versioning and a migration/initialisation command.
+5. Move tick execution to focused incremental repository operations.
 6. Decide later whether PostgreSQL, SQLite, or hosted SQL Server should be the production target.
 
 ## Tick Transaction Model

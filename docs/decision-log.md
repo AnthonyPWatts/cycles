@@ -115,7 +115,7 @@ Consequences:
 
 - SQL Server persistence is now usable via `sqlserver:<connectionString>` in the CLI and `ConnectionStrings:Cycles` in the API.
 - SQL writes are protected by a transaction-scoped `sp_getapplock`.
-- The next persistence work should replace full-state delete/reinsert writes with targeted operations and migration/versioning support.
+- Follow-on persistence work should add migration/versioning support, then move beyond full-state synchronisation toward focused repository operations.
 
 ## 2026-06-23: Do Not Add Future Feature Systems Before Hardening The Simulation Spine
 
@@ -131,3 +131,67 @@ Consequences:
 
 - Stage 1 and Stage 2 should focus on tests, persistence, locking, and recovery.
 - Feature roadmap remains visible in `backlog.md` without driving immediate implementation.
+
+## 2026-06-24: Continue SQL Server As The Relational Target
+
+Decision: keep SQL Server as the primary relational implementation for the next stage, do not add SQLite now, and treat JSON as future import/export or development support rather than the intended runtime store.
+
+Reasoning:
+
+- The SQL Server bootstrap and application store already work locally.
+- Adding SQLite would split persistence attention before the SQL-backed tick model is strong.
+- A later deployment may move to PostgreSQL or MySQL to avoid SQL Server licensing, so the persistence design should avoid unnecessary provider-specific assumptions.
+
+Consequences:
+
+- Stage 2 should continue through the SQL Server infrastructure project.
+- JSON remains useful for local/dev convenience but should not drive the next architecture decisions.
+- Future repository abstractions should leave room for another relational provider after the schema and tick flow stabilise.
+
+## 2026-06-24: Use Plain SQL Migrations With A Small Runner
+
+Decision: add idempotent plain SQL migrations, track them in `dbo.SchemaMigrations`, and expose `db init`, `db migrate`, and `db status` through the CLI.
+
+Reasoning:
+
+- The current schema is small and does not yet justify EF Core migrations or another production dependency.
+- Plain SQL keeps the Docker bootstrap, CLI tooling, and manual inspection aligned.
+- A small runner is enough for local and early shared environments while avoiding destructive startup scripts.
+
+Consequences:
+
+- The SQLDockerDeployKit image now creates `CyclesDb`, applies migrations, then runs idempotent seed scripts.
+- `db init` is an alias for `db migrate`; the runner creates the configured database when needed.
+- Future schema changes should be added under `database/migrations` and embedded into `Cycles.Infrastructure.SqlServer`.
+
+## 2026-06-24: Replace SQL Full-Table Resets With Row-Level Sync
+
+Decision: keep `IGameStateStore` as the current persistence boundary, but change the SQL Server save path from full table delete/reinsert to targeted row deletion plus update-or-insert writes.
+
+Reasoning:
+
+- The existing store already gives CLI and API one transaction boundary while Stage 2 is still moving.
+- Removing full table resets reduces write blast radius without introducing a broad application-layer refactor yet.
+- A row-level sync is a useful intermediate step before focused repositories own orders, ticks, fleets, resources, events, battles, and Chronicle records independently.
+
+Consequences:
+
+- `Replace` still removes rows missing from the replacement state, but it does so child-to-parent instead of wiping every mapped table up front.
+- `Update` preserves existing row identities and updates only mapped rows, while new events/orders/tick logs are inserted.
+- The store still loads the full `GameState`; focused tick repositories remain the next persistence step.
+
+## 2026-06-24: Align Cycles SQL Container With SQLDockerDeployKit SQL Server Provider
+
+Decision: update the Cycles SQLDockerDeployKit-derived container to follow the current SQL Server provider baseline: SQL Server 2022, `mssql-tools18`/legacy `sqlcmd` discovery, `-C` for local certificate trust, configurable readiness polling, and a Docker healthcheck.
+
+Reasoning:
+
+- The upstream SQLDockerDeployKit issues raised during the Cycles adaptation have been addressed in that repository.
+- Keeping the local Cycles database bootstrap aligned with that pattern avoids carrying solved startup and tooling issues forward.
+- The database bootstrap now exercises the same migration scripts used by the CLI runner.
+
+Consequences:
+
+- The Cycles database image now builds from `mcr.microsoft.com/mssql/server:2022-latest`.
+- Startup applies migrations before seed scripts and reports container health through Docker.
+- Live SQL integration tests were verified against a disposable SQL Server 2022 container.

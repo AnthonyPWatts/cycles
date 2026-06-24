@@ -115,4 +115,43 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(0, updated.GetActiveCycle()?.CurrentTickNumber);
         Assert.Single(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.Status == TickLogStatus.Running);
     }
+
+    [Fact]
+    public void Store_updates_rows_and_removes_missing_rows_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = GameSeeder.CreateDefault(systemCount: 8, empireCount: 2, seed: 451);
+        var retainedPlayer = state.Players[0];
+        var removedPlayer = state.Players[1];
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+
+        store.Replace(state);
+
+        store.Update(current =>
+        {
+            var player = current.Players.Single(item => item.PlayerId == retainedPlayer.PlayerId);
+            player.Username = "renamed-player";
+            return player.PlayerId;
+        });
+
+        var updated = store.LoadOrCreate();
+        Assert.Contains(updated.Players, item => item.PlayerId == retainedPlayer.PlayerId && item.Username == "renamed-player");
+        Assert.Contains(updated.Players, item => item.PlayerId == removedPlayer.PlayerId);
+        Assert.Equal(cycle.CycleId, updated.GetActiveCycle()?.CycleId);
+
+        var replacement = GameSeeder.CreateDefault(systemCount: 6, empireCount: 1, seed: 452);
+        store.Replace(replacement);
+
+        var replaced = store.LoadOrCreate();
+        Assert.DoesNotContain(replaced.Players, item => item.PlayerId == removedPlayer.PlayerId);
+        Assert.DoesNotContain(replaced.Cycles, item => item.CycleId == cycle.CycleId);
+        Assert.Single(replaced.Cycles);
+        Assert.Equal(6, replaced.Systems.Count);
+    }
 }
