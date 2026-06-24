@@ -28,7 +28,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add tests for multi-fleet defender loss distribution.
 - [x] Add tests for battle-event fact consistency.
 - [x] Add tests for Chronicle source references.
-- [ ] Split `Simulation.cs` into focused files once tests protect behaviour.
+- [x] Split `Simulation.cs` into focused files once tests protect behaviour.
 - [x] Define explicit failed-tick recovery semantics.
 - [x] Add developer command or procedure for inspecting recovery-required Cycles.
 - [x] Document the deterministic random seed contract.

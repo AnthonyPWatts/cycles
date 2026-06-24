@@ -100,8 +100,7 @@ Goal: turn the current prototype loop into a reliable local simulation platform.
 ### Suggested File Changes
 
 - `src/Cycles.Core`
-  - Split broad simulation concerns out of `Simulation.cs` when tests justify it.
-  - Candidate files: `TickEngine.cs`, `InfluenceCalculator.cs`, `CombatResolver.cs`, `ChronicleScoring.cs`.
+  - Broad simulation concerns are split across `TickEngine.cs`, `InfluenceCalculator.cs`, `CombatResolver.cs`, and `ChronicleScoring.cs`.
 - `tests/Cycles.Tests`
   - Replace top-level console tests with standard test classes.
 - `docs/project-state.md`
@@ -443,7 +442,7 @@ The next development sprint should continue Stage 2 before moving to Stage 3. A 
 1. Move tick execution from full-state synchronisation to focused SQL repository operations.
 2. Add SQL Server integration tests around the migration command and any new repository operations.
 3. Add per-Cycle tick locking as the SQL write model becomes incremental.
-4. Split `Simulation.cs` into focused files only where the existing tests make that refactor low-risk.
+4. Keep focused Core files small as repository operations are introduced.
 5. Update `docs/project-state.md` after verification.
 
 This produces a better foundation for the relational persistence work that follows.
