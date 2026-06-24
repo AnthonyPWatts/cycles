@@ -46,7 +46,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Define persistence interface for loading, replacing, and updating prototype state.
 - [x] Map application persistence to the initial SQL Server schema.
 - [x] Replace whole-state SQL delete/reinsert writes with targeted row-level sync.
-- [ ] Move tick execution from full-state sync to focused incremental repository operations.
+- [x] Move SQL-backed tick command from generic full-state sync to dedicated tick-outcome writes.
+- [ ] Move tick execution from full-state loading to focused incremental repository operations.
 - [x] Create schema versioning and migrations.
 - [x] Add schema initialisation/migration command.
 - [x] Implement prototype SQL Server application lock for state updates.

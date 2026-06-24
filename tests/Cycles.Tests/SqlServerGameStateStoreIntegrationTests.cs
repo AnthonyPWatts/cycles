@@ -70,7 +70,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var afterOrder = store.LoadOrCreate();
         Assert.Single(afterOrder.FleetOrders, item => item.FleetOrderId == order.FleetOrderId);
 
-        var result = store.Update(current => new TickEngine().RunTick(current, cycle.CycleId, TestState.Now));
+        var result = store.RunTick(cycle.CycleId, TestState.Now);
 
         Assert.Equal(TickLogStatus.Completed, result.Status);
 
@@ -82,6 +82,32 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(FleetOrderStatus.Processed, processedOrder.Status);
         Assert.Equal(1, processedOrder.ProcessedTick);
         Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
+    }
+
+    [Fact]
+    public void Store_dedicated_tick_runner_persists_failed_tick_recovery_state_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        state.EmpireResources.Clear();
+
+        store.Replace(state);
+
+        var result = store.RunTick(cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Failed, result.Status);
+
+        var updated = store.LoadOrCreate();
+        var updatedCycle = updated.Cycles.Single(item => item.CycleId == cycle.CycleId);
+        Assert.Equal(CycleStatus.RecoveryRequired, updatedCycle.Status);
+        Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
     }
 
     [Fact]

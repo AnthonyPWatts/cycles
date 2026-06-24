@@ -60,6 +60,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         return result;
     }
 
+    public TickResult RunTick(DateTimeOffset now) =>
+        RunTick(cycleId: null, now);
+
+    public TickResult RunTick(Guid cycleId, DateTimeOffset now) =>
+        RunTick((Guid?)cycleId, now);
+
     public void Replace(GameState state)
     {
         using var connection = OpenConnection();
@@ -68,6 +74,38 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
         SaveUnsafe(connection, transaction, state);
         transaction.Commit();
+    }
+
+    private TickResult RunTick(Guid? cycleId, DateTimeOffset now)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+        AcquireApplicationLock(connection, transaction);
+
+        var state = LoadUnsafe(connection, transaction);
+        var createdState = false;
+        if (state.Cycles.Count == 0)
+        {
+            state = _seedFactory();
+            createdState = true;
+        }
+
+        var activeCycleId = cycleId
+            ?? state.GetActiveCycle()?.CycleId
+            ?? throw new InvalidOperationException("No active cycle exists.");
+
+        var result = new TickEngine().RunTick(state, activeCycleId, now);
+        if (createdState)
+        {
+            SaveUnsafe(connection, transaction, state);
+        }
+        else
+        {
+            SaveTickOutcomeUnsafe(connection, transaction, state, activeCycleId);
+        }
+
+        transaction.Commit();
+        return result;
     }
 
     private SqlConnection OpenConnection()
@@ -181,6 +219,54 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         }
 
         foreach (var item in state.ChronicleEntries)
+        {
+            UpsertChronicleEntry(connection, transaction, item);
+        }
+    }
+
+    private static void SaveTickOutcomeUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state, Guid cycleId)
+    {
+        var empireIds = state.Empires
+            .Where(empire => empire.CycleId == cycleId)
+            .Select(empire => empire.EmpireId)
+            .ToHashSet();
+
+        foreach (var item in state.Cycles.Where(cycle => cycle.CycleId == cycleId))
+        {
+            UpsertCycle(connection, transaction, item);
+        }
+
+        foreach (var item in state.EmpireResources.Where(resource => empireIds.Contains(resource.EmpireId)))
+        {
+            UpsertEmpireResource(connection, transaction, item);
+        }
+
+        foreach (var item in state.Fleets.Where(fleet => fleet.CycleId == cycleId))
+        {
+            UpsertFleet(connection, transaction, item);
+        }
+
+        foreach (var item in state.FleetOrders.Where(order => order.CycleId == cycleId))
+        {
+            UpsertFleetOrder(connection, transaction, item);
+        }
+
+        foreach (var item in state.TickLogs.Where(log => log.CycleId == cycleId))
+        {
+            UpsertTickLog(connection, transaction, item);
+        }
+
+        foreach (var item in state.Events.Where(item => item.CycleId == cycleId))
+        {
+            UpsertEvent(connection, transaction, item);
+        }
+
+        foreach (var item in state.BattleRecords.Where(item => item.CycleId == cycleId))
+        {
+            UpsertBattleRecord(connection, transaction, item);
+        }
+
+        foreach (var item in state.ChronicleEntries.Where(item => item.CycleId == cycleId))
         {
             UpsertChronicleEntry(connection, transaction, item);
         }

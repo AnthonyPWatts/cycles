@@ -66,12 +66,14 @@ static void Seed(string[] args, IGameStateStore store)
 
 static void Tick(IGameStateStore store)
 {
-    var result = store.Update(state =>
-    {
-        var cycle = state.GetActiveCycle()
-            ?? throw new InvalidOperationException("No active cycle exists.");
-        return new TickEngine().RunTick(state, cycle.CycleId, DateTimeOffset.UtcNow);
-    });
+    var result = store is SqlServerGameStateStore sqlStore
+        ? sqlStore.RunTick(DateTimeOffset.UtcNow)
+        : store.Update(state =>
+        {
+            var cycle = state.GetActiveCycle()
+                ?? throw new InvalidOperationException("No active cycle exists.");
+            return new TickEngine().RunTick(state, cycle.CycleId, DateTimeOffset.UtcNow);
+        });
 
     Console.WriteLine($"Tick {result.TickNumber}: {result.Status}");
     Console.WriteLine($"Orders: {result.OrdersProcessed}; events: {result.EventsCreated}; battles: {result.BattlesCreated}; Chronicle entries: {result.ChronicleEntriesCreated}");

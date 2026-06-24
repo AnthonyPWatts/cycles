@@ -113,7 +113,8 @@ This is not yet a production game service. It is a working architecture slice.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
-- The SQL Server implementation loads the whole prototype state, then synchronises mapped rows with targeted deletes and upserts; it is a bridge, not yet the final focused repository model.
+- Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final focused repository model.
+- SQL-backed CLI tick execution now uses a dedicated tick runner that persists tick outcome rows without running the generic missing-row deletion pass.
 
 ## Verified Checks
 
@@ -149,7 +150,7 @@ SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 These are known gaps, not defects in the current MVP claim:
 
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
-- The SQL Server store still loads a full `GameState` instead of focused tick aggregates or repositories.
+- The SQL Server tick runner still loads a full `GameState` instead of focused tick aggregates or repositories.
 - No real authentication or authorisation.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
