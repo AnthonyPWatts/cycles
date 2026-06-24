@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 This file records decisions that shape future implementation. It is intentionally lightweight; add entries when a choice would otherwise be rediscovered or debated repeatedly.
 
@@ -212,3 +212,19 @@ Consequences:
 - `recovery clear` marks a repaired Cycle active and writes a `RecoveryCleared` audit event.
 - `recovery retry` clears recovery and immediately reruns the same tick number.
 - SQL tick log uniqueness now applies to running and completed logs separately, allowing failed retry history to coexist with a later successful tick log.
+
+## 2026-06-24: Define Determinism As A Stable-Facts Contract
+
+Decision: seeded galaxy generation is deterministic for stable layout fields, while combat determinism is based on persisted authoritative IDs plus tick number.
+
+Reasoning:
+
+- Reproducible layout and combat outcomes are useful for tests and investigation, but IDs and wall-clock fields are deliberately generated at state creation time.
+- Combat needs to replay from persisted state after recovery, so the combat seed uses Cycle, tick, system, and attacking fleet identifiers.
+- Long-term cross-runtime replay would need a versioned PRNG rather than relying on the current `System.Random` implementation.
+
+Consequences:
+
+- A fresh seed with the same integer seed should produce the same system layout and home assignments, but not the same IDs.
+- The same persisted state and tick number should resolve combat the same way.
+- Changes to seeding or combat algorithms should be treated as simulation behaviour changes and covered by tests.

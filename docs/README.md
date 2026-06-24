@@ -11,6 +11,7 @@ This folder records the current project state and the intended development path.
 5. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
 6. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
 7. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
+8. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
 
 ## Source Documents
 

@@ -36,6 +36,7 @@ Start here before adding the next substantial feature:
 - [Decision log](docs/decision-log.md)
 - [Decisions before continuing](docs/decisions-before-continuing.md)
 - [Tick recovery](docs/recovery.md)
+- [Determinism contract](docs/determinism.md)
 
 ## Run
 

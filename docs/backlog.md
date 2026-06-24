@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 This backlog is grouped by intended development stage. It is not a promise that every item belongs in the next sprint.
 
@@ -31,7 +31,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Split `Simulation.cs` into focused files once tests protect behaviour.
 - [x] Define explicit failed-tick recovery semantics.
 - [x] Add developer command or procedure for inspecting recovery-required Cycles.
-- [ ] Document the deterministic random seed contract.
+- [x] Document the deterministic random seed contract.
 
 ## Stage 2: Relational Persistence
 

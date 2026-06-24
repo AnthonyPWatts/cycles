@@ -82,6 +82,7 @@ This is not yet a production game service. It is a working architecture slice.
 - Combat is intentionally simple.
 - An attack order engages hostile active fleets in the same system.
 - The current resolver uses deterministic pseudo-randomness seeded from Cycle, tick, system, and fleet IDs.
+- The deterministic seed contract is documented in `docs/determinism.md`; seeded galaxy generation stabilises layout fields, while combat determinism is based on persisted IDs and tick number.
 - Battle records store participants, ships before battle, losses, outcome, and fact JSON.
 - Combat events are generated from battle facts.
 
@@ -123,6 +124,8 @@ dotnet restore Cycles.slnx --configfile NuGet.Config
 dotnet build Cycles.slnx --no-restore
 dotnet test Cycles.slnx --no-build
 ```
+
+The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 
 Additional smoke checks performed during the MVP build-out:
 
