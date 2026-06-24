@@ -9,9 +9,10 @@ This folder records the current project state and the intended development path.
 3. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
 4. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.
 5. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
-6. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
-7. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
-8. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
+6. [Product owner questions](product-owner-questions.md) - current unanswered product decisions for the next implementation passes.
+7. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
+8. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
+9. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
 
 ## Source Documents
 
