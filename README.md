@@ -34,6 +34,7 @@ Start here before adding the next substantial feature:
 - [Architecture direction](docs/architecture-direction.md)
 - [Backlog](docs/backlog.md)
 - [Decision log](docs/decision-log.md)
+- [Decisions before continuing](docs/decisions-before-continuing.md)
 - [Tick recovery](docs/recovery.md)
 
 ## Run

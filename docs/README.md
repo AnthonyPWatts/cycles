@@ -9,6 +9,7 @@ This folder records the current project state and the intended development path.
 3. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
 4. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.
 5. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
+6. [Decisions before continuing](decisions-before-continuing.md) - unresolved choices that should be made before the next substantial implementation pass.
 
 ## Source Documents
 
