@@ -77,6 +77,17 @@ app.MapGet("/galaxy", (IGameStateStore store) =>
         return new GalaxyResponse(cycle, systems, links, presence);
     }));
 
+app.MapGet("/systems/{systemId:guid}", (Guid systemId, IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var cycle = GetActiveCycle(state);
+        var system = state.Systems.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.SystemId == systemId)
+            ?? throw new InvalidOperationException("System was not found in the active cycle.");
+
+        return ToSystemDetailResponse(state, cycle, system);
+    }));
+
 app.MapGet("/fleets", (Guid? empireId, IGameStateStore store) =>
     TryResult(() =>
     {
@@ -363,6 +374,65 @@ static SystemSummaryResponse ToSystemSummaryResponse(GalaxySystem system) =>
         system.StrategicValue,
         system.HistoricalSignificance);
 
+static SystemDetailResponse ToSystemDetailResponse(GameState state, Cycle cycle, GalaxySystem system)
+{
+    var systemsById = state.Systems
+        .Where(item => item.CycleId == cycle.CycleId)
+        .ToDictionary(item => item.SystemId);
+
+    var linkedSystems = state.SystemLinks
+        .Where(link => link.CycleId == cycle.CycleId && (link.SystemAId == system.SystemId || link.SystemBId == system.SystemId))
+        .Select(link => systemsById[link.SystemAId == system.SystemId ? link.SystemBId : link.SystemAId])
+        .OrderBy(item => item.SystemName)
+        .Select(ToSystemSummaryResponse)
+        .ToArray();
+
+    var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
+    var totalPresence = presence.Values.Sum();
+    var influence = presence
+        .OrderByDescending(item => item.Value)
+        .Select(item =>
+        {
+            var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.Key);
+            var share = totalPresence == 0 ? 0 : decimal.Round(item.Value / totalPresence * 100, 2);
+            return new SystemInfluenceResponse(empire.EmpireId, empire.EmpireName, item.Value, share);
+        })
+        .ToArray();
+
+    var activeFleets = state.Fleets
+        .Where(item => item.CycleId == cycle.CycleId
+                       && item.CurrentSystemId == system.SystemId
+                       && item.Status == FleetStatus.Active)
+        .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+        .ThenBy(item => item.FleetName)
+        .Select(item =>
+        {
+            var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+            return new FleetAtSystemResponse(
+                item.FleetId,
+                item.FleetName,
+                item.EmpireId,
+                empire.EmpireName,
+                item.ShipCount,
+                item.Status);
+        })
+        .ToArray();
+
+    return new SystemDetailResponse(
+        system.SystemId,
+        system.SystemName,
+        system.X,
+        system.Y,
+        system.IndustryOutput,
+        system.ResearchOutput,
+        system.PopulationOutput,
+        system.StrategicValue,
+        system.HistoricalSignificance,
+        influence,
+        activeFleets,
+        linkedSystems);
+}
+
 static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
 {
     var fleet = state.Fleets.SingleOrDefault(item => item.FleetId == order.FleetId);
@@ -484,6 +554,26 @@ public sealed record SystemSummaryResponse(
     int Y,
     int StrategicValue,
     int HistoricalSignificance);
+
+public sealed record SystemDetailResponse(
+    Guid SystemId,
+    string SystemName,
+    int X,
+    int Y,
+    decimal IndustryOutput,
+    decimal ResearchOutput,
+    decimal PopulationOutput,
+    int StrategicValue,
+    int HistoricalSignificance,
+    IReadOnlyCollection<SystemInfluenceResponse> Influence,
+    IReadOnlyCollection<FleetAtSystemResponse> ActiveFleets,
+    IReadOnlyCollection<SystemSummaryResponse> LinkedSystems);
+
+public sealed record SystemInfluenceResponse(
+    Guid EmpireId,
+    string EmpireName,
+    decimal EffectivePresence,
+    decimal InfluencePercent);
 
 public sealed record FleetAtSystemResponse(
     Guid FleetId,
