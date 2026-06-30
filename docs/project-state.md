@@ -15,7 +15,8 @@ Cycles is currently a local, runnable technical MVP prototype. It proves the cor
 7. move fleets;
 8. resolve simple combat;
 9. write factual events;
-10. preserve important battles as Chronicle entries.
+10. preserve important battles as Chronicle entries;
+11. snapshot per-tick empire map-control metrics.
 
 This is not yet a production game service. It is a working architecture slice.
 
@@ -67,6 +68,7 @@ This is not yet a production game service. It is a working architecture slice.
 - Expansion priority increases an empire's derived effective presence for resource and system-detail influence calculations.
 - Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
+- Completed ticks record per-empire metric snapshots for `MapControlPercent`, rank, winner flag, total effective presence, and active ship count.
 
 ### Orders
 
@@ -116,6 +118,7 @@ This is not yet a production game service. It is a working architecture slice.
 - File locking prevents two local writers from mutating the JSON state file at the same time.
 - A SQL Server schema/bootstrap image exists under `database/sqldockerdeploykit`.
 - `Cycles.Infrastructure.SqlServer` can read, replace, and update `GameState` through SQL Server.
+- SQL Server persists per-tick `EmpireMetrics` snapshots for later Cycle-end history work.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
@@ -162,7 +165,7 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
-- Cycle-end ranking metrics are documented, but there is no ranking command, winner persistence, reset, or continuity.
+- Per-tick ranking metric snapshots exist, but there is no Cycle-end command, final winner persistence, reset, or continuity.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.

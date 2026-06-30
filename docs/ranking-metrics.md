@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-30
 
-This document defines the first Cycle-end ranking metric. It is a product and implementation contract for future Cycle-end processing; it does not mean the Cycle-end command or persistence tables exist yet.
+This document defines the first Cycle-end ranking metric. It is a product and implementation contract for Cycle-end processing; per-tick metric snapshots now exist, but the Cycle-end command and final ranking persistence do not.
 
 ## First Ranking Metric
 
@@ -53,6 +53,7 @@ Display percentages rounded to two decimal places, but store or compare the unro
 The first Cycle-end implementation should:
 
 - calculate standings from a frozen state snapshot after the final completed tick;
+- reuse the same `MapControlPercent`, total effective presence, active ship count, and deterministic tie-break ordering used by per-tick `EmpireMetrics`;
 - persist one winner and ranked standings for every active empire;
 - record the tick number and cutoff time used for the calculation;
 - test uncontested control, contested proportional control, expansion projection, empty systems, and deterministic tie-breaking.

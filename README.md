@@ -13,6 +13,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - simple structured combat with deterministic randomness;
 - factual event logging;
 - Chronicle candidate scoring and preserved battle entries;
+- per-tick map-control metric snapshots;
 - a local JSON state store with file locking for prototype use;
 - a CLI tick runner;
 - a minimal API and browser dashboard for viewing state and submitting orders.

@@ -81,6 +81,9 @@ public sealed class TickEngine
             processedOrders++;
         }
 
+        state.EmpireMetrics.RemoveAll(metric => metric.CycleId == cycleId && metric.TickNumber == tickNumber);
+        state.EmpireMetrics.AddRange(EmpireMetricCalculator.CreateTickMetrics(state, cycleId, tickNumber, now));
+
         cycle.CurrentTickNumber = tickNumber;
         log.Status = TickLogStatus.Completed;
         log.CompletedAt = now;

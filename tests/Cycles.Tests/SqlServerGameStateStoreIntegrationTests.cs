@@ -41,6 +41,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(1, updated.GetActiveCycle()?.CurrentTickNumber);
         Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
         Assert.Contains(updated.Events, item => item.CycleId == cycle.CycleId && item.TickNumber == 1 && item.EventType == EventType.ResourcesGenerated);
+        Assert.Equal(2, updated.EmpireMetrics.Count(item => item.CycleId == cycle.CycleId && item.TickNumber == 1));
     }
 
     [Fact]
@@ -83,6 +84,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(FleetOrderStatus.Processed, processedOrder.Status);
         Assert.Equal(1, processedOrder.ProcessedTick);
         Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
+        Assert.Single(updated.EmpireMetrics, item => item.CycleId == cycle.CycleId && item.TickNumber == 1);
     }
 
     [Fact]
@@ -260,6 +262,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             Empires = states.SelectMany(state => state.Empires).ToList(),
             EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),
             EmpirePriorities = states.SelectMany(state => state.EmpirePriorities).ToList(),
+            EmpireMetrics = states.SelectMany(state => state.EmpireMetrics).ToList(),
             SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),

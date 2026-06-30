@@ -153,6 +153,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             Empires = ReadRows(connection, transaction, "SELECT * FROM dbo.Empires", ReadEmpire),
             EmpireResources = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireResources", ReadEmpireResource),
             EmpirePriorities = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpirePriorities", ReadEmpirePriority),
+            EmpireMetrics = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireMetrics", ReadEmpireMetric),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
@@ -290,6 +291,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertEmpirePriority(connection, transaction, item);
         }
 
+        foreach (var item in state.EmpireMetrics)
+        {
+            UpsertEmpireMetric(connection, transaction, item);
+        }
+
         foreach (var item in state.SystemLinks)
         {
             UpsertSystemLink(connection, transaction, item);
@@ -361,6 +367,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.ShipConstructions.Where(construction => construction.CycleId == cycleId))
         {
             UpsertShipConstruction(connection, transaction, item);
+        }
+
+        foreach (var item in state.EmpireMetrics.Where(metric => metric.CycleId == cycleId))
+        {
+            UpsertEmpireMetric(connection, transaction, item);
         }
 
         foreach (var item in state.TickLogs.Where(log => log.CycleId == cycleId))
@@ -458,6 +469,20 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         MilitaryWeight = GetInt(reader, "MilitaryWeight"),
         ExpansionWeight = GetInt(reader, "ExpansionWeight"),
         UpdatedAt = GetDateTimeOffset(reader, "UpdatedAt")
+    };
+
+    private static EmpireMetric ReadEmpireMetric(SqlDataReader reader) => new()
+    {
+        EmpireMetricId = GetGuid(reader, "EmpireMetricID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        EmpireId = GetGuid(reader, "EmpireID"),
+        TickNumber = GetInt(reader, "TickNumber"),
+        Rank = GetInt(reader, "Rank"),
+        IsWinner = GetBool(reader, "IsWinner"),
+        MapControlPercent = GetDecimal(reader, "MapControlPercent"),
+        TotalEffectivePresence = GetDecimal(reader, "TotalEffectivePresence"),
+        ActiveShipCount = GetInt(reader, "ActiveShipCount"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
     private static SystemLink ReadSystemLink(SqlDataReader reader) => new()
@@ -756,6 +781,39 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
         });
 
+    private static void UpsertEmpireMetric(SqlConnection connection, SqlTransaction transaction, EmpireMetric item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.EmpireMetrics
+            SET CycleID = @CycleID,
+                EmpireID = @EmpireID,
+                TickNumber = @TickNumber,
+                Rank = @Rank,
+                IsWinner = @IsWinner,
+                MapControlPercent = @MapControlPercent,
+                TotalEffectivePresence = @TotalEffectivePresence,
+                ActiveShipCount = @ActiveShipCount,
+                CreatedAt = @CreatedAt
+            WHERE EmpireMetricID = @EmpireMetricID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.EmpireMetrics(EmpireMetricID, CycleID, EmpireID, TickNumber, Rank, IsWinner, MapControlPercent, TotalEffectivePresence, ActiveShipCount, CreatedAt)
+            VALUES (@EmpireMetricID, @CycleID, @EmpireID, @TickNumber, @Rank, @IsWinner, @MapControlPercent, @TotalEffectivePresence, @ActiveShipCount, @CreatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@EmpireMetricID", item.EmpireMetricId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@EmpireID", item.EmpireId);
+            AddInt(command, "@TickNumber", item.TickNumber);
+            AddInt(command, "@Rank", item.Rank);
+            AddBool(command, "@IsWinner", item.IsWinner);
+            AddDecimal(command, "@MapControlPercent", item.MapControlPercent, scale: 6);
+            AddDecimal(command, "@TotalEffectivePresence", item.TotalEffectivePresence);
+            AddInt(command, "@ActiveShipCount", item.ActiveShipCount);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
     private static void UpsertSystemLink(SqlConnection connection, SqlTransaction transaction, SystemLink item) =>
         Execute(connection, transaction, """
             UPDATE dbo.SystemLinks
@@ -1034,6 +1092,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.FleetOrders", "FleetOrderID", state.FleetOrders.Select(item => item.FleetOrderId));
         DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
         DeleteMissingRows(connection, transaction, "dbo.SystemLinks", "SystemLinkID", state.SystemLinks.Select(item => item.SystemLinkId));
+        DeleteMissingRows(connection, transaction, "dbo.EmpireMetrics", "EmpireMetricID", state.EmpireMetrics.Select(item => item.EmpireMetricId));
         DeleteMissingRows(connection, transaction, "dbo.EmpirePriorities", "EmpirePriorityID", state.EmpirePriorities.Select(item => item.EmpirePriorityId));
         DeleteMissingRows(connection, transaction, "dbo.EmpireResources", "EmpireResourceID", state.EmpireResources.Select(item => item.EmpireResourceId));
         DeleteMissingRows(connection, transaction, "dbo.Empires", "EmpireID", state.Empires.Select(item => item.EmpireId));
@@ -1170,6 +1229,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
         reader.GetDecimal(reader.GetOrdinal(columnName));
 
+    private static bool GetBool(SqlDataReader reader, string columnName) =>
+        reader.GetBoolean(reader.GetOrdinal(columnName));
+
     private static string GetString(SqlDataReader reader, string columnName) =>
         reader.GetString(reader.GetOrdinal(columnName));
 
@@ -1209,13 +1271,16 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static void AddNullableInt(SqlCommand command, string name, int? value) =>
         command.Parameters.Add(name, SqlDbType.Int).Value = value.HasValue ? value.Value : DBNull.Value;
 
-    private static void AddDecimal(SqlCommand command, string name, decimal value)
+    private static void AddDecimal(SqlCommand command, string name, decimal value, byte scale = 2)
     {
         var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
         parameter.Precision = 18;
-        parameter.Scale = 2;
+        parameter.Scale = scale;
         parameter.Value = value;
     }
+
+    private static void AddBool(SqlCommand command, string name, bool value) =>
+        command.Parameters.Add(name, SqlDbType.Bit).Value = value;
 
     private static void AddString(SqlCommand command, string name, string value, int length) =>
         command.Parameters.Add(name, SqlDbType.NVarChar, length).Value = value;

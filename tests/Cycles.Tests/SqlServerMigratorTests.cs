@@ -29,11 +29,13 @@ public sealed class SqlServerMigratorTests
         var initialSchema = Assert.Single(migrations, migration => migration.MigrationId == "001_initial_schema");
         var retryHistory = Assert.Single(migrations, migration => migration.MigrationId == "002_allow_tick_retry_history");
         var economySpending = Assert.Single(migrations, migration => migration.MigrationId == "003_add_economy_spending");
+        var empireMetrics = Assert.Single(migrations, migration => migration.MigrationId == "004_add_empire_metrics");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.TickLogs", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("UX_TickLogs_Cycle_Tick_Completed", retryHistory.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.ShipConstructions", economySpending.Script, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE dbo.EmpireMetrics", empireMetrics.Script, StringComparison.Ordinal);
     }
 }

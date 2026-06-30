@@ -7,6 +7,7 @@ public sealed class GameState
     public List<Empire> Empires { get; set; } = [];
     public List<EmpireResource> EmpireResources { get; set; } = [];
     public List<EmpirePriority> EmpirePriorities { get; set; } = [];
+    public List<EmpireMetric> EmpireMetrics { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -31,6 +32,7 @@ public sealed class GameState
             Empires = Empires.Select(Clone).ToList(),
             EmpireResources = EmpireResources.Select(Clone).ToList(),
             EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
+            EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -49,6 +51,7 @@ public sealed class GameState
         Empires = other.Empires;
         EmpireResources = other.EmpireResources;
         EmpirePriorities = other.EmpirePriorities;
+        EmpireMetrics = other.EmpireMetrics;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -119,6 +122,20 @@ public sealed class GameState
         MilitaryWeight = item.MilitaryWeight,
         ExpansionWeight = item.ExpansionWeight,
         UpdatedAt = item.UpdatedAt
+    };
+
+    private static EmpireMetric Clone(EmpireMetric item) => new()
+    {
+        EmpireMetricId = item.EmpireMetricId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        TickNumber = item.TickNumber,
+        Rank = item.Rank,
+        IsWinner = item.IsWinner,
+        MapControlPercent = item.MapControlPercent,
+        TotalEffectivePresence = item.TotalEffectivePresence,
+        ActiveShipCount = item.ActiveShipCount,
+        CreatedAt = item.CreatedAt
     };
 
     private static GalaxySystem Clone(GalaxySystem item) => new()
@@ -310,6 +327,20 @@ public sealed class EmpirePriority
     public int MilitaryWeight { get; set; } = 25;
     public int ExpansionWeight { get; set; } = 25;
     public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class EmpireMetric
+{
+    public Guid EmpireMetricId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public int TickNumber { get; set; }
+    public int Rank { get; set; }
+    public bool IsWinner { get; set; }
+    public decimal MapControlPercent { get; set; }
+    public decimal TotalEffectivePresence { get; set; }
+    public int ActiveShipCount { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class GalaxySystem

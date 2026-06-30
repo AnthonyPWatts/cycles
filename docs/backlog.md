@@ -99,7 +99,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 ## Stage 5: History And Cycle Continuity
 
 - [x] Define ranking metrics.
-- [ ] Store per-tick or per-Cycle empire metrics.
+- [x] Store per-tick or per-Cycle empire metrics.
 - [ ] Add Cycle-end processing command.
 - [ ] Persist final Cycle rankings.
 - [ ] Select major Cycle events.
