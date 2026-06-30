@@ -414,3 +414,20 @@ Consequences:
 - Each signal stores the source largest local battle, battle count, total losses, largest local losses, whether the system hosted one of the Cycle's largest battles, and the applied historical-significance increase.
 - The CLI `show` command displays system history signals for completed Cycles.
 - Selected systems and next-Cycle generation remain future Stage 5 work.
+
+## 2026-06-30: Start Chronicle Narrative With Deterministic Battle Templates
+
+Decision: generate Chronicle battle-report prose from deterministic templates before adding any AI narrative provider.
+
+Reasoning:
+
+- Chronicle prose should become more readable without allowing generated text to decide or alter simulation outcomes.
+- Existing battle, system, and empire facts are enough to produce useful reports and prove the fact boundary.
+- Deterministic templates can be tested for required facts and revised safely before introducing asynchronous AI generation.
+
+Consequences:
+
+- `ChronicleEntry.FactualSummary` remains the concise authoritative summary.
+- `ChronicleEntry.NarrativeText` now contains deterministic battle-report prose that names the participants, system, tick, losses, and importance context.
+- The dashboard displays narrative text while keeping the factual summary visible underneath.
+- AI-generated narrative, generation status, provider failures, and asynchronous generation remain future Stage 6 work.

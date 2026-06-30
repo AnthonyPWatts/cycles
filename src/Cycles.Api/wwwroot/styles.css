@@ -489,6 +489,13 @@ dd {
     overflow-wrap: anywhere;
 }
 
+.chronicle-entry .chronicle-facts {
+    display: block;
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
 .fleet-item {
     cursor: pointer;
 }

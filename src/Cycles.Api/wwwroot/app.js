@@ -468,12 +468,19 @@ function renderEvents(events) {
 function renderChronicle(entries) {
     elements.chronicle.innerHTML = entries.length === 0
         ? `<article class="item"><span>No entries yet.</span></article>`
-        : entries.map(entry => `
-            <article class="item">
+        : entries.map(entry => {
+            const narrative = entry.narrativeText || entry.factualSummary;
+            const factual = entry.factualSummary && entry.factualSummary !== narrative
+                ? `<span class="chronicle-facts">${escapeHtml(entry.factualSummary)}</span>`
+                : "";
+            return `
+            <article class="item chronicle-entry">
                 <strong>${escapeHtml(entry.title)} (${entry.importanceScore})</strong>
-                <span>${escapeHtml(entry.factualSummary)}</span>
+                <span>${escapeHtml(narrative)}</span>
+                ${factual}
             </article>
-        `).join("");
+        `;
+        }).join("");
 }
 
 function renderGalaxy(galaxy, empire) {

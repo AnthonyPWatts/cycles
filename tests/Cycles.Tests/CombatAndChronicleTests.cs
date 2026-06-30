@@ -18,7 +18,13 @@ public sealed class CombatAndChronicleTests
         var battle = Assert.Single(state.BattleRecords);
         Assert.Contains(attackerFleet.FleetId.ToString(), battle.AttackerFleetIds, StringComparison.Ordinal);
         Assert.Contains(state.Events, item => item.EventType == EventType.CombatResolved && item.FactJson == battle.FactJson);
-        Assert.Contains(state.ChronicleEntries, entry => entry.SourceBattleId == battle.BattleId);
+        var entry = Assert.Single(state.ChronicleEntries, entry => entry.SourceBattleId == battle.BattleId);
+        Assert.NotEqual(entry.FactualSummary, entry.NarrativeText);
+        Assert.Contains("First", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Second", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Contest", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("tick 1", entry.NarrativeText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains((battle.AttackerLosses + battle.DefenderLosses).ToString(), entry.NarrativeText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -92,11 +98,65 @@ public sealed class CombatAndChronicleTests
         Assert.True(ChronicleScoring.ScoreBattle(major, system) >= ChronicleScoring.ChronicleThreshold);
     }
 
+    [Fact]
+    public void ChronicleBattleReportIncludesRequiredFacts()
+    {
+        var battle = new BattleRecord
+        {
+            CycleId = Guid.NewGuid(),
+            TickNumber = 7,
+            SystemId = Guid.NewGuid(),
+            AttackerEmpireId = Guid.NewGuid(),
+            DefenderEmpireId = Guid.NewGuid(),
+            AttackerShipsBefore = 40,
+            DefenderShipsBefore = 120,
+            AttackerLosses = 9,
+            DefenderLosses = 81,
+            Outcome = BattleOutcome.AttackerVictory
+        };
+        var system = new GalaxySystem
+        {
+            SystemId = battle.SystemId,
+            CycleId = battle.CycleId,
+            SystemName = "Aster Vale",
+            StrategicValue = 45,
+            HistoricalSignificance = 2
+        };
+        var sourceEvent = new EventRecord { EventId = Guid.NewGuid(), CycleId = battle.CycleId };
+        var attacker = new Empire { EmpireId = battle.AttackerEmpireId, EmpireName = "Aurelian Compact" };
+        var defender = new Empire { EmpireId = battle.DefenderEmpireId, EmpireName = "Khepri Mandate" };
+
+        var entry = ChronicleScoring.CreateBattleEntry(battle, sourceEvent, system, attacker, defender, importance: 90, TestState.Now);
+
+        Assert.Equal(sourceEvent.EventId, entry.SourceEventId);
+        Assert.Equal(battle.BattleId, entry.SourceBattleId);
+        Assert.Equal("attacker victory", ExtractOutcome(entry.FactualSummary));
+        Assert.Contains("Aurelian Compact", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Khepri Mandate", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Aster Vale", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("tick 7", entry.NarrativeText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("9", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("81", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("90", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("outnumbered 40 to 120", entry.NarrativeText, StringComparison.Ordinal);
+    }
+
     private static void RunAttack(GameState state)
     {
         var cycle = state.GetActiveCycle()!;
         var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
         OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+    }
+
+    private static string ExtractOutcome(string factualSummary)
+    {
+        const string marker = "Outcome: ";
+        var start = factualSummary.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        start += marker.Length;
+        var end = factualSummary.IndexOf('.', start);
+        Assert.True(end > start);
+        return factualSummary[start..end];
     }
 }
