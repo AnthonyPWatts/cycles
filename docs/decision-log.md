@@ -331,6 +331,22 @@ Consequences:
 - Pending orders remain pending at cutoff; only already-processed state affects the final ranking.
 - Next-Cycle generation, selected major-event preservation, and historical-system updates remain future Stage 5 work.
 
+## 2026-06-30: Apply First Historical System Signals At Cycle End
+
+Decision: during manual Cycle completion, increase `HistoricalSignificance` for systems that hosted battles. Each battle adds one point; systems that hosted one of the Cycle's largest-loss battles receive one additional point.
+
+Reasoning:
+
+- Product-owner direction says systems should retain historical significance across Cycle history.
+- The existing `HistoricalSignificance` field gives a small useful signal without introducing a dedicated history schema prematurely.
+- Repeated conflict and largest battles are both deterministic facts already recorded in `BattleRecords`.
+
+Consequences:
+
+- Repeated battle systems become more historically important when a Cycle is completed.
+- The Cycle-completion event fact JSON includes the applied historical signals.
+- Dedicated historical signal tables, selected major-event persistence, and next-Cycle continuity remain future Stage 5 work.
+
 ## 2026-06-30: Use Development Auth Before Production Auth
 
 Decision: replace the prototype `playerId`/`empireId` dashboard flow with a deliberate development auth boundary: `/auth/login` establishes an HttpOnly development cookie, players have explicit `Player` or `Admin` roles, and player mutations derive the empire from the authenticated context.

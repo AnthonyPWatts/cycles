@@ -41,6 +41,7 @@ public static class CycleEndService
 
         state.CycleRankings.RemoveAll(ranking => ranking.CycleId == cycleId);
         state.CycleRankings.AddRange(rankings);
+        var historicalSignals = ApplyHistoricalSystemSignals(state, cycleId);
         cycle.Status = CycleStatus.Completed;
 
         var winner = rankings.Single(ranking => ranking.IsWinner);
@@ -67,11 +68,60 @@ public static class CycleEndService
                     ranking.MapControlPercent,
                     ranking.TotalEffectivePresence,
                     ranking.ActiveShipCount
-                })
+                }),
+                historicalSignals
             }, GameStateJson.Options),
             CreatedAt = cutoffAt
         });
 
         return rankings;
     }
+
+    private static IReadOnlyList<HistoricalSystemSignal> ApplyHistoricalSystemSignals(GameState state, Guid cycleId)
+    {
+        var battles = state.BattleRecords
+            .Where(battle => battle.CycleId == cycleId)
+            .ToArray();
+        if (battles.Length == 0)
+        {
+            return [];
+        }
+
+        var largestLosses = battles.Max(TotalLosses);
+        var largestBattleSystemIds = battles
+            .Where(battle => TotalLosses(battle) == largestLosses)
+            .Select(battle => battle.SystemId)
+            .ToHashSet();
+
+        return battles
+            .GroupBy(battle => battle.SystemId)
+            .OrderBy(group => state.Systems.Single(system => system.SystemId == group.Key).SystemName)
+            .Select(group =>
+            {
+                var system = state.Systems.Single(item => item.CycleId == cycleId && item.SystemId == group.Key);
+                var hostedLargestBattle = largestBattleSystemIds.Contains(system.SystemId);
+                var increase = group.Count() + (hostedLargestBattle ? 1 : 0);
+                system.HistoricalSignificance += increase;
+
+                return new HistoricalSystemSignal(
+                    system.SystemId,
+                    system.SystemName,
+                    group.Count(),
+                    hostedLargestBattle,
+                    increase,
+                    system.HistoricalSignificance);
+            })
+            .ToArray();
+    }
+
+    private static int TotalLosses(BattleRecord battle) =>
+        battle.AttackerLosses + battle.DefenderLosses;
+
+    private sealed record HistoricalSystemSignal(
+        Guid SystemId,
+        string SystemName,
+        int BattleCount,
+        bool HostedLargestBattle,
+        int HistoricalSignificanceIncrease,
+        int HistoricalSignificance);
 }

@@ -105,11 +105,11 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Persist final Cycle rankings.
 - [ ] Select major Cycle events.
 - [ ] Add historical signal fields or tables for systems.
-- [ ] Increase historical system significance from repeated conflict.
+- [x] Increase historical system significance from repeated conflict.
 - [ ] Preserve largest battle per Cycle.
 - [ ] Generate next Cycle from prior historical facts.
 - [ ] Surface historical markers in API and dashboard.
-- [ ] Add tests for Cycle end and historical system updates.
+- [x] Add tests for Cycle end and historical system updates.
 
 ## Stage 6: Narrative Generation
 

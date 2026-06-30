@@ -204,6 +204,7 @@ Current direction:
 - Cycle ends are manual and admin-run.
 - Cycle end is effectively a database freeze/cutoff.
 - The first `cycle end` command marks the Cycle completed and persists one winner plus ranked standings for every active empire.
+- Cycle completion now increases system historical significance from repeated battles and largest-loss battle locations.
 
 Questions and answers:
 
@@ -229,6 +230,7 @@ Questions and answers:
 Decision needed:
 
 - The first persistent history schema should cover rankings, selected largest battles, selected systems, and historical system signals.
+- Rankings now have persistence and system historical significance has a first update rule; selected largest battles, selected systems, and a dedicated historical signal schema remain future work.
 
 ## Priority 5: Chronicle And Narrative
 

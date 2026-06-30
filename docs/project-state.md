@@ -99,6 +99,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Generated resource facts are recorded as events.
 - Completed ticks record per-empire metric snapshots for `MapControlPercent`, rank, winner flag, total effective presence, and active ship count.
 - The CLI can complete a Cycle manually with `cycle end`, ranking active empires by `MapControlPercent` and storing final standings in `CycleRankings`.
+- Completing a Cycle increases system historical significance for repeated battles, with an extra signal for systems that hosted one of the largest battles by total losses.
 
 ### Orders
 
@@ -212,7 +213,7 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
-- Cycle-end ranking persistence exists, but there is no next-Cycle reset, continuity generation, selected major-event preservation, or historical-system evolution yet.
+- Cycle-end ranking persistence and first historical-significance updates exist, but there is no next-Cycle reset, continuity generation, selected major-event preservation, or dedicated historical signal table yet.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
@@ -230,7 +231,7 @@ The next stage should harden the simulation spine before adding feature breadth:
 
 1. make tick execution idempotent and auditable against the focused SQL tick path;
 2. add live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-3. select major Cycle events and historical system signals for completed Cycles;
+3. select major Cycle events and dedicated historical signal records for completed Cycles;
 4. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
 5. only then deepen the Chronicle/history systems.
 
