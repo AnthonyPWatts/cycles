@@ -20,6 +20,57 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var store = new SqlServerGameStateStore(connectionString);
         var state = GameSeeder.CreateDefault(systemCount: 8, empireCount: 2, seed: 90210);
         var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var system = state.Systems.First(system => system.CycleId == cycle.CycleId);
+        var attacker = state.Empires[0];
+        var defender = state.Empires[1];
+        var battle = new BattleRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 0,
+            SystemId = system.SystemId,
+            AttackerEmpireId = attacker.EmpireId,
+            DefenderEmpireId = defender.EmpireId,
+            AttackerFleetIds = state.Fleets.First(fleet => fleet.EmpireId == attacker.EmpireId).FleetId.ToString(),
+            DefenderFleetIds = state.Fleets.First(fleet => fleet.EmpireId == defender.EmpireId).FleetId.ToString(),
+            AttackerShipsBefore = 10,
+            DefenderShipsBefore = 12,
+            AttackerLosses = 1,
+            DefenderLosses = 2,
+            Outcome = BattleOutcome.DefenderVictory,
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        };
+        var sourceEvent = new EventRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 0,
+            EventType = EventType.CombatResolved,
+            SystemId = system.SystemId,
+            EmpireId = attacker.EmpireId,
+            Severity = EventSeverity.High,
+            DisplayText = "A test battle was resolved.",
+            FactJson = battle.FactJson,
+            CreatedAt = TestState.Now
+        };
+        var chronicle = new ChronicleEntry
+        {
+            SourceEventId = sourceEvent.EventId,
+            SourceBattleId = battle.BattleId,
+            CycleId = cycle.CycleId,
+            SystemId = system.SystemId,
+            Title = "Failed generation",
+            EntryType = ChronicleEntryType.Battle,
+            ImportanceScore = 70,
+            FactualSummary = "A battle needs generated prose.",
+            NarrativeText = "",
+            NarrativeStatus = NarrativeGenerationStatus.Failed,
+            NarrativeContextJson = """{"source":"integration"}""",
+            NarrativeFailureReason = "provider unavailable",
+            CreatedAt = TestState.Now
+        };
+        state.Events.Add(sourceEvent);
+        state.BattleRecords.Add(battle);
+        state.ChronicleEntries.Add(chronicle);
 
         store.Replace(state);
 
@@ -27,6 +78,10 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(cycle.CycleId, loaded.GetActiveCycle()?.CycleId);
         Assert.Equal(8, loaded.Systems.Count);
         Assert.Equal(2, loaded.Empires.Count);
+        var loadedChronicle = Assert.Single(loaded.ChronicleEntries, item => item.ChronicleEntryId == chronicle.ChronicleEntryId);
+        Assert.Equal(NarrativeGenerationStatus.Failed, loadedChronicle.NarrativeStatus);
+        Assert.Equal("""{"source":"integration"}""", loadedChronicle.NarrativeContextJson);
+        Assert.Equal("provider unavailable", loadedChronicle.NarrativeFailureReason);
 
         var result = store.Update(current =>
         {

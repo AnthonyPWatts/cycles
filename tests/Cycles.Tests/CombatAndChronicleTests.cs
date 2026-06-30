@@ -116,6 +116,11 @@ public sealed class CombatAndChronicleTests
         Assert.Contains("81", entry.NarrativeText, StringComparison.Ordinal);
         Assert.Contains("90", entry.NarrativeText, StringComparison.Ordinal);
         Assert.Contains("outnumbered 40 to 120", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Equal(NarrativeGenerationStatus.Generated, entry.NarrativeStatus);
+        Assert.Equal(TestState.Now, entry.NarrativeGeneratedAt);
+        Assert.Null(entry.NarrativeFailureReason);
+        Assert.Contains("Aurelian Compact", entry.NarrativeContextJson, StringComparison.Ordinal);
+        Assert.Contains("attackerLosses", entry.NarrativeContextJson, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -138,6 +138,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Chronicle entries store factual summaries and narrative text separately from raw battle facts.
 - Narrative text is currently deterministic template prose generated from a battle narrative source DTO, not AI-generated prose.
 - Generated battle prose is validated for required facts before a Chronicle entry is returned: participants, system, tick, losses, outcome, and importance.
+- Chronicle entries store narrative generation status, generation context JSON, generated-at time, and failure reason fields so future queued/AI generation has a persistence shape.
 
 ### API And Dashboard
 
@@ -164,6 +165,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - SQL Server persists final `CycleRankings` for completed Cycles.
 - SQL Server persists selected `CycleMajorEvents` for completed Cycle history.
 - SQL Server persists `SystemHistoricalSignals` for completed Cycle system-history inputs.
+- SQL Server persists Chronicle narrative generation status and context snapshot fields.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
@@ -227,7 +229,7 @@ These are known gaps, not defects in the current MVP claim:
 - No diplomacy, alliances, treaties, or betrayal mechanics.
 - No technologies, doctrines, cloaking, detection, or logistics.
 - No admirals or persistent named figures.
-- No AI narrative generation; Chronicle battle reports currently use validated deterministic templates only.
+- No AI narrative generation or asynchronous narrative worker; Chronicle battle reports currently use validated deterministic templates and store generation metadata synchronously.
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
 - Combat is deliberately primitive and not balanced.

@@ -34,10 +34,12 @@ public sealed class SqlServerMigratorTests
         var cycleRankings = Assert.Single(migrations, migration => migration.MigrationId == "006_add_cycle_rankings");
         var cycleMajorEvents = Assert.Single(migrations, migration => migration.MigrationId == "007_add_cycle_major_events");
         var systemHistoricalSignals = Assert.Single(migrations, migration => migration.MigrationId == "008_add_system_historical_signals");
+        var chronicleGenerationState = Assert.Single(migrations, migration => migration.MigrationId == "009_add_chronicle_generation_state");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.TickLogs", initialSchema.Script, StringComparison.Ordinal);
+        Assert.Contains("NarrativeStatus", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("UX_TickLogs_Cycle_Tick_Completed", retryHistory.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.ShipConstructions", economySpending.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.EmpireMetrics", empireMetrics.Script, StringComparison.Ordinal);
@@ -45,5 +47,6 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CREATE TABLE dbo.CycleRankings", cycleRankings.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.CycleMajorEvents", cycleMajorEvents.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.SystemHistoricalSignals", systemHistoricalSignals.Script, StringComparison.Ordinal);
+        Assert.Contains("NarrativeStatus", chronicleGenerationState.Script, StringComparison.Ordinal);
     }
 }

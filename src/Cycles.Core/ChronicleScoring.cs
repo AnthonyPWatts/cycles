@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Cycles.Core;
 
 public static class ChronicleScoring
@@ -67,6 +69,10 @@ public static class ChronicleScoring
             ImportanceScore = source.ImportanceScore,
             FactualSummary = factualSummary,
             NarrativeText = narrativeText,
+            NarrativeStatus = NarrativeGenerationStatus.Generated,
+            NarrativeContextJson = JsonSerializer.Serialize(source, GameStateJson.Options),
+            NarrativeGeneratedAt = now,
+            NarrativeFailureReason = null,
             CreatedAt = now
         };
     }

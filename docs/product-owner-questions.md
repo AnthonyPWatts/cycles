@@ -258,6 +258,7 @@ Current direction:
 - Deterministic templates are acceptable for early development.
 - Generated prose must not decide simulation outcomes.
 - Battle Chronicle prose is currently generated from a source DTO and validated for required facts before it is stored/displayed.
+- Chronicle entries now persist generation status, context JSON, generated-at time, and failure reason fields for future queued/AI generation.
 
 Questions and answers:
 
@@ -270,7 +271,7 @@ Questions and answers:
 Decision needed:
 
 - Generated narrative should be queued outside the tick transaction.
-- The first AI boundary should preserve the required-fact validation and add failure/status handling, even if player-facing fallback handling is revisited later.
+- The first AI boundary should preserve the required-fact validation and use the persisted status/failure fields, even if player-facing fallback handling is revisited later.
 
 ## Priority 6: Deployment And Test Access
 

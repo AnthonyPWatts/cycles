@@ -322,6 +322,10 @@ public sealed class GameState
         ImportanceScore = item.ImportanceScore,
         FactualSummary = item.FactualSummary,
         NarrativeText = item.NarrativeText,
+        NarrativeStatus = item.NarrativeStatus,
+        NarrativeContextJson = item.NarrativeContextJson,
+        NarrativeGeneratedAt = item.NarrativeGeneratedAt,
+        NarrativeFailureReason = item.NarrativeFailureReason,
         CreatedAt = item.CreatedAt
     };
 }
@@ -580,6 +584,10 @@ public sealed class ChronicleEntry
     public int ImportanceScore { get; set; }
     public string FactualSummary { get; set; } = "";
     public string NarrativeText { get; set; } = "";
+    public NarrativeGenerationStatus NarrativeStatus { get; set; } = NarrativeGenerationStatus.Generated;
+    public string NarrativeContextJson { get; set; } = "{}";
+    public DateTimeOffset? NarrativeGeneratedAt { get; set; }
+    public string? NarrativeFailureReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -683,6 +691,14 @@ public enum ChronicleEntryType
     System,
     Diplomacy,
     Discovery
+}
+
+public enum NarrativeGenerationStatus
+{
+    NotQueued,
+    Pending,
+    Generated,
+    Failed
 }
 
 public enum CycleMajorEventType

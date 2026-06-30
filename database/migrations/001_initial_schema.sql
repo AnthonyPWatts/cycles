@@ -238,6 +238,10 @@ BEGIN
         ImportanceScore INT NOT NULL,
         FactualSummary NVARCHAR(2048) NOT NULL,
         NarrativeText NVARCHAR(MAX) NOT NULL,
+        NarrativeStatus NVARCHAR(32) NOT NULL CONSTRAINT DF_ChronicleEntries_NarrativeStatus DEFAULT N'Generated',
+        NarrativeContextJson NVARCHAR(MAX) NOT NULL CONSTRAINT DF_ChronicleEntries_NarrativeContextJson DEFAULT N'{}',
+        NarrativeGeneratedAt DATETIMEOFFSET NULL,
+        NarrativeFailureReason NVARCHAR(1024) NULL,
         CreatedAt DATETIMEOFFSET NOT NULL
     );
 END;
@@ -289,6 +293,11 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ChronicleEntries_Cycle_System' AND object_id = OBJECT_ID(N'dbo.ChronicleEntries'))
 BEGIN
     CREATE INDEX IX_ChronicleEntries_Cycle_System ON dbo.ChronicleEntries(CycleID, SystemID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ChronicleEntries_Cycle_NarrativeStatus' AND object_id = OBJECT_ID(N'dbo.ChronicleEntries'))
+BEGIN
+    CREATE INDEX IX_ChronicleEntries_Cycle_NarrativeStatus ON dbo.ChronicleEntries(CycleID, NarrativeStatus);
 END;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.SchemaMigrations WHERE MigrationID = N'001_initial_schema')

@@ -480,3 +480,19 @@ Consequences:
 - Battle narrative generation now has a DTO containing source event, battle, system, empire, loss, outcome, and importance facts.
 - Generated battle reports must include participants, system, tick number, attacker losses, defender losses, total losses, outcome, and importance score.
 - Generation status, queueing, context snapshots, and provider boundaries remain follow-on work.
+
+## 2026-06-30: Persist Chronicle Narrative Generation State
+
+Decision: add narrative generation status, context JSON, generated-at, and failure-reason fields to Chronicle entries.
+
+Reasoning:
+
+- Queued or AI-backed generation needs durable state before a worker/provider boundary can be useful.
+- Context snapshots preserve the facts a generated report used, even if later domain rows change or future templates/providers are revised.
+- Failure fields make provider failures auditable without changing authoritative battle/event facts.
+
+Consequences:
+
+- Current deterministic battle reports are stored as `Generated` with the source DTO serialized into `NarrativeContextJson`.
+- SQL Server schema migration `009_add_chronicle_generation_state` upgrades existing entries with generated defaults and adds a status lookup index.
+- Actual async queueing, provider selection, and retry/fallback behaviour remain future Stage 6 work.

@@ -118,6 +118,9 @@ public sealed class GameStateTests
             ImportanceScore = 80,
             FactualSummary = "A test battle was preserved.",
             NarrativeText = "A test battle was preserved.",
+            NarrativeStatus = NarrativeGenerationStatus.Generated,
+            NarrativeContextJson = """{"kind":"narrative-context"}""",
+            NarrativeGeneratedAt = TestState.Now,
             CreatedAt = TestState.Now
         });
 
@@ -153,6 +156,9 @@ public sealed class GameStateTests
         Assert.NotSame(state.CycleMajorEvents[0], clone.CycleMajorEvents[0]);
         Assert.Equal(state.SystemHistoricalSignals[0].SystemHistoricalSignalId, clone.SystemHistoricalSignals[0].SystemHistoricalSignalId);
         Assert.NotSame(state.SystemHistoricalSignals[0], clone.SystemHistoricalSignals[0]);
+        Assert.Equal(NarrativeGenerationStatus.Generated, clone.ChronicleEntries[0].NarrativeStatus);
+        Assert.Equal("""{"kind":"narrative-context"}""", clone.ChronicleEntries[0].NarrativeContextJson);
+        Assert.Equal(TestState.Now, clone.ChronicleEntries[0].NarrativeGeneratedAt);
 
         clone.Fleets[0].ShipCount += 10;
         clone.FleetOrders[0].Status = FleetOrderStatus.Processed;
@@ -160,6 +166,8 @@ public sealed class GameStateTests
         clone.CycleRankings[0].Rank = 2;
         clone.CycleMajorEvents[0].Summary = "Changed in clone.";
         clone.SystemHistoricalSignals[0].Summary = "Changed in clone.";
+        clone.ChronicleEntries[0].NarrativeStatus = NarrativeGenerationStatus.Failed;
+        clone.ChronicleEntries[0].NarrativeContextJson = """{"changed":true}""";
 
         Assert.NotEqual(state.Fleets[0].ShipCount, clone.Fleets[0].ShipCount);
         Assert.Equal(FleetOrderStatus.Pending, state.FleetOrders[0].Status);
@@ -167,5 +175,7 @@ public sealed class GameStateTests
         Assert.Equal(1, state.CycleRankings[0].Rank);
         Assert.Equal("A test battle was selected as major history.", state.CycleMajorEvents[0].Summary);
         Assert.Equal("A test system accumulated battle history.", state.SystemHistoricalSignals[0].Summary);
+        Assert.Equal(NarrativeGenerationStatus.Generated, state.ChronicleEntries[0].NarrativeStatus);
+        Assert.Equal("""{"kind":"narrative-context"}""", state.ChronicleEntries[0].NarrativeContextJson);
     }
 }

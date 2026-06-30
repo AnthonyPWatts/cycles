@@ -681,6 +681,10 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         ImportanceScore = GetInt(reader, "ImportanceScore"),
         FactualSummary = GetString(reader, "FactualSummary"),
         NarrativeText = GetString(reader, "NarrativeText"),
+        NarrativeStatus = GetEnum<NarrativeGenerationStatus>(reader, "NarrativeStatus"),
+        NarrativeContextJson = GetString(reader, "NarrativeContextJson"),
+        NarrativeGeneratedAt = GetNullableDateTimeOffset(reader, "NarrativeGeneratedAt"),
+        NarrativeFailureReason = GetNullableString(reader, "NarrativeFailureReason"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
@@ -1257,13 +1261,17 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 ImportanceScore = @ImportanceScore,
                 FactualSummary = @FactualSummary,
                 NarrativeText = @NarrativeText,
+                NarrativeStatus = @NarrativeStatus,
+                NarrativeContextJson = @NarrativeContextJson,
+                NarrativeGeneratedAt = @NarrativeGeneratedAt,
+                NarrativeFailureReason = @NarrativeFailureReason,
                 CreatedAt = @CreatedAt
             WHERE ChronicleEntryID = @ChronicleEntryID;
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.ChronicleEntries(ChronicleEntryID, SourceEventID, SourceBattleID, CycleID, SystemID, Title, EntryType, ImportanceScore, FactualSummary, NarrativeText, CreatedAt)
-            VALUES (@ChronicleEntryID, @SourceEventID, @SourceBattleID, @CycleID, @SystemID, @Title, @EntryType, @ImportanceScore, @FactualSummary, @NarrativeText, @CreatedAt);
+            INSERT INTO dbo.ChronicleEntries(ChronicleEntryID, SourceEventID, SourceBattleID, CycleID, SystemID, Title, EntryType, ImportanceScore, FactualSummary, NarrativeText, NarrativeStatus, NarrativeContextJson, NarrativeGeneratedAt, NarrativeFailureReason, CreatedAt)
+            VALUES (@ChronicleEntryID, @SourceEventID, @SourceBattleID, @CycleID, @SystemID, @Title, @EntryType, @ImportanceScore, @FactualSummary, @NarrativeText, @NarrativeStatus, @NarrativeContextJson, @NarrativeGeneratedAt, @NarrativeFailureReason, @CreatedAt);
             END;
             """, command =>
         {
@@ -1277,6 +1285,10 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@ImportanceScore", item.ImportanceScore);
             AddString(command, "@FactualSummary", item.FactualSummary, 2048);
             AddMaxString(command, "@NarrativeText", item.NarrativeText);
+            AddString(command, "@NarrativeStatus", item.NarrativeStatus.ToString(), 32);
+            AddMaxString(command, "@NarrativeContextJson", item.NarrativeContextJson);
+            AddNullableDateTimeOffset(command, "@NarrativeGeneratedAt", item.NarrativeGeneratedAt);
+            AddNullableString(command, "@NarrativeFailureReason", item.NarrativeFailureReason, 1024);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
