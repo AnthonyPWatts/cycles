@@ -666,7 +666,8 @@ public enum EventType
     PrioritiesChanged,
     ChronicleCreated,
     RecoveryCleared,
-    CycleCompleted
+    CycleCompleted,
+    DoctrineUnlocked
 }
 
 public enum EventSeverity

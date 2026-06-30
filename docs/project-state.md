@@ -96,6 +96,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Strategic priority weights must total 100.
 - Military priority spending automatically queues ship construction from available industry.
 - Expansion priority increases an empire's derived effective presence for resource and system-detail influence calculations.
+- Research stockpiles unlock the first doctrine effect: reaching 200 research records a one-time Survey Projection unlock event, which adds a 10% effective-presence bonus for that empire.
 - Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
 - Completed ticks record per-empire metric snapshots for `MapControlPercent`, rank, winner flag, total effective presence, and active ship count.
@@ -224,10 +225,10 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No real deployment story.
 - Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, dedicated historical-signal records, and first next-Cycle continuity generation exist, but there is no richer reset policy, successor diplomacy, or AI-written inter-Cycle history yet.
-- Research and population stockpiles do not yet drive unlock or colonisation effects.
+- Population stockpiles do not yet drive colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
-- No technologies, doctrines, cloaking, detection, or logistics.
+- No broader technology tree, doctrine choices, cloaking, detection, or logistics.
 - No admirals or persistent named figures.
 - No AI narrative generation or asynchronous narrative worker; Chronicle battle reports currently use validated deterministic templates and store generation metadata synchronously.
 - No historical-system evolution across Cycles.

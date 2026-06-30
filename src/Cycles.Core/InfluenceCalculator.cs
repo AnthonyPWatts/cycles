@@ -31,7 +31,8 @@ public static class InfluenceCalculator
         foreach (var (empireId, effectivePresence) in presence.ToArray())
         {
             var projectionBonus = CalculateExpansionProjectionBonus(state, empireId);
-            presence[empireId] = decimal.Round(effectivePresence * (1m + projectionBonus), 2);
+            var doctrineBonus = CalculateDoctrinePresenceBonus(state, cycleId, empireId);
+            presence[empireId] = decimal.Round(effectivePresence * (1m + projectionBonus + doctrineBonus), 2);
         }
 
         return presence;
@@ -122,6 +123,11 @@ public static class InfluenceCalculator
         var expansionWeight = Math.Clamp(priority.ExpansionWeight, 0, 100);
         return MaximumExpansionProjectionBonus * expansionWeight / 100m;
     }
+
+    private static decimal CalculateDoctrinePresenceBonus(GameState state, Guid cycleId, Guid empireId) =>
+        EconomyProcessor.HasSurveyProjectionDoctrine(state, cycleId, empireId)
+            ? EconomyProcessor.SurveyProjectionPresenceBonus
+            : 0m;
 }
 
 public readonly record struct ResourceDelta(decimal Industry, decimal Research, decimal Population)

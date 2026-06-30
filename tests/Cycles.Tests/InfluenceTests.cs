@@ -135,6 +135,23 @@ public sealed class InfluenceTests
         Assert.Equal(33.33m, second.LastGeneratedIndustry);
     }
 
+    [Fact]
+    public void SurveyProjectionDoctrineIncreasesEffectivePresence()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 50, defenderShips: 50);
+        var cycle = state.GetActiveCycle()!;
+        SetExpansionWeight(state, 0);
+        var firstEmpire = state.Empires[0];
+        var firstResources = state.EmpireResources.Single(resource => resource.EmpireId == firstEmpire.EmpireId);
+        firstResources.Research = EconomyProcessor.SurveyProjectionResearchThreshold;
+        EconomyProcessor.ApplyResearchUnlocks(state, cycle.CycleId, tickNumber: 1, TestState.Now);
+
+        var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, state.Systems[0].SystemId);
+
+        Assert.Equal(55m, presence[firstEmpire.EmpireId]);
+        Assert.Equal(50m, presence[state.Empires[1].EmpireId]);
+    }
+
     private static void SetExpansionWeight(GameState state, int expansionWeight)
     {
         foreach (var priority in state.EmpirePriorities)

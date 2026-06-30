@@ -65,6 +65,7 @@ public sealed class TickEngine
         ProcessArrivals(state, cycleId, tickNumber, now);
         EconomyProcessor.CompleteShipConstruction(state, cycleId, tickNumber, now);
         InfluenceCalculator.GenerateResources(state, cycleId, tickNumber, now);
+        EconomyProcessor.ApplyResearchUnlocks(state, cycleId, tickNumber, now);
         EconomyProcessor.ApplyPrioritySpending(state, cycleId, tickNumber, now);
 
         var dueOrders = state.FleetOrders

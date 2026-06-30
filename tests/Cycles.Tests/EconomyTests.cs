@@ -84,6 +84,27 @@ public sealed class EconomyTests
         Assert.Empty(state.ShipConstructions);
     }
 
+    [Fact]
+    public void ResearchThresholdUnlocksSurveyProjectionDoctrineOnce()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var resources = Assert.Single(state.EmpireResources);
+        resources.Research = EconomyProcessor.SurveyProjectionResearchThreshold;
+        var system = Assert.Single(state.Systems);
+        system.IndustryOutput = 0;
+        system.ResearchOutput = 0;
+        system.PopulationOutput = 0;
+
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
+
+        var unlock = Assert.Single(state.Events, item => item.EventType == EventType.DoctrineUnlocked);
+        Assert.Equal(resources.EmpireId, unlock.EmpireId);
+        Assert.Contains(EconomyProcessor.SurveyProjectionDoctrineKey, unlock.FactJson, StringComparison.Ordinal);
+        Assert.Contains(EconomyProcessor.SurveyProjectionResearchThreshold.ToString("0"), unlock.FactJson, StringComparison.Ordinal);
+    }
+
     private static GameState CreateShipBuildingState(decimal industry)
     {
         var state = TestState.CreateSingleEmpireState();

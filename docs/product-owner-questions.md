@@ -15,7 +15,7 @@ Current implementation:
 - Industry, research, and population are generated from influence.
 - Empire priorities are stored and editable.
 - Military priority spending now consumes industry stockpile into queued ship construction.
-- Research and population remain stockpiles for future unlock and colonisation effects.
+- Research now unlocks the first simple doctrine effect at 200 stockpiled research; population remains a stockpile for future colonisation effects.
 
 Questions and answers:
 
@@ -28,7 +28,7 @@ Questions and answers:
 Decision:
 
 - Industry is the first spendable stockpile and currently builds ships through military priority spending.
-- Research accumulates toward future unlocks.
+- Research accumulates toward unlocks; the first implemented unlock is Survey Projection, a 10% effective-presence doctrine bonus.
 - Population accumulates toward future colonisation.
 - Per-tick generated and spent amounts are stored separately from stockpile totals.
 

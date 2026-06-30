@@ -314,6 +314,22 @@ Consequences:
 - The projection is recalculated from current priorities whenever effective presence is requested.
 - Future colonisation or outpost mechanics should build on this model deliberately instead of silently replacing it.
 
+## 2026-06-30: Add First Research Doctrine Unlock
+
+Decision: make 200 stockpiled research unlock a first doctrine, Survey Projection, recorded as a one-time `DoctrineUnlocked` event that grants a 10% effective-presence bonus.
+
+Reasoning:
+
+- Product direction says research should accumulate toward future unlocks, but a full technology tree would be premature.
+- An event-backed unlock gives research an observable effect without adding a new persistence table or spending model.
+- Effective presence is already the main strategic abstraction for influence, resources, and map control, so a small doctrine modifier fits the current design.
+
+Consequences:
+
+- Research can now change resource shares, system-detail influence, and map-control metrics after the unlock.
+- The unlock is durable because the event is persisted; the current implementation does not spend research or support multiple doctrine choices.
+- Future doctrine/technology systems can replace the event-backed first slice with a dedicated model when the design needs branching unlocks.
+
 ## 2026-06-30: Rank Cycle Winners By Map Control
 
 Decision: define the first Cycle-end winner metric as `MapControlPercent`, calculated from each empire's share of effective presence across all systems.

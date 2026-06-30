@@ -70,7 +70,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Implement automatic ship building from military investment.
 - [x] Decide where new ships appear: home fleet, rally fleet, or new reserve fleet.
 - [x] Add spending events for material changes.
-- [ ] Add simple research accumulation effect.
+- [x] Add simple research accumulation effect.
 - [x] Add simple expansion/influence projection effect.
 - [x] Add UI controls for priority changes.
 - [x] Add UI display for last tick gains and spending.
