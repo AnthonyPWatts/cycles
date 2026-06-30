@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-30
 
-This document defines the first Cycle-end ranking metric. It is a product and implementation contract for Cycle-end processing; per-tick metric snapshots now exist, but the Cycle-end command and final ranking persistence do not.
+This document defines the first Cycle-end ranking metric. It is a product and implementation contract for Cycle-end processing; per-tick metric snapshots, the manual Cycle-end command, and final ranking persistence now use this shape.
 
 ## First Ranking Metric
 
@@ -48,12 +48,14 @@ Display percentages rounded to two decimal places, but store or compare the unro
 - Pending orders at cutoff are ignored unless they have already been processed into state by a completed tick.
 - Resources, fleets, battles, and Chronicle entries can still be preserved as history categories, but they do not decide the first winner.
 
-## Future Implementation Notes
+## Implementation Notes
 
-The first Cycle-end implementation should:
+The first Cycle-end implementation:
 
-- calculate standings from a frozen state snapshot after the final completed tick;
-- reuse the same `MapControlPercent`, total effective presence, active ship count, and deterministic tie-break ordering used by per-tick `EmpireMetrics`;
-- persist one winner and ranked standings for every active empire;
-- record the tick number and cutoff time used for the calculation;
-- test uncontested control, contested proportional control, expansion projection, empty systems, and deterministic tie-breaking.
+- calculates standings from the current state snapshot at manual cutoff;
+- reuses the same `MapControlPercent`, total effective presence, active ship count, and deterministic tie-break ordering used by per-tick `EmpireMetrics`;
+- persists one winner and ranked standings for every active empire in `CycleRankings`;
+- records the tick number and cutoff time used for the calculation;
+- tests final ranking persistence and the completed-Cycle guard.
+
+Future history work should add selected major battles, selected systems, historical-system signals, and next-Cycle continuity.

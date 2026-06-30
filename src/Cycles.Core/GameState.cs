@@ -8,6 +8,7 @@ public sealed class GameState
     public List<EmpireResource> EmpireResources { get; set; } = [];
     public List<EmpirePriority> EmpirePriorities { get; set; } = [];
     public List<EmpireMetric> EmpireMetrics { get; set; } = [];
+    public List<CycleRanking> CycleRankings { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -33,6 +34,7 @@ public sealed class GameState
             EmpireResources = EmpireResources.Select(Clone).ToList(),
             EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
             EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
+            CycleRankings = CycleRankings.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -52,6 +54,7 @@ public sealed class GameState
         EmpireResources = other.EmpireResources;
         EmpirePriorities = other.EmpirePriorities;
         EmpireMetrics = other.EmpireMetrics;
+        CycleRankings = other.CycleRankings;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -137,6 +140,20 @@ public sealed class GameState
         TotalEffectivePresence = item.TotalEffectivePresence,
         ActiveShipCount = item.ActiveShipCount,
         CreatedAt = item.CreatedAt
+    };
+
+    private static CycleRanking Clone(CycleRanking item) => new()
+    {
+        CycleRankingId = item.CycleRankingId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        Rank = item.Rank,
+        IsWinner = item.IsWinner,
+        MapControlPercent = item.MapControlPercent,
+        TotalEffectivePresence = item.TotalEffectivePresence,
+        ActiveShipCount = item.ActiveShipCount,
+        CutoffTickNumber = item.CutoffTickNumber,
+        CutoffAt = item.CutoffAt
     };
 
     private static GalaxySystem Clone(GalaxySystem item) => new()
@@ -343,6 +360,20 @@ public sealed class EmpireMetric
     public decimal TotalEffectivePresence { get; set; }
     public int ActiveShipCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class CycleRanking
+{
+    public Guid CycleRankingId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public int Rank { get; set; }
+    public bool IsWinner { get; set; }
+    public decimal MapControlPercent { get; set; }
+    public decimal TotalEffectivePresence { get; set; }
+    public int ActiveShipCount { get; set; }
+    public int CutoffTickNumber { get; set; }
+    public DateTimeOffset CutoffAt { get; set; }
 }
 
 public sealed class GalaxySystem
@@ -552,7 +583,8 @@ public enum EventType
     CombatResolved,
     PrioritiesChanged,
     ChronicleCreated,
-    RecoveryCleared
+    RecoveryCleared,
+    CycleCompleted
 }
 
 public enum EventSeverity

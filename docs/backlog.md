@@ -101,8 +101,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 - [x] Define ranking metrics.
 - [x] Store per-tick or per-Cycle empire metrics.
-- [ ] Add Cycle-end processing command.
-- [ ] Persist final Cycle rankings.
+- [x] Add Cycle-end processing command.
+- [x] Persist final Cycle rankings.
 - [ ] Select major Cycle events.
 - [ ] Add historical signal fields or tables for systems.
 - [ ] Increase historical system significance from repeated conflict.

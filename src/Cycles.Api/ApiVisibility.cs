@@ -43,6 +43,11 @@ public static class ApiVisibility
             return true;
         }
 
+        if (item.EventType == EventType.CycleCompleted)
+        {
+            return true;
+        }
+
         if (actor.Empire is not null && item.EmpireId == actor.Empire.EmpireId)
         {
             return true;

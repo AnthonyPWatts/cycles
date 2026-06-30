@@ -44,9 +44,12 @@ public sealed class ApiVisibilityTests
         var localEvent = CreateEvent(cycle.CycleId, systemId: contest.SystemId);
         var hiddenEvent = CreateEvent(cycle.CycleId, systemId: hidden.SystemId);
         var enemyEvent = CreateEvent(cycle.CycleId, empireId: secondEmpire.EmpireId);
+        var cycleCompletedEvent = CreateEvent(cycle.CycleId, empireId: secondEmpire.EmpireId);
+        cycleCompletedEvent.EventType = EventType.CycleCompleted;
 
         Assert.True(ApiVisibility.CanSeeEvent(ownEvent, actor, visibleSystemIds));
         Assert.True(ApiVisibility.CanSeeEvent(localEvent, actor, visibleSystemIds));
+        Assert.True(ApiVisibility.CanSeeEvent(cycleCompletedEvent, actor, visibleSystemIds));
         Assert.False(ApiVisibility.CanSeeEvent(hiddenEvent, actor, visibleSystemIds));
         Assert.False(ApiVisibility.CanSeeEvent(enemyEvent, actor, visibleSystemIds));
     }

@@ -16,7 +16,8 @@ Cycles is currently a local, runnable technical MVP prototype. It proves the cor
 8. resolve simple combat;
 9. write factual events;
 10. preserve important battles as Chronicle entries;
-11. snapshot per-tick empire map-control metrics.
+11. snapshot per-tick empire map-control metrics;
+12. complete a Cycle manually and persist final ranked standings.
 
 This is not yet a production game service. It is a working architecture slice.
 
@@ -97,6 +98,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
 - Completed ticks record per-empire metric snapshots for `MapControlPercent`, rank, winner flag, total effective presence, and active ship count.
+- The CLI can complete a Cycle manually with `cycle end`, ranking active empires by `MapControlPercent` and storing final standings in `CycleRankings`.
 
 ### Orders
 
@@ -152,6 +154,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - A SQL Server schema/bootstrap image exists under `database/sqldockerdeploykit`.
 - `Cycles.Infrastructure.SqlServer` can read, replace, and update `GameState` through SQL Server.
 - SQL Server persists per-tick `EmpireMetrics` snapshots for later Cycle-end history work.
+- SQL Server persists final `CycleRankings` for completed Cycles.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
@@ -209,7 +212,7 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
-- Per-tick ranking metric snapshots exist, but there is no Cycle-end command, final winner persistence, reset, or continuity.
+- Cycle-end ranking persistence exists, but there is no next-Cycle reset, continuity generation, selected major-event preservation, or historical-system evolution yet.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
@@ -227,7 +230,7 @@ The next stage should harden the simulation spine before adding feature breadth:
 
 1. make tick execution idempotent and auditable against the focused SQL tick path;
 2. add live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-3. add Cycle-end processing and final ranking persistence;
+3. select major Cycle events and historical system signals for completed Cycles;
 4. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
 5. only then deepen the Chronicle/history systems.
 

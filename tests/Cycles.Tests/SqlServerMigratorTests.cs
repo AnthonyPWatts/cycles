@@ -31,6 +31,7 @@ public sealed class SqlServerMigratorTests
         var economySpending = Assert.Single(migrations, migration => migration.MigrationId == "003_add_economy_spending");
         var empireMetrics = Assert.Single(migrations, migration => migration.MigrationId == "004_add_empire_metrics");
         var playerRole = Assert.Single(migrations, migration => migration.MigrationId == "005_add_player_role");
+        var cycleRankings = Assert.Single(migrations, migration => migration.MigrationId == "006_add_cycle_rankings");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -39,5 +40,6 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CREATE TABLE dbo.ShipConstructions", economySpending.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.EmpireMetrics", empireMetrics.Script, StringComparison.Ordinal);
         Assert.Contains("ALTER TABLE dbo.Players", playerRole.Script, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE dbo.CycleRankings", cycleRankings.Script, StringComparison.Ordinal);
     }
 }

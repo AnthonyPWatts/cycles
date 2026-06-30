@@ -63,6 +63,18 @@ public sealed class GameStateTests
             Status = TickLogStatus.Completed,
             DiagnosticLog = "Processed 1 order."
         });
+        state.CycleRankings.Add(new CycleRanking
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = attacker.EmpireId,
+            Rank = 1,
+            IsWinner = true,
+            MapControlPercent = 60,
+            TotalEffectivePresence = 120,
+            ActiveShipCount = 50,
+            CutoffTickNumber = 1,
+            CutoffAt = TestState.Now
+        });
         state.Events.Add(eventRecord);
         state.BattleRecords.Add(battle);
         state.ChronicleEntries.Add(new ChronicleEntry
@@ -92,6 +104,7 @@ public sealed class GameStateTests
         Assert.Equal(state.Fleets.Count, clone.Fleets.Count);
         Assert.Equal(state.FleetOrders.Count, clone.FleetOrders.Count);
         Assert.Equal(state.TickLogs.Count, clone.TickLogs.Count);
+        Assert.Equal(state.CycleRankings.Count, clone.CycleRankings.Count);
         Assert.Equal(state.Events.Count, clone.Events.Count);
         Assert.Equal(state.BattleRecords.Count, clone.BattleRecords.Count);
         Assert.Equal(state.ChronicleEntries.Count, clone.ChronicleEntries.Count);
@@ -102,13 +115,17 @@ public sealed class GameStateTests
         Assert.NotSame(state.FleetOrders[0], clone.FleetOrders[0]);
         Assert.Equal(state.Events.Last().EventId, clone.Events.Last().EventId);
         Assert.NotSame(state.Events.Last(), clone.Events.Last());
+        Assert.Equal(state.CycleRankings[0].CycleRankingId, clone.CycleRankings[0].CycleRankingId);
+        Assert.NotSame(state.CycleRankings[0], clone.CycleRankings[0]);
 
         clone.Fleets[0].ShipCount += 10;
         clone.FleetOrders[0].Status = FleetOrderStatus.Processed;
         clone.Events.Last().DisplayText = "Changed in clone.";
+        clone.CycleRankings[0].Rank = 2;
 
         Assert.NotEqual(state.Fleets[0].ShipCount, clone.Fleets[0].ShipCount);
         Assert.Equal(FleetOrderStatus.Pending, state.FleetOrders[0].Status);
         Assert.Equal("A test battle was resolved.", state.Events.Last().DisplayText);
+        Assert.Equal(1, state.CycleRankings[0].Rank);
     }
 }

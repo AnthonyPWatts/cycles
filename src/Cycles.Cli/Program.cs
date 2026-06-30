@@ -15,6 +15,11 @@ try
         return RunRecoveryCommand(args);
     }
 
+    if (command == "cycle")
+    {
+        return RunCycleCommand(args);
+    }
+
     var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
     var store = GameStateStoreFactory.Create(statePath);
 
@@ -82,8 +87,7 @@ static void Tick(IGameStateStore store)
 static void Show(IGameStateStore store)
 {
     var state = store.LoadOrCreate();
-    var cycle = state.GetActiveCycle()
-        ?? throw new InvalidOperationException("No active cycle exists.");
+    var cycle = GetDisplayCycle(state);
 
     Console.WriteLine($"{cycle.Name} | tick {cycle.CurrentTickNumber} | {cycle.Status}");
     Console.WriteLine();
@@ -126,6 +130,55 @@ static void Show(IGameStateStore store)
         {
             Console.WriteLine($"- {entry.Title} ({entry.ImportanceScore}): {entry.FactualSummary}");
         }
+    }
+
+    if (state.CycleRankings.Any(ranking => ranking.CycleId == cycle.CycleId))
+    {
+        Console.WriteLine();
+        Console.WriteLine("Final rankings");
+        foreach (var ranking in state.CycleRankings.Where(ranking => ranking.CycleId == cycle.CycleId).OrderBy(ranking => ranking.Rank))
+        {
+            var empire = state.Empires.Single(item => item.EmpireId == ranking.EmpireId);
+            var winnerText = ranking.IsWinner ? " winner" : "";
+            Console.WriteLine($"- #{ranking.Rank}{winnerText}: {empire.EmpireName} ({ranking.MapControlPercent:0.##}% map control, {ranking.ActiveShipCount} active ships)");
+        }
+    }
+}
+
+static int RunCycleCommand(string[] args)
+{
+    var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
+    switch (subcommand)
+    {
+        case "end":
+            {
+                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
+                var requestedCycleId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
+                var store = GameStateStoreFactory.Create(statePath);
+                var rankings = store.Update(state =>
+                {
+                    var cycleId = requestedCycleId
+                        ?? state.GetActiveCycle()?.CycleId
+                        ?? throw new InvalidOperationException("No active cycle exists.");
+                    return CycleEndService.CompleteCycle(state, cycleId, DateTimeOffset.UtcNow);
+                });
+
+                var winner = rankings.Single(ranking => ranking.IsWinner);
+                Console.WriteLine($"Cycle ended at tick {winner.CutoffTickNumber}.");
+                Console.WriteLine($"Winner: {winner.EmpireId} with {winner.MapControlPercent:0.##}% map control.");
+                Console.WriteLine("Final rankings:");
+                foreach (var ranking in rankings.OrderBy(ranking => ranking.Rank))
+                {
+                    var winnerText = ranking.IsWinner ? " winner" : "";
+                    Console.WriteLine($"- #{ranking.Rank}{winnerText}: {ranking.EmpireId} ({ranking.MapControlPercent:0.##}% map control, {ranking.ActiveShipCount} active ships)");
+                }
+
+                return 0;
+            }
+
+        default:
+            PrintUsage();
+            return 2;
     }
 }
 
@@ -341,6 +394,13 @@ static string ParseRequiredOption(string[] args, string optionName)
 static bool IsRecoverySubcommand(string? value) =>
     value is "details" or "clear" or "retry";
 
+static Cycle GetDisplayCycle(GameState state) =>
+    state.GetActiveCycle()
+    ?? state.Cycles
+        .OrderByDescending(cycle => cycle.StartAt)
+        .FirstOrDefault()
+    ?? throw new InvalidOperationException("No cycle exists.");
+
 static int ParseOptionalInt(string[] args, int index, int defaultValue) =>
     args.Length > index ? int.Parse(args[index]) : defaultValue;
 
@@ -372,6 +432,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <statePath> <cycleId> --operator <name> --reason <reason>");

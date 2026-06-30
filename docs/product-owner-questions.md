@@ -203,6 +203,7 @@ Current direction:
 
 - Cycle ends are manual and admin-run.
 - Cycle end is effectively a database freeze/cutoff.
+- The first `cycle end` command marks the Cycle completed and persists one winner plus ranked standings for every active empire.
 
 Questions and answers:
 
@@ -211,7 +212,7 @@ Questions and answers:
 - Can an empire be defeated before the Cycle ends? No empire can be fully defeated, as a home planet should not be conquerable. Players can be driven back to their own system.
 - What happens to pending orders at cutoff? Never completed.
 
-Decision needed:
+Decision:
 
 - Add a first Cycle-end command that produces one winner plus ranked standings from influence across systems.
 

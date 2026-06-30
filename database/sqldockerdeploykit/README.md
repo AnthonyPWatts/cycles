@@ -34,7 +34,7 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
 
 ## Connection String
 
@@ -59,7 +59,7 @@ Run the API against SQL Server with `ConnectionStrings:Cycles`:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 ```
 
-The SQL Server store currently reads the whole prototype `GameState` inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. Migrations are explicit and non-destructive, but the state store is still a practical bridge from JSON persistence to the final focused repository model.
+The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a focused tick workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store is still a practical bridge from JSON persistence to the final application-service/repository model.
 
 ## Integration Test
 

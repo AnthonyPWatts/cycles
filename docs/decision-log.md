@@ -314,6 +314,23 @@ Consequences:
 - Strategic value, resources, battles, and Chronicle score can become historical categories, but they do not decide the first winner.
 - Tie-breaking should be deterministic, with details defined in `ranking-metrics.md`.
 
+## 2026-06-30: Add Manual Cycle-End Ranking Persistence
+
+Decision: add a CLI-owned `cycle end` command that completes an active Cycle, calculates final standings from the current state snapshot, records one winner, and persists standings in `CycleRankings`.
+
+Reasoning:
+
+- Product-owner direction says Cycle ends are manual and effectively freeze the database at cutoff.
+- The ranking metric was already defined and per-tick `EmpireMetrics` already prove the calculation shape.
+- A CLI command keeps Cycle completion out of ordinary player-facing API actions, matching the existing tick-execution boundary.
+
+Consequences:
+
+- Completed Cycles no longer appear as active Cycles.
+- Final standings store rank, winner flag, map-control percentage, total effective presence, active ship count, cutoff tick, and cutoff time.
+- Pending orders remain pending at cutoff; only already-processed state affects the final ranking.
+- Next-Cycle generation, selected major-event preservation, and historical-system updates remain future Stage 5 work.
+
 ## 2026-06-30: Use Development Auth Before Production Auth
 
 Decision: replace the prototype `playerId`/`empireId` dashboard flow with a deliberate development auth boundary: `/auth/login` establishes an HttpOnly development cookie, players have explicit `Player` or `Admin` roles, and player mutations derive the empire from the authenticated context.

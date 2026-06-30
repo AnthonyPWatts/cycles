@@ -154,6 +154,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             EmpireResources = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireResources", ReadEmpireResource),
             EmpirePriorities = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpirePriorities", ReadEmpirePriority),
             EmpireMetrics = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireMetrics", ReadEmpireMetric),
+            CycleRankings = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleRankings", ReadCycleRanking),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
@@ -302,6 +303,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.EmpireMetrics)
         {
             UpsertEmpireMetric(connection, transaction, item);
+        }
+
+        foreach (var item in state.CycleRankings)
+        {
+            UpsertCycleRanking(connection, transaction, item);
         }
 
         foreach (var item in state.SystemLinks)
@@ -492,6 +498,20 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         TotalEffectivePresence = GetDecimal(reader, "TotalEffectivePresence"),
         ActiveShipCount = GetInt(reader, "ActiveShipCount"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static CycleRanking ReadCycleRanking(SqlDataReader reader) => new()
+    {
+        CycleRankingId = GetGuid(reader, "CycleRankingID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        EmpireId = GetGuid(reader, "EmpireID"),
+        Rank = GetInt(reader, "Rank"),
+        IsWinner = GetBool(reader, "IsWinner"),
+        MapControlPercent = GetDecimal(reader, "MapControlPercent"),
+        TotalEffectivePresence = GetDecimal(reader, "TotalEffectivePresence"),
+        ActiveShipCount = GetInt(reader, "ActiveShipCount"),
+        CutoffTickNumber = GetInt(reader, "CutoffTickNumber"),
+        CutoffAt = GetDateTimeOffset(reader, "CutoffAt")
     };
 
     private static SystemLink ReadSystemLink(SqlDataReader reader) => new()
@@ -825,6 +845,39 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertCycleRanking(SqlConnection connection, SqlTransaction transaction, CycleRanking item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.CycleRankings
+            SET CycleID = @CycleID,
+                EmpireID = @EmpireID,
+                Rank = @Rank,
+                IsWinner = @IsWinner,
+                MapControlPercent = @MapControlPercent,
+                TotalEffectivePresence = @TotalEffectivePresence,
+                ActiveShipCount = @ActiveShipCount,
+                CutoffTickNumber = @CutoffTickNumber,
+                CutoffAt = @CutoffAt
+            WHERE CycleRankingID = @CycleRankingID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.CycleRankings(CycleRankingID, CycleID, EmpireID, Rank, IsWinner, MapControlPercent, TotalEffectivePresence, ActiveShipCount, CutoffTickNumber, CutoffAt)
+            VALUES (@CycleRankingID, @CycleID, @EmpireID, @Rank, @IsWinner, @MapControlPercent, @TotalEffectivePresence, @ActiveShipCount, @CutoffTickNumber, @CutoffAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@CycleRankingID", item.CycleRankingId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@EmpireID", item.EmpireId);
+            AddInt(command, "@Rank", item.Rank);
+            AddBool(command, "@IsWinner", item.IsWinner);
+            AddDecimal(command, "@MapControlPercent", item.MapControlPercent, scale: 6);
+            AddDecimal(command, "@TotalEffectivePresence", item.TotalEffectivePresence);
+            AddInt(command, "@ActiveShipCount", item.ActiveShipCount);
+            AddInt(command, "@CutoffTickNumber", item.CutoffTickNumber);
+            AddDateTimeOffset(command, "@CutoffAt", item.CutoffAt);
+        });
+
     private static void UpsertSystemLink(SqlConnection connection, SqlTransaction transaction, SystemLink item) =>
         Execute(connection, transaction, """
             UPDATE dbo.SystemLinks
@@ -1104,6 +1157,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
         DeleteMissingRows(connection, transaction, "dbo.SystemLinks", "SystemLinkID", state.SystemLinks.Select(item => item.SystemLinkId));
         DeleteMissingRows(connection, transaction, "dbo.EmpireMetrics", "EmpireMetricID", state.EmpireMetrics.Select(item => item.EmpireMetricId));
+        DeleteMissingRows(connection, transaction, "dbo.CycleRankings", "CycleRankingID", state.CycleRankings.Select(item => item.CycleRankingId));
         DeleteMissingRows(connection, transaction, "dbo.EmpirePriorities", "EmpirePriorityID", state.EmpirePriorities.Select(item => item.EmpirePriorityId));
         DeleteMissingRows(connection, transaction, "dbo.EmpireResources", "EmpireResourceID", state.EmpireResources.Select(item => item.EmpireResourceId));
         DeleteMissingRows(connection, transaction, "dbo.Empires", "EmpireID", state.Empires.Select(item => item.EmpireId));

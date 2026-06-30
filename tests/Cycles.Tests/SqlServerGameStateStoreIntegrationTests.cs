@@ -371,6 +371,31 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
     }
 
+    [Fact]
+    public void Store_persists_cycle_rankings_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now);
+
+        store.Replace(state);
+
+        var updated = store.LoadOrCreate();
+        var rankings = updated.CycleRankings.Where(ranking => ranking.CycleId == cycle.CycleId).OrderBy(ranking => ranking.Rank).ToArray();
+
+        Assert.Equal(CycleStatus.Completed, updated.Cycles.Single(item => item.CycleId == cycle.CycleId).Status);
+        Assert.Equal(2, rankings.Length);
+        Assert.True(rankings[0].IsWinner);
+        Assert.False(rankings[1].IsWinner);
+    }
+
     private static GameState CombineStates(params GameState[] states) =>
         new()
         {
@@ -381,6 +406,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),
             EmpirePriorities = states.SelectMany(state => state.EmpirePriorities).ToList(),
             EmpireMetrics = states.SelectMany(state => state.EmpireMetrics).ToList(),
+            CycleRankings = states.SelectMany(state => state.CycleRankings).ToList(),
             SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),
