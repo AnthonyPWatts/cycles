@@ -36,6 +36,8 @@ This file captures Cycles-specific guidance for coding agents. Anthony's global 
 - The playable dashboard is static HTML/CSS/JS under `src/Cycles.Api/wwwroot`.
 - Keep dashboard polish narrow unless the user explicitly asks for a redesign or gameplay change.
 - Avoid backend/gameplay drift when doing visual-only work.
+- For screenshot verification on this machine, direct Playwright through the bundled Codex Node runtime is reliable after installing the expected browser revision. The gstack `browse.exe` path is still flaky: it needs `BROWSE_SERVER_SCRIPT` pointed at `C:\Users\antho\.codex\skills\gstack\browse\dist\server-node.mjs`, then may still miss its server startup window.
+- If screenshots are needed and `browse.exe` flakes, use Playwright directly and save PNGs under `%TEMP%`; inspect the generated PNG before treating the screenshot as evidence.
 
 ## Docs And Backlog Hygiene
 
