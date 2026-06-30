@@ -3,6 +3,7 @@
     --bg: #0d100f;
     --panel: #171a18;
     --panel-strong: #22231d;
+    --panel-glass: rgba(15, 19, 17, 0.78);
     --surface: #101412;
     --line: #3c463f;
     --line-soft: #262f2a;
@@ -92,7 +93,8 @@ select {
     min-height: 76px;
     padding: 14px 18px;
     border-bottom: 1px solid var(--line);
-    background: rgba(10, 13, 12, 0.94);
+    background: rgba(10, 13, 12, 0.92);
+    backdrop-filter: blur(16px);
     box-shadow: 0 16px 36px var(--shadow);
 }
 
@@ -117,9 +119,54 @@ select {
 }
 
 .topbar p {
-    margin: 4px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    margin: 6px 0 0;
     color: var(--muted);
     font-size: 0.95rem;
+}
+
+.cycle-name {
+    color: var(--muted);
+}
+
+.cycle-pill,
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.status-active,
+.status-pending {
+    border-color: rgba(143, 209, 189, 0.58);
+    background: rgba(82, 182, 154, 0.14);
+    color: var(--accent);
+}
+
+.status-processed,
+.status-completed {
+    border-color: rgba(223, 186, 104, 0.48);
+    background: rgba(223, 186, 104, 0.12);
+    color: var(--gold);
+}
+
+.status-rejected,
+.status-destroyed,
+.status-failed {
+    border-color: rgba(211, 101, 86, 0.54);
+    background: rgba(211, 101, 86, 0.13);
+    color: #f0a096;
 }
 
 .login-form {
@@ -152,18 +199,37 @@ select {
     gap: 14px;
     min-height: 58px;
     padding: 10px 16px;
-    background: rgba(23, 26, 24, 0.95);
+    background: rgba(23, 26, 24, 0.92);
     border-bottom: 1px solid var(--line);
+}
+
+.toolbar > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.toolbar-kicker {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
 }
 
 .toolbar strong {
     min-width: 0;
     color: var(--accent);
-    font-size: 1rem;
+    font-size: 1.18rem;
     overflow-wrap: anywhere;
 }
 
+.map-stage {
+    position: relative;
+    min-height: 0;
+}
+
 #galaxyMap {
+    display: block;
     width: 100%;
     height: 100%;
     min-height: 0;
@@ -172,6 +238,86 @@ select {
         linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
         #0d1210;
     background-size: 42px 42px;
+}
+
+.map-readout {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.map-stats,
+.map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.stat-chip,
+.map-legend span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-glass);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(12px);
+}
+
+.stat-chip {
+    gap: 7px;
+    padding: 7px 10px;
+}
+
+.stat-chip strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-chip em {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-style: normal;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.map-legend span {
+    gap: 7px;
+    padding: 7px 9px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.legend-dot,
+.legend-ring {
+    flex: 0 0 auto;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+}
+
+.legend-home {
+    background: var(--accent);
+}
+
+.legend-historic {
+    background: var(--gold);
+}
+
+.legend-contested {
+    background: var(--danger);
+}
+
+.legend-ring {
+    border: 2px solid var(--danger);
 }
 
 .side-panel {
@@ -201,6 +347,63 @@ dl {
     grid-template-columns: 1fr auto;
     gap: 8px 12px;
     margin: 0;
+}
+
+#resources {
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.resource-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background:
+        linear-gradient(90deg, rgba(143, 209, 189, 0.08), transparent 70%),
+        var(--panel-strong);
+}
+
+.resource-card dt {
+    align-self: center;
+    font-weight: 800;
+}
+
+.resource-card dd {
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+    min-width: 104px;
+}
+
+.resource-card strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.resource-home dd {
+    align-items: center;
+    max-width: 190px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.resource-meter {
+    display: block;
+    width: 100%;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #0b0f0d;
+}
+
+.resource-meter i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent-strong), var(--gold));
 }
 
 dt {
@@ -235,6 +438,38 @@ dd {
 .item span {
     color: var(--muted);
     line-height: 1.45;
+}
+
+.item .status-chip {
+    line-height: 1;
+}
+
+.item .status-active,
+.item .status-pending {
+    color: var(--accent);
+}
+
+.item .status-processed,
+.item .status-completed {
+    color: var(--gold);
+}
+
+.item .status-rejected,
+.item .status-destroyed,
+.item .status-failed {
+    color: #f0a096;
+}
+
+.item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+}
+
+.item-meta > span:not(.status-chip) {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .fleet-item {
@@ -289,6 +524,7 @@ dd {
 
 .priority-form button,
 .priority-form .message,
+.priority-bars,
 .priority-total {
     grid-column: 1 / -1;
 }
@@ -307,6 +543,45 @@ dd {
 
 .priority-total strong {
     color: var(--text);
+}
+
+.priority-bars {
+    display: grid;
+    gap: 8px;
+}
+
+.priority-bar {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 30px;
+    overflow: hidden;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #0c110f;
+}
+
+.priority-bar span,
+.priority-bar strong {
+    position: relative;
+    z-index: 1;
+}
+
+.priority-bar span {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.priority-bar strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.priority-bar i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: linear-gradient(90deg, rgba(82, 182, 154, 0.38), rgba(223, 186, 104, 0.2));
 }
 
 .system-details {
@@ -353,12 +628,14 @@ dd {
 .link {
     stroke: #59645c;
     stroke-width: 2.2;
+    transition: stroke 150ms ease, stroke-width 150ms ease;
 }
 
 .system {
     fill: var(--system);
     stroke: #0a0d0c;
     stroke-width: 2.4;
+    transition: fill 150ms ease, stroke 150ms ease, stroke-width 150ms ease;
 }
 
 .system.historic {
@@ -369,11 +646,23 @@ dd {
     fill: var(--accent);
 }
 
+.system.contested {
+    fill: #f0a096;
+}
+
 .presence {
     fill: none;
     stroke: var(--danger);
     stroke-width: 3.4;
     opacity: 0.86;
+}
+
+.contested-ring {
+    fill: none;
+    stroke: var(--danger);
+    stroke-dasharray: 3 5;
+    stroke-width: 2;
+    opacity: 0.72;
 }
 
 .system-label {
@@ -397,6 +686,11 @@ dd {
 .system.selected {
     stroke: var(--gold);
     stroke-width: 4;
+}
+
+.system-node:hover .system {
+    stroke: var(--accent);
+    stroke-width: 3.4;
 }
 
 @media (max-width: 900px) {
@@ -427,9 +721,40 @@ dd {
 
     #galaxyMap {
         min-height: 420px;
+        height: 420px;
+    }
+
+    .map-readout {
+        position: static;
+        align-items: stretch;
+        flex-direction: column;
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        background: rgba(13, 18, 16, 0.98);
+    }
+
+    .stat-chip,
+    .map-legend span {
+        box-shadow: none;
     }
 
     .side-panel {
         overflow: visible;
+    }
+}
+
+@media (max-width: 560px) {
+    .priority-form {
+        grid-template-columns: 1fr;
+    }
+
+    .login-form {
+        grid-template-columns: 1fr;
+    }
+
+    .map-stats,
+    .map-legend {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

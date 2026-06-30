@@ -24,6 +24,7 @@ const elements = {
     militaryWeight: document.querySelector("#militaryWeight"),
     expansionWeight: document.querySelector("#expansionWeight"),
     priorityTotal: document.querySelector("#priorityTotal"),
+    priorityBars: document.querySelector("#priorityBars"),
     priorityMessage: document.querySelector("#priorityMessage"),
     fleets: document.querySelector("#fleets"),
     fleetDetails: document.querySelector("#fleetDetails"),
@@ -38,6 +39,7 @@ const elements = {
     events: document.querySelector("#events"),
     chronicle: document.querySelector("#chronicle"),
     galaxyMap: document.querySelector("#galaxyMap"),
+    mapStats: document.querySelector("#mapStats"),
     refreshButton: document.querySelector("#refreshButton")
 };
 
@@ -211,17 +213,25 @@ async function refresh() {
 }
 
 function renderCycle(cycle) {
-    elements.cycleStatus.textContent = `${cycle.name} | tick ${cycle.currentTickNumber} | ${cycle.status}`;
+    elements.cycleStatus.innerHTML = `
+        <span class="cycle-name">${escapeHtml(cycle.name)}</span>
+        <span class="cycle-pill">T${cycle.currentTickNumber}</span>
+        ${statusChip(cycle.status)}
+    `;
 }
 
 function renderEmpire(empire) {
     elements.empireName.textContent = empire.empireName;
     const resources = empire.resources;
+    const maxResource = Math.max(1, Number(resources.industry), Number(resources.research), Number(resources.population));
     elements.resources.innerHTML = `
-        <dt>Industry</dt><dd>${formatNumber(resources.industry)}</dd>
-        <dt>Research</dt><dd>${formatNumber(resources.research)}</dd>
-        <dt>Population</dt><dd>${formatNumber(resources.population)}</dd>
-        <dt>Home</dt><dd>${escapeHtml(empire.homeSystem.systemName)}</dd>
+        ${resourceCard("Industry", resources.industry, maxResource)}
+        ${resourceCard("Research", resources.research, maxResource)}
+        ${resourceCard("Population", resources.population, maxResource)}
+        <div class="resource-card resource-home">
+            <dt>Home</dt>
+            <dd>${escapeHtml(empire.homeSystem.systemName)}</dd>
+        </div>
     `;
 }
 
@@ -243,7 +253,11 @@ function renderFleets(fleets) {
         return `
             <article class="item fleet-item${selectedClass}" data-fleet-id="${fleet.fleetId}" role="button" tabindex="0">
                 <strong>${escapeHtml(fleet.fleetName)}</strong>
-                <span>${fleet.shipCount} ships | ${fleet.status} | ${escapeHtml(item.currentSystemName)}${escapeHtml(destination)}</span>
+                <span class="item-meta">
+                    ${statusChip(fleet.status)}
+                    <span>${fleet.shipCount} ships</span>
+                    <span>${escapeHtml(item.currentSystemName)}${escapeHtml(destination)}</span>
+                </span>
             </article>
         `;
     }).join("");
@@ -284,7 +298,11 @@ function renderFleetDetails() {
     elements.fleetDetails.innerHTML = `
         <article class="item">
             <strong>${escapeHtml(detail.fleetName)}</strong>
-            <span>${detail.shipCount} ships | ${escapeHtml(detail.status)} | ${escapeHtml(detail.empireName)}</span>
+            <span class="item-meta">
+                ${statusChip(detail.status)}
+                <span>${detail.shipCount} ships</span>
+                <span>${escapeHtml(detail.empireName)}</span>
+            </span>
         </article>
         <dl class="detail-list">
             <dt>Current</dt><dd>${escapeHtml(detail.currentSystem.systemName)}</dd>
@@ -344,9 +362,13 @@ function renderSystemDetails() {
         }).join("");
 
     elements.systemDetails.innerHTML = `
-        <article class="item">
+        <article class="item system-card">
             <strong>${escapeHtml(system.systemName)}</strong>
-            <span>${system.x}, ${system.y} | strategic ${system.strategicValue} | history ${system.historicalSignificance}</span>
+            <span class="item-meta">
+                <span>${system.x}, ${system.y}</span>
+                <span>Strategic ${system.strategicValue}</span>
+                <span>History ${system.historicalSignificance}</span>
+            </span>
         </article>
         <dl class="detail-list">
             <dt>Industry</dt><dd>${formatNumber(system.industryOutput)}</dd>
@@ -365,9 +387,13 @@ function renderOrderQueue(orders) {
             const processed = order.processedTick === null ? `executes after T${order.executeAfterTick}` : `processed T${order.processedTick}`;
             const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
             return `
-                <article class="item order-${escapeHtml(order.status)}">
+                <article class="item order-${statusClass(order.status)}">
                     <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
-                    <span>${escapeHtml(order.status)} | ${escapeHtml(target)} | ${escapeHtml(processed)}${escapeHtml(rejection)}</span>
+                    <span class="item-meta">
+                        ${statusChip(order.status)}
+                        <span>${escapeHtml(target)}</span>
+                        <span>${escapeHtml(processed)}${escapeHtml(rejection)}</span>
+                    </span>
                 </article>
             `;
         }).join("");
@@ -391,12 +417,14 @@ function collectTargetEmpires(selectedFleet) {
 }
 
 function renderEvents(events) {
-    elements.events.innerHTML = events.slice().reverse().map(event => `
-        <article class="item">
-            <strong>T${event.tickNumber}</strong>
-            <span>${escapeHtml(event.displayText)}</span>
-        </article>
-    `).join("");
+    elements.events.innerHTML = events.length === 0
+        ? `<article class="item"><span>No events yet.</span></article>`
+        : events.slice().reverse().map(event => `
+            <article class="item">
+                <strong>T${event.tickNumber}</strong>
+                <span>${escapeHtml(event.displayText)}</span>
+            </article>
+        `).join("");
 }
 
 function renderChronicle(entries) {
@@ -422,17 +450,23 @@ function renderGalaxy(galaxy, empire) {
     const nodes = galaxy.systems.map(system => {
         const presence = galaxy.presence.find(item => item.systemId === system.systemId)?.effectivePresence ?? {};
         const ownPresence = Number(presence[empire.empireId] ?? 0);
+        const activePresence = Object.values(presence).map(Number).filter(value => value > 0);
+        const isContested = activePresence.length > 1;
         const radius = 7 + Math.min(16, Math.sqrt(ownPresence));
         const classes = [
             "system",
             system.historicalSignificance > 0 ? "historic" : "",
             system.systemId === homeId ? "home" : "",
+            isContested ? "contested" : "",
             system.systemId === state.selectedSystemId ? "selected" : ""
         ].filter(Boolean).join(" ");
+        const label = `${system.systemName}: strategic ${system.strategicValue}, presence ${formatNumber(ownPresence)}`;
 
         return `
-            <g class="system-node" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(system.systemName)}">
+            <g class="system-node" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}">
+                <title>${escapeHtml(label)}</title>
                 ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
+                ${isContested ? `<circle class="contested-ring" cx="${system.x}" cy="${system.y}" r="${radius + 10}"></circle>` : ""}
                 <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
                 <text class="system-label" x="${system.x + radius + 6}" y="${system.y + 4}">${escapeHtml(system.systemName)}</text>
             </g>
@@ -440,6 +474,7 @@ function renderGalaxy(galaxy, empire) {
     }).join("");
 
     elements.galaxyMap.innerHTML = `${lines}${nodes}`;
+    renderMapStats(galaxy);
 }
 
 function selectSystem(systemId) {
@@ -521,13 +556,25 @@ function setPriorityMessage(message) {
 }
 
 function updatePriorityTotal() {
-    const total =
-        parseWeight(elements.industryWeight.value) +
-        parseWeight(elements.researchWeight.value) +
-        parseWeight(elements.militaryWeight.value) +
-        parseWeight(elements.expansionWeight.value);
+    const priorities = [
+        ["Industry", parseWeight(elements.industryWeight.value)],
+        ["Research", parseWeight(elements.researchWeight.value)],
+        ["Military", parseWeight(elements.militaryWeight.value)],
+        ["Expansion", parseWeight(elements.expansionWeight.value)]
+    ];
+    const total = priorities.reduce((sum, [, value]) => sum + value, 0);
 
     elements.priorityTotal.textContent = total.toLocaleString();
+    elements.priorityBars.innerHTML = priorities.map(([label, value]) => {
+        const share = total === 0 ? 0 : Math.round(value / total * 100);
+        return `
+            <div class="priority-bar">
+                <span>${escapeHtml(label)}</span>
+                <strong>${value}</strong>
+                <i style="width: ${share}%"></i>
+            </div>
+        `;
+    }).join("");
 }
 
 function parseWeight(value) {
@@ -537,6 +584,54 @@ function parseWeight(value) {
 
 function formatNumber(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function resourceCard(label, value, maxResource) {
+    const numeric = Number(value);
+    const width = numeric <= 0 ? 0 : Math.max(4, Math.round(numeric / maxResource * 100));
+    return `
+        <div class="resource-card">
+            <dt>${escapeHtml(label)}</dt>
+            <dd>
+                <strong>${formatNumber(numeric)}</strong>
+                <span class="resource-meter"><i style="width: ${width}%"></i></span>
+            </dd>
+        </div>
+    `;
+}
+
+function renderMapStats(galaxy) {
+    const contested = galaxy.presence.filter(item =>
+        Object.values(item.effectivePresence).map(Number).filter(value => value > 0).length > 1).length;
+    const owned = galaxy.presence.filter(item => Number(item.effectivePresence[state.empire.empireId] ?? 0) > 0).length;
+    elements.mapStats.innerHTML = `
+        ${statChip("Systems", galaxy.systems.length)}
+        ${statChip("Routes", galaxy.links.length)}
+        ${statChip("Held", owned)}
+        ${statChip("Contested", contested)}
+    `;
+}
+
+function statChip(label, value) {
+    return `
+        <span class="stat-chip">
+            <strong>${formatNumber(value)}</strong>
+            <em>${escapeHtml(label)}</em>
+        </span>
+    `;
+}
+
+function statusChip(value) {
+    return `<span class="status-chip status-${statusClass(value)}">${escapeHtml(formatStatus(value))}</span>`;
+}
+
+function statusClass(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9-]/g, "");
+}
+
+function formatStatus(value) {
+    const spaced = String(value).replace(/([a-z])([A-Z])/g, "$1 $2");
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function escapeHtml(value) {

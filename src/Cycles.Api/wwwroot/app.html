@@ -21,10 +21,24 @@
     <main class="shell">
         <section class="map-panel" aria-label="Galaxy map">
             <div class="toolbar">
-                <strong id="empireName">Empire</strong>
+                <div>
+                    <span class="toolbar-kicker">Command Nexus</span>
+                    <strong id="empireName">Empire</strong>
+                </div>
                 <button id="refreshButton" type="button">Refresh</button>
             </div>
-            <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+            <div class="map-stage">
+                <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+                <div class="map-readout" aria-label="Galaxy summary">
+                    <div id="mapStats" class="map-stats"></div>
+                    <div class="map-legend" aria-label="Map legend">
+                        <span><i class="legend-dot legend-home"></i>Home</span>
+                        <span><i class="legend-dot legend-historic"></i>Historic</span>
+                        <span><i class="legend-ring"></i>Presence</span>
+                        <span><i class="legend-dot legend-contested"></i>Contested</span>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <aside class="side-panel">
@@ -58,6 +72,7 @@
                         <input id="expansionWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
                     </label>
                     <div class="priority-total">Total <strong id="priorityTotal">0</strong></div>
+                    <div id="priorityBars" class="priority-bars" aria-label="Priority allocation"></div>
                     <button type="submit">Save priorities</button>
                     <p id="priorityMessage" class="message" role="status"></p>
                 </form>
@@ -117,6 +132,6 @@
         </aside>
     </main>
 
-    <script src="app.js?v=20260624-fleet-details"></script>
+    <script src="app.js?v=20260624-command-polish"></script>
 </body>
 </html>
