@@ -36,98 +36,84 @@ public static class ChronicleScoring
         int importance,
         DateTimeOffset now)
     {
-        var title = battle.Outcome switch
+        var source = ChronicleBattleNarrativeSource.FromBattle(battle, sourceEvent, system, attacker, defender, importance);
+        return CreateBattleEntry(source, now);
+    }
+
+    public static ChronicleEntry CreateBattleEntry(ChronicleBattleNarrativeSource source, DateTimeOffset now)
+    {
+        var title = source.Outcome switch
         {
-            BattleOutcome.AttackerVictory => $"The Battle of {system.SystemName}",
-            BattleOutcome.DefenderVictory => $"The Defence of {system.SystemName}",
-            _ => $"The Ruin at {system.SystemName}"
+            BattleOutcome.AttackerVictory => $"The Battle of {source.SystemName}",
+            BattleOutcome.DefenderVictory => $"The Defence of {source.SystemName}",
+            _ => $"The Ruin at {source.SystemName}"
         };
 
         var factualSummary =
-            $"{attacker.EmpireName} and {defender.EmpireName} fought at {system.SystemName} on tick {battle.TickNumber}. " +
-            $"Outcome: {FormatOutcome(battle.Outcome)}. " +
-            $"{battle.AttackerLosses + battle.DefenderLosses} ships were destroyed.";
+            $"{source.AttackerEmpireName} and {source.DefenderEmpireName} fought at {source.SystemName} on tick {source.TickNumber}. " +
+            $"Outcome: {ChronicleRequiredFactValidator.FormatOutcome(source.Outcome)}. " +
+            $"{source.TotalLosses} ships were destroyed.";
+        var narrativeText = CreateBattleReport(source);
+        ChronicleRequiredFactValidator.ValidateBattleReport(source, narrativeText).ThrowIfInvalid();
 
         return new ChronicleEntry
         {
-            SourceEventId = sourceEvent.EventId,
-            SourceBattleId = battle.BattleId,
-            CycleId = battle.CycleId,
-            SystemId = battle.SystemId,
+            SourceEventId = source.SourceEventId,
+            SourceBattleId = source.SourceBattleId,
+            CycleId = source.CycleId,
+            SystemId = source.SystemId,
             Title = title,
             EntryType = ChronicleEntryType.Battle,
-            ImportanceScore = importance,
+            ImportanceScore = source.ImportanceScore,
             FactualSummary = factualSummary,
-            NarrativeText = CreateBattleReport(battle, system, attacker, defender, importance),
+            NarrativeText = narrativeText,
             CreatedAt = now
         };
     }
 
-    private static string CreateBattleReport(
-        BattleRecord battle,
-        GalaxySystem system,
-        Empire attacker,
-        Empire defender,
-        int importance)
+    private static string CreateBattleReport(ChronicleBattleNarrativeSource source)
     {
-        var totalLosses = battle.AttackerLosses + battle.DefenderLosses;
-        var outcomeText = battle.Outcome switch
+        var outcomeText = source.Outcome switch
         {
             BattleOutcome.AttackerVictory =>
-                $"{attacker.EmpireName} carried the attack and forced {defender.EmpireName} back from {system.SystemName}.",
+                $"{source.AttackerEmpireName} carried the attack and forced {source.DefenderEmpireName} back from {source.SystemName}.",
             BattleOutcome.DefenderVictory =>
-                $"{defender.EmpireName} held {system.SystemName} against {attacker.EmpireName}'s assault.",
+                $"{source.DefenderEmpireName} held {source.SystemName} against {source.AttackerEmpireName}'s assault.",
             _ =>
-                $"{attacker.EmpireName} and {defender.EmpireName} shattered each other at {system.SystemName}."
+                $"{source.AttackerEmpireName} and {source.DefenderEmpireName} shattered each other at {source.SystemName}."
         };
 
         var requiredFacts =
-            $"The tick {battle.TickNumber} record names {attacker.EmpireName} and {defender.EmpireName}, " +
-            $"with {battle.AttackerLosses} {attacker.EmpireName} losses, {battle.DefenderLosses} {defender.EmpireName} losses, " +
-            $"and {totalLosses} ships destroyed.";
+            $"The tick {source.TickNumber} record names {source.AttackerEmpireName} and {source.DefenderEmpireName}, " +
+            $"with {source.AttackerLosses} {source.AttackerEmpireName} losses, {source.DefenderLosses} {source.DefenderEmpireName} losses, " +
+            $"{source.TotalLosses} ships destroyed, and a recorded outcome of {ChronicleRequiredFactValidator.FormatOutcome(source.Outcome)}.";
 
-        var significance = CreateSignificanceSentence(battle, system, attacker, defender, importance, totalLosses);
+        var significance = CreateSignificanceSentence(source);
         return $"{outcomeText} {requiredFacts} {significance}";
     }
 
-    private static string CreateSignificanceSentence(
-        BattleRecord battle,
-        GalaxySystem system,
-        Empire attacker,
-        Empire defender,
-        int importance,
-        int totalLosses)
+    private static string CreateSignificanceSentence(ChronicleBattleNarrativeSource source)
     {
-        var attackerWasUnderdog = battle.AttackerShipsBefore * 2 < battle.DefenderShipsBefore;
-        var defenderWasUnderdog = battle.DefenderShipsBefore * 2 < battle.AttackerShipsBefore;
-        if (attackerWasUnderdog && battle.Outcome == BattleOutcome.AttackerVictory)
+        if (source.AttackerWasUnderdog && source.Outcome == BattleOutcome.AttackerVictory)
         {
-            return $"{attacker.EmpireName} entered outnumbered {battle.AttackerShipsBefore} to {battle.DefenderShipsBefore}, lifting the Chronicle importance to {importance}.";
+            return $"{source.AttackerEmpireName} entered outnumbered {source.AttackerShipsBefore} to {source.DefenderShipsBefore}, lifting the Chronicle importance to {source.ImportanceScore}.";
         }
 
-        if (defenderWasUnderdog && battle.Outcome == BattleOutcome.DefenderVictory)
+        if (source.DefenderWasUnderdog && source.Outcome == BattleOutcome.DefenderVictory)
         {
-            return $"{defender.EmpireName} held while outnumbered {battle.DefenderShipsBefore} to {battle.AttackerShipsBefore}, lifting the Chronicle importance to {importance}.";
+            return $"{source.DefenderEmpireName} held while outnumbered {source.DefenderShipsBefore} to {source.AttackerShipsBefore}, lifting the Chronicle importance to {source.ImportanceScore}.";
         }
 
-        if (totalLosses >= 100)
+        if (source.TotalLosses >= 100)
         {
-            return $"The scale of the losses made {system.SystemName} a major battle site with Chronicle importance {importance}.";
+            return $"The scale of the losses made {source.SystemName} a major battle site with Chronicle importance {source.ImportanceScore}.";
         }
 
-        if (system.HistoricalSignificance > 0)
+        if (source.SystemHistoricalSignificance > 0)
         {
-            return $"{system.SystemName}'s existing historical significance of {system.HistoricalSignificance} made the battle part of a longer record.";
+            return $"{source.SystemName}'s existing historical significance of {source.SystemHistoricalSignificance} made the battle part of a longer record with Chronicle importance {source.ImportanceScore}.";
         }
 
-        return $"The Chronicle marked it at importance {importance}, anchored by {system.SystemName}'s strategic value of {system.StrategicValue}.";
+        return $"The Chronicle marked it at importance {source.ImportanceScore}, anchored by {source.SystemName}'s strategic value of {source.SystemStrategicValue}.";
     }
-
-    private static string FormatOutcome(BattleOutcome outcome) =>
-        outcome switch
-        {
-            BattleOutcome.AttackerVictory => "attacker victory",
-            BattleOutcome.DefenderVictory => "defender victory",
-            _ => "mutual destruction"
-        };
 }

@@ -464,3 +464,19 @@ Consequences:
 - `ChronicleEntry.NarrativeText` now contains deterministic battle-report prose that names the participants, system, tick, losses, and importance context.
 - The dashboard displays narrative text while keeping the factual summary visible underneath.
 - AI-generated narrative, generation status, provider failures, and asynchronous generation remain future Stage 6 work.
+
+## 2026-06-30: Validate Chronicle Battle Narrative Against Source Facts
+
+Decision: route battle Chronicle prose through a `ChronicleBattleNarrativeSource` DTO and validate generated text for required facts before returning the Chronicle entry.
+
+Reasoning:
+
+- Future AI or asynchronous narrative generation needs a stable source contract separate from mutable domain objects.
+- Required facts should be enforced by code, not only by tests that happen to inspect the current template text.
+- Validation keeps narrative non-authoritative: generated prose may interpret, but it must still name the core battle facts.
+
+Consequences:
+
+- Battle narrative generation now has a DTO containing source event, battle, system, empire, loss, outcome, and importance facts.
+- Generated battle reports must include participants, system, tick number, attacker losses, defender losses, total losses, outcome, and importance score.
+- Generation status, queueing, context snapshots, and provider boundaries remain follow-on work.

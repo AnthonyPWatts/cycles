@@ -136,7 +136,8 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Score inputs currently include total losses, system strategic value, historical significance, underdog result, and very large loss counts.
 - Battles above the current threshold become Chronicle entries.
 - Chronicle entries store factual summaries and narrative text separately from raw battle facts.
-- Narrative text is currently deterministic template prose generated from battle, system, and empire facts, not AI-generated prose.
+- Narrative text is currently deterministic template prose generated from a battle narrative source DTO, not AI-generated prose.
+- Generated battle prose is validated for required facts before a Chronicle entry is returned: participants, system, tick, losses, outcome, and importance.
 
 ### API And Dashboard
 
@@ -226,7 +227,7 @@ These are known gaps, not defects in the current MVP claim:
 - No diplomacy, alliances, treaties, or betrayal mechanics.
 - No technologies, doctrines, cloaking, detection, or logistics.
 - No admirals or persistent named figures.
-- No AI narrative generation; Chronicle battle reports currently use deterministic templates only.
+- No AI narrative generation; Chronicle battle reports currently use validated deterministic templates only.
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
 - Combat is deliberately primitive and not balanced.

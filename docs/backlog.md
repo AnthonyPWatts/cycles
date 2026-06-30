@@ -113,9 +113,9 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 6: Narrative Generation
 
-- [ ] Define narrative generation source DTOs.
+- [x] Define narrative generation source DTOs.
 - [x] Add deterministic template-based battle reports.
-- [ ] Add required-fact validation for generated reports.
+- [x] Add required-fact validation for generated reports.
 - [ ] Add generation status fields.
 - [ ] Queue narrative work outside tick transaction.
 - [ ] Store generation context snapshots.

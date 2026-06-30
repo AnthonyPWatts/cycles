@@ -257,6 +257,7 @@ Current direction:
 - AI-generated narrative is desirable later.
 - Deterministic templates are acceptable for early development.
 - Generated prose must not decide simulation outcomes.
+- Battle Chronicle prose is currently generated from a source DTO and validated for required facts before it is stored/displayed.
 
 Questions and answers:
 
@@ -269,7 +270,7 @@ Questions and answers:
 Decision needed:
 
 - Generated narrative should be queued outside the tick transaction.
-- The first AI boundary should include required-fact validation and failure status, even if player-facing fallback handling is revisited later.
+- The first AI boundary should preserve the required-fact validation and add failure/status handling, even if player-facing fallback handling is revisited later.
 
 ## Priority 6: Deployment And Test Access
 

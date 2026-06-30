@@ -101,6 +101,79 @@ public sealed class CombatAndChronicleTests
     [Fact]
     public void ChronicleBattleReportIncludesRequiredFacts()
     {
+        var (battle, sourceEvent, system, attacker, defender) = CreateChronicleBattleInputs();
+
+        var entry = ChronicleScoring.CreateBattleEntry(battle, sourceEvent, system, attacker, defender, importance: 90, TestState.Now);
+
+        Assert.Equal(sourceEvent.EventId, entry.SourceEventId);
+        Assert.Equal(battle.BattleId, entry.SourceBattleId);
+        Assert.Equal("attacker victory", ExtractOutcome(entry.FactualSummary));
+        Assert.Contains("Aurelian Compact", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Khepri Mandate", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Aster Vale", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("tick 7", entry.NarrativeText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("9", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("81", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("90", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("outnumbered 40 to 120", entry.NarrativeText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChronicleBattleNarrativeSourceCapturesGenerationFacts()
+    {
+        var (battle, sourceEvent, system, attacker, defender) = CreateChronicleBattleInputs();
+
+        var source = ChronicleBattleNarrativeSource.FromBattle(battle, sourceEvent, system, attacker, defender, importance: 90);
+
+        Assert.Equal(sourceEvent.EventId, source.SourceEventId);
+        Assert.Equal(battle.BattleId, source.SourceBattleId);
+        Assert.Equal("Aster Vale", source.SystemName);
+        Assert.Equal("Aurelian Compact", source.AttackerEmpireName);
+        Assert.Equal("Khepri Mandate", source.DefenderEmpireName);
+        Assert.Equal(90, source.TotalLosses);
+        Assert.True(source.AttackerWasUnderdog);
+        Assert.False(source.DefenderWasUnderdog);
+    }
+
+    [Fact]
+    public void ChronicleRequiredFactValidatorRejectsMissingFacts()
+    {
+        var (battle, sourceEvent, system, attacker, defender) = CreateChronicleBattleInputs();
+        var source = ChronicleBattleNarrativeSource.FromBattle(battle, sourceEvent, system, attacker, defender, importance: 90);
+
+        var result = ChronicleRequiredFactValidator.ValidateBattleReport(
+            source,
+            "Aurelian Compact fought at Aster Vale on tick 7 with 9 losses and 90 importance.");
+
+        Assert.False(result.IsValid);
+        Assert.Contains("defender empire", result.MissingFacts);
+        Assert.Contains("defender losses", result.MissingFacts);
+        Assert.Contains("battle outcome", result.MissingFacts);
+        var ex = Assert.Throws<InvalidOperationException>(result.ThrowIfInvalid);
+        Assert.Contains("defender empire", ex.Message, StringComparison.Ordinal);
+    }
+
+    private static void RunAttack(GameState state)
+    {
+        var cycle = state.GetActiveCycle()!;
+        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+    }
+
+    private static string ExtractOutcome(string factualSummary)
+    {
+        const string marker = "Outcome: ";
+        var start = factualSummary.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        start += marker.Length;
+        var end = factualSummary.IndexOf('.', start);
+        Assert.True(end > start);
+        return factualSummary[start..end];
+    }
+
+    private static (BattleRecord Battle, EventRecord SourceEvent, GalaxySystem System, Empire Attacker, Empire Defender) CreateChronicleBattleInputs()
+    {
         var battle = new BattleRecord
         {
             CycleId = Guid.NewGuid(),
@@ -126,37 +199,6 @@ public sealed class CombatAndChronicleTests
         var attacker = new Empire { EmpireId = battle.AttackerEmpireId, EmpireName = "Aurelian Compact" };
         var defender = new Empire { EmpireId = battle.DefenderEmpireId, EmpireName = "Khepri Mandate" };
 
-        var entry = ChronicleScoring.CreateBattleEntry(battle, sourceEvent, system, attacker, defender, importance: 90, TestState.Now);
-
-        Assert.Equal(sourceEvent.EventId, entry.SourceEventId);
-        Assert.Equal(battle.BattleId, entry.SourceBattleId);
-        Assert.Equal("attacker victory", ExtractOutcome(entry.FactualSummary));
-        Assert.Contains("Aurelian Compact", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("Khepri Mandate", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("Aster Vale", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("tick 7", entry.NarrativeText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("9", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("81", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("90", entry.NarrativeText, StringComparison.Ordinal);
-        Assert.Contains("outnumbered 40 to 120", entry.NarrativeText, StringComparison.Ordinal);
-    }
-
-    private static void RunAttack(GameState state)
-    {
-        var cycle = state.GetActiveCycle()!;
-        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
-        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
-        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
-    }
-
-    private static string ExtractOutcome(string factualSummary)
-    {
-        const string marker = "Outcome: ";
-        var start = factualSummary.IndexOf(marker, StringComparison.Ordinal);
-        Assert.True(start >= 0);
-        start += marker.Length;
-        var end = factualSummary.IndexOf('.', start);
-        Assert.True(end > start);
-        return factualSummary[start..end];
+        return (battle, sourceEvent, system, attacker, defender);
     }
 }
