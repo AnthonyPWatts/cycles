@@ -54,8 +54,11 @@ dotnet build Cycles.slnx --no-restore
 Run the tests:
 
 ```powershell
-dotnet test Cycles.slnx --no-build
+.\eng\test.ps1
+.\eng\test.ps1 -Filter InfluenceTests
 ```
+
+The test script builds into `%TEMP%\cycles-test-bin\` so tests can run while a local `Cycles.Api` process is serving from the normal `bin\Debug` output directory.
 
 Seed and tick a local state file:
 

@@ -128,7 +128,7 @@ This is not yet a production game service. It is a working architecture slice.
 
 ## Verified Checks
 
-Last verified on 2026-06-24:
+Last full restore/build/test verification on 2026-06-24:
 
 ```powershell
 dotnet restore Cycles.slnx --configfile NuGet.Config
@@ -136,7 +136,15 @@ dotnet build Cycles.slnx --no-restore
 dotnet test Cycles.slnx --no-build
 ```
 
+Local test helper verified on 2026-06-30:
+
+```powershell
+.\eng\test.ps1 -Filter InfluenceTests
+.\eng\test.ps1
+```
+
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
+The test helper uses a temporary `BaseOutputPath` so the suite can run even when a local `Cycles.Api` process has the normal build output locked.
 
 Additional smoke checks performed during the MVP build-out:
 
