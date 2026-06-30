@@ -149,7 +149,7 @@ Questions and answers:
 - Should cancellation create an event? Yes.
 - Should cancellation be restricted to the owning empire and admins? Yes.
 
-Decision needed:
+Decision:
 
 - Add pending-order cancellation when the next order workflow slice starts.
 

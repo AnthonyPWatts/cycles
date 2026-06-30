@@ -73,6 +73,7 @@ This is not yet a production game service. It is a working architecture slice.
 - Supported order types are `MoveFleet`, `Hold`, and `Attack`.
 - Orders have submit tick, execute-after tick, processed tick, status, and rejection reason.
 - Submission-time validation prevents clearly invalid moves and self-attacks.
+- Pending orders can be cancelled before their execution tick by the owning empire.
 - Processing-time validation rejects orders that became invalid before execution.
 
 ### Movement
@@ -101,7 +102,7 @@ This is not yet a production game service. It is a working architecture slice.
 
 ### API And Dashboard
 
-- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, priorities, recent events, and Chronicle entries.
+- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, order cancellation, priorities, recent events, and Chronicle entries.
 - The API has a prototype login endpoint that creates or finds a local player and empire.
 - The public website is served from `/`.
 - The browser dashboard is served from `/app.html` and renders the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.

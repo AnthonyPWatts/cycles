@@ -233,6 +233,7 @@ Near-term endpoint direction:
 - `GET /orders`
 - `POST /orders/fleet/move`
 - `POST /orders/fleet/attack`
+- `POST /orders/fleet/cancel`
 - `POST /orders/priorities`
 - `GET /events/recent`
 - `GET /chronicle`

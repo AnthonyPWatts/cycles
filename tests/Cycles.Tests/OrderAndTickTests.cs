@@ -136,6 +136,79 @@ public sealed class OrderAndTickTests
     }
 
     [Fact]
+    public void PendingOrdersCanBeCancelledBeforeExecutionTick()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var empire = Assert.Single(state.Empires);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+
+        var cancelled = OrderService.CancelFleetOrder(state, order.FleetOrderId, empire.EmpireId, TestState.Now);
+
+        Assert.Equal(order.FleetOrderId, cancelled.FleetOrderId);
+        Assert.Equal(FleetOrderStatus.Cancelled, order.Status);
+        Assert.Equal(0, order.ProcessedTick);
+        Assert.Single(state.Events, item => item.EventType == EventType.OrderCancelled);
+    }
+
+    [Fact]
+    public void CancelledOrdersAreNotProcessedByTick()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        var fleet = Assert.Single(state.Fleets);
+        var originSystemId = fleet.CurrentSystemId;
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        OrderService.CancelFleetOrder(state, order.FleetOrderId, empire.EmpireId, TestState.Now);
+
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        var committedOrder = state.FleetOrders.Single(item => item.FleetOrderId == order.FleetOrderId);
+        var committedFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        Assert.Equal(FleetOrderStatus.Cancelled, committedOrder.Status);
+        Assert.Equal(originSystemId, committedFleet.CurrentSystemId);
+        Assert.DoesNotContain(state.Events, item => item.EventType == EventType.FleetMoved);
+    }
+
+    [Fact]
+    public void OrdersCanOnlyBeCancelledByOwningEmpire()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 40, defenderShips: 30);
+        var attackerFleet = state.Fleets.First();
+        var attackerEmpire = state.Empires.Single(empire => empire.EmpireId == attackerFleet.EmpireId);
+        var defenderEmpire = state.Empires.Single(empire => empire.EmpireId != attackerEmpire.EmpireId);
+        var order = OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, defenderEmpire.EmpireId, TestState.Now);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => OrderService.CancelFleetOrder(state, order.FleetOrderId, defenderEmpire.EmpireId, TestState.Now));
+
+        Assert.Contains("owning empire", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(FleetOrderStatus.Pending, order.Status);
+    }
+
+    [Fact]
+    public void DueOrdersCannotBeCancelled()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        cycle.CurrentTickNumber = order.ExecuteAfterTick;
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => OrderService.CancelFleetOrder(state, order.FleetOrderId, empire.EmpireId, TestState.Now));
+
+        Assert.Contains("before their execution tick", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(FleetOrderStatus.Pending, order.Status);
+    }
+
+    [Fact]
     public void FailedTickDoesNotPartiallyCommitWorkingState()
     {
         var state = TestState.CreateSingleEmpireState();

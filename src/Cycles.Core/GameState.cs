@@ -482,7 +482,8 @@ public enum FleetOrderStatus
 {
     Pending,
     Processed,
-    Rejected
+    Rejected,
+    Cancelled
 }
 
 public enum ShipConstructionStatus
@@ -508,6 +509,7 @@ public enum EventType
     FleetArrived,
     FleetHeld,
     OrderRejected,
+    OrderCancelled,
     CombatResolved,
     PrioritiesChanged,
     ChronicleCreated,

@@ -154,6 +154,12 @@ select {
     color: var(--accent);
 }
 
+.status-cancelled {
+    border-color: rgba(170, 182, 173, 0.56);
+    background: rgba(170, 182, 173, 0.1);
+    color: var(--muted);
+}
+
 .status-processed,
 .status-completed {
     border-color: rgba(223, 186, 104, 0.48);
@@ -456,6 +462,10 @@ dd {
     color: var(--accent);
 }
 
+.item .status-cancelled {
+    color: var(--muted);
+}
+
 .item .status-processed,
 .item .status-completed {
     color: var(--gold);
@@ -504,6 +514,27 @@ dd {
 
 .order-rejected {
     border-color: rgba(211, 101, 86, 0.48);
+}
+
+.order-cancelled {
+    border-color: rgba(170, 182, 173, 0.32);
+    opacity: 0.82;
+}
+
+.inline-action {
+    min-height: 30px;
+    margin-top: 9px;
+    padding: 4px 10px;
+    border-color: var(--line);
+    background: #171a18;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.inline-action:hover {
+    background: #22231d;
+    border-color: var(--gold);
+    color: var(--text);
 }
 
 .compact .item {

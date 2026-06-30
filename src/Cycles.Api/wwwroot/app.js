@@ -155,6 +155,15 @@ elements.attackForm.addEventListener("submit", async event => {
     await refresh();
 });
 
+elements.orders.addEventListener("click", async event => {
+    const button = event.target.closest("[data-cancel-order-id]");
+    if (!button) {
+        return;
+    }
+
+    await cancelOrder(button.dataset.cancelOrderId);
+});
+
 async function boot() {
     await login(elements.username.value);
 }
@@ -291,7 +300,7 @@ function renderFleetDetails() {
         ? `<span>No orders recorded for this fleet.</span>`
         : detail.orders.map(order => {
             const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
-            const timing = order.processedTick === null ? `after T${order.executeAfterTick}` : `processed T${order.processedTick}`;
+            const timing = formatOrderTiming(order);
             return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(order.status)} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
         }).join("");
 
@@ -384,19 +393,38 @@ function renderOrderQueue(orders) {
         ? `<article class="item"><span>No fleet orders yet.</span></article>`
         : orders.map(order => {
             const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
-            const processed = order.processedTick === null ? `executes after T${order.executeAfterTick}` : `processed T${order.processedTick}`;
+            const timing = formatOrderTiming(order);
             const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
+            const cancelButton = order.status === "pending"
+                ? `<button type="button" class="inline-action" data-cancel-order-id="${order.fleetOrderId}">Cancel</button>`
+                : "";
             return `
                 <article class="item order-${statusClass(order.status)}">
                     <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
                     <span class="item-meta">
                         ${statusChip(order.status)}
                         <span>${escapeHtml(target)}</span>
-                        <span>${escapeHtml(processed)}${escapeHtml(rejection)}</span>
+                        <span>${escapeHtml(timing)}${escapeHtml(rejection)}</span>
                     </span>
+                    ${cancelButton}
                 </article>
             `;
         }).join("");
+}
+
+async function cancelOrder(fleetOrderId) {
+    if (!state.empire) {
+        setMessage("Login before cancelling orders.");
+        return;
+    }
+
+    try {
+        await postJson("/orders/fleet/cancel", { fleetOrderId, empireId: state.empire.empireId });
+        setMessage("Order cancelled.");
+        await refresh();
+    } catch (error) {
+        setMessage(error.message);
+    }
 }
 
 function collectTargetEmpires(selectedFleet) {
@@ -522,6 +550,18 @@ function formatOrderType(value) {
         .replace("moveFleet", "Move")
         .replace("hold", "Hold")
         .replace("attack", "Attack");
+}
+
+function formatOrderTiming(order) {
+    if (order.status === "pending") {
+        return `executes after T${order.executeAfterTick}`;
+    }
+
+    if (order.status === "cancelled") {
+        return order.processedTick === null ? "cancelled" : `cancelled T${order.processedTick}`;
+    }
+
+    return order.processedTick === null ? "processed" : `processed T${order.processedTick}`;
 }
 
 async function getJson(url) {

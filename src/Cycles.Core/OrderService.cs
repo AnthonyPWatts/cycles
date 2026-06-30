@@ -42,6 +42,56 @@ public static class OrderService
         return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, now);
     }
 
+    public static FleetOrder CancelFleetOrder(GameState state, Guid fleetOrderId, Guid requestingEmpireId, DateTimeOffset now)
+    {
+        var cycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("No active cycle exists.");
+        var order = state.FleetOrders.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetOrderId == fleetOrderId)
+            ?? throw new InvalidOperationException("Fleet order does not exist in the active cycle.");
+        var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == order.FleetId)
+            ?? throw new InvalidOperationException("Fleet for order does not exist in the active cycle.");
+        var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.EmpireId == requestingEmpireId)
+            ?? throw new InvalidOperationException("Empire does not exist in the active cycle.");
+
+        if (fleet.EmpireId != empire.EmpireId)
+        {
+            throw new InvalidOperationException("Only the owning empire can cancel this order.");
+        }
+
+        if (order.Status != FleetOrderStatus.Pending)
+        {
+            throw new InvalidOperationException("Only pending orders can be cancelled.");
+        }
+
+        if (cycle.CurrentTickNumber >= order.ExecuteAfterTick)
+        {
+            throw new InvalidOperationException("Orders can only be cancelled before their execution tick.");
+        }
+
+        order.Status = FleetOrderStatus.Cancelled;
+        order.ProcessedTick = cycle.CurrentTickNumber;
+
+        state.Events.Add(new EventRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = cycle.CurrentTickNumber,
+            EventType = EventType.OrderCancelled,
+            EmpireId = empire.EmpireId,
+            Severity = EventSeverity.Low,
+            DisplayText = $"{empire.EmpireName} cancelled {fleet.FleetName}'s {FormatOrderType(order.OrderType)} order.",
+            FactJson = JsonSerializer.Serialize(new
+            {
+                orderId = order.FleetOrderId,
+                orderType = order.OrderType,
+                fleetId = fleet.FleetId,
+                empireId = empire.EmpireId
+            }, GameStateJson.Options),
+            CreatedAt = now
+        });
+
+        return order;
+    }
+
     public static EmpirePriority UpdatePriorities(
         GameState state,
         Guid empireId,
@@ -124,6 +174,15 @@ public static class OrderService
         state.FleetOrders.Add(order);
         return order;
     }
+
+    private static string FormatOrderType(FleetOrderType orderType) =>
+        orderType switch
+        {
+            FleetOrderType.MoveFleet => "move",
+            FleetOrderType.Hold => "hold",
+            FleetOrderType.Attack => "attack",
+            _ => orderType.ToString()
+        };
 
     private static (Cycle Cycle, Fleet Fleet) GetActiveFleetForOrder(GameState state, Guid fleetId)
     {

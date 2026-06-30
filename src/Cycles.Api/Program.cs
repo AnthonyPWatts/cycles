@@ -128,28 +128,16 @@ app.MapGet("/orders", (Guid? empireId, IGameStateStore store) =>
     }));
 
 app.MapPost("/orders/fleet/move", (MoveFleetRequest request, IGameStateStore store) =>
-    TryResult(() => store.Update(state => OrderService.SubmitMoveOrder(
-        state,
-        request.FleetId,
-        request.TargetSystemId,
-        DateTimeOffset.UtcNow))));
+    ApiOrderEndpoints.SubmitMove(request, store));
 
 app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, IGameStateStore store) =>
-    TryResult(() => store.Update(state => OrderService.SubmitAttackOrder(
-        state,
-        request.FleetId,
-        request.TargetEmpireId,
-        DateTimeOffset.UtcNow))));
+    ApiOrderEndpoints.SubmitAttack(request, store));
+
+app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, IGameStateStore store) =>
+    ApiOrderEndpoints.Cancel(request, store));
 
 app.MapPost("/orders/priorities", (PriorityRequest request, IGameStateStore store) =>
-    TryResult(() => store.Update(state => OrderService.UpdatePriorities(
-        state,
-        request.EmpireId,
-        request.IndustryWeight,
-        request.ResearchWeight,
-        request.MilitaryWeight,
-        request.ExpansionWeight,
-        DateTimeOffset.UtcNow))));
+    ApiOrderEndpoints.UpdatePriorities(request, store));
 
 app.MapGet("/events/recent", (int? limit, IGameStateStore store) =>
     TryResult(() =>
@@ -612,6 +600,8 @@ public sealed record LastTickSummaryResponse(
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 
 public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId);
+
+public sealed record CancelFleetOrderRequest(Guid FleetOrderId, Guid EmpireId);
 
 public sealed record PriorityRequest(
     Guid EmpireId,

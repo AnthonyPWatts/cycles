@@ -84,7 +84,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Stop trusting caller-supplied empire IDs where auth context can derive them.
 - [x] Add pending orders endpoint.
 - [x] Add processed/rejected orders endpoint.
-- [ ] Consider order cancellation before execution.
+- [x] Consider order cancellation before execution.
 - [x] Add system detail API response with influence breakdown.
 - [x] Add fleet detail API response.
 - [x] Add last tick summary endpoint.
@@ -92,7 +92,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add dashboard system detail panel.
 - [x] Add dashboard fleet detail panel.
 - [x] Add dashboard priority editing.
-- [ ] Add API tests for order submission boundaries.
+- [x] Add API tests for order submission boundaries.
 - [x] Split public website from playable dashboard.
 - [x] Improve dashboard visual polish without changing order flows.
 
