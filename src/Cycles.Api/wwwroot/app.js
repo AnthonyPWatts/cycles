@@ -269,6 +269,7 @@ function renderFleets(fleets) {
         const fleet = item.fleet;
         const destination = item.destinationSystemName ? ` -> ${item.destinationSystemName}` : "";
         const selectedClass = fleet.fleetId === state.selectedFleetId ? " selected" : "";
+        const admiral = item.admiral ? `<span>${escapeHtml(formatAdmiral(item.admiral))}</span>` : "";
         return `
             <article class="item fleet-item${selectedClass}" data-fleet-id="${fleet.fleetId}" role="button" tabindex="0">
                 <strong>${escapeHtml(fleet.fleetName)}</strong>
@@ -276,6 +277,7 @@ function renderFleets(fleets) {
                     ${statusChip(fleet.status)}
                     <span>${fleet.shipCount} ships</span>
                     <span>${escapeHtml(item.currentSystemName)}${escapeHtml(destination)}</span>
+                    ${admiral}
                 </span>
             </article>
         `;
@@ -302,9 +304,21 @@ function renderFleetDetails() {
 
     const nearbyFleets = detail.activeFleetsInSystem.length === 0
         ? `<span>No other active fleets at this system.</span>`
-        : detail.activeFleetsInSystem.map(fleet => `
-            <span>${escapeHtml(fleet.fleetName)} | ${escapeHtml(fleet.empireName)} | ${fleet.shipCount} ships</span>
-        `).join("");
+        : detail.activeFleetsInSystem.map(fleet => {
+            const admiral = fleet.admiral ? ` | ${formatAdmiral(fleet.admiral)}` : "";
+            return `
+            <span>${escapeHtml(fleet.fleetName)} | ${escapeHtml(fleet.empireName)} | ${fleet.shipCount} ships${escapeHtml(admiral)}</span>
+        `;
+        }).join("");
+
+    const admiralRows = detail.admiral
+        ? `
+            <dt>Admiral</dt><dd>${escapeHtml(detail.admiral.admiralName)}</dd>
+            <dt>Reputation</dt><dd>${formatNumber(detail.admiral.reputationScore)} | ${escapeHtml(formatStatus(detail.admiral.status))}</dd>
+        `
+        : `
+            <dt>Admiral</dt><dd>Unassigned</dd>
+        `;
 
     const orders = detail.orders.length === 0
         ? `<span>No orders recorded for this fleet.</span>`
@@ -327,6 +341,7 @@ function renderFleetDetails() {
             <dt>Current</dt><dd>${escapeHtml(detail.currentSystem.systemName)}</dd>
             <dt>Strategic</dt><dd>${detail.currentSystem.strategicValue}</dd>
             <dt>History</dt><dd>${detail.currentSystem.historicalSignificance}</dd>
+            ${admiralRows}
             ${destinationRows}
         </dl>
         <div class="detail-block">
@@ -346,8 +361,8 @@ function renderFleetDetails() {
 
 function renderOrders() {
     const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0);
-    fillSelect(elements.fleetSelect, activeFleets, item => item.fleet.fleetId, item => item.fleet.fleetName);
-    fillSelect(elements.attackFleetSelect, activeFleets, item => item.fleet.fleetId, item => item.fleet.fleetName);
+    fillSelect(elements.fleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
+    fillSelect(elements.attackFleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
 
     const selectedFleet = activeFleets.find(item => item.fleet.fleetId === elements.fleetSelect.value) ?? activeFleets[0];
     const destinations = selectedFleet ? linkedSystems(selectedFleet.fleet.currentSystemId) : [];
@@ -579,6 +594,16 @@ function formatOrderTiming(order) {
     }
 
     return order.processedTick === null ? "processed" : `processed T${order.processedTick}`;
+}
+
+function fleetSelectLabel(item) {
+    return item.admiral
+        ? `${item.fleet.fleetName} - ${item.admiral.admiralName}`
+        : item.fleet.fleetName;
+}
+
+function formatAdmiral(admiral) {
+    return `${admiral.admiralName} (${formatNumber(admiral.reputationScore)} rep, ${formatStatus(admiral.status)})`;
 }
 
 async function getJson(url) {

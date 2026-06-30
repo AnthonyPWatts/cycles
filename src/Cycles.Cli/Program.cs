@@ -107,6 +107,26 @@ static void Show(IGameStateStore store)
         }
     }
 
+    var admirals = state.Admirals
+        .Where(admiral => admiral.CycleId == cycle.CycleId)
+        .OrderByDescending(admiral => admiral.ReputationScore)
+        .ThenBy(admiral => admiral.AdmiralName)
+        .ToArray();
+    if (admirals.Length > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Admirals");
+        foreach (var admiral in admirals)
+        {
+            var empire = state.Empires.Single(item => item.EmpireId == admiral.EmpireId);
+            var assignedFleet = state.Fleets.SingleOrDefault(fleet => fleet.AdmiralId == admiral.AdmiralId);
+            var battleCount = state.AdmiralBattleHistories.Count(history => history.AdmiralId == admiral.AdmiralId);
+            var famousCount = state.AdmiralBattleHistories.Count(history => history.AdmiralId == admiral.AdmiralId && history.IsFamousSystemAssociation);
+            Console.WriteLine($"- {admiral.AdmiralName} ({admiral.Status}, reputation {admiral.ReputationScore})");
+            Console.WriteLine($"  {empire.EmpireName}; fleet: {assignedFleet?.FleetName ?? "unassigned"}; battles: {battleCount}; famous systems: {famousCount}");
+        }
+    }
+
     Console.WriteLine();
     Console.WriteLine("Fleets");
     foreach (var fleet in state.Fleets.Where(fleet => fleet.CycleId == cycle.CycleId).OrderBy(fleet => fleet.FleetName))
@@ -116,8 +136,15 @@ static void Show(IGameStateStore store)
         var destination = fleet.DestinationSystemId.HasValue
             ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value).SystemName
             : null;
+        var admiral = fleet.AdmiralId.HasValue
+            ? state.Admirals.SingleOrDefault(item => item.AdmiralId == fleet.AdmiralId.Value)
+            : null;
         Console.WriteLine($"- {fleet.FleetName} ({fleet.FleetId})");
         Console.WriteLine($"  {empire.EmpireName}; {fleet.ShipCount} ships; {fleet.Status}; at {system.SystemName}{(destination is null ? "" : $" -> {destination} on tick {fleet.ArrivalTickNumber}")}");
+        if (admiral is not null)
+        {
+            Console.WriteLine($"  Admiral: {admiral.AdmiralName}; reputation {admiral.ReputationScore}; {admiral.Status}");
+        }
     }
 
     var constructions = state.ShipConstructions

@@ -304,10 +304,23 @@ static Empire AddEmpireForPlayer(GameState state, Cycle cycle, Player player, st
         UpdatedAt = now
     });
 
+    var admiral = new Admiral
+    {
+        CycleId = cycle.CycleId,
+        EmpireId = empire.EmpireId,
+        AdmiralName = $"{player.Username} Vanguard",
+        ReputationScore = 0,
+        Status = AdmiralStatus.Active,
+        CreatedAt = now,
+        UpdatedAt = now
+    };
+    state.Admirals.Add(admiral);
+
     state.Fleets.Add(new Fleet
     {
         CycleId = cycle.CycleId,
         EmpireId = empire.EmpireId,
+        AdmiralId = admiral.AdmiralId,
         FleetName = $"{empire.EmpireName} Home Fleet",
         CurrentSystemId = homeSystem.SystemId,
         ShipCount = 45,
@@ -342,7 +355,12 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
         ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value)
         : null;
 
-    return new FleetResponse(fleet, empire.EmpireName, currentSystem.SystemName, destination?.SystemName);
+    return new FleetResponse(
+        fleet,
+        empire.EmpireName,
+        currentSystem.SystemName,
+        destination?.SystemName,
+        ToAdmiralSummary(state, fleet.AdmiralId));
 }
 
 static FleetDetailResponse ToFleetDetailResponse(
@@ -395,7 +413,8 @@ static FleetDetailResponse ToFleetDetailResponse(
                     item.EmpireId,
                     otherEmpire.EmpireName,
                     item.ShipCount,
-                    item.Status);
+                    item.Status,
+                    ToAdmiralSummary(state, item.AdmiralId));
             })
             .ToArray()
         : [];
@@ -408,6 +427,7 @@ static FleetDetailResponse ToFleetDetailResponse(
         empire.EmpireName,
         fleet.ShipCount,
         fleet.Status,
+        ToAdmiralSummary(state, fleet.AdmiralId),
         ToSystemSummaryResponse(currentSystem),
         destination is null ? null : ToSystemSummaryResponse(destination),
         fleet.ArrivalTickNumber,
@@ -474,7 +494,8 @@ static SystemDetailResponse ToSystemDetailResponse(
                     item.EmpireId,
                     empire.EmpireName,
                     item.ShipCount,
-                    item.Status);
+                    item.Status,
+                    ToAdmiralSummary(state, item.AdmiralId));
             })
             .ToArray()
         : [];
@@ -515,6 +536,19 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         fleet?.FleetName ?? "Unknown fleet",
         targetSystem?.SystemName,
         targetEmpire?.EmpireName);
+}
+
+static AdmiralSummaryResponse? ToAdmiralSummary(GameState state, Guid? admiralId)
+{
+    if (!admiralId.HasValue)
+    {
+        return null;
+    }
+
+    var admiral = state.Admirals.SingleOrDefault(item => item.AdmiralId == admiralId.Value);
+    return admiral is null
+        ? null
+        : new AdmiralSummaryResponse(admiral.AdmiralId, admiral.AdmiralName, admiral.ReputationScore, admiral.Status);
 }
 
 static LastTickSummaryResponse ToLastTickSummaryResponse(
@@ -599,7 +633,12 @@ public sealed record GalaxyResponse(
 
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
 
-public sealed record FleetResponse(Fleet Fleet, string EmpireName, string CurrentSystemName, string? DestinationSystemName);
+public sealed record FleetResponse(
+    Fleet Fleet,
+    string EmpireName,
+    string CurrentSystemName,
+    string? DestinationSystemName,
+    AdmiralSummaryResponse? Admiral);
 
 public sealed record FleetDetailResponse(
     Guid FleetId,
@@ -609,6 +648,7 @@ public sealed record FleetDetailResponse(
     string EmpireName,
     int ShipCount,
     FleetStatus Status,
+    AdmiralSummaryResponse? Admiral,
     SystemSummaryResponse CurrentSystem,
     SystemSummaryResponse? DestinationSystem,
     int? ArrivalTickNumber,
@@ -650,7 +690,14 @@ public sealed record FleetAtSystemResponse(
     Guid EmpireId,
     string EmpireName,
     int ShipCount,
-    FleetStatus Status);
+    FleetStatus Status,
+    AdmiralSummaryResponse? Admiral);
+
+public sealed record AdmiralSummaryResponse(
+    Guid AdmiralId,
+    string AdmiralName,
+    int ReputationScore,
+    AdmiralStatus Status);
 
 public sealed record FleetOrderResponse(
     Guid FleetOrderId,
