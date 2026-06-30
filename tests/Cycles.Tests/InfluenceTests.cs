@@ -19,6 +19,10 @@ public sealed class InfluenceTests
         Assert.Equal(30m, second.Industry);
         Assert.Equal(70m, first.Research);
         Assert.Equal(30m, second.Research);
+        Assert.Equal(70m, first.LastGeneratedIndustry);
+        Assert.Equal(30m, second.LastGeneratedIndustry);
+        Assert.Equal(70m, first.LastGeneratedResearch);
+        Assert.Equal(30m, second.LastGeneratedResearch);
     }
 
     [Fact]
@@ -33,6 +37,9 @@ public sealed class InfluenceTests
         Assert.Equal(80m, resources.Industry);
         Assert.Equal(40m, resources.Research);
         Assert.Equal(20m, resources.Population);
+        Assert.Equal(80m, resources.LastGeneratedIndustry);
+        Assert.Equal(40m, resources.LastGeneratedResearch);
+        Assert.Equal(20m, resources.LastGeneratedPopulation);
     }
 
     [Fact]

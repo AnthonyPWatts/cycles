@@ -34,7 +34,7 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `Fleets`, `FleetOrders`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
 
 ## Connection String
 

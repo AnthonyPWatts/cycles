@@ -1,10 +1,10 @@
 # Product Owner Questions
 
-Last updated: 2026-06-24
+Last updated: 2026-06-30
 
-This file collects the next product-owner questions that should be answered before another broad implementation pass. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`; this document focuses on choices that affect player-visible behaviour.
+This file collects product-owner questions and answers that shape player-visible behaviour. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`.
 
-The most useful next answers are in Priority 1 and Priority 2. Later sections can remain open until the core economy, identity, and visibility model are coherent.
+The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, and resources cannot go negative.
 
 ## Priority 1: Strategic Economy MVP
 
@@ -14,67 +14,73 @@ Current implementation:
 
 - Industry, research, and population are generated from influence.
 - Empire priorities are stored and editable.
-- Priorities do not yet spend resources or change outcomes.
+- Military priority spending now consumes industry stockpile into queued ship construction.
+- Research and population remain stockpiles for future unlock and colonisation effects.
 
-Questions:
+Questions and answers:
 
-- Should industry primarily build ships, infrastructure-like capacity, logistics, or a mix?
-- Should research initially accumulate toward a future unlock, or provide a simple immediate modifier?
-- Should population affect production, fleet support, recovery, colonisation, or something else?
-- Are resources stockpiles, per-tick capacities, or both?
-- Can any resource go negative, or should all spending clamp at available resources?
+- Should industry primarily build ships, infrastructure-like capacity, logistics, or a mix? A mix.
+- Should research initially accumulate toward a future unlock, or provide a simple immediate modifier? Future unlock.
+- Should population affect production, fleet support, recovery, colonisation, or something else? Colonisation.
+- Are resources stockpiles, per-tick capacities, or both? Stockpiles.
+- Can any resource go negative, or should all spending clamp at available resources? No negative resources.
 
-Decision needed to unblock:
+Decision:
 
-- A one-sentence first role for each resource.
-- Whether resource totals should be treated as spendable stockpiles.
-- Whether per-tick generated and spent amounts should be stored separately from totals.
+- Industry is the first spendable stockpile and currently builds ships through military priority spending.
+- Research accumulates toward future unlocks.
+- Population accumulates toward future colonisation.
+- Per-tick generated and spent amounts are stored separately from stockpile totals.
 
 ### How should priority spending work?
 
-Questions:
+Questions and answers:
 
-- Are priority weights percentages that must total 100, or relative weights where any positive total is valid?
-- Should spending happen automatically every tick?
-- Should all generated output be allocated, or can players reserve unspent resources?
-- Should changing priorities affect the next tick only?
-- Should priority changes create public events, private events, or only audit-style records?
+- Are priority weights percentages that must total 100, or relative weights where any positive total is valid? Total 100.
+- Should spending happen automatically every tick? Yes.
+- Should all generated output be allocated, or can players reserve unspent resources? Can be reserved.
+- Should changing priorities affect the next tick only? Yes.
+- Should priority changes create public events, private events, or only audit-style records? Don't care, whatever works.
 
-Decision needed to unblock:
+Decision:
 
-- The first spending formula.
-- Whether priority changes are visible to other players.
-- Whether the UI should enforce a total of 100.
+- Priority weights must total 100.
+- Spending happens automatically during tick processing after resource generation.
+- Military spending uses its percentage of the current industry stockpile.
+- Industry that is not spent remains reserved.
+- Priority changes are low-severity audit-style events for now.
 
 ### How should ships be built?
 
-Questions:
+Questions and answers:
 
-- What is the initial industry cost per ship?
-- How many ticks should ship construction take?
-- Do completed ships join the home fleet, a reserve fleet, a rally fleet, or newly created fleets?
-- Should military spending only create ships, or also add defensive/home-system pressure?
-- Should population or logistics cap the size or rate of fleet growth?
+- What is the initial industry cost per ship? Pick a sensible figure.
+- How many ticks should ship construction take? Longer for more powerful ships, never more than 24 ticks.
+- Do completed ships join the home fleet, a reserve fleet, a rally fleet, or newly created fleets? By default join the home fleet.
+- Should military spending only create ships, or also add defensive/home-system pressure? Ships; keep it simple by only having ships rather than ground defences.
+- Should population or logistics cap the size or rate of fleet growth? No.
 
-Decision needed to unblock:
+Decision:
 
-- Initial ship cost.
-- Initial build delay.
-- Initial spawn location.
-- Whether ship construction should emit events when queued, completed, or both.
+- The first ship type costs 25 industry.
+- Ship construction takes 3 ticks.
+- Completed ships join the empire's home fleet.
+- Queue and completion events are emitted.
 
 ### What are the first balance constraints?
 
-Questions:
+Questions and answers:
 
-- What should prevent runaway exponential growth?
-- Should home systems have a soft recovery advantage beyond the current minimum presence rule?
-- Should low-population or isolated empires have a comeback mechanic?
-- Is it acceptable for the first implementation to be deliberately simple and rebalanced later?
+- What should prevent runaway exponential growth? Nothing, the game will be reset every Cycle.
+- Should home systems have a soft recovery advantage beyond the current minimum presence rule? Sure.
+- Should low-population or isolated empires have a comeback mechanic? Yes, this would be useful.
+- Is it acceptable for the first implementation to be deliberately simple and rebalanced later? Yes.
 
-Decision needed to unblock:
+Decision:
 
-- A first-pass cap, diminishing return, or explicit decision to defer balance beyond non-negative resources and deterministic tests.
+- The first implementation deliberately avoids growth caps beyond non-negative resources and deterministic tests.
+- Home-system minimum presence remains the first recovery advantage.
+- Explicit comeback mechanics remain future work.
 
 ## Priority 2: Identity, Authorisation, And Visibility
 
@@ -86,31 +92,32 @@ Current implementation:
 - It creates or finds a local player by username.
 - Some API calls still trust caller-supplied identifiers.
 
-Questions:
+Questions and answers:
 
-- Is simple development auth acceptable for the next testable build?
-- Should eventual production auth target OAuth/OpenID Connect, ASP.NET Core Identity, invite links, or another model?
-- Should local development keep a bypass identity?
-- Should the password fields currently in the prototype model be removed until real auth exists?
-- Does the next build need an admin identity distinct from player identities?
+- Is simple development auth acceptable for the next testable build? Yes.
+- Should eventual production auth target OAuth/OpenID Connect, ASP.NET Core Identity, invite links, or another model? Yes.
+- Should local development keep a bypass identity? Yes.
+- Should the password fields currently in the prototype model be removed until real auth exists? No.
+- Does the next build need an admin identity distinct from player identities? Yes.
 
-Decision needed to unblock:
+Decision needed:
 
-- The next auth step: development-only auth hardening, ASP.NET Core Identity, external provider integration, or no change yet.
+- Development-only auth hardening can come before real production auth.
+- A distinct admin identity is needed before admin dashboard actions are exposed.
 
 ### What should one player be allowed to control?
 
-Questions:
+Questions and answers:
 
-- Is the rule always one player to one empire?
-- Can admins inspect all empires?
-- Can admins act as an empire for repair/support/debugging?
-- Should shared/team control ever be supported, or explicitly parked?
+- Is the rule always one player to one empire? Yes.
+- Can admins inspect all empires? Yes.
+- Can admins act as an empire for repair/support/debugging? Yes.
+- Should shared/team control ever be supported, or explicitly parked? Parked.
 
-Decision needed to unblock:
+Decision needed:
 
-- The player-to-empire rule for order submission and dashboard reads.
-- The admin exception rule.
+- Enforce one player to one empire for order submission and dashboard reads.
+- Add explicit admin exceptions for inspection and support/debug actions.
 
 ### What does fog of war mean in the first version?
 
@@ -118,32 +125,33 @@ Current direction:
 
 - A player should only get detailed information about who is in a system and in what numbers if they have resources there.
 
-Questions:
+Questions and answers:
 
-- Does "resources there" mean active fleets, home-system influence, any effective presence, or future sensors?
-- Can a player see the full galaxy map but only partial system details?
-- Should fleet counts be exact, approximate, or hidden outside visible systems?
-- Should events be filtered by visibility, or remain globally visible until fog of war is implemented?
-- Should Chronicle entries reveal hidden facts, or only public summaries?
+- Does "resources there" mean active fleets, home-system influence, any effective presence, or future sensors? Active fleets.
+- Can a player see the full galaxy map but only partial system details? Yes.
+- Should fleet counts be exact, approximate, or hidden outside visible systems? Hidden outside visible systems.
+- Should events be filtered by visibility, or remain globally visible until fog of war is implemented? Events should be filtered by visibility.
+- Should Chronicle entries reveal hidden facts, or only public summaries? Public summaries.
 
-Decision needed to unblock:
+Decision needed:
 
-- A precise first visibility rule for system details, fleet details, events, and Chronicle entries.
+- Implement full-map visibility with hidden fleet details outside systems where the player has active fleets.
+- Filter events and Chronicle entries through the same first visibility model.
 
 ## Priority 3: Orders And Dashboard Workflow
 
 ### Should order cancellation exist before deeper economy work?
 
-Questions:
+Questions and answers:
 
-- Can pending orders be cancelled before their execute-after tick?
-- Can processed or rejected orders ever be hidden, archived, or cleared?
-- Should cancellation create an event?
-- Should cancellation be restricted to the owning empire and admins?
+- Can pending orders be cancelled before their execute-after tick? Yes.
+- Can processed or rejected orders ever be hidden, archived, or cleared? No.
+- Should cancellation create an event? Yes.
+- Should cancellation be restricted to the owning empire and admins? Yes.
 
-Decision needed to unblock:
+Decision needed:
 
-- Whether to build order cancellation now or leave orders append-only for the next sprint.
+- Add pending-order cancellation when the next order workflow slice starts.
 
 ### Should the dashboard expose tick controls for local testing?
 
@@ -153,28 +161,30 @@ Current direction:
 - CLI remains the current tick runner.
 - A worker is likely needed later for scheduled ticks.
 
-Questions:
+Questions and answers:
 
-- Should the dashboard include an admin-only or development-only tick button?
-- Should manual tick triggering remain CLI-only until auth/admin boundaries exist?
-- Should the next worker run hourly by default, or should scheduling wait until economy behaviour is implemented?
+- Should the dashboard include an admin-only or development-only tick button? Yes.
+- Should manual tick triggering remain CLI-only until auth/admin boundaries exist? Yes.
+- Should the next worker run hourly by default, or should scheduling wait until economy behaviour is implemented? Scheduling can wait for now.
 
-Decision needed to unblock:
+Decision needed:
 
-- Whether any tick execution control belongs in the browser before admin auth exists.
+- Keep manual tick triggering CLI-only until admin auth boundaries exist.
+- Add an admin/development dashboard tick control only after those boundaries exist.
 
 ### What dashboard feedback matters next?
 
-Questions:
+Questions and answers:
 
-- Should the dashboard show last tick generated resources and spending before spending is implemented?
-- Should order history be filterable by pending, processed, rejected, and cancelled?
-- Should system detail replace the current client-side detail calculation immediately?
-- Should the player see raw event facts, summarised facts, or display text only?
+- Should the dashboard show last tick generated resources and spending before spending is implemented? Don't mind.
+- Should order history be filterable by pending, processed, rejected, and cancelled? Don't mind.
+- Should system detail replace the current client-side detail calculation immediately? Don't mind.
+- Should the player see raw event facts, summarised facts, or display text only? Don't mind.
 
-Decision needed to unblock:
+Decision:
 
-- The next dashboard slice after the current map, fleet, order, priority, event, and Chronicle views.
+- The dashboard now shows last-tick generated and spent resource amounts on resource cards.
+- Further dashboard slices can follow the auth, visibility, or order-cancellation priorities.
 
 ## Priority 4: Cycle End And Continuity
 
@@ -185,45 +195,46 @@ Current direction:
 - Cycle ends are manual and admin-run.
 - Cycle end is effectively a database freeze/cutoff.
 
-Questions:
+Questions and answers:
 
-- Which metrics define final rankings: influence, fleets, resources, battles won, Chronicle score, survival, or a blend?
-- Should there be one winner, ranked standings, or several categories of legacy?
-- Can an empire be defeated before the Cycle ends?
-- What happens to pending orders at cutoff?
+- Which metrics define final rankings: influence, fleets, resources, battles won, Chronicle score, survival, or a blend? Influence across systems, as percentage control of the map.
+- Should there be one winner, ranked standings, or several categories of legacy? One winner, with rankings for every player.
+- Can an empire be defeated before the Cycle ends? No empire can be fully defeated, as a home planet should not be conquerable. Players can be driven back to their own system.
+- What happens to pending orders at cutoff? Never completed.
 
-Decision needed to unblock:
+Decision needed:
 
-- Initial ranking metrics and whether the first Cycle-end command should produce one winner or a standings table.
+- Add a first Cycle-end command that produces one winner plus ranked standings from influence across systems.
 
 ### What history should survive into the next Cycle?
 
-Questions:
+Questions and answers:
 
-- Which battles are important enough to preserve?
-- Should systems retain names, scars, strategic value changes, or historical significance?
-- Should surviving empires influence successor factions, starting positions, or only flavour text?
-- How much private information can be used for history generation after the Cycle ends?
-- Should the next Cycle be generated deterministically from prior facts?
+- Which battles are important enough to preserve? Maybe the largest 10% of battles.
+- Should systems retain names, scars, strategic value changes, or historical significance? Yes.
+- Should surviving empires influence successor factions, starting positions, or only flavour text? Flavour text only.
+- How much private information can be used for history generation after the Cycle ends? All of it.
+- Should the next Cycle be generated deterministically from prior facts? The flavour text should be largely driven by facts, likely through an LLM integration.
 
-Decision needed to unblock:
+Decision needed:
 
-- The first persistent history schema: rankings, selected battles, selected systems, and any cross-Cycle signals.
+- The first persistent history schema should cover rankings, selected largest battles, selected systems, and historical system signals.
 
 ## Priority 5: Chronicle And Narrative
 
 ### What is the Chronicle for?
 
-Questions:
+Questions and answers:
 
-- Is the Chronicle primarily flavour, strategic intelligence, historical record, or all three?
-- Should Chronicle entries be visible to all players immediately?
-- Can Chronicle entries be private, delayed, disputed, discovered, or redacted by fog of war?
-- Should Chronicle importance thresholds be configurable?
+- Is the Chronicle primarily flavour, strategic intelligence, historical record, or all three? Flavour and historical record.
+- Should Chronicle entries be visible to all players immediately? Unless hidden by fog of war.
+- Can Chronicle entries be private, delayed, disputed, discovered, or redacted by fog of war? Hidden by fog of war.
+- Should Chronicle importance thresholds be configurable? Yes.
 
-Decision needed to unblock:
+Decision needed:
 
-- Whether Chronicle visibility follows public events, fog of war, or a separate rule.
+- Chronicle visibility should follow fog of war.
+- Importance thresholds should become configurable.
 
 ### What should generated narrative be allowed to say?
 
@@ -233,17 +244,18 @@ Current direction:
 - Deterministic templates are acceptable for early development.
 - Generated prose must not decide simulation outcomes.
 
-Questions:
+Questions and answers:
 
-- Which facts must every generated battle report include?
-- Can generated text infer motive, emotion, or strategy, or must it stay factual?
-- Should generated entries require review before being shown?
-- Should AI generation be queued outside the tick transaction with status tracking?
-- What should players see when generation fails?
+- Which facts must every generated battle report include? Admirals involved and interesting events, such as underdog victories.
+- Can generated text infer motive, emotion, or strategy, or must it stay factual? It can infer and build narrative.
+- Should generated entries require review before being shown? Not in MVP; likely later.
+- Should AI generation be queued outside the tick transaction with status tracking? Yes.
+- What should players see when generation fails? It shouldn't fail.
 
-Decision needed to unblock:
+Decision needed:
 
-- Required-fact rules and whether the first generated reports should be template-only, AI-backed, or template-first with an AI boundary prepared.
+- Generated narrative should be queued outside the tick transaction.
+- The first AI boundary should include required-fact validation and failure status, even if player-facing fallback handling is revisited later.
 
 ## Priority 6: Deployment And Test Access
 
@@ -255,21 +267,22 @@ Current direction:
 - Being able to run and test online would be useful.
 - Vendor lock-in should be avoided where practical.
 
-Questions:
+Questions and answers:
 
-- Is online testing needed before auth is hardened?
-- Should `/` be public while `/app.html` is private?
-- Should the app deploy as a container, an app service, or another simple host?
-- Should SQL Server remain the online test database, or should provider portability be prioritised first?
-- What backup/restore expectation is acceptable before inviting testers?
+- Is online testing needed before auth is hardened? No.
+- Should `/` be public while `/app.html` is private? Whatever is most sensible.
+- Should the app deploy as a container, an app service, or another simple host? Don't mind.
+- Should SQL Server remain the online test database, or should provider portability be prioritised first? SQL Server is fine for now; for production/licensing it would need to be something free.
+- What backup/restore expectation is acceptable before inviting testers? Limited.
 
-Decision needed to unblock:
+Decision needed:
 
-- Whether deployment work belongs before or after auth and the first economy loop.
+- Deployment work belongs after auth hardening and the first economy loop.
+- SQL Server is acceptable for now, but future production hosting should revisit a free relational provider.
 
 ## Engineering Defaults Unless Overridden
 
-These do not need product-owner decisions unless the product behaviour should differ:
+These do not need product-owner decisions unless product behaviour should differ:
 
 - Keep SQL Server as the current relational implementation.
 - Keep JSON persistence only as development/import/export support.

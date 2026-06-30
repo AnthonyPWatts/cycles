@@ -6,7 +6,8 @@ This implementation covers the technical MVP from the supplied design documents:
 
 - deterministic galaxy seeding with systems, links, empires, fleets, resources, and priorities;
 - server-authoritative tick processing;
-- influence-based resource generation;
+- influence-based resource generation and first-pass priority spending;
+- automatic ship construction from military industry investment;
 - durable movement, hold, and attack orders;
 - simple structured combat with deterministic randomness;
 - factual event logging;

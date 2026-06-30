@@ -113,8 +113,8 @@ elements.priorityForm.addEventListener("submit", async event => {
         expansionWeight: parseWeight(elements.expansionWeight.value)
     };
 
-    if (Object.values(payload).slice(1).reduce((total, value) => total + value, 0) === 0) {
-        setPriorityMessage("At least one priority must be greater than zero.");
+    if (Object.values(payload).slice(1).reduce((total, value) => total + value, 0) !== 100) {
+        setPriorityMessage("Priorities must total 100.");
         return;
     }
 
@@ -225,9 +225,9 @@ function renderEmpire(empire) {
     const resources = empire.resources;
     const maxResource = Math.max(1, Number(resources.industry), Number(resources.research), Number(resources.population));
     elements.resources.innerHTML = `
-        ${resourceCard("Industry", resources.industry, maxResource)}
-        ${resourceCard("Research", resources.research, maxResource)}
-        ${resourceCard("Population", resources.population, maxResource)}
+        ${resourceCard("Industry", resources.industry, maxResource, resources.lastGeneratedIndustry, resources.lastSpentIndustry)}
+        ${resourceCard("Research", resources.research, maxResource, resources.lastGeneratedResearch, resources.lastSpentResearch)}
+        ${resourceCard("Population", resources.population, maxResource, resources.lastGeneratedPopulation, resources.lastSpentPopulation)}
         <div class="resource-card resource-home">
             <dt>Home</dt>
             <dd>${escapeHtml(empire.homeSystem.systemName)}</dd>
@@ -565,6 +565,7 @@ function updatePriorityTotal() {
     const total = priorities.reduce((sum, [, value]) => sum + value, 0);
 
     elements.priorityTotal.textContent = total.toLocaleString();
+    elements.priorityTotal.closest(".priority-total").classList.toggle("invalid", total !== 100);
     elements.priorityBars.innerHTML = priorities.map(([label, value]) => {
         const share = total === 0 ? 0 : Math.round(value / total * 100);
         return `
@@ -586,14 +587,17 @@ function formatNumber(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-function resourceCard(label, value, maxResource) {
+function resourceCard(label, value, maxResource, generated, spent) {
     const numeric = Number(value);
+    const generatedNumeric = Number(generated ?? 0);
+    const spentNumeric = Number(spent ?? 0);
     const width = numeric <= 0 ? 0 : Math.max(4, Math.round(numeric / maxResource * 100));
     return `
         <div class="resource-card">
             <dt>${escapeHtml(label)}</dt>
             <dd>
                 <strong>${formatNumber(numeric)}</strong>
+                <span class="resource-delta">Last tick +${formatNumber(generatedNumeric)} / -${formatNumber(spentNumeric)}</span>
                 <span class="resource-meter"><i style="width: ${width}%"></i></span>
             </dd>
         </div>

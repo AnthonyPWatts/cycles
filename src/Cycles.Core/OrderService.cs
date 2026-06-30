@@ -56,16 +56,13 @@ public static class OrderService
         var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.EmpireId == empireId)
             ?? throw new InvalidOperationException("Empire does not exist in the active cycle.");
 
-        var weights = new[] { industryWeight, researchWeight, militaryWeight, expansionWeight };
-        if (weights.Any(weight => weight < 0))
+        EconomyProcessor.ValidatePriorities(new EmpirePriority
         {
-            throw new InvalidOperationException("Priority weights cannot be negative.");
-        }
-
-        if (weights.Sum() == 0)
-        {
-            throw new InvalidOperationException("At least one priority weight must be greater than zero.");
-        }
+            IndustryWeight = industryWeight,
+            ResearchWeight = researchWeight,
+            MilitaryWeight = militaryWeight,
+            ExpansionWeight = expansionWeight
+        });
 
         var priority = state.EmpirePriorities.SingleOrDefault(item => item.EmpireId == empire.EmpireId);
         if (priority is null)

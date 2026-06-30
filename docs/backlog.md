@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-06-24
+Last updated: 2026-06-30
 
 This backlog is grouped by intended development stage. It is not a promise that every item belongs in the next sprint.
 
@@ -64,17 +64,17 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 3: Strategic Economy
 
-- [ ] Define resource semantics for industry, research, and population.
-- [ ] Store per-tick resource deltas separately from totals.
-- [ ] Implement priority-based spending allocation.
-- [ ] Implement automatic ship building from military investment.
-- [ ] Decide where new ships appear: home fleet, rally fleet, or new reserve fleet.
-- [ ] Add spending events for material changes.
+- [x] Define resource semantics for industry, research, and population.
+- [x] Store per-tick resource deltas separately from totals.
+- [x] Implement priority-based spending allocation.
+- [x] Implement automatic ship building from military investment.
+- [x] Decide where new ships appear: home fleet, rally fleet, or new reserve fleet.
+- [x] Add spending events for material changes.
 - [ ] Add simple research accumulation effect.
 - [ ] Add simple expansion/influence projection effect.
-- [ ] Add UI controls for priority changes.
-- [ ] Add UI display for last tick gains and spending.
-- [ ] Add balance tests for growth and non-negative resources.
+- [x] Add UI controls for priority changes.
+- [x] Add UI display for last tick gains and spending.
+- [x] Add balance tests for growth and non-negative resources.
 
 ## Stage 4: API And Dashboard Hardening
 

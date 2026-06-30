@@ -263,6 +263,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),
+            ShipConstructions = states.SelectMany(state => state.ShipConstructions).ToList(),
             TickLogs = states.SelectMany(state => state.TickLogs).ToList(),
             Events = states.SelectMany(state => state.Events).ToList(),
             BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),

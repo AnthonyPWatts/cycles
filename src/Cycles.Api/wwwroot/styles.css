@@ -383,6 +383,13 @@ dl {
     font-variant-numeric: tabular-nums;
 }
 
+.resource-delta {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .resource-home dd {
     align-items: center;
     max-width: 190px;
@@ -543,6 +550,11 @@ dd {
 
 .priority-total strong {
     color: var(--text);
+}
+
+.priority-total.invalid {
+    border-color: rgba(211, 101, 86, 0.62);
+    background: rgba(211, 101, 86, 0.12);
 }
 
 .priority-bars {

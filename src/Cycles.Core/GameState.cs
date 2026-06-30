@@ -11,6 +11,7 @@ public sealed class GameState
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
     public List<FleetOrder> FleetOrders { get; set; } = [];
+    public List<ShipConstruction> ShipConstructions { get; set; } = [];
     public List<TickLog> TickLogs { get; set; } = [];
     public List<EventRecord> Events { get; set; } = [];
     public List<BattleRecord> BattleRecords { get; set; } = [];
@@ -34,6 +35,7 @@ public sealed class GameState
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
             FleetOrders = FleetOrders.Select(Clone).ToList(),
+            ShipConstructions = ShipConstructions.Select(Clone).ToList(),
             TickLogs = TickLogs.Select(Clone).ToList(),
             Events = Events.Select(Clone).ToList(),
             BattleRecords = BattleRecords.Select(Clone).ToList(),
@@ -51,6 +53,7 @@ public sealed class GameState
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
         FleetOrders = other.FleetOrders;
+        ShipConstructions = other.ShipConstructions;
         TickLogs = other.TickLogs;
         Events = other.Events;
         BattleRecords = other.BattleRecords;
@@ -98,6 +101,12 @@ public sealed class GameState
         Industry = item.Industry,
         Research = item.Research,
         Population = item.Population,
+        LastGeneratedIndustry = item.LastGeneratedIndustry,
+        LastGeneratedResearch = item.LastGeneratedResearch,
+        LastGeneratedPopulation = item.LastGeneratedPopulation,
+        LastSpentIndustry = item.LastSpentIndustry,
+        LastSpentResearch = item.LastSpentResearch,
+        LastSpentPopulation = item.LastSpentPopulation,
         UpdatedAt = item.UpdatedAt
     };
 
@@ -165,6 +174,21 @@ public sealed class GameState
         Status = item.Status,
         RejectionReason = item.RejectionReason,
         CreatedAt = item.CreatedAt
+    };
+
+    private static ShipConstruction Clone(ShipConstruction item) => new()
+    {
+        ShipConstructionId = item.ShipConstructionId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        ShipCount = item.ShipCount,
+        IndustrySpent = item.IndustrySpent,
+        StartedTick = item.StartedTick,
+        CompleteAfterTick = item.CompleteAfterTick,
+        CompletedTick = item.CompletedTick,
+        Status = item.Status,
+        CreatedAt = item.CreatedAt,
+        UpdatedAt = item.UpdatedAt
     };
 
     private static TickLog Clone(TickLog item) => new()
@@ -268,6 +292,12 @@ public sealed class EmpireResource
     public decimal Industry { get; set; }
     public decimal Research { get; set; }
     public decimal Population { get; set; }
+    public decimal LastGeneratedIndustry { get; set; }
+    public decimal LastGeneratedResearch { get; set; }
+    public decimal LastGeneratedPopulation { get; set; }
+    public decimal LastSpentIndustry { get; set; }
+    public decimal LastSpentResearch { get; set; }
+    public decimal LastSpentPopulation { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
@@ -339,6 +369,21 @@ public sealed class FleetOrder
     public FleetOrderStatus Status { get; set; } = FleetOrderStatus.Pending;
     public string? RejectionReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class ShipConstruction
+{
+    public Guid ShipConstructionId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public int ShipCount { get; set; }
+    public decimal IndustrySpent { get; set; }
+    public int StartedTick { get; set; }
+    public int CompleteAfterTick { get; set; }
+    public int? CompletedTick { get; set; }
+    public ShipConstructionStatus Status { get; set; } = ShipConstructionStatus.Queued;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 public sealed class TickLog
@@ -440,6 +485,12 @@ public enum FleetOrderStatus
     Rejected
 }
 
+public enum ShipConstructionStatus
+{
+    Queued,
+    Completed
+}
+
 public enum TickLogStatus
 {
     Running,
@@ -451,6 +502,8 @@ public enum EventType
 {
     CycleSeeded,
     ResourcesGenerated,
+    ShipConstructionQueued,
+    ShipConstructionCompleted,
     FleetMoved,
     FleetArrived,
     FleetHeld,

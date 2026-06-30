@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-06-24
+Last updated: 2026-06-30
 
 This file records decisions that shape future implementation. It is intentionally lightweight; add entries when a choice would otherwise be rediscovered or debated repeatedly.
 
@@ -244,3 +244,22 @@ Consequences:
 - Original design documents now live under `docs/source`.
 - Future documentation updates should keep Markdown current and treat the Word documents as source/reference material.
 - New GitHub issues can start from structured forms while still allowing blank issues when needed.
+
+## 2026-06-30: Add The First Strategic Economy Spending Loop
+
+Decision: treat resources as non-negative stockpiles, require strategic priority weights to total 100, and make the first automatic spend effect convert military industry allocation into queued ship construction.
+
+Reasoning:
+
+- Product-owner feedback confirmed stockpiled resources, automatic per-tick spending, no negative resources, and 100-point priorities.
+- Industry's long-term role is a mix, but ship construction is the clearest first gameplay effect.
+- Research should accumulate toward future unlocks and population should support future colonisation, so this slice records them as stockpiles without adding speculative effects.
+- A single early ship type keeps the first implementation testable while leaving room for more powerful ships and longer build times later.
+
+Consequences:
+
+- Each tick records last generated and last spent resource amounts separately from stockpile totals.
+- Military priority spends up to its percentage of the current industry stockpile; unspent or insufficient industry remains reserved.
+- Ships cost 25 industry each, take 3 ticks to complete, and join the empire's home fleet by default.
+- Material ship construction queue and completion facts are written as events.
+- The SQL tick runner now loads priorities and persists ship construction rows.

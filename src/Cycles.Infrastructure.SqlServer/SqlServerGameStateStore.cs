@@ -156,6 +156,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
+            ShipConstructions = ReadRows(connection, transaction, "SELECT * FROM dbo.ShipConstructions", ReadShipConstruction),
             TickLogs = ReadRows(connection, transaction, "SELECT * FROM dbo.TickLogs", ReadTickLog),
             Events = ReadRows(connection, transaction, "SELECT * FROM dbo.Events", ReadEvent),
             BattleRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.BattleRecords", ReadBattleRecord),
@@ -194,6 +195,17 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 """,
                 command => AddGuid(command, "@CycleID", cycleId),
                 ReadEmpireResource),
+            EmpirePriorities = ReadRows(
+                connection,
+                transaction,
+                """
+                SELECT priorities.*
+                FROM dbo.EmpirePriorities priorities
+                INNER JOIN dbo.Empires empires ON empires.EmpireID = priorities.EmpireID
+                WHERE empires.CycleID = @CycleID
+                """,
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadEmpirePriority),
             SystemLinks = ReadRows(
                 connection,
                 transaction,
@@ -212,6 +224,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 "SELECT * FROM dbo.FleetOrders WHERE CycleID = @CycleID",
                 command => AddGuid(command, "@CycleID", cycleId),
                 ReadFleetOrder),
+            ShipConstructions = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.ShipConstructions WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadShipConstruction),
             TickLogs = ReadRows(
                 connection,
                 transaction,
@@ -287,6 +305,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertFleetOrder(connection, transaction, item);
         }
 
+        foreach (var item in state.ShipConstructions)
+        {
+            UpsertShipConstruction(connection, transaction, item);
+        }
+
         foreach (var item in state.TickLogs)
         {
             UpsertTickLog(connection, transaction, item);
@@ -333,6 +356,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.FleetOrders.Where(order => order.CycleId == cycleId))
         {
             UpsertFleetOrder(connection, transaction, item);
+        }
+
+        foreach (var item in state.ShipConstructions.Where(construction => construction.CycleId == cycleId))
+        {
+            UpsertShipConstruction(connection, transaction, item);
         }
 
         foreach (var item in state.TickLogs.Where(log => log.CycleId == cycleId))
@@ -412,6 +440,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Industry = GetDecimal(reader, "Industry"),
         Research = GetDecimal(reader, "Research"),
         Population = GetDecimal(reader, "Population"),
+        LastGeneratedIndustry = GetDecimal(reader, "LastGeneratedIndustry"),
+        LastGeneratedResearch = GetDecimal(reader, "LastGeneratedResearch"),
+        LastGeneratedPopulation = GetDecimal(reader, "LastGeneratedPopulation"),
+        LastSpentIndustry = GetDecimal(reader, "LastSpentIndustry"),
+        LastSpentResearch = GetDecimal(reader, "LastSpentResearch"),
+        LastSpentPopulation = GetDecimal(reader, "LastSpentPopulation"),
         UpdatedAt = GetDateTimeOffset(reader, "UpdatedAt")
     };
 
@@ -464,6 +498,21 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Status = GetEnum<FleetOrderStatus>(reader, "Status"),
         RejectionReason = GetNullableString(reader, "RejectionReason"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static ShipConstruction ReadShipConstruction(SqlDataReader reader) => new()
+    {
+        ShipConstructionId = GetGuid(reader, "ShipConstructionID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        EmpireId = GetGuid(reader, "EmpireID"),
+        ShipCount = GetInt(reader, "ShipCount"),
+        IndustrySpent = GetDecimal(reader, "IndustrySpent"),
+        StartedTick = GetInt(reader, "StartedTick"),
+        CompleteAfterTick = GetInt(reader, "CompleteAfterTick"),
+        CompletedTick = GetNullableInt(reader, "CompletedTick"),
+        Status = GetEnum<ShipConstructionStatus>(reader, "Status"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
+        UpdatedAt = GetDateTimeOffset(reader, "UpdatedAt")
     };
 
     private static TickLog ReadTickLog(SqlDataReader reader) => new()
@@ -650,13 +699,19 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 Industry = @Industry,
                 Research = @Research,
                 Population = @Population,
+                LastGeneratedIndustry = @LastGeneratedIndustry,
+                LastGeneratedResearch = @LastGeneratedResearch,
+                LastGeneratedPopulation = @LastGeneratedPopulation,
+                LastSpentIndustry = @LastSpentIndustry,
+                LastSpentResearch = @LastSpentResearch,
+                LastSpentPopulation = @LastSpentPopulation,
                 UpdatedAt = @UpdatedAt
             WHERE EmpireResourceID = @EmpireResourceID;
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.EmpireResources(EmpireResourceID, EmpireID, Industry, Research, Population, UpdatedAt)
-            VALUES (@EmpireResourceID, @EmpireID, @Industry, @Research, @Population, @UpdatedAt);
+            INSERT INTO dbo.EmpireResources(EmpireResourceID, EmpireID, Industry, Research, Population, LastGeneratedIndustry, LastGeneratedResearch, LastGeneratedPopulation, LastSpentIndustry, LastSpentResearch, LastSpentPopulation, UpdatedAt)
+            VALUES (@EmpireResourceID, @EmpireID, @Industry, @Research, @Population, @LastGeneratedIndustry, @LastGeneratedResearch, @LastGeneratedPopulation, @LastSpentIndustry, @LastSpentResearch, @LastSpentPopulation, @UpdatedAt);
             END;
             """, command =>
         {
@@ -665,6 +720,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDecimal(command, "@Industry", item.Industry);
             AddDecimal(command, "@Research", item.Research);
             AddDecimal(command, "@Population", item.Population);
+            AddDecimal(command, "@LastGeneratedIndustry", item.LastGeneratedIndustry);
+            AddDecimal(command, "@LastGeneratedResearch", item.LastGeneratedResearch);
+            AddDecimal(command, "@LastGeneratedPopulation", item.LastGeneratedPopulation);
+            AddDecimal(command, "@LastSpentIndustry", item.LastSpentIndustry);
+            AddDecimal(command, "@LastSpentResearch", item.LastSpentResearch);
+            AddDecimal(command, "@LastSpentPopulation", item.LastSpentPopulation);
             AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
         });
 
@@ -788,6 +849,41 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Status", item.Status.ToString(), 32);
             AddNullableString(command, "@RejectionReason", item.RejectionReason, 512);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
+    private static void UpsertShipConstruction(SqlConnection connection, SqlTransaction transaction, ShipConstruction item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.ShipConstructions
+            SET CycleID = @CycleID,
+                EmpireID = @EmpireID,
+                ShipCount = @ShipCount,
+                IndustrySpent = @IndustrySpent,
+                StartedTick = @StartedTick,
+                CompleteAfterTick = @CompleteAfterTick,
+                CompletedTick = @CompletedTick,
+                Status = @Status,
+                CreatedAt = @CreatedAt,
+                UpdatedAt = @UpdatedAt
+            WHERE ShipConstructionID = @ShipConstructionID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.ShipConstructions(ShipConstructionID, CycleID, EmpireID, ShipCount, IndustrySpent, StartedTick, CompleteAfterTick, CompletedTick, Status, CreatedAt, UpdatedAt)
+            VALUES (@ShipConstructionID, @CycleID, @EmpireID, @ShipCount, @IndustrySpent, @StartedTick, @CompleteAfterTick, @CompletedTick, @Status, @CreatedAt, @UpdatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@ShipConstructionID", item.ShipConstructionId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@EmpireID", item.EmpireId);
+            AddInt(command, "@ShipCount", item.ShipCount);
+            AddDecimal(command, "@IndustrySpent", item.IndustrySpent);
+            AddInt(command, "@StartedTick", item.StartedTick);
+            AddInt(command, "@CompleteAfterTick", item.CompleteAfterTick);
+            AddNullableInt(command, "@CompletedTick", item.CompletedTick);
+            AddString(command, "@Status", item.Status.ToString(), 32);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+            AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
         });
 
     private static void UpsertTickLog(SqlConnection connection, SqlTransaction transaction, TickLog item) =>
@@ -934,6 +1030,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.BattleRecords", "BattleID", state.BattleRecords.Select(item => item.BattleId));
         DeleteMissingRows(connection, transaction, "dbo.Events", "EventID", state.Events.Select(item => item.EventId));
         DeleteMissingRows(connection, transaction, "dbo.TickLogs", "TickLogID", state.TickLogs.Select(item => item.TickLogId));
+        DeleteMissingRows(connection, transaction, "dbo.ShipConstructions", "ShipConstructionID", state.ShipConstructions.Select(item => item.ShipConstructionId));
         DeleteMissingRows(connection, transaction, "dbo.FleetOrders", "FleetOrderID", state.FleetOrders.Select(item => item.FleetOrderId));
         DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
         DeleteMissingRows(connection, transaction, "dbo.SystemLinks", "SystemLinkID", state.SystemLinks.Select(item => item.SystemLinkId));

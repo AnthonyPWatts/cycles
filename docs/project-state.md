@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-06-24
+Last updated: 2026-06-30
 
 ## Current Status
 
@@ -60,6 +60,11 @@ This is not yet a production game service. It is a working architecture slice.
 - Influence is calculated from active ship presence.
 - A home-system minimum presence value gives a founding empire recovery/protection pressure.
 - Resource output is split by influence share.
+- Resources are stockpiles and are clamped non-negative.
+- Last-tick generated and spent resource amounts are stored separately from stockpile totals.
+- Strategic priority weights must total 100.
+- Military priority spending automatically queues ship construction from available industry.
+- Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
 
 ### Orders
@@ -156,7 +161,8 @@ These are known gaps, not defects in the current MVP claim:
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
 - No end-of-Cycle rankings, winners, reset, or continuity.
-- No build-ships or spending-priority automation beyond storing priority weights.
+- Research and population stockpiles do not yet drive unlock or colonisation effects.
+- Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
 - No technologies, doctrines, cloaking, detection, or logistics.
 - No admirals or persistent named figures.

@@ -33,6 +33,20 @@ public static class InfluenceCalculator
     public static void GenerateResources(GameState state, Guid cycleId, int tickNumber, DateTimeOffset now)
     {
         var generatedByEmpire = new Dictionary<Guid, ResourceDelta>();
+        var cycleEmpireIds = state.Empires
+            .Where(empire => empire.CycleId == cycleId)
+            .Select(empire => empire.EmpireId)
+            .ToHashSet();
+
+        foreach (var resources in state.EmpireResources.Where(resource => cycleEmpireIds.Contains(resource.EmpireId)))
+        {
+            resources.LastGeneratedIndustry = 0;
+            resources.LastGeneratedResearch = 0;
+            resources.LastGeneratedPopulation = 0;
+            resources.LastSpentIndustry = 0;
+            resources.LastSpentResearch = 0;
+            resources.LastSpentPopulation = 0;
+        }
 
         foreach (var system in state.Systems.Where(system => system.CycleId == cycleId))
         {
@@ -61,9 +75,12 @@ public static class InfluenceCalculator
         foreach (var (empireId, delta) in generatedByEmpire)
         {
             var resources = state.EmpireResources.Single(resource => resource.EmpireId == empireId);
-            resources.Industry += delta.Industry;
-            resources.Research += delta.Research;
-            resources.Population += delta.Population;
+            resources.Industry = Math.Max(0, resources.Industry + delta.Industry);
+            resources.Research = Math.Max(0, resources.Research + delta.Research);
+            resources.Population = Math.Max(0, resources.Population + delta.Population);
+            resources.LastGeneratedIndustry += delta.Industry;
+            resources.LastGeneratedResearch += delta.Research;
+            resources.LastGeneratedPopulation += delta.Population;
             resources.UpdatedAt = now;
 
             var empire = state.Empires.Single(item => item.EmpireId == empireId);
