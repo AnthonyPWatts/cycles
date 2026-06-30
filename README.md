@@ -11,6 +11,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - derived expansion priority projection for influence and resource shares;
 - durable movement, hold, and attack orders;
 - simple structured combat with deterministic randomness;
+- named admirals assigned to fleets, with battle reputation and status history;
 - factual event logging;
 - Chronicle candidate scoring and preserved battle entries;
 - deterministic template-based Chronicle battle reports;

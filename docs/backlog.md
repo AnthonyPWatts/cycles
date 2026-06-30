@@ -125,14 +125,14 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 7: Admirals And Named Figures
 
-- [ ] Add `Admiral` model.
-- [ ] Add admiral assignment to fleet.
-- [ ] Track admiral battle history.
-- [ ] Add reputation score.
-- [ ] Add active/retired/killed/missing/legendary status.
-- [ ] Feed admiral events into Chronicle scoring.
-- [ ] Add system associations for famous victories or defeats.
-- [ ] Add tests for admiral reputation and Chronicle impact.
+- [x] Add `Admiral` model.
+- [x] Add admiral assignment to fleet.
+- [x] Track admiral battle history.
+- [x] Add reputation score.
+- [x] Add active/retired/killed/missing/legendary status.
+- [x] Feed admiral events into Chronicle scoring.
+- [x] Add system associations for famous victories or defeats.
+- [x] Add tests for admiral reputation and Chronicle impact.
 
 ## Stage 8: Diplomacy
 

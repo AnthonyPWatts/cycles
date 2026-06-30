@@ -512,3 +512,22 @@ Consequences:
 - Current deterministic battle reports are stored as `Generated` with the source DTO serialized into `NarrativeContextJson`.
 - SQL Server schema migration `009_add_chronicle_generation_state` upgrades existing entries with generated defaults and adds a status lookup index.
 - Actual async queueing, provider selection, and retry/fallback behaviour remain future Stage 6 work.
+
+## 2026-06-30: Add First Admirals As Fleet-Attached Historical Figures
+
+Decision: add admirals as named fleet commanders with battle history, reputation, status, and famous-system associations, but not as a full character-management system.
+
+Reasoning:
+
+- Stage 7 needed narrative anchors that come from real battles rather than generated prose.
+- Fleets are the current strategic actor in combat, so attaching one admiral to a fleet is the smallest useful model.
+- Reputation should affect Chronicle importance without changing battle outcomes.
+- Character transfers, promotions, biographies, succession, and retirement workflows would be premature before diplomacy and richer history systems exist.
+
+Consequences:
+
+- Seeded empires and newly created development-auth empires receive a named admiral assigned to their home fleet.
+- Battle resolution writes `AdmiralBattleHistory` rows and `AdmiralBattleReported` events for assigned commanders.
+- Destroyed assigned fleets mark their admiral killed; high-reputation survivors can become legendary.
+- SQL migration `010_add_admirals` persists admirals, fleet assignments, and battle history.
+- Future work can add transfer/retirement/succession flows without changing the current battle-fact contract.

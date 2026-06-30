@@ -131,10 +131,20 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Battle records store participants, ships before battle, losses, outcome, and fact JSON.
 - Combat events are generated from battle facts.
 
+### Admirals And Named Figures
+
+- Seeded empires start with a named admiral assigned to their home fleet.
+- Fleets can have one assigned admiral.
+- Admirals track reputation score and status: active, retired, killed, missing, or legendary.
+- Battle resolution records admiral battle history for assigned commanders, including role, outcome, ships commanded, ships lost, reputation change, status after battle, and whether the battle created a famous system association.
+- Destroyed assigned fleets mark their admiral killed.
+- High-reputation or famous admiral battle histories increase Chronicle battle importance.
+- Admiral battle reports are written as factual events and surfaced in CLI fleet/admiral output and dashboard fleet panels.
+
 ### Chronicle
 
 - Important battles receive an importance score.
-- Score inputs currently include total losses, system strategic value, historical significance, underdog result, and very large loss counts.
+- Score inputs currently include total losses, system strategic value, historical significance, underdog result, very large loss counts, and notable admiral battle history.
 - Battles above the current threshold become Chronicle entries.
 - Chronicle entries store factual summaries and narrative text separately from raw battle facts.
 - Narrative text is currently deterministic template prose generated from a battle narrative source DTO, not AI-generated prose.
@@ -149,7 +159,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Player order and priority mutations derive empire authority from the authenticated player context.
 - Admin players can inspect all fleets/orders and can act for an empire for local support/debugging.
 - The public website is served from `/`.
-- The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
+- The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, fleet admirals, order queue, events, Chronicle placeholder/content, and order forms.
 - Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, exact presence and local fleet details are only returned for systems where the player has an active fleet, and recent events, last-tick summaries, and Chronicle entries are filtered through the same visibility model.
 - Admin development users bypass fog-of-war filtering for local support/debugging.
 - System summary/detail responses expose historical significance, and the dashboard marks historically significant systems on the map.
@@ -167,12 +177,13 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - SQL Server persists selected `CycleMajorEvents` for completed Cycle history.
 - SQL Server persists `SystemHistoricalSignals` for completed Cycle system-history inputs.
 - SQL Server persists Chronicle narrative generation status and context snapshot fields.
+- SQL Server persists admirals, fleet admiral assignments, and admiral battle histories.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
 - Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final application-service/repository model.
-- SQL-backed CLI tick execution now uses a dedicated tick runner that loads a focused tick workspace for the active Cycle: cycle metadata, systems, links, empires, resources, priorities, fleets, due pending orders, due queued ship construction, and running tick logs.
+- SQL-backed CLI tick execution now uses a dedicated tick runner that loads a focused tick workspace for the active Cycle: cycle metadata, systems, links, empires, resources, priorities, admirals, fleets, due pending orders, due queued ship construction, and running tick logs.
 - The SQL tick runner persists tick outcome rows for the active Cycle without loading historical events, battle records, Chronicle entries, future orders, completed construction, old tick logs, or running the generic missing-row deletion pass.
 - The SQL tick runner acquires a transaction-scoped per-Cycle application lock named `Cycles.Tick.{CycleID}` before loading or writing tick state. Generic whole-state SQL mutations still use the broader `Cycles.GameState` application lock.
 
@@ -229,7 +240,7 @@ These are known gaps, not defects in the current MVP claim:
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
 - No broader technology tree, doctrine choices, cloaking, detection, or logistics.
-- No admirals or persistent named figures.
+- Admirals are first-pass fleet commanders, not a full character-management system; there are no promotions, transfers, succession rules, biographies, or retirement workflows yet.
 - No AI narrative generation or asynchronous narrative worker; Chronicle battle reports currently use validated deterministic templates and store generation metadata synchronously.
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
@@ -238,13 +249,13 @@ These are known gaps, not defects in the current MVP claim:
 
 ## Current Development Priority
 
-The next stage should harden the simulation spine before adding feature breadth:
+The next stage should keep hardening the simulation spine while adding the next history-rich strategy systems carefully:
 
 1. keep adding live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
 2. harden next-Cycle continuity with richer reset policy and historical summaries;
 3. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
 4. add narrative-generation status and validation around Chronicle prose;
-5. only then add broader admirals, diplomacy, doctrine, and other feature systems.
+5. add diplomacy, doctrine, and other feature systems only as small extensions of influence, events, and history.
 
 ## Definition Of The Next Stable State
 
