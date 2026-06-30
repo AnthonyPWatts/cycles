@@ -29,11 +29,13 @@ END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Fleets_Admirals')
 BEGIN
+    EXEC(N'
     ALTER TABLE dbo.Fleets
     ADD CONSTRAINT FK_Fleets_Admirals
         FOREIGN KEY (AdmiralID)
         REFERENCES dbo.Admirals(AdmiralID)
         ON DELETE SET NULL;
+    ');
 END;
 
 IF OBJECT_ID(N'dbo.AdmiralBattleHistories', N'U') IS NULL
@@ -65,9 +67,11 @@ END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Fleets_AdmiralID' AND object_id = OBJECT_ID(N'dbo.Fleets'))
 BEGIN
+    EXEC(N'
     CREATE UNIQUE INDEX UX_Fleets_AdmiralID
     ON dbo.Fleets(AdmiralID)
     WHERE AdmiralID IS NOT NULL;
+    ');
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AdmiralBattleHistories_Battle' AND object_id = OBJECT_ID(N'dbo.AdmiralBattleHistories'))

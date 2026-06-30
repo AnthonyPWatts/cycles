@@ -156,6 +156,20 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var store = new SqlServerGameStateStore(connectionString);
         var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 40, strategicValue: 35);
         var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var secondHome = new GalaxySystem
+        {
+            CycleId = cycle.CycleId,
+            SystemName = "Second Home",
+            X = 250,
+            Y = 250,
+            IndustryOutput = 10,
+            ResearchOutput = 10,
+            PopulationOutput = 10,
+            StrategicValue = 10,
+            CreatedAt = TestState.Now
+        };
+        state.Systems.Add(secondHome);
+        state.Empires.Single(empire => empire.EmpireName == "Second").HomeSystemId = secondHome.SystemId;
         var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
         var defenderFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[1].EmpireId);
         var attackerAdmiral = AssignAdmiral(state, attackerFleet, "SQL Ardent");

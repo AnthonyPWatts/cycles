@@ -32,11 +32,13 @@ BEGIN
     ADD NarrativeFailureReason NVARCHAR(1024) NULL;
 END;
 
+EXEC(N'
 UPDATE dbo.ChronicleEntries
 SET NarrativeGeneratedAt = CreatedAt
-WHERE NarrativeStatus = N'Generated'
+WHERE NarrativeStatus = N''Generated''
     AND NarrativeGeneratedAt IS NULL
     AND LEN(NarrativeText) > 0;
+');
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ChronicleEntries_Cycle_NarrativeStatus' AND object_id = OBJECT_ID(N'dbo.ChronicleEntries'))
 BEGIN
