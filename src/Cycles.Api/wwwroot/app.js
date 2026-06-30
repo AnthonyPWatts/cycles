@@ -1,5 +1,6 @@
 const state = {
-    playerId: localStorage.getItem("cycles.playerId"),
+    playerId: null,
+    role: null,
     empire: null,
     galaxy: null,
     selectedSystemId: null,
@@ -106,14 +107,13 @@ elements.priorityForm.addEventListener("submit", async event => {
     }
 
     const payload = {
-        empireId: state.empire.empireId,
         industryWeight: parseWeight(elements.industryWeight.value),
         researchWeight: parseWeight(elements.researchWeight.value),
         militaryWeight: parseWeight(elements.militaryWeight.value),
         expansionWeight: parseWeight(elements.expansionWeight.value)
     };
 
-    if (Object.values(payload).slice(1).reduce((total, value) => total + value, 0) !== 100) {
+    if (Object.values(payload).reduce((total, value) => total + value, 0) !== 100) {
         setPriorityMessage("Priorities must total 100.");
         return;
     }
@@ -165,26 +165,36 @@ elements.orders.addEventListener("click", async event => {
 });
 
 async function boot() {
-    await login(elements.username.value);
+    elements.username.value = localStorage.getItem("cycles.username") || elements.username.value;
+    try {
+        applySession(await getJson("/auth/session"));
+        await refresh();
+    } catch {
+        await login(elements.username.value);
+    }
 }
 
 async function login(username) {
     const login = await postJson("/auth/login", { username, empireName: null });
-    state.playerId = login.playerId;
-    state.empire = login.empire;
-    localStorage.setItem("cycles.playerId", state.playerId);
+    applySession(login);
+    localStorage.setItem("cycles.username", login.username);
+    localStorage.removeItem("cycles.playerId");
     await refresh();
 }
 
+function applySession(login) {
+    state.playerId = login.playerId;
+    state.role = login.role;
+    state.empire = login.empire;
+}
+
 async function refresh() {
-    const empireQuery = state.playerId ? `?playerId=${state.playerId}` : "";
-    const ordersQuery = state.empire ? `?empireId=${state.empire.empireId}` : "";
     const [cycle, empire, galaxy, fleets, orders, events, chronicle] = await Promise.all([
         getJson("/cycles/current"),
-        getJson(`/empire${empireQuery}`),
+        getJson("/empire"),
         getJson("/galaxy"),
-        state.empire ? getJson(`/fleets?empireId=${state.empire.empireId}`) : getJson("/fleets"),
-        getJson(`/orders${ordersQuery}`),
+        getJson("/fleets"),
+        getJson("/orders"),
         getJson("/events/recent?limit=20"),
         getJson("/chronicle")
     ]);
@@ -419,7 +429,7 @@ async function cancelOrder(fleetOrderId) {
     }
 
     try {
-        await postJson("/orders/fleet/cancel", { fleetOrderId, empireId: state.empire.empireId });
+        await postJson("/orders/fleet/cancel", { fleetOrderId });
         setMessage("Order cancelled.");
         await refresh();
     } catch (error) {

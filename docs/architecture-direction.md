@@ -225,7 +225,8 @@ The API should expose state and accept orders. It should not run tick logic.
 
 Near-term endpoint direction:
 
-- `POST /auth/login` remains prototype-only until real auth exists.
+- `POST /auth/login` establishes the development-auth session until real auth exists.
+- `GET /auth/session`
 - `GET /cycles/current`
 - `GET /empire`
 - `GET /galaxy`
@@ -238,7 +239,7 @@ Near-term endpoint direction:
 - `GET /events/recent`
 - `GET /chronicle`
 
-When auth exists, order endpoints should derive player/empire context from the authenticated user rather than trusting arbitrary IDs.
+Order endpoints derive player/empire context from the development-auth user rather than trusting arbitrary IDs. Production auth should preserve that actor boundary with a real authentication provider.
 
 ## Client Direction
 

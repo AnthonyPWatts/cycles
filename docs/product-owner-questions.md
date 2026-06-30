@@ -88,9 +88,11 @@ Decision:
 
 Current implementation:
 
-- `/auth/login` is prototype-only.
+- `/auth/login` establishes a deliberate development-auth cookie.
 - It creates or finds a local player by username.
-- Some API calls still trust caller-supplied identifiers.
+- Players now have explicit `Player` or `Admin` roles.
+- Player order and priority calls derive empire authority from the authenticated context.
+- This is still not production auth.
 
 Questions and answers:
 
@@ -100,10 +102,11 @@ Questions and answers:
 - Should the password fields currently in the prototype model be removed until real auth exists? No.
 - Does the next build need an admin identity distinct from player identities? Yes.
 
-Decision needed:
+Decision:
 
 - Development-only auth hardening can come before real production auth.
 - A distinct admin identity is needed before admin dashboard actions are exposed.
+- Production auth remains a future pre-deployment decision, likely through ASP.NET Core authentication with OAuth/OpenID Connect or Identity rather than the development cookie.
 
 ### What should one player be allowed to control?
 
@@ -114,7 +117,7 @@ Questions and answers:
 - Can admins act as an empire for repair/support/debugging? Yes.
 - Should shared/team control ever be supported, or explicitly parked? Parked.
 
-Decision needed:
+Decision:
 
 - Enforce one player to one empire for order submission and dashboard reads.
 - Add explicit admin exceptions for inspection and support/debug actions.

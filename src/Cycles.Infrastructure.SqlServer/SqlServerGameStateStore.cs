@@ -401,6 +401,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Username = GetString(reader, "Username"),
         Email = GetString(reader, "Email"),
         PasswordHash = GetString(reader, "PasswordHash"),
+        Role = GetEnum<PlayerRole>(reader, "Role"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
         LastLoginAt = GetNullableDateTimeOffset(reader, "LastLoginAt"),
         Status = GetEnum<PlayerStatus>(reader, "Status")
@@ -605,6 +606,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             SET Username = @Username,
                 Email = @Email,
                 PasswordHash = @PasswordHash,
+                Role = @Role,
                 CreatedAt = @CreatedAt,
                 LastLoginAt = @LastLoginAt,
                 Status = @Status
@@ -612,8 +614,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, CreatedAt, LastLoginAt, Status)
-            VALUES (@PlayerID, @Username, @Email, @PasswordHash, @CreatedAt, @LastLoginAt, @Status);
+            INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, Role, CreatedAt, LastLoginAt, Status)
+            VALUES (@PlayerID, @Username, @Email, @PasswordHash, @Role, @CreatedAt, @LastLoginAt, @Status);
             END;
             """, command =>
         {
@@ -621,6 +623,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Username", item.Username, 80);
             AddString(command, "@Email", item.Email, 256);
             AddString(command, "@PasswordHash", item.PasswordHash, 512);
+            AddString(command, "@Role", item.Role.ToString(), 32);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
             AddNullableDateTimeOffset(command, "@LastLoginAt", item.LastLoginAt);
             AddString(command, "@Status", item.Status.ToString(), 32);

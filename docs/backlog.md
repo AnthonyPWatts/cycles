@@ -78,10 +78,10 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 4: API And Dashboard Hardening
 
-- [ ] Replace prototype login with deliberate development auth.
+- [x] Replace prototype login with deliberate development auth.
 - [ ] Define future production auth option before deployment.
-- [ ] Add player/empire authorisation checks.
-- [ ] Stop trusting caller-supplied empire IDs where auth context can derive them.
+- [x] Add player/empire authorisation checks.
+- [x] Stop trusting caller-supplied empire IDs where auth context can derive them.
 - [x] Add pending orders endpoint.
 - [x] Add processed/rejected orders endpoint.
 - [x] Consider order cancellation before execution.
@@ -160,7 +160,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Current combat model is not balanced.
 - [ ] Current dashboard assumes a small galaxy.
 - [ ] Current API returns some domain entities directly.
-- [ ] Current prototype login is not security.
+- [ ] Current development auth is not production security.
 - [ ] Current docs are manual and can drift; update them as part of meaningful feature work.
 
 ## Parking Lot

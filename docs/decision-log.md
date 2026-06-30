@@ -295,3 +295,20 @@ Consequences:
 - Future ranking persistence should store one winner plus ranked standings for all active empires.
 - Strategic value, resources, battles, and Chronicle score can become historical categories, but they do not decide the first winner.
 - Tie-breaking should be deterministic, with details defined in `ranking-metrics.md`.
+
+## 2026-06-30: Use Development Auth Before Production Auth
+
+Decision: replace the prototype `playerId`/`empireId` dashboard flow with a deliberate development auth boundary: `/auth/login` establishes an HttpOnly development cookie, players have explicit `Player` or `Admin` roles, and player mutations derive the empire from the authenticated context.
+
+Reasoning:
+
+- The next playable test needs player/empire boundaries before any online deployment work.
+- Product-owner direction accepts simple development auth for now and requires admins to be distinct from ordinary players.
+- Adding ASP.NET Core Identity, OAuth, or OpenID Connect now would be premature while deployment and provider choices are still open.
+
+Consequences:
+
+- Normal player order and priority endpoints no longer trust caller-supplied empire IDs.
+- Admin players can inspect all fleets/orders and can act for an empire for local support/debugging paths.
+- This is not production security; before deployment, the same actor/role boundary should be backed by a real authentication provider.
+- Fog-of-war and event/Chronicle visibility filtering remain separate future work.

@@ -24,8 +24,18 @@ app.UseStaticFiles();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.MapPost("/auth/login", (LoginRequest request, IGameStateStore store) =>
-    TryResult(() => store.Update(state => Login(state, request, DateTimeOffset.UtcNow))));
+app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
+    TryResult(() => store.Update(state => Login(state, request, httpContext, DateTimeOffset.UtcNow))));
+
+app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var empire = actor.Empire
+            ?? throw new InvalidOperationException("Admin requests must identify an empire.");
+        return ToLoginResponse(state, actor.Player, empire);
+    }));
 
 app.MapGet("/cycles/current", (IGameStateStore store) =>
     TryResult(() =>
@@ -48,15 +58,16 @@ app.MapGet("/ticks/last-summary", (IGameStateStore store) =>
         return ToLastTickSummaryResponse(state, cycle, tickLog);
     }));
 
-app.MapGet("/empire", (Guid? playerId, IGameStateStore store) =>
+app.MapGet("/empire", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var targetEmpireId = DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
         var empire = state.Empires
             .Where(item => item.CycleId == cycle.CycleId)
-            .FirstOrDefault(item => !playerId.HasValue || item.PlayerId == playerId.Value)
-            ?? throw new InvalidOperationException("No empire was found for the supplied player.");
+            .First(item => item.EmpireId == targetEmpireId);
 
         return ToEmpireResponse(state, empire);
     }));
@@ -88,37 +99,50 @@ app.MapGet("/systems/{systemId:guid}", (Guid systemId, IGameStateStore store) =>
         return ToSystemDetailResponse(state, cycle, system);
     }));
 
-app.MapGet("/fleets", (Guid? empireId, IGameStateStore store) =>
+app.MapGet("/fleets", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
+            ? null
+            : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
         return state.Fleets
-            .Where(fleet => fleet.CycleId == cycle.CycleId && (!empireId.HasValue || fleet.EmpireId == empireId.Value))
+            .Where(fleet => fleet.CycleId == cycle.CycleId && (!targetEmpireId.HasValue || fleet.EmpireId == targetEmpireId.Value))
             .OrderBy(fleet => fleet.FleetName)
             .Select(fleet => ToFleetResponse(state, fleet))
             .ToArray();
     }));
 
-app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, IGameStateStore store) =>
+app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
             ?? throw new InvalidOperationException("Fleet was not found in the active cycle.");
+        if (!actor.IsAdmin && fleet.EmpireId != DevelopmentAuth.ResolveEmpireId(state, actor))
+        {
+            throw new ApiForbiddenException("The authenticated player cannot inspect this fleet.");
+        }
 
         return ToFleetDetailResponse(state, cycle, fleet);
     }));
 
-app.MapGet("/orders", (Guid? empireId, IGameStateStore store) =>
+app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
+            ? null
+            : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
         return state.FleetOrders
             .Where(order => order.CycleId == cycle.CycleId)
-            .Where(order => !empireId.HasValue || state.Fleets.Any(fleet => fleet.FleetId == order.FleetId && fleet.EmpireId == empireId.Value))
+            .Where(order => !targetEmpireId.HasValue || state.Fleets.Any(fleet => fleet.FleetId == order.FleetId && fleet.EmpireId == targetEmpireId.Value))
             .OrderBy(order => order.Status == FleetOrderStatus.Pending ? 0 : 1)
             .ThenBy(order => order.ExecuteAfterTick)
             .ThenByDescending(order => order.CreatedAt)
@@ -127,17 +151,17 @@ app.MapGet("/orders", (Guid? empireId, IGameStateStore store) =>
             .ToArray();
     }));
 
-app.MapPost("/orders/fleet/move", (MoveFleetRequest request, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitMove(request, store));
+app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.SubmitMove(request, httpContext, store));
 
-app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitAttack(request, store));
+app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.SubmitAttack(request, httpContext, store));
 
-app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, IGameStateStore store) =>
-    ApiOrderEndpoints.Cancel(request, store));
+app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.Cancel(request, httpContext, store));
 
-app.MapPost("/orders/priorities", (PriorityRequest request, IGameStateStore store) =>
-    ApiOrderEndpoints.UpdatePriorities(request, store));
+app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
 
 app.MapGet("/events/recent", (int? limit, IGameStateStore store) =>
     TryResult(() =>
@@ -170,6 +194,14 @@ static IResult TryResult<T>(Func<T> action)
     {
         return Results.Ok(action());
     }
+    catch (ApiUnauthorizedException ex)
+    {
+        return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status401Unauthorized);
+    }
+    catch (ApiForbiddenException ex)
+    {
+        return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status403Forbidden);
+    }
     catch (InvalidOperationException ex)
     {
         return Results.BadRequest(new ErrorResponse(ex.Message));
@@ -183,7 +215,7 @@ static IResult TryResult<T>(Func<T> action)
 static Cycle GetActiveCycle(GameState state) =>
     state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
 
-static LoginResponse Login(GameState state, LoginRequest request, DateTimeOffset now)
+static LoginResponse Login(GameState state, LoginRequest request, HttpContext httpContext, DateTimeOffset now)
 {
     var username = string.IsNullOrWhiteSpace(request.Username) ? "player-1" : request.Username.Trim();
     var player = state.Players.FirstOrDefault(item => string.Equals(item.Username, username, StringComparison.OrdinalIgnoreCase));
@@ -194,11 +226,16 @@ static LoginResponse Login(GameState state, LoginRequest request, DateTimeOffset
             Username = username,
             Email = $"{username}@cycles.local",
             PasswordHash = "prototype",
+            Role = request.IsAdmin ? PlayerRole.Admin : PlayerRole.Player,
             CreatedAt = now,
             LastLoginAt = now,
             Status = PlayerStatus.Active
         };
         state.Players.Add(player);
+    }
+    else if (request.IsAdmin)
+    {
+        player.Role = PlayerRole.Admin;
     }
 
     player.LastLoginAt = now;
@@ -206,8 +243,12 @@ static LoginResponse Login(GameState state, LoginRequest request, DateTimeOffset
     var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.PlayerId == player.PlayerId)
         ?? AddEmpireForPlayer(state, cycle, player, request.EmpireName, now);
 
-    return new LoginResponse(player.PlayerId, player.Username, ToEmpireResponse(state, empire));
+    DevelopmentAuth.SignIn(httpContext, player);
+    return ToLoginResponse(state, player, empire);
 }
+
+static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire) =>
+    new(player.PlayerId, player.Username, player.Role, ToEmpireResponse(state, empire));
 
 static Empire AddEmpireForPlayer(GameState state, Cycle cycle, Player player, string? requestedEmpireName, DateTimeOffset now)
 {
@@ -497,9 +538,9 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(GameState state, Cycle 
         chronicleEntries);
 }
 
-public sealed record LoginRequest(string Username, string? EmpireName);
+public sealed record LoginRequest(string Username, string? EmpireName, bool IsAdmin = false);
 
-public sealed record LoginResponse(Guid PlayerId, string Username, EmpireResponse Empire);
+public sealed record LoginResponse(Guid PlayerId, string Username, PlayerRole Role, EmpireResponse Empire);
 
 public sealed record EmpireResponse(
     Guid EmpireId,
@@ -601,10 +642,10 @@ public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 
 public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId);
 
-public sealed record CancelFleetOrderRequest(Guid FleetOrderId, Guid EmpireId);
+public sealed record CancelFleetOrderRequest(Guid FleetOrderId);
 
 public sealed record PriorityRequest(
-    Guid EmpireId,
+    Guid? EmpireId,
     int IndustryWeight,
     int ResearchWeight,
     int MilitaryWeight,

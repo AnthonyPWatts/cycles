@@ -9,10 +9,10 @@ DECLARE @Now DATETIMEOFFSET = SYSDATETIMEOFFSET();
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Cycles WHERE CycleID = @CycleID)
 BEGIN
-    INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, CreatedAt, LastLoginAt, Status)
+    INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, Role, CreatedAt, LastLoginAt, Status)
     VALUES
-        (@PlayerOneID, N'player-1', N'player-1@cycles.local', N'prototype', @Now, @Now, N'Active'),
-        (@PlayerTwoID, N'player-2', N'player-2@cycles.local', N'prototype', @Now, @Now, N'Active');
+        (@PlayerOneID, N'player-1', N'player-1@cycles.local', N'prototype', N'Player', @Now, @Now, N'Active'),
+        (@PlayerTwoID, N'player-2', N'player-2@cycles.local', N'prototype', N'Player', @Now, @Now, N'Active');
 
     INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedAt)
     VALUES (@CycleID, N'Cycle Docker Seed', @Now, DATEADD(day, 90, @Now), 60, 0, N'Active', @Now);

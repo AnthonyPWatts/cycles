@@ -106,9 +106,12 @@ This is not yet a production game service. It is a working architecture slice.
 ### API And Dashboard
 
 - The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, order cancellation, priorities, recent events, and Chronicle entries.
-- The API has a prototype login endpoint that creates or finds a local player and empire.
+- The API has development auth: `/auth/login` creates or finds a local player and empire, assigns a `Player` or `Admin` role, and issues an HttpOnly development cookie.
+- `/auth/session` restores the current development-auth session for the dashboard.
+- Player order and priority mutations derive empire authority from the authenticated player context.
+- Admin players can inspect all fleets/orders and can act for an empire for local support/debugging.
 - The public website is served from `/`.
-- The browser dashboard is served from `/app.html` and renders the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
+- The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
 - Tick execution is intentionally not exposed through the API.
 
 ### Persistence
@@ -152,6 +155,7 @@ Additional smoke checks performed during the MVP build-out:
 - API health, current Cycle, and galaxy endpoints.
 - Browser dashboard desktop and mobile layout checks.
 - Browser dashboard move-order submission.
+- API development-auth and player/empire authorisation boundary tests.
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
 - Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
@@ -169,7 +173,8 @@ These are known gaps, not defects in the current MVP claim:
 
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
 - The SQL Server tick runner still uses a cycle-scoped `GameState` shape instead of focused tick aggregates or repositories.
-- No real authentication or authorisation.
+- Development auth is intentionally not production authentication or a multiplayer security boundary.
+- Fog-of-war, event filtering, and Chronicle visibility filtering are not implemented yet.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
@@ -193,7 +198,8 @@ The next stage should harden the simulation spine before adding feature breadth:
 2. make tick execution idempotent and auditable against that persistence layer;
 3. add automated SQL Server integration tests around migrations and new repository operations;
 4. add a minimal build/spending loop so strategic priorities affect gameplay;
-5. only then deepen the Chronicle/history systems.
+5. add the first visibility/fog-of-war filtering now that player identity exists;
+6. only then deepen the Chronicle/history systems.
 
 ## Definition Of The Next Stable State
 

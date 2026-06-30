@@ -13,6 +13,7 @@ public sealed class GameStateTests
         var targetSystem = state.Systems.First(system => system.SystemId != fleet.CurrentSystemId);
         var attacker = state.Empires[0];
         var defender = state.Empires[1];
+        state.Players[0].Role = PlayerRole.Admin;
         var battle = new BattleRecord
         {
             CycleId = cycle.CycleId,
@@ -81,6 +82,7 @@ public sealed class GameStateTests
         var clone = state.DeepClone();
 
         Assert.Equal(state.Players.Count, clone.Players.Count);
+        Assert.Equal(PlayerRole.Admin, clone.Players[0].Role);
         Assert.Equal(state.Cycles.Count, clone.Cycles.Count);
         Assert.Equal(state.Empires.Count, clone.Empires.Count);
         Assert.Equal(state.EmpireResources.Count, clone.EmpireResources.Count);

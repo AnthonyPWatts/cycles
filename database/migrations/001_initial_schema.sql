@@ -24,6 +24,7 @@ BEGIN
         Username NVARCHAR(80) NOT NULL,
         Email NVARCHAR(256) NOT NULL,
         PasswordHash NVARCHAR(512) NOT NULL,
+        Role NVARCHAR(32) NOT NULL CONSTRAINT DF_Players_Role DEFAULT N'Player',
         CreatedAt DATETIMEOFFSET NOT NULL,
         LastLoginAt DATETIMEOFFSET NULL,
         Status NVARCHAR(32) NOT NULL

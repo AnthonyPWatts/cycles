@@ -77,6 +77,7 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:Sta
 ```
 
 Open `http://127.0.0.1:5086/` for the public site and `http://127.0.0.1:5086/app.html` for the dashboard.
+The dashboard uses development auth: `/auth/login` creates or finds a local player, issues an HttpOnly development cookie, and derives player empire authority from that session. This is suitable for local/private testing only; production auth remains future work.
 
 ## Database
 
@@ -113,4 +114,4 @@ See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for ver
 
 The current SQL Server store loads the prototype `GameState` as its unit of work, then synchronises mapped rows with targeted deletes and upserts. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the state writer is still a bridge rather than the final focused repository model.
 
-The API exposes state and accepts orders. Tick execution remains in the CLI, matching the design principle that public API calls should not decide simulation outcomes.
+The API exposes state and accepts orders. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires. Tick execution remains in the CLI, matching the design principle that public API calls should not decide simulation outcomes.

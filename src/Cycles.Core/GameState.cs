@@ -69,6 +69,7 @@ public sealed class GameState
         Username = item.Username,
         Email = item.Email,
         PasswordHash = item.PasswordHash,
+        Role = item.Role,
         CreatedAt = item.CreatedAt,
         LastLoginAt = item.LastLoginAt,
         Status = item.Status
@@ -274,6 +275,7 @@ public sealed class Player
     public string Username { get; set; } = "";
     public string Email { get; set; } = "";
     public string PasswordHash { get; set; } = "";
+    public PlayerRole Role { get; set; } = PlayerRole.Player;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
     public PlayerStatus Status { get; set; } = PlayerStatus.Active;
@@ -480,6 +482,12 @@ public enum PlayerStatus
 {
     Active,
     Suspended
+}
+
+public enum PlayerRole
+{
+    Player,
+    Admin
 }
 
 public enum CycleStatus
