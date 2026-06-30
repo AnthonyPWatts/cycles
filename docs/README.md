@@ -4,7 +4,7 @@ This folder records the current project state and the intended development path.
 
 ## Reading Order
 
-1. [Project state](project-state.md) - what exists now, what is verified, and what is still only a prototype.
+1. [Project state](project-state.md) - what exists now, what is verified, game screenshots, and what is still only a prototype.
 2. [Development roadmap](development-roadmap.md) - staged implementation plan for the next several development phases.
 3. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
 4. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.

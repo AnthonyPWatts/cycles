@@ -18,6 +18,12 @@ This implementation covers the technical MVP from the supplied design documents:
 - a CLI tick runner;
 - a minimal API and browser dashboard for viewing state and submitting orders.
 
+## Game Surface
+
+The current playable surface is a command dashboard: players read the galaxy map, inspect system influence, adjust strategic priorities, queue fleet orders, and watch events graduate into the Chronicle when a battle becomes historically important.
+
+![Cycles dashboard showing the contested Aster Vale system after a resolved tick](docs/images/cycles-dashboard-map.png)
+
 ## Projects
 
 - `src/Cycles.Core`: domain model, seeding, order validation, simulation, combat, Chronicle scoring, and persistence abstraction.

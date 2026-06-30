@@ -20,6 +20,34 @@ Cycles is currently a local, runnable technical MVP prototype. It proves the cor
 
 This is not yet a production game service. It is a working architecture slice.
 
+## Game Screenshots
+
+These screenshots show a temporary local game state after Aurelian Compact and Khepri Mandate fought over Aster Vale. They are intended as a player-facing reference for what the prototype currently feels like, not as an implementation diagram.
+
+### Command Map
+
+The map shows a Cycle at tick 1, contested influence at Aster Vale, last-tick resource gains, military spending, and the current strategic priority split.
+
+![Cycles dashboard command map with Aster Vale contested](images/cycles-dashboard-map.png)
+
+### Issuing Orders
+
+Players can queue fleet movement or attack orders from the dashboard. Orders remain pending until an authoritative tick processes them.
+
+![Cycles dashboard showing a pending attack order](images/cycles-dashboard-attack-order.png)
+
+### Events And Chronicle
+
+After the tick resolves, ordinary economy and battle facts appear in the event stream. The Battle of Aster Vale crossed the Chronicle threshold and was preserved as a historical entry.
+
+![Cycles dashboard showing tick events and the Chronicle entry for the Battle of Aster Vale](images/cycles-dashboard-chronicle.png)
+
+### Small Screen
+
+The prototype dashboard is still compact, but the command map, Cycle status, and influence readout remain usable on a narrow viewport.
+
+![Cycles dashboard command map on a narrow viewport](images/cycles-dashboard-mobile.png)
+
 ## Repository Shape
 
 | Path | Purpose |
