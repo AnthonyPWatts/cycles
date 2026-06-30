@@ -96,10 +96,15 @@ static void Show(IGameStateStore store)
     {
         var home = state.Systems.Single(system => system.SystemId == empire.HomeSystemId);
         var resources = state.EmpireResources.Single(resource => resource.EmpireId == empire.EmpireId);
+        var priorities = state.EmpirePriorities.SingleOrDefault(priority => priority.EmpireId == empire.EmpireId);
         var fleetCount = state.Fleets.Count(fleet => fleet.EmpireId == empire.EmpireId && fleet.Status != FleetStatus.Destroyed);
         Console.WriteLine($"- {empire.EmpireName} ({empire.EmpireId})");
         Console.WriteLine($"  Home: {home.SystemName}; fleets: {fleetCount}");
         Console.WriteLine($"  Resources: industry {resources.Industry:0.##}, research {resources.Research:0.##}, population {resources.Population:0.##}");
+        if (priorities is not null)
+        {
+            Console.WriteLine($"  Priorities: industry {priorities.IndustryWeight}%, research {priorities.ResearchWeight}%, military {priorities.MilitaryWeight}%, expansion {priorities.ExpansionWeight}%");
+        }
     }
 
     Console.WriteLine();
@@ -113,6 +118,27 @@ static void Show(IGameStateStore store)
             : null;
         Console.WriteLine($"- {fleet.FleetName} ({fleet.FleetId})");
         Console.WriteLine($"  {empire.EmpireName}; {fleet.ShipCount} ships; {fleet.Status}; at {system.SystemName}{(destination is null ? "" : $" -> {destination} on tick {fleet.ArrivalTickNumber}")}");
+    }
+
+    var constructions = state.ShipConstructions
+        .Where(construction => construction.CycleId == cycle.CycleId)
+        .OrderBy(construction => construction.Status == ShipConstructionStatus.Queued ? 0 : 1)
+        .ThenBy(construction => construction.CompleteAfterTick)
+        .ThenBy(construction => construction.StartedTick)
+        .Take(12)
+        .ToArray();
+    if (constructions.Length > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Ship construction");
+        foreach (var construction in constructions)
+        {
+            var empire = state.Empires.Single(item => item.EmpireId == construction.EmpireId);
+            var timing = construction.CompletedTick.HasValue
+                ? $"completed tick {construction.CompletedTick.Value}"
+                : $"completes after tick {construction.CompleteAfterTick}";
+            Console.WriteLine($"- {empire.EmpireName}: {construction.ShipCount} ship(s), {construction.Status}, started tick {construction.StartedTick}, {timing}, industry {construction.IndustrySpent:0.##}");
+        }
     }
 
     Console.WriteLine();
