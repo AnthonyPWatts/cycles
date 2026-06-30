@@ -145,6 +145,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
 - Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, exact presence and local fleet details are only returned for systems where the player has an active fleet, and recent events, last-tick summaries, and Chronicle entries are filtered through the same visibility model.
 - Admin development users bypass fog-of-war filtering for local support/debugging.
+- System summary/detail responses expose historical significance, and the dashboard marks historically significant systems on the map.
 - Tick execution is intentionally not exposed through the API.
 
 ### Persistence
