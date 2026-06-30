@@ -5,6 +5,8 @@ DECLARE @SystemOneID UNIQUEIDENTIFIER = '33333333-3333-3333-3333-333333333331';
 DECLARE @SystemTwoID UNIQUEIDENTIFIER = '33333333-3333-3333-3333-333333333332';
 DECLARE @EmpireOneID UNIQUEIDENTIFIER = '44444444-4444-4444-4444-444444444441';
 DECLARE @EmpireTwoID UNIQUEIDENTIFIER = '44444444-4444-4444-4444-444444444442';
+DECLARE @AdmiralOneID UNIQUEIDENTIFIER = '55555555-5555-5555-5555-555555555551';
+DECLARE @AdmiralTwoID UNIQUEIDENTIFIER = '55555555-5555-5555-5555-555555555552';
 DECLARE @Now DATETIMEOFFSET = SYSDATETIMEOFFSET();
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Cycles WHERE CycleID = @CycleID)
@@ -40,10 +42,15 @@ BEGIN
     INSERT INTO dbo.SystemLinks(SystemLinkID, CycleID, SystemAID, SystemBID, Distance, TravelTicks)
     VALUES (NEWID(), @CycleID, @SystemOneID, @SystemTwoID, 241.87, 1);
 
-    INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
+    INSERT INTO dbo.Admirals(AdmiralID, CycleID, EmpireID, AdmiralName, ReputationScore, Status, CreatedAt, UpdatedAt)
     VALUES
-        (NEWID(), @CycleID, @EmpireOneID, N'Aurelian Compact Home Fleet', @SystemOneID, NULL, NULL, 60, N'Active', @Now),
-        (NEWID(), @CycleID, @EmpireTwoID, N'Khepri Mandate Home Fleet', @SystemTwoID, NULL, NULL, 60, N'Active', @Now);
+        (@AdmiralOneID, @CycleID, @EmpireOneID, N'Elian Voss', 0, N'Active', @Now, @Now),
+        (@AdmiralTwoID, @CycleID, @EmpireTwoID, N'Mara Sutekh', 0, N'Active', @Now, @Now);
+
+    INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
+    VALUES
+        (NEWID(), @CycleID, @EmpireOneID, @AdmiralOneID, N'Aurelian Compact Home Fleet', @SystemOneID, NULL, NULL, 60, N'Active', @Now),
+        (NEWID(), @CycleID, @EmpireTwoID, @AdmiralTwoID, N'Khepri Mandate Home Fleet', @SystemTwoID, NULL, NULL, 60, N'Active', @Now);
 
     INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, SystemID, EmpireID, Severity, FactJson, DisplayText, CreatedAt)
     VALUES

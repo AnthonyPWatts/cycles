@@ -78,6 +78,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(cycle.CycleId, loaded.GetActiveCycle()?.CycleId);
         Assert.Equal(8, loaded.Systems.Count);
         Assert.Equal(2, loaded.Empires.Count);
+        Assert.Equal(2, loaded.Admirals.Count);
+        Assert.All(loaded.Fleets, fleet => Assert.NotNull(fleet.AdmiralId));
         var loadedChronicle = Assert.Single(loaded.ChronicleEntries, item => item.ChronicleEntryId == chronicle.ChronicleEntryId);
         Assert.Equal(NarrativeGenerationStatus.Failed, loadedChronicle.NarrativeStatus);
         Assert.Equal("""{"source":"integration"}""", loadedChronicle.NarrativeContextJson);
@@ -140,6 +142,40 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(1, processedOrder.ProcessedTick);
         Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
         Assert.Single(updated.EmpireMetrics, item => item.CycleId == cycle.CycleId && item.TickNumber == 1);
+    }
+
+    [Fact]
+    public void Store_dedicated_tick_runner_persists_admiral_battle_history_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 40, strategicValue: 35);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
+        var defenderFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[1].EmpireId);
+        var attackerAdmiral = AssignAdmiral(state, attackerFleet, "SQL Ardent");
+        AssignAdmiral(state, defenderFleet, "SQL Shield");
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
+
+        store.Replace(state);
+
+        var result = store.RunTick(cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+
+        var updated = store.LoadOrCreate();
+        var history = Assert.Single(updated.AdmiralBattleHistories, item => item.AdmiralId == attackerAdmiral.AdmiralId);
+        var updatedAdmiral = updated.Admirals.Single(item => item.AdmiralId == attackerAdmiral.AdmiralId);
+
+        Assert.Equal(1, updated.Cycles.Single(item => item.CycleId == cycle.CycleId).CurrentTickNumber);
+        Assert.True(history.ReputationChange > 0);
+        Assert.Equal(history.ReputationScoreAfter, updatedAdmiral.ReputationScore);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.AdmiralBattleReported);
     }
 
     [Fact]
@@ -552,6 +588,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             CycleRankings = states.SelectMany(state => state.CycleRankings).ToList(),
             CycleMajorEvents = states.SelectMany(state => state.CycleMajorEvents).ToList(),
             SystemHistoricalSignals = states.SelectMany(state => state.SystemHistoricalSignals).ToList(),
+            Admirals = states.SelectMany(state => state.Admirals).ToList(),
+            AdmiralBattleHistories = states.SelectMany(state => state.AdmiralBattleHistories).ToList(),
             SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),
@@ -561,6 +599,22 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),
             ChronicleEntries = states.SelectMany(state => state.ChronicleEntries).ToList()
         };
+
+    private static Admiral AssignAdmiral(GameState state, Fleet fleet, string name)
+    {
+        var admiral = new Admiral
+        {
+            CycleId = fleet.CycleId,
+            EmpireId = fleet.EmpireId,
+            AdmiralName = name,
+            Status = AdmiralStatus.Active,
+            CreatedAt = TestState.Now,
+            UpdatedAt = TestState.Now
+        };
+        state.Admirals.Add(admiral);
+        fleet.AdmiralId = admiral.AdmiralId;
+        return admiral;
+    }
 
     private static void UpdateFleetStatus(string connectionString, Guid fleetId, string status)
     {

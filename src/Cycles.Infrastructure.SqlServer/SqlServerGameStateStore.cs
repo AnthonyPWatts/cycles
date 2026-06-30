@@ -167,6 +167,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             CycleRankings = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleRankings", ReadCycleRanking),
             CycleMajorEvents = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleMajorEvents", ReadCycleMajorEvent),
             SystemHistoricalSignals = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemHistoricalSignals", ReadSystemHistoricalSignal),
+            Admirals = ReadRows(connection, transaction, "SELECT * FROM dbo.Admirals", ReadAdmiral),
+            AdmiralBattleHistories = ReadRows(connection, transaction, "SELECT * FROM dbo.AdmiralBattleHistories", ReadAdmiralBattleHistory),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
@@ -226,6 +228,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 "SELECT * FROM dbo.SystemLinks WHERE CycleID = @CycleID",
                 command => AddGuid(command, "@CycleID", cycleId),
                 ReadSystemLink),
+            Admirals = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.Admirals WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadAdmiral),
             Fleets = ReadRows(
                 connection,
                 transaction,
@@ -327,6 +335,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertSystemLink(connection, transaction, item);
         }
 
+        foreach (var item in state.Admirals)
+        {
+            UpsertAdmiral(connection, transaction, item);
+        }
+
         foreach (var item in state.Fleets)
         {
             UpsertFleet(connection, transaction, item);
@@ -355,6 +368,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.BattleRecords)
         {
             UpsertBattleRecord(connection, transaction, item);
+        }
+
+        foreach (var item in state.AdmiralBattleHistories)
+        {
+            UpsertAdmiralBattleHistory(connection, transaction, item);
         }
 
         foreach (var item in state.SystemHistoricalSignals)
@@ -390,6 +408,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertEmpireResource(connection, transaction, item);
         }
 
+        foreach (var item in state.Admirals.Where(admiral => admiral.CycleId == cycleId))
+        {
+            UpsertAdmiral(connection, transaction, item);
+        }
+
         foreach (var item in state.Fleets.Where(fleet => fleet.CycleId == cycleId))
         {
             UpsertFleet(connection, transaction, item);
@@ -423,6 +446,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.BattleRecords.Where(item => item.CycleId == cycleId))
         {
             UpsertBattleRecord(connection, transaction, item);
+        }
+
+        foreach (var item in state.AdmiralBattleHistories.Where(item => item.CycleId == cycleId))
+        {
+            UpsertAdmiralBattleHistory(connection, transaction, item);
         }
 
         foreach (var item in state.ChronicleEntries.Where(item => item.CycleId == cycleId))
@@ -570,6 +598,37 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
+    private static Admiral ReadAdmiral(SqlDataReader reader) => new()
+    {
+        AdmiralId = GetGuid(reader, "AdmiralID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        EmpireId = GetGuid(reader, "EmpireID"),
+        AdmiralName = GetString(reader, "AdmiralName"),
+        ReputationScore = GetInt(reader, "ReputationScore"),
+        Status = GetEnum<AdmiralStatus>(reader, "Status"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
+        UpdatedAt = GetDateTimeOffset(reader, "UpdatedAt")
+    };
+
+    private static AdmiralBattleHistory ReadAdmiralBattleHistory(SqlDataReader reader) => new()
+    {
+        AdmiralBattleHistoryId = GetGuid(reader, "AdmiralBattleHistoryID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        AdmiralId = GetGuid(reader, "AdmiralID"),
+        BattleId = GetGuid(reader, "BattleID"),
+        SystemId = GetGuid(reader, "SystemID"),
+        FleetId = GetGuid(reader, "FleetID"),
+        Role = GetEnum<AdmiralBattleRole>(reader, "Role"),
+        Outcome = GetEnum<AdmiralBattleOutcome>(reader, "Outcome"),
+        ShipsCommandedBefore = GetInt(reader, "ShipsCommandedBefore"),
+        ShipsLost = GetInt(reader, "ShipsLost"),
+        ReputationChange = GetInt(reader, "ReputationChange"),
+        ReputationScoreAfter = GetInt(reader, "ReputationScoreAfter"),
+        AdmiralStatusAfter = GetEnum<AdmiralStatus>(reader, "AdmiralStatusAfter"),
+        IsFamousSystemAssociation = GetBool(reader, "IsFamousSystemAssociation"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
     private static SystemLink ReadSystemLink(SqlDataReader reader) => new()
     {
         SystemLinkId = GetGuid(reader, "SystemLinkID"),
@@ -585,6 +644,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         FleetId = GetGuid(reader, "FleetID"),
         CycleId = GetGuid(reader, "CycleID"),
         EmpireId = GetGuid(reader, "EmpireID"),
+        AdmiralId = GetNullableGuid(reader, "AdmiralID"),
         FleetName = GetString(reader, "FleetName"),
         CurrentSystemId = GetGuid(reader, "CurrentSystemID"),
         DestinationSystemId = GetNullableGuid(reader, "DestinationSystemID"),
@@ -963,11 +1023,41 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@TravelTicks", item.TravelTicks);
         });
 
+    private static void UpsertAdmiral(SqlConnection connection, SqlTransaction transaction, Admiral item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.Admirals
+            SET CycleID = @CycleID,
+                EmpireID = @EmpireID,
+                AdmiralName = @AdmiralName,
+                ReputationScore = @ReputationScore,
+                Status = @Status,
+                CreatedAt = @CreatedAt,
+                UpdatedAt = @UpdatedAt
+            WHERE AdmiralID = @AdmiralID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.Admirals(AdmiralID, CycleID, EmpireID, AdmiralName, ReputationScore, Status, CreatedAt, UpdatedAt)
+            VALUES (@AdmiralID, @CycleID, @EmpireID, @AdmiralName, @ReputationScore, @Status, @CreatedAt, @UpdatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@AdmiralID", item.AdmiralId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@EmpireID", item.EmpireId);
+            AddString(command, "@AdmiralName", item.AdmiralName, 120);
+            AddInt(command, "@ReputationScore", item.ReputationScore);
+            AddString(command, "@Status", item.Status.ToString(), 32);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+            AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
+        });
+
     private static void UpsertFleet(SqlConnection connection, SqlTransaction transaction, Fleet item) =>
         Execute(connection, transaction, """
             UPDATE dbo.Fleets
             SET CycleID = @CycleID,
                 EmpireID = @EmpireID,
+                AdmiralID = @AdmiralID,
                 FleetName = @FleetName,
                 CurrentSystemID = @CurrentSystemID,
                 DestinationSystemID = @DestinationSystemID,
@@ -979,14 +1069,15 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
-            VALUES (@FleetID, @CycleID, @EmpireID, @FleetName, @CurrentSystemID, @DestinationSystemID, @ArrivalTickNumber, @ShipCount, @Status, @CreatedAt);
+            INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
+            VALUES (@FleetID, @CycleID, @EmpireID, @AdmiralID, @FleetName, @CurrentSystemID, @DestinationSystemID, @ArrivalTickNumber, @ShipCount, @Status, @CreatedAt);
             END;
             """, command =>
         {
             AddGuid(command, "@FleetID", item.FleetId);
             AddGuid(command, "@CycleID", item.CycleId);
             AddGuid(command, "@EmpireID", item.EmpireId);
+            AddNullableGuid(command, "@AdmiralID", item.AdmiralId);
             AddString(command, "@FleetName", item.FleetName, 120);
             AddGuid(command, "@CurrentSystemID", item.CurrentSystemId);
             AddNullableGuid(command, "@DestinationSystemID", item.DestinationSystemId);
@@ -1171,6 +1262,49 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertAdmiralBattleHistory(SqlConnection connection, SqlTransaction transaction, AdmiralBattleHistory item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.AdmiralBattleHistories
+            SET CycleID = @CycleID,
+                AdmiralID = @AdmiralID,
+                BattleID = @BattleID,
+                SystemID = @SystemID,
+                FleetID = @FleetID,
+                Role = @Role,
+                Outcome = @Outcome,
+                ShipsCommandedBefore = @ShipsCommandedBefore,
+                ShipsLost = @ShipsLost,
+                ReputationChange = @ReputationChange,
+                ReputationScoreAfter = @ReputationScoreAfter,
+                AdmiralStatusAfter = @AdmiralStatusAfter,
+                IsFamousSystemAssociation = @IsFamousSystemAssociation,
+                CreatedAt = @CreatedAt
+            WHERE AdmiralBattleHistoryID = @AdmiralBattleHistoryID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.AdmiralBattleHistories(AdmiralBattleHistoryID, CycleID, AdmiralID, BattleID, SystemID, FleetID, Role, Outcome, ShipsCommandedBefore, ShipsLost, ReputationChange, ReputationScoreAfter, AdmiralStatusAfter, IsFamousSystemAssociation, CreatedAt)
+            VALUES (@AdmiralBattleHistoryID, @CycleID, @AdmiralID, @BattleID, @SystemID, @FleetID, @Role, @Outcome, @ShipsCommandedBefore, @ShipsLost, @ReputationChange, @ReputationScoreAfter, @AdmiralStatusAfter, @IsFamousSystemAssociation, @CreatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@AdmiralBattleHistoryID", item.AdmiralBattleHistoryId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@AdmiralID", item.AdmiralId);
+            AddGuid(command, "@BattleID", item.BattleId);
+            AddGuid(command, "@SystemID", item.SystemId);
+            AddGuid(command, "@FleetID", item.FleetId);
+            AddString(command, "@Role", item.Role.ToString(), 32);
+            AddString(command, "@Outcome", item.Outcome.ToString(), 32);
+            AddInt(command, "@ShipsCommandedBefore", item.ShipsCommandedBefore);
+            AddInt(command, "@ShipsLost", item.ShipsLost);
+            AddInt(command, "@ReputationChange", item.ReputationChange);
+            AddInt(command, "@ReputationScoreAfter", item.ReputationScoreAfter);
+            AddString(command, "@AdmiralStatusAfter", item.AdmiralStatusAfter.ToString(), 32);
+            AddBool(command, "@IsFamousSystemAssociation", item.IsFamousSystemAssociation);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
     private static void UpsertCycleMajorEvent(SqlConnection connection, SqlTransaction transaction, CycleMajorEvent item) =>
         Execute(connection, transaction, """
             UPDATE dbo.CycleMajorEvents
@@ -1294,6 +1428,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
+        DeleteMissingRows(connection, transaction, "dbo.AdmiralBattleHistories", "AdmiralBattleHistoryID", state.AdmiralBattleHistories.Select(item => item.AdmiralBattleHistoryId));
         DeleteMissingRows(connection, transaction, "dbo.SystemHistoricalSignals", "SystemHistoricalSignalID", state.SystemHistoricalSignals.Select(item => item.SystemHistoricalSignalId));
         DeleteMissingRows(connection, transaction, "dbo.CycleMajorEvents", "CycleMajorEventID", state.CycleMajorEvents.Select(item => item.CycleMajorEventId));
         DeleteMissingRows(connection, transaction, "dbo.ChronicleEntries", "ChronicleEntryID", state.ChronicleEntries.Select(item => item.ChronicleEntryId));
@@ -1303,6 +1438,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.ShipConstructions", "ShipConstructionID", state.ShipConstructions.Select(item => item.ShipConstructionId));
         DeleteMissingRows(connection, transaction, "dbo.FleetOrders", "FleetOrderID", state.FleetOrders.Select(item => item.FleetOrderId));
         DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
+        DeleteMissingRows(connection, transaction, "dbo.Admirals", "AdmiralID", state.Admirals.Select(item => item.AdmiralId));
         DeleteMissingRows(connection, transaction, "dbo.SystemLinks", "SystemLinkID", state.SystemLinks.Select(item => item.SystemLinkId));
         DeleteMissingRows(connection, transaction, "dbo.EmpireMetrics", "EmpireMetricID", state.EmpireMetrics.Select(item => item.EmpireMetricId));
         DeleteMissingRows(connection, transaction, "dbo.CycleRankings", "CycleRankingID", state.CycleRankings.Select(item => item.CycleRankingId));
