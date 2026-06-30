@@ -150,6 +150,124 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_dedicated_tick_runner_loads_only_incremental_tick_workspace_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var empire = state.Empires.Single();
+        var fleet = state.Fleets.Single();
+        var system = state.Systems.Single();
+        cycle.CurrentTickNumber = 1;
+
+        var historicalEvent = new EventRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            EventType = EventType.ResourcesGenerated,
+            SystemId = system.SystemId,
+            EmpireId = empire.EmpireId,
+            Severity = EventSeverity.Low,
+            DisplayText = "Historical event.",
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        };
+        var historicalBattle = new BattleRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            SystemId = system.SystemId,
+            AttackerEmpireId = empire.EmpireId,
+            DefenderEmpireId = empire.EmpireId,
+            AttackerFleetIds = fleet.FleetId.ToString(),
+            DefenderFleetIds = fleet.FleetId.ToString(),
+            AttackerShipsBefore = 1,
+            DefenderShipsBefore = 1,
+            Outcome = BattleOutcome.MutualDestruction,
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        };
+        var historicalChronicle = new ChronicleEntry
+        {
+            SourceEventId = historicalEvent.EventId,
+            SourceBattleId = historicalBattle.BattleId,
+            CycleId = cycle.CycleId,
+            SystemId = system.SystemId,
+            Title = "Historical chronicle.",
+            EntryType = ChronicleEntryType.Battle,
+            ImportanceScore = 10,
+            FactualSummary = "Historical chronicle.",
+            NarrativeText = "Historical chronicle.",
+            CreatedAt = TestState.Now
+        };
+        var futureOrder = new FleetOrder
+        {
+            CycleId = cycle.CycleId,
+            FleetId = fleet.FleetId,
+            OrderType = FleetOrderType.Hold,
+            SubmitTick = 1,
+            ExecuteAfterTick = 10,
+            Status = FleetOrderStatus.Pending,
+            CreatedAt = TestState.Now
+        };
+        var ineligibleConstruction = new ShipConstruction
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = empire.EmpireId,
+            ShipCount = 1,
+            IndustrySpent = EconomyProcessor.ShipIndustryCost,
+            StartedTick = 1,
+            CompleteAfterTick = 10,
+            Status = ShipConstructionStatus.Queued,
+            CreatedAt = TestState.Now,
+            UpdatedAt = TestState.Now
+        };
+        state.Events.Add(historicalEvent);
+        state.BattleRecords.Add(historicalBattle);
+        state.ChronicleEntries.Add(historicalChronicle);
+        state.FleetOrders.Add(futureOrder);
+        state.ShipConstructions.Add(ineligibleConstruction);
+
+        store.Replace(state);
+        CorruptRowsOutsideNextTickWorkspace(
+            connectionString,
+            historicalEvent.EventId,
+            historicalBattle.BattleId,
+            historicalChronicle.ChronicleEntryId,
+            futureOrder.FleetOrderId,
+            ineligibleConstruction.ShipConstructionId);
+
+        try
+        {
+            var result = store.RunTick(cycle.CycleId, TestState.Now.AddHours(1));
+
+            Assert.Equal(TickLogStatus.Completed, result.Status);
+            Assert.Equal(2, ReadInt(
+                connectionString,
+                "SELECT CurrentTickNumber FROM dbo.Cycles WHERE CycleID = @CycleID;",
+                command => command.Parameters.AddWithValue("@CycleID", cycle.CycleId)));
+            Assert.Equal(1, ReadInt(
+                connectionString,
+                "SELECT COUNT(*) FROM dbo.Events WHERE EventID = @EventID AND EventType = N'NotARealEventType';",
+                command => command.Parameters.AddWithValue("@EventID", historicalEvent.EventId)));
+            Assert.Equal(1, ReadInt(
+                connectionString,
+                "SELECT COUNT(*) FROM dbo.FleetOrders WHERE FleetOrderID = @FleetOrderID AND OrderType = N'NotARealOrderType';",
+                command => command.Parameters.AddWithValue("@FleetOrderID", futureOrder.FleetOrderId)));
+        }
+        finally
+        {
+            store.Replace(TestState.CreateSingleEmpireState());
+        }
+    }
+
+    [Fact]
     public void Store_rolls_back_when_duplicate_running_tick_is_detected()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -283,5 +401,57 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         command.Parameters.AddWithValue("@Status", status);
         command.Parameters.AddWithValue("@FleetID", fleetId);
         command.ExecuteNonQuery();
+    }
+
+    private static void CorruptRowsOutsideNextTickWorkspace(
+        string connectionString,
+        Guid eventId,
+        Guid battleId,
+        Guid chronicleEntryId,
+        Guid fleetOrderId,
+        Guid shipConstructionId)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE dbo.Events
+            SET EventType = N'NotARealEventType'
+            WHERE EventID = @EventID;
+
+            UPDATE dbo.BattleRecords
+            SET Outcome = N'NotARealBattleOutcome'
+            WHERE BattleID = @BattleID;
+
+            UPDATE dbo.ChronicleEntries
+            SET EntryType = N'NotARealChronicleEntryType'
+            WHERE ChronicleEntryID = @ChronicleEntryID;
+
+            UPDATE dbo.FleetOrders
+            SET OrderType = N'NotARealOrderType'
+            WHERE FleetOrderID = @FleetOrderID;
+
+            UPDATE dbo.ShipConstructions
+            SET Status = N'NotARealConstructionStatus'
+            WHERE ShipConstructionID = @ShipConstructionID;
+            """;
+        command.Parameters.AddWithValue("@EventID", eventId);
+        command.Parameters.AddWithValue("@BattleID", battleId);
+        command.Parameters.AddWithValue("@ChronicleEntryID", chronicleEntryId);
+        command.Parameters.AddWithValue("@FleetOrderID", fleetOrderId);
+        command.Parameters.AddWithValue("@ShipConstructionID", shipConstructionId);
+        command.ExecuteNonQuery();
+    }
+
+    private static int ReadInt(string connectionString, string sql, Action<SqlCommand> configure)
+    {
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        configure(command);
+        return Convert.ToInt32(command.ExecuteScalar(), null);
     }
 }

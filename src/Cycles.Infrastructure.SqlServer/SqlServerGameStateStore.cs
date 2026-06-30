@@ -88,7 +88,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
         if (activeCycleId.HasValue)
         {
-            state = LoadTickStateUnsafe(connection, transaction, activeCycleId.Value);
+            state = LoadFocusedTickStateUnsafe(connection, transaction, activeCycleId.Value);
         }
         else if (AnyCycleExistsUnsafe(connection, transaction))
         {
@@ -164,7 +164,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             ChronicleEntries = ReadRows(connection, transaction, "SELECT * FROM dbo.ChronicleEntries", ReadChronicleEntry)
         };
 
-    private static GameState LoadTickStateUnsafe(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
+    private static GameState LoadFocusedTickStateUnsafe(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
         new()
         {
             Cycles = ReadRows(
@@ -222,39 +222,47 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             FleetOrders = ReadRows(
                 connection,
                 transaction,
-                "SELECT * FROM dbo.FleetOrders WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
+                """
+                SELECT orders.*
+                FROM dbo.FleetOrders orders
+                INNER JOIN dbo.Cycles cycles ON cycles.CycleID = orders.CycleID
+                WHERE orders.CycleID = @CycleID
+                    AND orders.Status = @Status
+                    AND orders.ExecuteAfterTick <= cycles.CurrentTickNumber + 1
+                """,
+                command =>
+                {
+                    AddGuid(command, "@CycleID", cycleId);
+                    AddString(command, "@Status", FleetOrderStatus.Pending.ToString(), 32);
+                },
                 ReadFleetOrder),
             ShipConstructions = ReadRows(
                 connection,
                 transaction,
-                "SELECT * FROM dbo.ShipConstructions WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
+                """
+                SELECT constructions.*
+                FROM dbo.ShipConstructions constructions
+                INNER JOIN dbo.Cycles cycles ON cycles.CycleID = constructions.CycleID
+                WHERE constructions.CycleID = @CycleID
+                    AND constructions.Status = @Status
+                    AND constructions.CompleteAfterTick <= cycles.CurrentTickNumber + 1
+                """,
+                command =>
+                {
+                    AddGuid(command, "@CycleID", cycleId);
+                    AddString(command, "@Status", ShipConstructionStatus.Queued.ToString(), 32);
+                },
                 ReadShipConstruction),
             TickLogs = ReadRows(
                 connection,
                 transaction,
-                "SELECT * FROM dbo.TickLogs WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
-                ReadTickLog),
-            Events = ReadRows(
-                connection,
-                transaction,
-                "SELECT * FROM dbo.Events WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
-                ReadEvent),
-            BattleRecords = ReadRows(
-                connection,
-                transaction,
-                "SELECT * FROM dbo.BattleRecords WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
-                ReadBattleRecord),
-            ChronicleEntries = ReadRows(
-                connection,
-                transaction,
-                "SELECT * FROM dbo.ChronicleEntries WHERE CycleID = @CycleID",
-                command => AddGuid(command, "@CycleID", cycleId),
-                ReadChronicleEntry)
+                "SELECT * FROM dbo.TickLogs WHERE CycleID = @CycleID AND Status = @Status",
+                command =>
+                {
+                    AddGuid(command, "@CycleID", cycleId);
+                    AddString(command, "@Status", TickLogStatus.Running.ToString(), 32);
+                },
+                ReadTickLog)
         };
 
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)

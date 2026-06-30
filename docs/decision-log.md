@@ -264,6 +264,24 @@ Consequences:
 - Material ship construction queue and completion facts are written as events.
 - The SQL tick runner now loads priorities and persists ship construction rows.
 
+## 2026-06-30: Narrow SQL Tick Loading To A Focused Workspace
+
+Decision: keep `TickEngine` as the authoritative domain behaviour for now, but change SQL-backed tick execution so it no longer loads historical or future rows that the next tick cannot affect.
+
+Reasoning:
+
+- The generic SQL state store remains useful for API/admin mutations while the prototype shape is still moving.
+- Tick execution has a clearer access pattern than generic state mutation: current Cycle metadata, map data, empire resources/priorities, fleets, due orders, due construction, and running tick guards.
+- Loading historical events, battle records, Chronicle entries, old tick logs, completed construction, and future orders makes the SQL tick path scale like whole-state persistence even though those rows are append-only or not due yet.
+- Keeping the current domain engine avoids duplicating simulation rules during the persistence hardening pass.
+
+Consequences:
+
+- SQL-backed CLI ticks now assemble a focused in-memory tick workspace and persist only active-Cycle outcome rows.
+- Future pending orders, completed or future construction, historical events, battle records, and Chronicle entries stay in SQL Server without being part of the next tick's read model.
+- The generic `IGameStateStore.Update` path still loads and synchronises the full prototype state.
+- A future `Cycles.Application` layer can replace the in-memory `GameState` workspace with provider-neutral tick repositories when the use-case boundary is worth extracting.
+
 ## 2026-06-30: Keep Expansion As Derived Influence Projection
 
 Decision: make expansion priority increase an empire's effective presence, rather than storing ownership or introducing outposts.

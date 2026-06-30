@@ -43,6 +43,7 @@ Current implementation:
 - `IGameStateStore` is the current persistence boundary.
 - `FileGameStateStore` persists the whole `GameState` as JSON by default.
 - `Cycles.Infrastructure.SqlServer` can persist the same prototype state through SQL Server when configured, using row-level deletes and upserts rather than full table resets.
+- SQL-backed tick execution uses a focused tick workspace and targeted outcome writes instead of loading historical/full-cycle artefacts through the generic state path.
 - The dashboard is static HTML/CSS/JavaScript served by the API.
 
 This is acceptable for the initial MVP but should not become the production architecture by inertia.
@@ -136,7 +137,7 @@ Recommended sequence:
 2. Use the SQLDockerDeployKit-style SQL Server container as the local relational target.
 3. Replace full-table SQL reset writes with targeted row-level synchronisation.
 4. Add schema versioning and a migration/initialisation command.
-5. Move tick execution to focused incremental repository operations.
+5. Keep refining tick execution around focused incremental repository operations.
 6. Decide later whether PostgreSQL, SQLite, or hosted SQL Server should be the production target.
 
 ## Tick Transaction Model

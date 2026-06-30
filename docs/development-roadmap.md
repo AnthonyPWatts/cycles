@@ -437,12 +437,12 @@ This order favours history first. Admirals create narrative anchors; diplomacy c
 
 ## Suggested Immediate Next Sprint
 
-The next development sprint should continue Stage 2 before moving to Stage 3. A sensible next sprint:
+The next development sprint should finish the remaining Stage 2 hardening, then move into the next player-visible spine work. A sensible next sprint:
 
-1. Move tick execution from full-state synchronisation to focused SQL repository operations.
-2. Add SQL Server integration tests around the migration command and any new repository operations.
-3. Add per-Cycle tick locking as the SQL write model becomes incremental.
-4. Keep focused Core files small as repository operations are introduced.
+1. Add live SQL Server integration verification around the migration command and focused tick operations when the local container is available.
+2. Add per-Cycle tick locking as the SQL write model becomes incremental.
+3. Keep focused Core files small as repository operations are introduced.
+4. Add the first visibility/fog-of-war filtering now that player identity exists.
 5. Update `docs/project-state.md` after verification.
 
 This produces a better foundation for the relational persistence work that follows.

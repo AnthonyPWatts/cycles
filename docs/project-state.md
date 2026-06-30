@@ -154,8 +154,9 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
-- Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final focused repository model.
-- SQL-backed CLI tick execution now uses a dedicated tick runner that loads a cycle-scoped tick state and persists tick outcome rows without running the generic missing-row deletion pass.
+- Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final application-service/repository model.
+- SQL-backed CLI tick execution now uses a dedicated tick runner that loads a focused tick workspace for the active Cycle: cycle metadata, systems, links, empires, resources, priorities, fleets, due pending orders, due queued ship construction, and running tick logs.
+- The SQL tick runner persists tick outcome rows for the active Cycle without loading historical events, battle records, Chronicle entries, future orders, completed construction, old tick logs, or running the generic missing-row deletion pass.
 
 ## Verified Checks
 
@@ -200,7 +201,7 @@ SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 These are known gaps, not defects in the current MVP claim:
 
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
-- The SQL Server tick runner still uses a cycle-scoped `GameState` shape instead of focused tick aggregates or repositories.
+- The SQL Server tick runner still uses an in-memory `GameState` workspace for domain rules instead of a separate `Cycles.Application` tick use case or provider-neutral repository abstraction.
 - Development auth is intentionally not production authentication or a multiplayer security boundary.
 - Fog-of-war, event filtering, and Chronicle visibility filtering are not implemented yet.
 - No scheduled worker service.
@@ -222,12 +223,11 @@ These are known gaps, not defects in the current MVP claim:
 
 The next stage should harden the simulation spine before adding feature breadth:
 
-1. move tick execution from cycle-scoped state synchronisation to focused SQL repository operations;
-2. make tick execution idempotent and auditable against that persistence layer;
-3. add automated SQL Server integration tests around migrations and new repository operations;
-4. add a minimal build/spending loop so strategic priorities affect gameplay;
-5. add the first visibility/fog-of-war filtering now that player identity exists;
-6. only then deepen the Chronicle/history systems.
+1. make tick execution idempotent and auditable against the focused SQL tick path;
+2. add live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
+3. add the first visibility/fog-of-war filtering now that player identity exists;
+4. add Cycle-end processing and final ranking persistence;
+5. only then deepen the Chronicle/history systems.
 
 ## Definition Of The Next Stable State
 

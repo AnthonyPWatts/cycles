@@ -118,6 +118,6 @@ See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for ver
 
 ## Notes
 
-The current SQL Server store loads the prototype `GameState` as its unit of work, then synchronises mapped rows with targeted deletes and upserts. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the state writer is still a bridge rather than the final focused repository model.
+The current SQL Server store still uses the prototype `GameState` as its generic read/write unit for API and admin mutations, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a narrower path: it loads only the active Cycle's tick workspace, due work, and running tick guards, then persists the tick outcome rows without the generic missing-row deletion pass. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the generic state writer remains a bridge rather than the final application-service/repository model.
 
 The API exposes state and accepts orders. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires. Tick execution remains in the CLI, matching the design principle that public API calls should not decide simulation outcomes.

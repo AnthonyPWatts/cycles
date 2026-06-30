@@ -48,7 +48,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Replace whole-state SQL delete/reinsert writes with targeted row-level sync.
 - [x] Move SQL-backed tick command from generic full-state sync to dedicated tick-outcome writes.
 - [x] Move SQL-backed tick execution from full database loading to cycle-scoped tick state loading.
-- [ ] Move tick execution from full-state loading to focused incremental repository operations.
+- [x] Move tick execution from full-state loading to focused incremental repository operations.
 - [x] Create schema versioning and migrations.
 - [x] Add schema initialisation/migration command.
 - [x] Implement prototype SQL Server application lock for state updates.
