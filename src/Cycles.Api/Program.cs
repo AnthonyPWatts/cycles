@@ -44,18 +44,20 @@ app.MapGet("/cycles/current", (IGameStateStore store) =>
         return state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
     }));
 
-app.MapGet("/ticks/last-summary", (IGameStateStore store) =>
+app.MapGet("/ticks/last-summary", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var tickLog = state.TickLogs
             .Where(log => log.CycleId == cycle.CycleId)
             .OrderByDescending(log => log.TickNumber)
             .ThenByDescending(log => log.CompletedAt ?? log.StartedAt)
             .FirstOrDefault();
 
-        return ToLastTickSummaryResponse(state, cycle, tickLog);
+        return ToLastTickSummaryResponse(state, cycle, tickLog, actor, visibleSystemIds);
     }));
 
 app.MapGet("/empire", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
@@ -72,31 +74,37 @@ app.MapGet("/empire", (Guid? empireId, HttpContext httpContext, IGameStateStore 
         return ToEmpireResponse(state, empire);
     }));
 
-app.MapGet("/galaxy", (IGameStateStore store) =>
+app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var systems = state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderBy(system => system.SystemName).ToArray();
         var links = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).ToArray();
         var presence = systems.Select(system =>
         {
             var effectivePresence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
-            return new SystemPresenceResponse(system.SystemId, effectivePresence);
+            return new SystemPresenceResponse(
+                system.SystemId,
+                ApiVisibility.FilterPresence(actor, visibleSystemIds, system.SystemId, effectivePresence));
         }).ToArray();
 
         return new GalaxyResponse(cycle, systems, links, presence);
     }));
 
-app.MapGet("/systems/{systemId:guid}", (Guid systemId, IGameStateStore store) =>
+app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var system = state.Systems.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.SystemId == systemId)
             ?? throw new InvalidOperationException("System was not found in the active cycle.");
 
-        return ToSystemDetailResponse(state, cycle, system);
+        return ToSystemDetailResponse(state, cycle, system, actor, visibleSystemIds);
     }));
 
 app.MapGet("/fleets", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
@@ -128,7 +136,8 @@ app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGa
             throw new ApiForbiddenException("The authenticated player cannot inspect this fleet.");
         }
 
-        return ToFleetDetailResponse(state, cycle, fleet);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+        return ToFleetDetailResponse(state, cycle, fleet, actor, visibleSystemIds);
     }));
 
 app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
@@ -163,25 +172,31 @@ app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContex
 app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
 
-app.MapGet("/events/recent", (int? limit, IGameStateStore store) =>
+app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return state.Events
             .Where(item => item.CycleId == cycle.CycleId)
+            .Where(item => ApiVisibility.CanSeeEvent(item, actor, visibleSystemIds))
             .OrderByDescending(item => item.CreatedAt)
             .Take(Math.Clamp(limit ?? 25, 1, 100))
             .ToArray();
     }));
 
-app.MapGet("/chronicle", (IGameStateStore store) =>
+app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return state.ChronicleEntries
             .Where(entry => entry.CycleId == cycle.CycleId)
+            .Where(entry => ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds))
             .OrderByDescending(entry => entry.ImportanceScore)
             .ToArray();
     }));
@@ -330,7 +345,12 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
     return new FleetResponse(fleet, empire.EmpireName, currentSystem.SystemName, destination?.SystemName);
 }
 
-static FleetDetailResponse ToFleetDetailResponse(GameState state, Cycle cycle, Fleet fleet)
+static FleetDetailResponse ToFleetDetailResponse(
+    GameState state,
+    Cycle cycle,
+    Fleet fleet,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds)
 {
     var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
     var currentSystem = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
@@ -358,25 +378,27 @@ static FleetDetailResponse ToFleetDetailResponse(GameState state, Cycle cycle, F
         .Select(order => ToOrderResponse(state, order))
         .ToArray();
 
-    var activeFleetsInSystem = state.Fleets
-        .Where(item => item.CycleId == cycle.CycleId
-                       && item.FleetId != fleet.FleetId
-                       && item.CurrentSystemId == fleet.CurrentSystemId
-                       && item.Status == FleetStatus.Active)
-        .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
-        .ThenBy(item => item.FleetName)
-        .Select(item =>
-        {
-            var otherEmpire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
-            return new FleetAtSystemResponse(
-                item.FleetId,
-                item.FleetName,
-                item.EmpireId,
-                otherEmpire.EmpireName,
-                item.ShipCount,
-                item.Status);
-        })
-        .ToArray();
+    var activeFleetsInSystem = ApiVisibility.CanSeeSystemDetails(actor, visibleSystemIds, fleet.CurrentSystemId)
+        ? state.Fleets
+            .Where(item => item.CycleId == cycle.CycleId
+                           && item.FleetId != fleet.FleetId
+                           && item.CurrentSystemId == fleet.CurrentSystemId
+                           && item.Status == FleetStatus.Active)
+            .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+            .ThenBy(item => item.FleetName)
+            .Select(item =>
+            {
+                var otherEmpire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+                return new FleetAtSystemResponse(
+                    item.FleetId,
+                    item.FleetName,
+                    item.EmpireId,
+                    otherEmpire.EmpireName,
+                    item.ShipCount,
+                    item.Status);
+            })
+            .ToArray()
+        : [];
 
     return new FleetDetailResponse(
         fleet.FleetId,
@@ -403,7 +425,12 @@ static SystemSummaryResponse ToSystemSummaryResponse(GalaxySystem system) =>
         system.StrategicValue,
         system.HistoricalSignificance);
 
-static SystemDetailResponse ToSystemDetailResponse(GameState state, Cycle cycle, GalaxySystem system)
+static SystemDetailResponse ToSystemDetailResponse(
+    GameState state,
+    Cycle cycle,
+    GalaxySystem system,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds)
 {
     var systemsById = state.Systems
         .Where(item => item.CycleId == cycle.CycleId)
@@ -416,7 +443,10 @@ static SystemDetailResponse ToSystemDetailResponse(GameState state, Cycle cycle,
         .Select(ToSystemSummaryResponse)
         .ToArray();
 
-    var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
+    var canSeeDetails = ApiVisibility.CanSeeSystemDetails(actor, visibleSystemIds, system.SystemId);
+    var presence = canSeeDetails
+        ? InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId)
+        : new Dictionary<Guid, decimal>();
     var totalPresence = presence.Values.Sum();
     var influence = presence
         .OrderByDescending(item => item.Value)
@@ -428,24 +458,26 @@ static SystemDetailResponse ToSystemDetailResponse(GameState state, Cycle cycle,
         })
         .ToArray();
 
-    var activeFleets = state.Fleets
-        .Where(item => item.CycleId == cycle.CycleId
-                       && item.CurrentSystemId == system.SystemId
-                       && item.Status == FleetStatus.Active)
-        .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
-        .ThenBy(item => item.FleetName)
-        .Select(item =>
-        {
-            var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
-            return new FleetAtSystemResponse(
-                item.FleetId,
-                item.FleetName,
-                item.EmpireId,
-                empire.EmpireName,
-                item.ShipCount,
-                item.Status);
-        })
-        .ToArray();
+    var activeFleets = canSeeDetails
+        ? state.Fleets
+            .Where(item => item.CycleId == cycle.CycleId
+                           && item.CurrentSystemId == system.SystemId
+                           && item.Status == FleetStatus.Active)
+            .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+            .ThenBy(item => item.FleetName)
+            .Select(item =>
+            {
+                var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+                return new FleetAtSystemResponse(
+                    item.FleetId,
+                    item.FleetName,
+                    item.EmpireId,
+                    empire.EmpireName,
+                    item.ShipCount,
+                    item.Status);
+            })
+            .ToArray()
+        : [];
 
     return new SystemDetailResponse(
         system.SystemId,
@@ -485,7 +517,12 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         targetEmpire?.EmpireName);
 }
 
-static LastTickSummaryResponse ToLastTickSummaryResponse(GameState state, Cycle cycle, TickLog? tickLog)
+static LastTickSummaryResponse ToLastTickSummaryResponse(
+    GameState state,
+    Cycle cycle,
+    TickLog? tickLog,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds)
 {
     if (tickLog is null)
     {
@@ -506,11 +543,13 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(GameState state, Cycle 
 
     var events = state.Events
         .Where(item => item.CycleId == cycle.CycleId && item.TickNumber == tickLog.TickNumber)
+        .Where(item => ApiVisibility.CanSeeEvent(item, actor, visibleSystemIds))
         .OrderBy(item => item.CreatedAt)
         .ToArray();
 
     var battles = state.BattleRecords
         .Where(item => item.CycleId == cycle.CycleId && item.TickNumber == tickLog.TickNumber)
+        .Where(item => ApiVisibility.CanSeeBattle(item, actor, visibleSystemIds))
         .OrderBy(item => item.CreatedAt)
         .ToArray();
 
@@ -518,6 +557,7 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(GameState state, Cycle 
     var battleIds = battles.Select(item => item.BattleId).ToHashSet();
     var chronicleEntries = state.ChronicleEntries
         .Where(entry => entry.CycleId == cycle.CycleId
+                        && ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds)
                         && ((entry.SourceEventId.HasValue && eventIds.Contains(entry.SourceEventId.Value))
                             || (entry.SourceBattleId.HasValue && battleIds.Contains(entry.SourceBattleId.Value))))
         .OrderByDescending(entry => entry.ImportanceScore)

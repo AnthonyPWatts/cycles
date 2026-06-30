@@ -140,6 +140,8 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Admin players can inspect all fleets/orders and can act for an empire for local support/debugging.
 - The public website is served from `/`.
 - The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, order queue, events, Chronicle placeholder/content, and order forms.
+- Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, exact presence and local fleet details are only returned for systems where the player has an active fleet, and recent events, last-tick summaries, and Chronicle entries are filtered through the same visibility model.
+- Admin development users bypass fog-of-war filtering for local support/debugging.
 - Tick execution is intentionally not exposed through the API.
 
 ### Persistence
@@ -203,7 +205,7 @@ These are known gaps, not defects in the current MVP claim:
 - SQL Server integration coverage is opt-in and currently covers state-store round trip, order/tick persistence, and duplicate running-tick rollback.
 - The SQL Server tick runner still uses an in-memory `GameState` workspace for domain rules instead of a separate `Cycles.Application` tick use case or provider-neutral repository abstraction.
 - Development auth is intentionally not production authentication or a multiplayer security boundary.
-- Fog-of-war, event filtering, and Chronicle visibility filtering are not implemented yet.
+- Fog-of-war is only a first-pass active-fleet visibility model. There are no sensors, partial estimates, delayed discoveries, or nuanced public/private Chronicle redactions yet.
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
@@ -225,8 +227,8 @@ The next stage should harden the simulation spine before adding feature breadth:
 
 1. make tick execution idempotent and auditable against the focused SQL tick path;
 2. add live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-3. add the first visibility/fog-of-war filtering now that player identity exists;
-4. add Cycle-end processing and final ranking persistence;
+3. add Cycle-end processing and final ranking persistence;
+4. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
 5. only then deepen the Chronicle/history systems.
 
 ## Definition Of The Next Stable State

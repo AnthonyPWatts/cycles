@@ -82,6 +82,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Define future production auth option before deployment.
 - [x] Add player/empire authorisation checks.
 - [x] Stop trusting caller-supplied empire IDs where auth context can derive them.
+- [x] Add first active-fleet visibility filtering for system details, events, and Chronicle entries.
 - [x] Add pending orders endpoint.
 - [x] Add processed/rejected orders endpoint.
 - [x] Consider order cancellation before execution.

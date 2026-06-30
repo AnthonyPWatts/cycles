@@ -83,7 +83,7 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:Sta
 ```
 
 Open `http://127.0.0.1:5086/` for the public site and `http://127.0.0.1:5086/app.html` for the dashboard.
-The dashboard uses development auth: `/auth/login` creates or finds a local player, issues an HttpOnly development cookie, and derives player empire authority from that session. This is suitable for local/private testing only; production auth remains future work.
+The dashboard uses development auth: `/auth/login` creates or finds a local player, issues an HttpOnly development cookie, and derives player empire authority from that session. Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, but exact local fleet/presence facts, events, and Chronicle entries are scoped to systems where the player has an active fleet. This is suitable for local/private testing only; production auth remains future work.
 
 ## Database
 

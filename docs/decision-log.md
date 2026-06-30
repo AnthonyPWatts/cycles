@@ -329,4 +329,22 @@ Consequences:
 - Normal player order and priority endpoints no longer trust caller-supplied empire IDs.
 - Admin players can inspect all fleets/orders and can act for an empire for local support/debugging paths.
 - This is not production security; before deployment, the same actor/role boundary should be backed by a real authentication provider.
-- Fog-of-war and event/Chronicle visibility filtering remain separate future work.
+- Fog-of-war and event/Chronicle visibility filtering can build on the development actor boundary.
+
+## 2026-06-30: Use Active Fleets For First Fog-Of-War Visibility
+
+Decision: make the first fog-of-war model depend on active fleets. Players can see the full map structure, but exact local presence, local fleet details, events, last-tick facts, and Chronicle entries are filtered to systems where their empire has an active fleet. Admin development users can inspect everything.
+
+Reasoning:
+
+- Product-owner direction explicitly chose active fleets as the first meaning of "resources there".
+- This preserves the server-authoritative model while avoiding a speculative sensor, scouting, or intelligence system.
+- Filtering read models now is useful before online testing because the development-auth actor boundary already exists.
+- The full galaxy remains navigable without revealing exact hidden fleet counts or remote event details.
+
+Consequences:
+
+- Normal players no longer receive global event or Chronicle feeds.
+- System details outside active-fleet visibility return map/static system facts without exact influence or local fleet lists.
+- Player-owned empire/audit events remain visible even when they have no system location.
+- Destroyed fleets, sensors, public summaries, delayed discoveries, and Chronicle redaction remain future design work.

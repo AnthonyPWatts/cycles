@@ -124,9 +124,15 @@ Decision:
 
 ### What does fog of war mean in the first version?
 
-Current direction:
+Current implementation:
 
 - A player should only get detailed information about who is in a system and in what numbers if they have resources there.
+- The first implementation interprets "resources there" as active fleets.
+- The full map structure remains visible to logged-in players.
+- Exact effective presence and local fleet details are returned only for systems where the player has an active fleet.
+- Recent events, last-tick summaries, and Chronicle entries are filtered through the same active-fleet visibility model.
+- A player's own empire/audit events remain visible to that player.
+- Admin development users can inspect everything.
 
 Questions and answers:
 
@@ -136,7 +142,7 @@ Questions and answers:
 - Should events be filtered by visibility, or remain globally visible until fog of war is implemented? Events should be filtered by visibility.
 - Should Chronicle entries reveal hidden facts, or only public summaries? Public summaries.
 
-Decision needed:
+Decision:
 
 - Implement full-map visibility with hidden fleet details outside systems where the player has active fleets.
 - Filter events and Chronicle entries through the same first visibility model.
