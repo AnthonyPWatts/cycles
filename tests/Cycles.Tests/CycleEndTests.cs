@@ -56,12 +56,27 @@ public sealed class CycleEndTests
         var system = state.Systems.Single();
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
-        state.BattleRecords.Add(CreateBattle(cycle.CycleId, system.SystemId, firstEmpire.EmpireId, secondEmpire.EmpireId, attackerLosses: 3, defenderLosses: 4));
-        state.BattleRecords.Add(CreateBattle(cycle.CycleId, system.SystemId, firstEmpire.EmpireId, secondEmpire.EmpireId, attackerLosses: 12, defenderLosses: 8));
+        var smallerBattle = CreateBattle(cycle.CycleId, system.SystemId, firstEmpire.EmpireId, secondEmpire.EmpireId, attackerLosses: 3, defenderLosses: 4);
+        var largerBattle = CreateBattle(cycle.CycleId, system.SystemId, firstEmpire.EmpireId, secondEmpire.EmpireId, attackerLosses: 12, defenderLosses: 8);
+        state.BattleRecords.Add(smallerBattle);
+        state.BattleRecords.Add(largerBattle);
 
         CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now);
 
         Assert.Equal(3, system.HistoricalSignificance);
+        var signal = Assert.Single(state.SystemHistoricalSignals);
+        Assert.Equal(system.SystemId, signal.SystemId);
+        Assert.Equal(SystemHistoricalSignalType.BattleActivity, signal.SignalType);
+        Assert.Equal(largerBattle.BattleId, signal.SourceBattleId);
+        Assert.Equal(2, signal.BattleCount);
+        Assert.Equal(27, signal.TotalLosses);
+        Assert.Equal(20, signal.LargestBattleLosses);
+        Assert.True(signal.HostedCycleLargestBattle);
+        Assert.Equal(3, signal.HistoricalSignificanceIncrease);
+        Assert.Equal(3, signal.HistoricalSignificanceAfter);
+        Assert.Equal(TestState.Now, signal.CreatedAt);
+        Assert.Contains("Contest recorded 2 battles", signal.Summary, StringComparison.Ordinal);
+        Assert.Contains("totalLosses", signal.FactJson, StringComparison.Ordinal);
         var completionEvent = Assert.Single(state.Events, item => item.EventType == EventType.CycleCompleted);
         Assert.Contains("historicalSignals", completionEvent.FactJson, StringComparison.Ordinal);
     }

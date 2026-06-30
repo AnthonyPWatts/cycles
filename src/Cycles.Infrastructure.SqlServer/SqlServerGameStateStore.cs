@@ -156,6 +156,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             EmpireMetrics = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireMetrics", ReadEmpireMetric),
             CycleRankings = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleRankings", ReadCycleRanking),
             CycleMajorEvents = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleMajorEvents", ReadCycleMajorEvent),
+            SystemHistoricalSignals = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemHistoricalSignals", ReadSystemHistoricalSignal),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
@@ -346,6 +347,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertBattleRecord(connection, transaction, item);
         }
 
+        foreach (var item in state.SystemHistoricalSignals)
+        {
+            UpsertSystemHistoricalSignal(connection, transaction, item);
+        }
+
         foreach (var item in state.CycleMajorEvents)
         {
             UpsertCycleMajorEvent(connection, transaction, item);
@@ -531,6 +537,24 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         SelectionRank = GetInt(reader, "SelectionRank"),
         ImportanceScore = GetInt(reader, "ImportanceScore"),
         TotalLosses = GetInt(reader, "TotalLosses"),
+        Summary = GetString(reader, "Summary"),
+        FactJson = GetString(reader, "FactJson"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static SystemHistoricalSignal ReadSystemHistoricalSignal(SqlDataReader reader) => new()
+    {
+        SystemHistoricalSignalId = GetGuid(reader, "SystemHistoricalSignalID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        SystemId = GetGuid(reader, "SystemID"),
+        SignalType = GetEnum<SystemHistoricalSignalType>(reader, "SignalType"),
+        SourceBattleId = GetNullableGuid(reader, "SourceBattleID"),
+        BattleCount = GetInt(reader, "BattleCount"),
+        TotalLosses = GetInt(reader, "TotalLosses"),
+        LargestBattleLosses = GetInt(reader, "LargestBattleLosses"),
+        HostedCycleLargestBattle = GetBool(reader, "HostedCycleLargestBattle"),
+        HistoricalSignificanceIncrease = GetInt(reader, "HistoricalSignificanceIncrease"),
+        HistoricalSignificanceAfter = GetInt(reader, "HistoricalSignificanceAfter"),
         Summary = GetString(reader, "Summary"),
         FactJson = GetString(reader, "FactJson"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
@@ -1170,6 +1194,47 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertSystemHistoricalSignal(SqlConnection connection, SqlTransaction transaction, SystemHistoricalSignal item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.SystemHistoricalSignals
+            SET CycleID = @CycleID,
+                SystemID = @SystemID,
+                SignalType = @SignalType,
+                SourceBattleID = @SourceBattleID,
+                BattleCount = @BattleCount,
+                TotalLosses = @TotalLosses,
+                LargestBattleLosses = @LargestBattleLosses,
+                HostedCycleLargestBattle = @HostedCycleLargestBattle,
+                HistoricalSignificanceIncrease = @HistoricalSignificanceIncrease,
+                HistoricalSignificanceAfter = @HistoricalSignificanceAfter,
+                Summary = @Summary,
+                FactJson = @FactJson,
+                CreatedAt = @CreatedAt
+            WHERE SystemHistoricalSignalID = @SystemHistoricalSignalID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.SystemHistoricalSignals(SystemHistoricalSignalID, CycleID, SystemID, SignalType, SourceBattleID, BattleCount, TotalLosses, LargestBattleLosses, HostedCycleLargestBattle, HistoricalSignificanceIncrease, HistoricalSignificanceAfter, Summary, FactJson, CreatedAt)
+            VALUES (@SystemHistoricalSignalID, @CycleID, @SystemID, @SignalType, @SourceBattleID, @BattleCount, @TotalLosses, @LargestBattleLosses, @HostedCycleLargestBattle, @HistoricalSignificanceIncrease, @HistoricalSignificanceAfter, @Summary, @FactJson, @CreatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@SystemHistoricalSignalID", item.SystemHistoricalSignalId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@SystemID", item.SystemId);
+            AddString(command, "@SignalType", item.SignalType.ToString(), 64);
+            AddNullableGuid(command, "@SourceBattleID", item.SourceBattleId);
+            AddInt(command, "@BattleCount", item.BattleCount);
+            AddInt(command, "@TotalLosses", item.TotalLosses);
+            AddInt(command, "@LargestBattleLosses", item.LargestBattleLosses);
+            AddBool(command, "@HostedCycleLargestBattle", item.HostedCycleLargestBattle);
+            AddInt(command, "@HistoricalSignificanceIncrease", item.HistoricalSignificanceIncrease);
+            AddInt(command, "@HistoricalSignificanceAfter", item.HistoricalSignificanceAfter);
+            AddString(command, "@Summary", item.Summary, 2048);
+            AddMaxString(command, "@FactJson", item.FactJson);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
     private static void UpsertChronicleEntry(SqlConnection connection, SqlTransaction transaction, ChronicleEntry item) =>
         Execute(connection, transaction, """
             UPDATE dbo.ChronicleEntries
@@ -1207,6 +1272,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
+        DeleteMissingRows(connection, transaction, "dbo.SystemHistoricalSignals", "SystemHistoricalSignalID", state.SystemHistoricalSignals.Select(item => item.SystemHistoricalSignalId));
         DeleteMissingRows(connection, transaction, "dbo.CycleMajorEvents", "CycleMajorEventID", state.CycleMajorEvents.Select(item => item.CycleMajorEventId));
         DeleteMissingRows(connection, transaction, "dbo.ChronicleEntries", "ChronicleEntryID", state.ChronicleEntries.Select(item => item.ChronicleEntryId));
         DeleteMissingRows(connection, transaction, "dbo.BattleRecords", "BattleID", state.BattleRecords.Select(item => item.BattleId));

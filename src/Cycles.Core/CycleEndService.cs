@@ -43,7 +43,9 @@ public static class CycleEndService
 
         state.CycleRankings.RemoveAll(ranking => ranking.CycleId == cycleId);
         state.CycleRankings.AddRange(rankings);
-        var historicalSignals = ApplyHistoricalSystemSignals(state, cycleId);
+        state.SystemHistoricalSignals.RemoveAll(signal => signal.CycleId == cycleId);
+        var historicalSignals = ApplyHistoricalSystemSignals(state, cycleId, cutoffAt);
+        state.SystemHistoricalSignals.AddRange(historicalSignals);
         var majorEvents = SelectMajorBattleEvents(state, cycleId, cutoffAt);
         state.CycleMajorEvents.RemoveAll(item => item.CycleId == cycleId);
         state.CycleMajorEvents.AddRange(majorEvents);
@@ -74,7 +76,20 @@ public static class CycleEndService
                     ranking.TotalEffectivePresence,
                     ranking.ActiveShipCount
                 }),
-                historicalSignals,
+                historicalSignals = historicalSignals.Select(signal => new
+                {
+                    signal.SystemHistoricalSignalId,
+                    signal.SystemId,
+                    signal.SignalType,
+                    signal.SourceBattleId,
+                    signal.BattleCount,
+                    signal.TotalLosses,
+                    signal.LargestBattleLosses,
+                    signal.HostedCycleLargestBattle,
+                    signal.HistoricalSignificanceIncrease,
+                    signal.HistoricalSignificanceAfter,
+                    signal.Summary
+                }),
                 majorEvents = majorEvents.Select(item => new
                 {
                     item.CycleMajorEventId,
@@ -94,7 +109,10 @@ public static class CycleEndService
         return rankings;
     }
 
-    private static IReadOnlyList<HistoricalSystemSignal> ApplyHistoricalSystemSignals(GameState state, Guid cycleId)
+    private static IReadOnlyList<SystemHistoricalSignal> ApplyHistoricalSystemSignals(
+        GameState state,
+        Guid cycleId,
+        DateTimeOffset createdAt)
     {
         var battles = state.BattleRecords
             .Where(battle => battle.CycleId == cycleId)
@@ -116,17 +134,46 @@ public static class CycleEndService
             .Select(group =>
             {
                 var system = state.Systems.Single(item => item.CycleId == cycleId && item.SystemId == group.Key);
+                var orderedBattles = group
+                    .OrderByDescending(TotalLosses)
+                    .ThenBy(battle => battle.TickNumber)
+                    .ThenBy(battle => battle.BattleId)
+                    .ToArray();
+                var largestLocalBattle = orderedBattles[0];
+                var battleCount = orderedBattles.Length;
+                var totalLosses = orderedBattles.Sum(TotalLosses);
+                var largestBattleLosses = TotalLosses(largestLocalBattle);
                 var hostedLargestBattle = largestBattleSystemIds.Contains(system.SystemId);
-                var increase = group.Count() + (hostedLargestBattle ? 1 : 0);
+                var increase = battleCount + (hostedLargestBattle ? 1 : 0);
                 system.HistoricalSignificance += increase;
 
-                return new HistoricalSystemSignal(
-                    system.SystemId,
-                    system.SystemName,
-                    group.Count(),
-                    hostedLargestBattle,
-                    increase,
-                    system.HistoricalSignificance);
+                return new SystemHistoricalSignal
+                {
+                    CycleId = cycleId,
+                    SystemId = system.SystemId,
+                    SignalType = SystemHistoricalSignalType.BattleActivity,
+                    SourceBattleId = largestLocalBattle.BattleId,
+                    BattleCount = battleCount,
+                    TotalLosses = totalLosses,
+                    LargestBattleLosses = largestBattleLosses,
+                    HostedCycleLargestBattle = hostedLargestBattle,
+                    HistoricalSignificanceIncrease = increase,
+                    HistoricalSignificanceAfter = system.HistoricalSignificance,
+                    Summary = CreateSystemSignalSummary(system, battleCount, totalLosses, increase, hostedLargestBattle),
+                    FactJson = JsonSerializer.Serialize(new
+                    {
+                        cycleId,
+                        system.SystemId,
+                        battleCount,
+                        totalLosses,
+                        largestBattleId = largestLocalBattle.BattleId,
+                        largestBattleLosses,
+                        hostedCycleLargestBattle = hostedLargestBattle,
+                        historicalSignificanceIncrease = increase,
+                        historicalSignificanceAfter = system.HistoricalSignificance
+                    }, GameStateJson.Options),
+                    CreatedAt = createdAt
+                };
             })
             .ToArray();
     }
@@ -215,11 +262,18 @@ public static class CycleEndService
         return $"Battle at {system.SystemName}: {outcome} with {totalLosses} ship losses.";
     }
 
-    private sealed record HistoricalSystemSignal(
-        Guid SystemId,
-        string SystemName,
-        int BattleCount,
-        bool HostedLargestBattle,
-        int HistoricalSignificanceIncrease,
-        int HistoricalSignificance);
+    private static string CreateSystemSignalSummary(
+        GalaxySystem system,
+        int battleCount,
+        int totalLosses,
+        int historicalSignificanceIncrease,
+        bool hostedCycleLargestBattle)
+    {
+        var battleText = battleCount == 1 ? "1 battle" : $"{battleCount} battles";
+        var largestBattleText = hostedCycleLargestBattle
+            ? " including one of the Cycle's largest battles"
+            : "";
+
+        return $"{system.SystemName} recorded {battleText}{largestBattleText}, {totalLosses} total ship losses, and gained {historicalSignificanceIncrease} historical significance.";
+    }
 }

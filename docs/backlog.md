@@ -104,7 +104,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add Cycle-end processing command.
 - [x] Persist final Cycle rankings.
 - [x] Select major Cycle events.
-- [ ] Add historical signal fields or tables for systems.
+- [x] Add historical signal fields or tables for systems.
 - [x] Increase historical system significance from repeated conflict.
 - [x] Preserve largest battle per Cycle.
 - [ ] Generate next Cycle from prior historical facts.

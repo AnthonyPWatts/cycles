@@ -20,6 +20,16 @@ This file captures Cycles-specific guidance for coding agents. Anthony's global 
 - The helper writes build outputs to `%TEMP%\cycles-test-bin\`, avoiding locked DLLs when a local `Cycles.Api` process is serving from the normal `bin\Debug` directory.
 - Do not repeatedly run full solution tests if a focused filter is enough for the slice.
 - SQL Server integration tests are opt-in through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`; do not treat them as part of every local pass unless the change touches SQL persistence.
+- On this machine the SQLDockerDeployKit-derived local container is normally `cycles-sql` on `localhost,14333`, database `CyclesDb`, user `sa`, password `YourStrong!Passw0rd`. With Microsoft.Data.SqlClient in this Codex environment, include `Encrypt=False` as well as `TrustServerCertificate=True`; without it, local SQL Server may fail with "requires encryption but this machine does not support it."
+- If Docker is not running, Docker Desktop is installed at `C:\Program Files\Docker\Docker\Docker Desktop.exe`. Start it, wait for `docker info`, then `docker start cycles-sql`. Apply migrations before SQL-backed tests:
+
+```powershell
+dotnet run --no-restore --project src\Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+.\eng\test.ps1
+```
+
+- Docker CLI checks from Codex Desktop may require sandbox escalation even when they are read-only.
 - If bare `pwsh` behaves oddly in Codex on this machine, use `C:\Program Files\PowerShell\7\pwsh.exe` rather than the WindowsApps alias.
 
 ## Architecture Guardrails

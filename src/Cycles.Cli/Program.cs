@@ -143,6 +143,23 @@ static void Show(IGameStateStore store)
             Console.WriteLine($"- #{ranking.Rank}{winnerText}: {empire.EmpireName} ({ranking.MapControlPercent:0.##}% map control, {ranking.ActiveShipCount} active ships)");
         }
     }
+
+    var historicalSignals = state.SystemHistoricalSignals
+        .Where(signal => signal.CycleId == cycle.CycleId)
+        .OrderByDescending(signal => signal.HistoricalSignificanceIncrease)
+        .ThenBy(signal => state.Systems.Single(system => system.SystemId == signal.SystemId).SystemName)
+        .ToArray();
+    if (historicalSignals.Length > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("System history signals");
+        foreach (var signal in historicalSignals)
+        {
+            var system = state.Systems.Single(item => item.SystemId == signal.SystemId);
+            var battleText = signal.BattleCount == 1 ? "1 battle" : $"{signal.BattleCount} battles";
+            Console.WriteLine($"- {system.SystemName}: {battleText}, {signal.TotalLosses} losses, +{signal.HistoricalSignificanceIncrease} history");
+        }
+    }
 }
 
 static int RunCycleCommand(string[] args)

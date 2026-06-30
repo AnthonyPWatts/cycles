@@ -345,7 +345,7 @@ Consequences:
 
 - Repeated battle systems become more historically important when a Cycle is completed.
 - The Cycle-completion event fact JSON includes the applied historical signals.
-- Dedicated historical signal tables and next-Cycle continuity remain future Stage 5 work.
+- Dedicated historical signal tables and next-Cycle continuity were left for follow-on Stage 5 work.
 
 ## 2026-06-30: Use Development Auth Before Production Auth
 
@@ -396,4 +396,21 @@ Consequences:
 
 - `CycleMajorEvents` stores selected battle references, rank, total losses, importance score, summary, and fact JSON at manual Cycle cutoff.
 - Final rankings still use `MapControlPercent`; selected battles are historical records, not winner criteria.
-- Selected systems, richer historical signal tables, and next-Cycle generation remain future Stage 5 work.
+- Selected systems and next-Cycle generation remain future Stage 5 work.
+
+## 2026-06-30: Persist Dedicated System Historical Signals
+
+Decision: add `SystemHistoricalSignals` as the first dedicated per-system history table and state model.
+
+Reasoning:
+
+- `HistoricalSignificance` is useful for display and scoring, but it compresses the underlying reason into one integer.
+- Next-Cycle continuity needs durable facts about why a system became historically important.
+- Battle count, total losses, largest local battle, and cycle-largest-battle status are already deterministic Cycle-end facts.
+
+Consequences:
+
+- Completing a Cycle now records one `BattleActivity` signal per affected system.
+- Each signal stores the source largest local battle, battle count, total losses, largest local losses, whether the system hosted one of the Cycle's largest battles, and the applied historical-significance increase.
+- The CLI `show` command displays system history signals for completed Cycles.
+- Selected systems and next-Cycle generation remain future Stage 5 work.

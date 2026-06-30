@@ -89,6 +89,22 @@ public sealed class GameStateTests
             FactJson = """{"kind":"major"}""",
             CreatedAt = TestState.Now
         });
+        state.SystemHistoricalSignals.Add(new SystemHistoricalSignal
+        {
+            CycleId = cycle.CycleId,
+            SystemId = battle.SystemId,
+            SignalType = SystemHistoricalSignalType.BattleActivity,
+            SourceBattleId = battle.BattleId,
+            BattleCount = 1,
+            TotalLosses = 30,
+            LargestBattleLosses = 30,
+            HostedCycleLargestBattle = true,
+            HistoricalSignificanceIncrease = 2,
+            HistoricalSignificanceAfter = 4,
+            Summary = "A test system accumulated battle history.",
+            FactJson = """{"kind":"system-signal"}""",
+            CreatedAt = TestState.Now
+        });
         state.Events.Add(eventRecord);
         state.BattleRecords.Add(battle);
         state.ChronicleEntries.Add(new ChronicleEntry
@@ -120,6 +136,7 @@ public sealed class GameStateTests
         Assert.Equal(state.TickLogs.Count, clone.TickLogs.Count);
         Assert.Equal(state.CycleRankings.Count, clone.CycleRankings.Count);
         Assert.Equal(state.CycleMajorEvents.Count, clone.CycleMajorEvents.Count);
+        Assert.Equal(state.SystemHistoricalSignals.Count, clone.SystemHistoricalSignals.Count);
         Assert.Equal(state.Events.Count, clone.Events.Count);
         Assert.Equal(state.BattleRecords.Count, clone.BattleRecords.Count);
         Assert.Equal(state.ChronicleEntries.Count, clone.ChronicleEntries.Count);
@@ -134,17 +151,21 @@ public sealed class GameStateTests
         Assert.NotSame(state.CycleRankings[0], clone.CycleRankings[0]);
         Assert.Equal(state.CycleMajorEvents[0].CycleMajorEventId, clone.CycleMajorEvents[0].CycleMajorEventId);
         Assert.NotSame(state.CycleMajorEvents[0], clone.CycleMajorEvents[0]);
+        Assert.Equal(state.SystemHistoricalSignals[0].SystemHistoricalSignalId, clone.SystemHistoricalSignals[0].SystemHistoricalSignalId);
+        Assert.NotSame(state.SystemHistoricalSignals[0], clone.SystemHistoricalSignals[0]);
 
         clone.Fleets[0].ShipCount += 10;
         clone.FleetOrders[0].Status = FleetOrderStatus.Processed;
         clone.Events.Last().DisplayText = "Changed in clone.";
         clone.CycleRankings[0].Rank = 2;
         clone.CycleMajorEvents[0].Summary = "Changed in clone.";
+        clone.SystemHistoricalSignals[0].Summary = "Changed in clone.";
 
         Assert.NotEqual(state.Fleets[0].ShipCount, clone.Fleets[0].ShipCount);
         Assert.Equal(FleetOrderStatus.Pending, state.FleetOrders[0].Status);
         Assert.Equal("A test battle was resolved.", state.Events.Last().DisplayText);
         Assert.Equal(1, state.CycleRankings[0].Rank);
         Assert.Equal("A test battle was selected as major history.", state.CycleMajorEvents[0].Summary);
+        Assert.Equal("A test system accumulated battle history.", state.SystemHistoricalSignals[0].Summary);
     }
 }

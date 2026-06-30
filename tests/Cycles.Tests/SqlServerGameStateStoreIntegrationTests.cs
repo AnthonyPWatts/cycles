@@ -386,6 +386,34 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var system = state.Systems.Single();
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var firstHome = new GalaxySystem
+        {
+            CycleId = cycle.CycleId,
+            SystemName = "First Home",
+            X = 50,
+            Y = 50,
+            IndustryOutput = 10,
+            ResearchOutput = 10,
+            PopulationOutput = 10,
+            StrategicValue = 10,
+            CreatedAt = TestState.Now
+        };
+        var secondHome = new GalaxySystem
+        {
+            CycleId = cycle.CycleId,
+            SystemName = "Second Home",
+            X = 150,
+            Y = 150,
+            IndustryOutput = 10,
+            ResearchOutput = 10,
+            PopulationOutput = 10,
+            StrategicValue = 10,
+            CreatedAt = TestState.Now
+        };
+        state.Systems.Add(firstHome);
+        state.Systems.Add(secondHome);
+        firstEmpire.HomeSystemId = firstHome.SystemId;
+        secondEmpire.HomeSystemId = secondHome.SystemId;
         state.BattleRecords.Add(new BattleRecord
         {
             CycleId = cycle.CycleId,
@@ -410,6 +438,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var updated = store.LoadOrCreate();
         var rankings = updated.CycleRankings.Where(ranking => ranking.CycleId == cycle.CycleId).OrderBy(ranking => ranking.Rank).ToArray();
         var majorEvent = Assert.Single(updated.CycleMajorEvents, item => item.CycleId == cycle.CycleId);
+        var historicalSignal = Assert.Single(updated.SystemHistoricalSignals, item => item.CycleId == cycle.CycleId && item.SystemId == system.SystemId);
 
         Assert.Equal(CycleStatus.Completed, updated.Cycles.Single(item => item.CycleId == cycle.CycleId).Status);
         Assert.Equal(2, rankings.Length);
@@ -417,6 +446,11 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.False(rankings[1].IsWinner);
         Assert.Equal(CycleMajorEventType.Battle, majorEvent.EventType);
         Assert.Equal(20, majorEvent.TotalLosses);
+        Assert.Equal(SystemHistoricalSignalType.BattleActivity, historicalSignal.SignalType);
+        Assert.Equal(1, historicalSignal.BattleCount);
+        Assert.Equal(20, historicalSignal.TotalLosses);
+        Assert.Equal(2, historicalSignal.HistoricalSignificanceIncrease);
+        Assert.True(historicalSignal.HostedCycleLargestBattle);
     }
 
     private static GameState CombineStates(params GameState[] states) =>
@@ -431,6 +465,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             EmpireMetrics = states.SelectMany(state => state.EmpireMetrics).ToList(),
             CycleRankings = states.SelectMany(state => state.CycleRankings).ToList(),
             CycleMajorEvents = states.SelectMany(state => state.CycleMajorEvents).ToList(),
+            SystemHistoricalSignals = states.SelectMany(state => state.SystemHistoricalSignals).ToList(),
             SystemLinks = states.SelectMany(state => state.SystemLinks).ToList(),
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),

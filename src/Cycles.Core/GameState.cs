@@ -10,6 +10,7 @@ public sealed class GameState
     public List<EmpireMetric> EmpireMetrics { get; set; } = [];
     public List<CycleRanking> CycleRankings { get; set; } = [];
     public List<CycleMajorEvent> CycleMajorEvents { get; set; } = [];
+    public List<SystemHistoricalSignal> SystemHistoricalSignals { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -37,6 +38,7 @@ public sealed class GameState
             EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
             CycleRankings = CycleRankings.Select(Clone).ToList(),
             CycleMajorEvents = CycleMajorEvents.Select(Clone).ToList(),
+            SystemHistoricalSignals = SystemHistoricalSignals.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -58,6 +60,7 @@ public sealed class GameState
         EmpireMetrics = other.EmpireMetrics;
         CycleRankings = other.CycleRankings;
         CycleMajorEvents = other.CycleMajorEvents;
+        SystemHistoricalSignals = other.SystemHistoricalSignals;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -170,6 +173,24 @@ public sealed class GameState
         SelectionRank = item.SelectionRank,
         ImportanceScore = item.ImportanceScore,
         TotalLosses = item.TotalLosses,
+        Summary = item.Summary,
+        FactJson = item.FactJson,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static SystemHistoricalSignal Clone(SystemHistoricalSignal item) => new()
+    {
+        SystemHistoricalSignalId = item.SystemHistoricalSignalId,
+        CycleId = item.CycleId,
+        SystemId = item.SystemId,
+        SignalType = item.SignalType,
+        SourceBattleId = item.SourceBattleId,
+        BattleCount = item.BattleCount,
+        TotalLosses = item.TotalLosses,
+        LargestBattleLosses = item.LargestBattleLosses,
+        HostedCycleLargestBattle = item.HostedCycleLargestBattle,
+        HistoricalSignificanceIncrease = item.HistoricalSignificanceIncrease,
+        HistoricalSignificanceAfter = item.HistoricalSignificanceAfter,
         Summary = item.Summary,
         FactJson = item.FactJson,
         CreatedAt = item.CreatedAt
@@ -406,6 +427,24 @@ public sealed class CycleMajorEvent
     public int SelectionRank { get; set; }
     public int ImportanceScore { get; set; }
     public int TotalLosses { get; set; }
+    public string Summary { get; set; } = "";
+    public string FactJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class SystemHistoricalSignal
+{
+    public Guid SystemHistoricalSignalId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid SystemId { get; set; }
+    public SystemHistoricalSignalType SignalType { get; set; }
+    public Guid? SourceBattleId { get; set; }
+    public int BattleCount { get; set; }
+    public int TotalLosses { get; set; }
+    public int LargestBattleLosses { get; set; }
+    public bool HostedCycleLargestBattle { get; set; }
+    public int HistoricalSignificanceIncrease { get; set; }
+    public int HistoricalSignificanceAfter { get; set; }
     public string Summary { get; set; } = "";
     public string FactJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; }
@@ -649,4 +688,9 @@ public enum ChronicleEntryType
 public enum CycleMajorEventType
 {
     Battle
+}
+
+public enum SystemHistoricalSignalType
+{
+    BattleActivity
 }

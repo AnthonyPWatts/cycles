@@ -231,7 +231,7 @@ Questions and answers:
 Decision:
 
 - The first persistent history schema should cover rankings, selected largest battles, selected systems, and historical system signals.
-- Rankings, selected largest battles, and first system historical-significance updates now have persistence; selected systems and a dedicated historical signal schema remain future work.
+- Rankings, selected largest battles, first system historical-significance updates, and dedicated system historical signals now have persistence; selected systems remain future work.
 
 ## Priority 5: Chronicle And Narrative
 

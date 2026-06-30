@@ -33,6 +33,7 @@ public sealed class SqlServerMigratorTests
         var playerRole = Assert.Single(migrations, migration => migration.MigrationId == "005_add_player_role");
         var cycleRankings = Assert.Single(migrations, migration => migration.MigrationId == "006_add_cycle_rankings");
         var cycleMajorEvents = Assert.Single(migrations, migration => migration.MigrationId == "007_add_cycle_major_events");
+        var systemHistoricalSignals = Assert.Single(migrations, migration => migration.MigrationId == "008_add_system_historical_signals");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -43,5 +44,6 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("ALTER TABLE dbo.Players", playerRole.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.CycleRankings", cycleRankings.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.CycleMajorEvents", cycleMajorEvents.Script, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE dbo.SystemHistoricalSignals", systemHistoricalSignals.Script, StringComparison.Ordinal);
     }
 }
