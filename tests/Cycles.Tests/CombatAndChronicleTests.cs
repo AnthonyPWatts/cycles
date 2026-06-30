@@ -45,6 +45,50 @@ public sealed class CombatAndChronicleTests
     }
 
     [Fact]
+    public void AttackOrderRecordsAssignedAdmiralBattleHistoryAndReputation()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 40, strategicValue: 35);
+        var cycle = state.GetActiveCycle()!;
+        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
+        var admiral = AssignAdmiral(state, attackerFleet, "Cela Ardent");
+
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var battle = Assert.Single(state.BattleRecords);
+        var history = Assert.Single(state.AdmiralBattleHistories, item => item.AdmiralId == admiral.AdmiralId);
+        var updatedAdmiral = state.Admirals.Single(item => item.AdmiralId == admiral.AdmiralId);
+        Assert.Equal(battle.BattleId, history.BattleId);
+        Assert.Equal(battle.SystemId, history.SystemId);
+        Assert.Equal(attackerFleet.FleetId, history.FleetId);
+        Assert.Equal(AdmiralBattleRole.Attacker, history.Role);
+        Assert.True(history.ReputationChange > 0);
+        Assert.Equal(history.ReputationScoreAfter, updatedAdmiral.ReputationScore);
+        Assert.Contains(state.Events, item => item.EventType == EventType.AdmiralBattleReported && item.EmpireId == updatedAdmiral.EmpireId);
+        Assert.Contains(history.AdmiralBattleHistoryId.ToString(), battle.FactJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DestroyedAssignedFleetMarksAdmiralKilled()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 1, defenderShips: 200);
+        var cycle = state.GetActiveCycle()!;
+        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
+        var admiral = AssignAdmiral(state, attackerFleet, "Lio Harrow");
+
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        var updatedFleet = state.Fleets.Single(item => item.FleetId == attackerFleet.FleetId);
+        var updatedAdmiral = state.Admirals.Single(item => item.AdmiralId == admiral.AdmiralId);
+        Assert.Equal(FleetStatus.Destroyed, updatedFleet.Status);
+        Assert.Equal(AdmiralStatus.Killed, updatedAdmiral.Status);
+        var history = Assert.Single(state.AdmiralBattleHistories, item => item.AdmiralId == admiral.AdmiralId);
+        Assert.Equal(AdmiralStatus.Killed, history.AdmiralStatusAfter);
+    }
+
+    [Fact]
     public void MultiFleetDefenderLossesAreDistributedAndDestroyedFleetsAreMarked()
     {
         var state = TestState.CreateTwoEmpireContest(attackerShips: 200, defenderShips: 1);
@@ -99,6 +143,32 @@ public sealed class CombatAndChronicleTests
     }
 
     [Fact]
+    public void AdmiralBattleHistoryCanLiftChronicleImportance()
+    {
+        var system = new GalaxySystem { StrategicValue = 20 };
+        var battle = new BattleRecord
+        {
+            AttackerShipsBefore = 30,
+            DefenderShipsBefore = 30,
+            AttackerLosses = 5,
+            DefenderLosses = 5,
+            Outcome = BattleOutcome.AttackerVictory
+        };
+        var history = new AdmiralBattleHistory
+        {
+            ReputationChange = 80,
+            AdmiralStatusAfter = AdmiralStatus.Legendary,
+            IsFamousSystemAssociation = true
+        };
+
+        var withoutAdmirals = ChronicleScoring.ScoreBattle(battle, system);
+        var withAdmirals = ChronicleScoring.ScoreBattle(battle, system, [history]);
+
+        Assert.True(withAdmirals > withoutAdmirals);
+        Assert.True(withAdmirals >= ChronicleScoring.ChronicleThreshold);
+    }
+
+    [Fact]
     public void ChronicleBattleReportIncludesRequiredFacts()
     {
         var (battle, sourceEvent, system, attacker, defender) = CreateChronicleBattleInputs();
@@ -121,6 +191,49 @@ public sealed class CombatAndChronicleTests
         Assert.Null(entry.NarrativeFailureReason);
         Assert.Contains("Aurelian Compact", entry.NarrativeContextJson, StringComparison.Ordinal);
         Assert.Contains("attackerLosses", entry.NarrativeContextJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChronicleBattleReportIncludesAdmiralContextWhenProvided()
+    {
+        var (battle, sourceEvent, system, attacker, defender) = CreateChronicleBattleInputs();
+        var admiral = new Admiral
+        {
+            CycleId = battle.CycleId,
+            EmpireId = attacker.EmpireId,
+            AdmiralName = "Asha Teral",
+            ReputationScore = 115,
+            Status = AdmiralStatus.Legendary
+        };
+        var history = new AdmiralBattleHistory
+        {
+            CycleId = battle.CycleId,
+            AdmiralId = admiral.AdmiralId,
+            BattleId = battle.BattleId,
+            SystemId = battle.SystemId,
+            FleetId = Guid.NewGuid(),
+            Role = AdmiralBattleRole.Attacker,
+            Outcome = AdmiralBattleOutcome.Victory,
+            ReputationChange = 30,
+            ReputationScoreAfter = 115,
+            AdmiralStatusAfter = AdmiralStatus.Legendary,
+            IsFamousSystemAssociation = true
+        };
+
+        var entry = ChronicleScoring.CreateBattleEntry(
+            battle,
+            sourceEvent,
+            system,
+            attacker,
+            defender,
+            importance: 95,
+            TestState.Now,
+            [admiral],
+            [history]);
+
+        Assert.Contains("Asha Teral", entry.NarrativeText, StringComparison.Ordinal);
+        Assert.Contains("Asha Teral", entry.NarrativeContextJson, StringComparison.Ordinal);
+        Assert.Contains("admiralFacts", entry.NarrativeContextJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -164,6 +277,23 @@ public sealed class CombatAndChronicleTests
         var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
         OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, state.Empires[1].EmpireId, TestState.Now);
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+    }
+
+    private static Admiral AssignAdmiral(GameState state, Fleet fleet, string name, int reputationScore = 0)
+    {
+        var admiral = new Admiral
+        {
+            CycleId = fleet.CycleId,
+            EmpireId = fleet.EmpireId,
+            AdmiralName = name,
+            ReputationScore = reputationScore,
+            Status = reputationScore >= AdmiralService.LegendaryReputationThreshold ? AdmiralStatus.Legendary : AdmiralStatus.Active,
+            CreatedAt = TestState.Now,
+            UpdatedAt = TestState.Now
+        };
+        state.Admirals.Add(admiral);
+        fleet.AdmiralId = admiral.AdmiralId;
+        return admiral;
     }
 
     private static string ExtractOutcome(string factualSummary)

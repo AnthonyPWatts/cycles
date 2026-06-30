@@ -213,6 +213,9 @@ public static class CycleEndService
         var system = state.Systems.Single(item => item.SystemId == battle.SystemId);
         var attacker = state.Empires.Single(item => item.EmpireId == battle.AttackerEmpireId);
         var defender = state.Empires.Single(item => item.EmpireId == battle.DefenderEmpireId);
+        var admiralHistories = state.AdmiralBattleHistories
+            .Where(history => history.BattleId == battle.BattleId)
+            .ToArray();
         var totalLosses = TotalLosses(battle);
 
         return new CycleMajorEvent
@@ -223,7 +226,7 @@ public static class CycleEndService
             EventType = CycleMajorEventType.Battle,
             TickNumber = battle.TickNumber,
             SelectionRank = selectionRank,
-            ImportanceScore = ChronicleScoring.ScoreBattle(battle, system),
+            ImportanceScore = ChronicleScoring.ScoreBattle(battle, system, admiralHistories),
             TotalLosses = totalLosses,
             Summary = CreateBattleSummary(battle, system, attacker, defender, totalLosses),
             FactJson = JsonSerializer.Serialize(new

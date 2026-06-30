@@ -235,6 +235,8 @@ public static class CycleContinuityService
         state.Empires.AddRange(generated.Empires);
         state.EmpireResources.AddRange(generated.EmpireResources);
         state.EmpirePriorities.AddRange(generated.EmpirePriorities);
+        state.Admirals.AddRange(generated.Admirals);
+        state.AdmiralBattleHistories.AddRange(generated.AdmiralBattleHistories);
         state.Systems.AddRange(generated.Systems);
         state.SystemLinks.AddRange(generated.SystemLinks);
         state.Fleets.AddRange(generated.Fleets);

@@ -46,6 +46,16 @@ public static class GameSeeder
         "Marrow Directorate"
     ];
 
+    private static readonly string[] AdmiralNames =
+    [
+        "Elian Voss",
+        "Mara Sutekh",
+        "Tavian Orre",
+        "Ilya Sen",
+        "Nadia Kepler",
+        "Soren Vale"
+    ];
+
     public static GameState CreateDefault(
         int systemCount = 24,
         int empireCount = 4,
@@ -225,10 +235,23 @@ public static class GameSeeder
                 UpdatedAt = now
             });
 
+            var admiral = new Admiral
+            {
+                CycleId = cycle.CycleId,
+                EmpireId = empire.EmpireId,
+                AdmiralName = AdmiralNames[index % AdmiralNames.Length],
+                ReputationScore = 0,
+                Status = AdmiralStatus.Active,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            state.Admirals.Add(admiral);
+
             state.Fleets.Add(new Fleet
             {
                 CycleId = cycle.CycleId,
                 EmpireId = empire.EmpireId,
+                AdmiralId = admiral.AdmiralId,
                 FleetName = $"{empire.EmpireName} Home Fleet",
                 CurrentSystemId = homeSystem.SystemId,
                 ShipCount = 60,

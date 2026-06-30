@@ -18,7 +18,8 @@ public sealed record ChronicleBattleNarrativeSource(
     int AttackerLosses,
     int DefenderLosses,
     BattleOutcome Outcome,
-    int ImportanceScore)
+    int ImportanceScore,
+    IReadOnlyCollection<ChronicleAdmiralNarrativeFact> AdmiralFacts)
 {
     public int TotalLosses => AttackerLosses + DefenderLosses;
 
@@ -32,7 +33,9 @@ public sealed record ChronicleBattleNarrativeSource(
         GalaxySystem system,
         Empire attacker,
         Empire defender,
-        int importance) =>
+        int importance,
+        IReadOnlyCollection<Admiral>? admirals = null,
+        IReadOnlyCollection<AdmiralBattleHistory>? admiralHistories = null) =>
         new(
             sourceEvent.EventId,
             battle.BattleId,
@@ -51,8 +54,48 @@ public sealed record ChronicleBattleNarrativeSource(
             battle.AttackerLosses,
             battle.DefenderLosses,
             battle.Outcome,
-            importance);
+            importance,
+            CreateAdmiralFacts(admirals, admiralHistories));
+
+    private static ChronicleAdmiralNarrativeFact[] CreateAdmiralFacts(
+        IReadOnlyCollection<Admiral>? admirals,
+        IReadOnlyCollection<AdmiralBattleHistory>? admiralHistories)
+    {
+        if (admirals is null || admiralHistories is null || admiralHistories.Count == 0)
+        {
+            return [];
+        }
+
+        var admiralsById = admirals.ToDictionary(admiral => admiral.AdmiralId);
+        return admiralHistories
+            .OrderByDescending(history => history.IsFamousSystemAssociation)
+            .ThenByDescending(history => history.ReputationChange)
+            .Select(history =>
+            {
+                var admiral = admiralsById[history.AdmiralId];
+                return new ChronicleAdmiralNarrativeFact(
+                    admiral.AdmiralId,
+                    admiral.AdmiralName,
+                    history.Role,
+                    history.Outcome,
+                    history.ReputationChange,
+                    history.ReputationScoreAfter,
+                    history.AdmiralStatusAfter,
+                    history.IsFamousSystemAssociation);
+            })
+            .ToArray();
+    }
 }
+
+public sealed record ChronicleAdmiralNarrativeFact(
+    Guid AdmiralId,
+    string AdmiralName,
+    AdmiralBattleRole Role,
+    AdmiralBattleOutcome Outcome,
+    int ReputationChange,
+    int ReputationScoreAfter,
+    AdmiralStatus StatusAfter,
+    bool IsFamousSystemAssociation);
 
 public static class ChronicleRequiredFactValidator
 {

@@ -13,6 +13,7 @@ public sealed class GameStateTests
         var targetSystem = state.Systems.First(system => system.SystemId != fleet.CurrentSystemId);
         var attacker = state.Empires[0];
         var defender = state.Empires[1];
+        var admiral = state.Admirals.Single(item => item.EmpireId == attacker.EmpireId);
         state.Players[0].Role = PlayerRole.Admin;
         var battle = new BattleRecord
         {
@@ -105,6 +106,23 @@ public sealed class GameStateTests
             FactJson = """{"kind":"system-signal"}""",
             CreatedAt = TestState.Now
         });
+        state.AdmiralBattleHistories.Add(new AdmiralBattleHistory
+        {
+            CycleId = cycle.CycleId,
+            AdmiralId = admiral.AdmiralId,
+            BattleId = battle.BattleId,
+            SystemId = battle.SystemId,
+            FleetId = fleet.FleetId,
+            Role = AdmiralBattleRole.Attacker,
+            Outcome = AdmiralBattleOutcome.Victory,
+            ShipsCommandedBefore = 50,
+            ShipsLost = 10,
+            ReputationChange = 35,
+            ReputationScoreAfter = 35,
+            AdmiralStatusAfter = AdmiralStatus.Active,
+            IsFamousSystemAssociation = true,
+            CreatedAt = TestState.Now
+        });
         state.Events.Add(eventRecord);
         state.BattleRecords.Add(battle);
         state.ChronicleEntries.Add(new ChronicleEntry
@@ -140,6 +158,8 @@ public sealed class GameStateTests
         Assert.Equal(state.CycleRankings.Count, clone.CycleRankings.Count);
         Assert.Equal(state.CycleMajorEvents.Count, clone.CycleMajorEvents.Count);
         Assert.Equal(state.SystemHistoricalSignals.Count, clone.SystemHistoricalSignals.Count);
+        Assert.Equal(state.Admirals.Count, clone.Admirals.Count);
+        Assert.Equal(state.AdmiralBattleHistories.Count, clone.AdmiralBattleHistories.Count);
         Assert.Equal(state.Events.Count, clone.Events.Count);
         Assert.Equal(state.BattleRecords.Count, clone.BattleRecords.Count);
         Assert.Equal(state.ChronicleEntries.Count, clone.ChronicleEntries.Count);
@@ -156,6 +176,10 @@ public sealed class GameStateTests
         Assert.NotSame(state.CycleMajorEvents[0], clone.CycleMajorEvents[0]);
         Assert.Equal(state.SystemHistoricalSignals[0].SystemHistoricalSignalId, clone.SystemHistoricalSignals[0].SystemHistoricalSignalId);
         Assert.NotSame(state.SystemHistoricalSignals[0], clone.SystemHistoricalSignals[0]);
+        Assert.Equal(state.Admirals[0].AdmiralId, clone.Admirals[0].AdmiralId);
+        Assert.NotSame(state.Admirals[0], clone.Admirals[0]);
+        Assert.Equal(state.AdmiralBattleHistories[0].AdmiralBattleHistoryId, clone.AdmiralBattleHistories[0].AdmiralBattleHistoryId);
+        Assert.NotSame(state.AdmiralBattleHistories[0], clone.AdmiralBattleHistories[0]);
         Assert.Equal(NarrativeGenerationStatus.Generated, clone.ChronicleEntries[0].NarrativeStatus);
         Assert.Equal("""{"kind":"narrative-context"}""", clone.ChronicleEntries[0].NarrativeContextJson);
         Assert.Equal(TestState.Now, clone.ChronicleEntries[0].NarrativeGeneratedAt);
@@ -166,6 +190,8 @@ public sealed class GameStateTests
         clone.CycleRankings[0].Rank = 2;
         clone.CycleMajorEvents[0].Summary = "Changed in clone.";
         clone.SystemHistoricalSignals[0].Summary = "Changed in clone.";
+        clone.Admirals[0].ReputationScore = 999;
+        clone.AdmiralBattleHistories[0].ReputationScoreAfter = 999;
         clone.ChronicleEntries[0].NarrativeStatus = NarrativeGenerationStatus.Failed;
         clone.ChronicleEntries[0].NarrativeContextJson = """{"changed":true}""";
 
@@ -175,6 +201,8 @@ public sealed class GameStateTests
         Assert.Equal(1, state.CycleRankings[0].Rank);
         Assert.Equal("A test battle was selected as major history.", state.CycleMajorEvents[0].Summary);
         Assert.Equal("A test system accumulated battle history.", state.SystemHistoricalSignals[0].Summary);
+        Assert.NotEqual(999, state.Admirals[0].ReputationScore);
+        Assert.NotEqual(999, state.AdmiralBattleHistories[0].ReputationScoreAfter);
         Assert.Equal(NarrativeGenerationStatus.Generated, state.ChronicleEntries[0].NarrativeStatus);
         Assert.Equal("""{"kind":"narrative-context"}""", state.ChronicleEntries[0].NarrativeContextJson);
     }

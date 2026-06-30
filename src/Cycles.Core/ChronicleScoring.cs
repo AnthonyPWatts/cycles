@@ -6,7 +6,10 @@ public static class ChronicleScoring
 {
     public const int ChronicleThreshold = 70;
 
-    public static int ScoreBattle(BattleRecord battle, GalaxySystem system)
+    public static int ScoreBattle(
+        BattleRecord battle,
+        GalaxySystem system,
+        IReadOnlyCollection<AdmiralBattleHistory>? admiralHistories = null)
     {
         var totalLosses = battle.AttackerLosses + battle.DefenderLosses;
         var score = totalLosses;
@@ -26,6 +29,22 @@ public static class ChronicleScoring
             score += 15;
         }
 
+        if (admiralHistories is { Count: > 0 })
+        {
+            score += Math.Min(30, admiralHistories.Sum(history => Math.Max(0, history.ReputationChange)) / 2);
+            score += admiralHistories.Count(history => history.IsFamousSystemAssociation) * 15;
+
+            if (admiralHistories.Any(history => history.AdmiralStatusAfter == AdmiralStatus.Killed))
+            {
+                score += 15;
+            }
+
+            if (admiralHistories.Any(history => history.AdmiralStatusAfter == AdmiralStatus.Legendary))
+            {
+                score += 10;
+            }
+        }
+
         return score;
     }
 
@@ -36,9 +55,19 @@ public static class ChronicleScoring
         Empire attacker,
         Empire defender,
         int importance,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyCollection<Admiral>? admirals = null,
+        IReadOnlyCollection<AdmiralBattleHistory>? admiralHistories = null)
     {
-        var source = ChronicleBattleNarrativeSource.FromBattle(battle, sourceEvent, system, attacker, defender, importance);
+        var source = ChronicleBattleNarrativeSource.FromBattle(
+            battle,
+            sourceEvent,
+            system,
+            attacker,
+            defender,
+            importance,
+            admirals,
+            admiralHistories);
         return CreateBattleEntry(source, now);
     }
 
@@ -94,8 +123,38 @@ public static class ChronicleScoring
             $"with {source.AttackerLosses} {source.AttackerEmpireName} losses, {source.DefenderLosses} {source.DefenderEmpireName} losses, " +
             $"{source.TotalLosses} ships destroyed, and a recorded outcome of {ChronicleRequiredFactValidator.FormatOutcome(source.Outcome)}.";
 
+        var admiralText = CreateAdmiralSentence(source);
         var significance = CreateSignificanceSentence(source);
-        return $"{outcomeText} {requiredFacts} {significance}";
+        return $"{outcomeText} {requiredFacts} {admiralText}{significance}";
+    }
+
+    private static string CreateAdmiralSentence(ChronicleBattleNarrativeSource source)
+    {
+        if (source.AdmiralFacts.Count == 0)
+        {
+            return "";
+        }
+
+        var highlight = source.AdmiralFacts
+            .OrderByDescending(fact => fact.IsFamousSystemAssociation)
+            .ThenByDescending(fact => fact.StatusAfter is AdmiralStatus.Legendary or AdmiralStatus.Killed)
+            .ThenByDescending(fact => fact.ReputationChange)
+            .First();
+        var outcomeText = highlight.Outcome switch
+        {
+            AdmiralBattleOutcome.Victory => "victory",
+            AdmiralBattleOutcome.Defeat => "defeat",
+            AdmiralBattleOutcome.MutualDestruction => "mutual destruction",
+            _ => highlight.Outcome.ToString()
+        };
+        var statusText = highlight.StatusAfter switch
+        {
+            AdmiralStatus.Legendary => " and reached legendary status",
+            AdmiralStatus.Killed => " and was killed",
+            _ => ""
+        };
+
+        return $"{highlight.AdmiralName} entered the Chronicle context with a {outcomeText}, gaining {highlight.ReputationChange} reputation{statusText}. ";
     }
 
     private static string CreateSignificanceSentence(ChronicleBattleNarrativeSource source)

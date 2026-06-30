@@ -14,6 +14,7 @@ public static class CombatResolver
     {
         var attackerShipsBefore = attackerFleet.ShipCount;
         var defenderShipsBefore = defenderFleets.Sum(fleet => fleet.ShipCount);
+        var defenderFleetShipsBefore = defenderFleets.ToDictionary(fleet => fleet.FleetId, fleet => fleet.ShipCount);
         var seed = DeterministicSeed(attackerFleet.CycleId, tickNumber, system.SystemId, attackerFleet.FleetId);
         var random = new Random(seed);
 
@@ -29,8 +30,8 @@ public static class CombatResolver
             ? CalculateLosses(defenderShipsBefore, loserLossRate)
             : CalculateLosses(defenderShipsBefore, winnerLossRate);
 
-        ApplyLosses([attackerFleet], attackerLosses);
-        ApplyLosses(defenderFleets, defenderLosses);
+        var attackerLossesByFleet = ApplyLosses([attackerFleet], attackerLosses);
+        var defenderLossesByFleet = ApplyLosses(defenderFleets, defenderLosses);
 
         var outcome = attackerFleet.Status == FleetStatus.Destroyed && defenderFleets.All(fleet => fleet.Status == FleetStatus.Destroyed)
             ? BattleOutcome.MutualDestruction
@@ -53,6 +54,25 @@ public static class CombatResolver
             CreatedAt = now
         };
 
+        var fleetResults = new[]
+            {
+                new AdmiralFleetBattleResult(
+                    attackerFleet.FleetId,
+                    AdmiralBattleRole.Attacker,
+                    ToAdmiralOutcome(outcome, AdmiralBattleRole.Attacker),
+                    attackerShipsBefore,
+                    attackerLossesByFleet[attackerFleet.FleetId])
+            }
+            .Concat(defenderFleets.Select(fleet => new AdmiralFleetBattleResult(
+                fleet.FleetId,
+                AdmiralBattleRole.Defender,
+                ToAdmiralOutcome(outcome, AdmiralBattleRole.Defender),
+                defenderFleetShipsBefore[fleet.FleetId],
+                defenderLossesByFleet[fleet.FleetId])))
+            .ToArray();
+
+        var admiralHistories = AdmiralService.ApplyBattleHistory(state, battle, now, fleetResults);
+
         battle.FactJson = JsonSerializer.Serialize(new
         {
             battleId = battle.BattleId,
@@ -65,7 +85,9 @@ public static class CombatResolver
             defenderShipsBefore,
             attackerLosses,
             defenderLosses,
-            outcome
+            outcome,
+            fleetResults,
+            admiralBattleHistoryIds = admiralHistories.Select(history => history.AdmiralBattleHistoryId)
         }, GameStateJson.Options);
 
         state.BattleRecords.Add(battle);
@@ -75,11 +97,12 @@ public static class CombatResolver
     private static int CalculateLosses(int shipsBefore, decimal lossRate) =>
         Math.Min(shipsBefore, Math.Max(1, (int)Math.Round(shipsBefore * lossRate, MidpointRounding.AwayFromZero)));
 
-    private static void ApplyLosses(IReadOnlyCollection<Fleet> fleets, int totalLosses)
+    private static Dictionary<Guid, int> ApplyLosses(IReadOnlyCollection<Fleet> fleets, int totalLosses)
     {
         var remainingLosses = totalLosses;
         var shipsBefore = fleets.Sum(fleet => fleet.ShipCount);
         var index = 0;
+        var lossesByFleet = new Dictionary<Guid, int>();
 
         foreach (var fleet in fleets)
         {
@@ -89,13 +112,25 @@ public static class CombatResolver
                 : Math.Min(fleet.ShipCount, (int)Math.Round(totalLosses * (fleet.ShipCount / (double)shipsBefore), MidpointRounding.AwayFromZero));
 
             remainingLosses -= loss;
+            lossesByFleet[fleet.FleetId] = loss;
             fleet.ShipCount = Math.Max(0, fleet.ShipCount - loss);
             if (fleet.ShipCount == 0)
             {
                 fleet.Status = FleetStatus.Destroyed;
             }
         }
+
+        return lossesByFleet;
     }
+
+    private static AdmiralBattleOutcome ToAdmiralOutcome(BattleOutcome battleOutcome, AdmiralBattleRole role) =>
+        battleOutcome switch
+        {
+            BattleOutcome.MutualDestruction => AdmiralBattleOutcome.MutualDestruction,
+            BattleOutcome.AttackerVictory => role == AdmiralBattleRole.Attacker ? AdmiralBattleOutcome.Victory : AdmiralBattleOutcome.Defeat,
+            BattleOutcome.DefenderVictory => role == AdmiralBattleRole.Defender ? AdmiralBattleOutcome.Victory : AdmiralBattleOutcome.Defeat,
+            _ => AdmiralBattleOutcome.Defeat
+        };
 
     private static int DeterministicSeed(Guid cycleId, int tickNumber, Guid systemId, Guid fleetId)
     {

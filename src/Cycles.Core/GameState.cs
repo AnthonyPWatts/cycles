@@ -11,6 +11,8 @@ public sealed class GameState
     public List<CycleRanking> CycleRankings { get; set; } = [];
     public List<CycleMajorEvent> CycleMajorEvents { get; set; } = [];
     public List<SystemHistoricalSignal> SystemHistoricalSignals { get; set; } = [];
+    public List<Admiral> Admirals { get; set; } = [];
+    public List<AdmiralBattleHistory> AdmiralBattleHistories { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -39,6 +41,8 @@ public sealed class GameState
             CycleRankings = CycleRankings.Select(Clone).ToList(),
             CycleMajorEvents = CycleMajorEvents.Select(Clone).ToList(),
             SystemHistoricalSignals = SystemHistoricalSignals.Select(Clone).ToList(),
+            Admirals = Admirals.Select(Clone).ToList(),
+            AdmiralBattleHistories = AdmiralBattleHistories.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -61,6 +65,8 @@ public sealed class GameState
         CycleRankings = other.CycleRankings;
         CycleMajorEvents = other.CycleMajorEvents;
         SystemHistoricalSignals = other.SystemHistoricalSignals;
+        Admirals = other.Admirals;
+        AdmiralBattleHistories = other.AdmiralBattleHistories;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -196,6 +202,37 @@ public sealed class GameState
         CreatedAt = item.CreatedAt
     };
 
+    private static Admiral Clone(Admiral item) => new()
+    {
+        AdmiralId = item.AdmiralId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        AdmiralName = item.AdmiralName,
+        ReputationScore = item.ReputationScore,
+        Status = item.Status,
+        CreatedAt = item.CreatedAt,
+        UpdatedAt = item.UpdatedAt
+    };
+
+    private static AdmiralBattleHistory Clone(AdmiralBattleHistory item) => new()
+    {
+        AdmiralBattleHistoryId = item.AdmiralBattleHistoryId,
+        CycleId = item.CycleId,
+        AdmiralId = item.AdmiralId,
+        BattleId = item.BattleId,
+        SystemId = item.SystemId,
+        FleetId = item.FleetId,
+        Role = item.Role,
+        Outcome = item.Outcome,
+        ShipsCommandedBefore = item.ShipsCommandedBefore,
+        ShipsLost = item.ShipsLost,
+        ReputationChange = item.ReputationChange,
+        ReputationScoreAfter = item.ReputationScoreAfter,
+        AdmiralStatusAfter = item.AdmiralStatusAfter,
+        IsFamousSystemAssociation = item.IsFamousSystemAssociation,
+        CreatedAt = item.CreatedAt
+    };
+
     private static GalaxySystem Clone(GalaxySystem item) => new()
     {
         SystemId = item.SystemId,
@@ -226,6 +263,7 @@ public sealed class GameState
         FleetId = item.FleetId,
         CycleId = item.CycleId,
         EmpireId = item.EmpireId,
+        AdmiralId = item.AdmiralId,
         FleetName = item.FleetName,
         CurrentSystemId = item.CurrentSystemId,
         DestinationSystemId = item.DestinationSystemId,
@@ -488,12 +526,44 @@ public sealed class Fleet
     public Guid FleetId { get; set; } = Guid.NewGuid();
     public Guid CycleId { get; set; }
     public Guid EmpireId { get; set; }
+    public Guid? AdmiralId { get; set; }
     public string FleetName { get; set; } = "";
     public Guid CurrentSystemId { get; set; }
     public Guid? DestinationSystemId { get; set; }
     public int? ArrivalTickNumber { get; set; }
     public int ShipCount { get; set; }
     public FleetStatus Status { get; set; } = FleetStatus.Active;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class Admiral
+{
+    public Guid AdmiralId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public string AdmiralName { get; set; } = "";
+    public int ReputationScore { get; set; }
+    public AdmiralStatus Status { get; set; } = AdmiralStatus.Active;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class AdmiralBattleHistory
+{
+    public Guid AdmiralBattleHistoryId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid AdmiralId { get; set; }
+    public Guid BattleId { get; set; }
+    public Guid SystemId { get; set; }
+    public Guid FleetId { get; set; }
+    public AdmiralBattleRole Role { get; set; }
+    public AdmiralBattleOutcome Outcome { get; set; }
+    public int ShipsCommandedBefore { get; set; }
+    public int ShipsLost { get; set; }
+    public int ReputationChange { get; set; }
+    public int ReputationScoreAfter { get; set; }
+    public AdmiralStatus AdmiralStatusAfter { get; set; }
+    public bool IsFamousSystemAssociation { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -623,6 +693,28 @@ public enum FleetStatus
     Destroyed
 }
 
+public enum AdmiralStatus
+{
+    Active,
+    Retired,
+    Killed,
+    Missing,
+    Legendary
+}
+
+public enum AdmiralBattleRole
+{
+    Attacker,
+    Defender
+}
+
+public enum AdmiralBattleOutcome
+{
+    Victory,
+    Defeat,
+    MutualDestruction
+}
+
 public enum FleetOrderType
 {
     MoveFleet,
@@ -667,7 +759,8 @@ public enum EventType
     ChronicleCreated,
     RecoveryCleared,
     CycleCompleted,
-    DoctrineUnlocked
+    DoctrineUnlocked,
+    AdmiralBattleReported
 }
 
 public enum EventSeverity

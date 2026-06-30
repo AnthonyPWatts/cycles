@@ -320,10 +320,22 @@ public sealed class TickEngine
         };
         state.Events.Add(battleEvent);
 
-        var importance = ChronicleScoring.ScoreBattle(battle, system);
+        var admiralHistories = state.AdmiralBattleHistories
+            .Where(history => history.BattleId == battle.BattleId)
+            .ToArray();
+        var importance = ChronicleScoring.ScoreBattle(battle, system, admiralHistories);
         if (importance >= ChronicleScoring.ChronicleThreshold)
         {
-            var chronicle = ChronicleScoring.CreateBattleEntry(battle, battleEvent, system, attacker, defender, importance, now);
+            var chronicle = ChronicleScoring.CreateBattleEntry(
+                battle,
+                battleEvent,
+                system,
+                attacker,
+                defender,
+                importance,
+                now,
+                state.Admirals,
+                admiralHistories);
             state.ChronicleEntries.Add(chronicle);
             state.Events.Add(new EventRecord
             {
