@@ -7,6 +7,8 @@ namespace Cycles.Infrastructure.SqlServer;
 public sealed class SqlServerGameStateStore : IGameStateStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
+    private const string TickLockPrefix = "Cycles.Tick.";
+    private const int ApplicationLockTimeoutMilliseconds = 5000;
 
     private readonly string _connectionString;
     private readonly Func<GameState> _seedFactory;
@@ -80,7 +82,6 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     {
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-        AcquireApplicationLock(connection, transaction);
 
         var activeCycleId = cycleId ?? ReadActiveCycleIdUnsafe(connection, transaction);
         GameState state;
@@ -88,6 +89,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
         if (activeCycleId.HasValue)
         {
+            AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
             state = LoadFocusedTickStateUnsafe(connection, transaction, activeCycleId.Value);
         }
         else if (AnyCycleExistsUnsafe(connection, transaction))
@@ -96,10 +98,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         }
         else
         {
+            AcquireApplicationLock(connection, transaction);
             state = _seedFactory();
             createdState = true;
             activeCycleId = state.GetActiveCycle()?.CycleId
                 ?? throw new InvalidOperationException("No active cycle exists.");
+            AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
         }
 
         var result = new TickEngine().RunTick(state, activeCycleId.Value, now);
@@ -123,7 +127,13 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         return connection;
     }
 
-    private static void AcquireApplicationLock(SqlConnection connection, SqlTransaction transaction)
+    private static void AcquireApplicationLock(SqlConnection connection, SqlTransaction transaction) =>
+        AcquireSqlApplicationLock(connection, transaction, ApplicationLockName);
+
+    private static void AcquireCycleTickLock(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
+        AcquireSqlApplicationLock(connection, transaction, $"{TickLockPrefix}{cycleId:D}");
+
+    private static void AcquireSqlApplicationLock(SqlConnection connection, SqlTransaction transaction, string resourceName)
     {
         using var command = CreateCommand(connection, transaction, """
             DECLARE @Result int;
@@ -134,13 +144,13 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 @LockTimeout = @LockTimeout;
             SELECT @Result;
             """);
-        AddString(command, "@Resource", ApplicationLockName, 255);
-        AddInt(command, "@LockTimeout", 5000);
+        AddString(command, "@Resource", resourceName, 255);
+        AddInt(command, "@LockTimeout", ApplicationLockTimeoutMilliseconds);
 
         var result = Convert.ToInt32(command.ExecuteScalar(), null);
         if (result < 0)
         {
-            throw new TimeoutException($"Could not acquire SQL Server application lock '{ApplicationLockName}'. Result code: {result}.");
+            throw new TimeoutException($"Could not acquire SQL Server application lock '{resourceName}'. Result code: {result}.");
         }
     }
 

@@ -268,6 +268,37 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_dedicated_tick_runner_uses_cycle_scoped_application_lock_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+
+        store.Replace(state);
+
+        using (HoldSqlApplicationLock(connectionString, "Cycles.GameState"))
+        {
+            var result = store.RunTick(cycle.CycleId, TestState.Now);
+
+            Assert.Equal(TickLogStatus.Completed, result.Status);
+        }
+
+        var cycleLockName = $"Cycles.Tick.{cycle.CycleId:D}";
+        using (HoldSqlApplicationLock(connectionString, cycleLockName))
+        {
+            var ex = Assert.Throws<TimeoutException>(() => store.RunTick(cycle.CycleId, TestState.Now.AddHours(1)));
+
+            Assert.Contains(cycleLockName, ex.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void Store_rolls_back_when_duplicate_running_tick_is_detected()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -529,6 +560,35 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         command.ExecuteNonQuery();
     }
 
+    private static HeldSqlApplicationLock HoldSqlApplicationLock(string connectionString, string resourceName)
+    {
+        var connection = new SqlConnection(connectionString);
+        connection.Open();
+        var transaction = connection.BeginTransaction();
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DECLARE @Result int;
+            EXEC @Result = sys.sp_getapplock
+                @Resource = @Resource,
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 0;
+            SELECT @Result;
+            """;
+        command.Parameters.AddWithValue("@Resource", resourceName);
+        var result = Convert.ToInt32(command.ExecuteScalar(), null);
+        if (result < 0)
+        {
+            transaction.Dispose();
+            connection.Dispose();
+            throw new TimeoutException($"Could not acquire SQL Server application lock '{resourceName}'. Result code: {result}.");
+        }
+
+        return new HeldSqlApplicationLock(connection, transaction);
+    }
+
     private static int ReadInt(string connectionString, string sql, Action<SqlCommand> configure)
     {
         using var connection = new SqlConnection(connectionString);
@@ -538,5 +598,24 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         command.CommandText = sql;
         configure(command);
         return Convert.ToInt32(command.ExecuteScalar(), null);
+    }
+
+    private sealed class HeldSqlApplicationLock : IDisposable
+    {
+        private readonly SqlConnection _connection;
+        private readonly SqlTransaction _transaction;
+
+        public HeldSqlApplicationLock(SqlConnection connection, SqlTransaction transaction)
+        {
+            _connection = connection;
+            _transaction = transaction;
+        }
+
+        public void Dispose()
+        {
+            _transaction.Rollback();
+            _transaction.Dispose();
+            _connection.Dispose();
+        }
     }
 }

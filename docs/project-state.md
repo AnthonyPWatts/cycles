@@ -169,6 +169,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final application-service/repository model.
 - SQL-backed CLI tick execution now uses a dedicated tick runner that loads a focused tick workspace for the active Cycle: cycle metadata, systems, links, empires, resources, priorities, fleets, due pending orders, due queued ship construction, and running tick logs.
 - The SQL tick runner persists tick outcome rows for the active Cycle without loading historical events, battle records, Chronicle entries, future orders, completed construction, old tick logs, or running the generic missing-row deletion pass.
+- The SQL tick runner acquires a transaction-scoped per-Cycle application lock named `Cycles.Tick.{CycleID}` before loading or writing tick state. Generic whole-state SQL mutations still use the broader `Cycles.GameState` application lock.
 
 ## Verified Checks
 
@@ -217,7 +218,6 @@ These are known gaps, not defects in the current MVP claim:
 - Development auth is intentionally not production authentication or a multiplayer security boundary.
 - Fog-of-war is only a first-pass active-fleet visibility model. There are no sensors, partial estimates, delayed discoveries, or nuanced public/private Chronicle redactions yet.
 - No scheduled worker service.
-- No production-grade per-Cycle tick locking.
 - No real deployment story.
 - Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, and dedicated historical-signal records exist, but there is no next-Cycle reset, continuity generation, or selected system preservation yet.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
@@ -235,9 +235,9 @@ These are known gaps, not defects in the current MVP claim:
 
 The next stage should harden the simulation spine before adding feature breadth:
 
-1. make tick execution idempotent and auditable against the focused SQL tick path;
-2. add live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-3. use dedicated historical signal records and selected major events to drive next-Cycle continuity;
+1. keep adding live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
+2. use dedicated historical signal records and selected major events to drive next-Cycle continuity;
+3. generate the next Cycle from completed-Cycle history;
 4. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
 5. only then deepen the Chronicle/history systems.
 

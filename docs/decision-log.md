@@ -282,6 +282,22 @@ Consequences:
 - The generic `IGameStateStore.Update` path still loads and synchronises the full prototype state.
 - A future `Cycles.Application` layer can replace the in-memory `GameState` workspace with provider-neutral tick repositories when the use-case boundary is worth extracting.
 
+## 2026-06-30: Use Per-Cycle SQL Application Locks For Dedicated Tick Execution
+
+Decision: make the dedicated SQL tick runner acquire a transaction-scoped SQL Server application lock named `Cycles.Tick.{CycleID}` before loading or writing tick state.
+
+Reasoning:
+
+- The focused tick path now operates on one Cycle at a time, so a global `Cycles.GameState` lock is broader than the tick runner needs.
+- SQL Server application locks already fit the current infrastructure and avoid adding a new lock table before worker ownership is defined.
+- Generic whole-state mutations still need the broader lock because they can replace or synchronise rows across the full prototype state.
+
+Consequences:
+
+- Explicit SQL-backed ticks for different Cycles no longer depend on the generic whole-state lock.
+- A duplicate worker for the same Cycle is blocked before it reads the tick workspace.
+- The project still needs a scheduled worker/admin host before this becomes a production tick service.
+
 ## 2026-06-30: Keep Expansion As Derived Influence Projection
 
 Decision: make expansion priority increase an empire's effective presence, rather than storing ownership or introducing outposts.
