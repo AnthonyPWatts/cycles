@@ -103,6 +103,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Completing a Cycle increases system historical significance for repeated battles, with an extra signal for systems that hosted one of the largest battles by total losses.
 - Completing a Cycle records `SystemHistoricalSignals` for affected systems, including battle count, total losses, largest local battle, and historical-significance increase.
 - Completing a Cycle preserves the top 10% of battles by total losses, with a minimum of one battle, in `CycleMajorEvents`.
+- The CLI can generate a successor Cycle with `cycle next`, using completed-Cycle rankings to preserve player continuity and selected historical system facts to carry famous system names/significance into the new galaxy.
 
 ### Orders
 
@@ -219,7 +220,7 @@ These are known gaps, not defects in the current MVP claim:
 - Fog-of-war is only a first-pass active-fleet visibility model. There are no sensors, partial estimates, delayed discoveries, or nuanced public/private Chronicle redactions yet.
 - No scheduled worker service.
 - No real deployment story.
-- Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, and dedicated historical-signal records exist, but there is no next-Cycle reset, continuity generation, or selected system preservation yet.
+- Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, dedicated historical-signal records, and first next-Cycle continuity generation exist, but there is no richer reset policy, successor diplomacy, or AI-written inter-Cycle history yet.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
@@ -236,10 +237,10 @@ These are known gaps, not defects in the current MVP claim:
 The next stage should harden the simulation spine before adding feature breadth:
 
 1. keep adding live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-2. use dedicated historical signal records and selected major events to drive next-Cycle continuity;
-3. generate the next Cycle from completed-Cycle history;
-4. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
-5. only then deepen the Chronicle/history systems.
+2. harden next-Cycle continuity with richer reset policy and historical summaries;
+3. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
+4. add narrative-generation status and validation around Chronicle prose;
+5. only then add broader admirals, diplomacy, doctrine, and other feature systems.
 
 ## Definition Of The Next Stable State
 
@@ -249,5 +250,6 @@ The project reaches the next stable state when:
 - simulation state can be persisted in a relational store;
 - the same due order cannot be processed twice;
 - one tick per Cycle is enforced by storage-level locking or an equivalent mechanism;
+- a completed Cycle can create a successor Cycle from preserved historical facts;
 - core behaviours are covered by deterministic automated tests;
 - the dashboard remains able to view state and submit orders against the new persistence layer.

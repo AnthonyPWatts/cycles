@@ -206,6 +206,7 @@ Current direction:
 - The first `cycle end` command marks the Cycle completed and persists one winner plus ranked standings for every active empire.
 - Cycle completion now increases system historical significance from repeated battles and largest-loss battle locations.
 - Cycle completion now preserves the top 10% of battles by total losses, with a minimum of one battle when battles occurred.
+- The first `cycle next` command creates a successor Cycle from completed-Cycle history, preserving player continuity and selected historically significant systems as names, significance, and strategic echoes.
 
 Questions and answers:
 
@@ -231,7 +232,7 @@ Questions and answers:
 Decision:
 
 - The first persistent history schema should cover rankings, selected largest battles, selected systems, and historical system signals.
-- Rankings, selected largest battles, first system historical-significance updates, and dedicated system historical signals now have persistence; selected systems remain future work.
+- Rankings, selected largest battles, first system historical-significance updates, dedicated system historical signals, and first successor-Cycle generation now have persistence/behaviour. Richer inter-Cycle summaries remain future work.
 
 ## Priority 5: Chronicle And Narrative
 

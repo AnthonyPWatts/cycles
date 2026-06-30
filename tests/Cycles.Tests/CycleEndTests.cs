@@ -118,6 +118,89 @@ public sealed class CycleEndTests
         Assert.Contains("majorEvents", completionEvent.FactJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void GenerateNextCyclePreservesHistoricalSystemsAndPlayerContinuity()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var sourceSystem = state.Systems.Single();
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        state.BattleRecords.Add(CreateBattle(
+            sourceCycle.CycleId,
+            sourceSystem.SystemId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            attackerLosses: 12,
+            defenderLosses: 8));
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+
+        var result = CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 9876);
+
+        var nextCycle = state.Cycles.Single(cycle => cycle.CycleId == result.CycleId);
+        var nextSystems = state.Systems.Where(system => system.CycleId == nextCycle.CycleId).ToArray();
+        var nextEmpires = state.Empires.Where(empire => empire.CycleId == nextCycle.CycleId).ToArray();
+        var preservedSystem = Assert.Single(result.PreservedSystems);
+        var seedEvent = Assert.Single(state.Events, item => item.CycleId == nextCycle.CycleId && item.EventType == EventType.CycleSeeded);
+
+        Assert.Equal(CycleStatus.Active, nextCycle.Status);
+        Assert.Equal(TestState.Now.AddDays(1), nextCycle.StartAt);
+        Assert.Equal(9876, result.Seed);
+        Assert.Equal(2, nextEmpires.Length);
+        Assert.Equal(2, result.SuccessorEmpires.Count);
+        Assert.Contains(nextEmpires, empire => empire.PlayerId == firstEmpire.PlayerId && empire.EmpireName == "First Legacy");
+        Assert.Contains(nextEmpires, empire => empire.PlayerId == secondEmpire.PlayerId && empire.EmpireName == "Second Remnant");
+        Assert.Equal(sourceSystem.SystemId, preservedSystem.SourceSystemId);
+        Assert.Equal("Contest", preservedSystem.SystemName);
+        Assert.Contains(nextSystems, system => system.SystemId == preservedSystem.NewSystemId
+                                               && system.SystemName == "Contest"
+                                               && system.HistoricalSignificance >= 2);
+        Assert.Contains("sourceCycleId", seedEvent.FactJson, StringComparison.Ordinal);
+        Assert.Contains("preservedSystems", seedEvent.FactJson, StringComparison.Ordinal);
+        Assert.Contains("successorEmpires", seedEvent.FactJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateNextCycleRejectsCycleThatIsNotCompleted()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CycleContinuityService.GenerateNextCycle(
+            state,
+            cycle.CycleId,
+            TestState.Now.AddDays(1)));
+
+        Assert.Contains("Only completed Cycles", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateNextCycleRejectsWhenAnotherCycleIsActive()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+        state.Cycles.Add(new Cycle
+        {
+            Name = "Already active",
+            StartAt = TestState.Now,
+            EndAt = TestState.Now.AddDays(90),
+            Status = CycleStatus.Active,
+            CreatedAt = TestState.Now
+        });
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1)));
+
+        Assert.Contains("another Cycle is active", ex.Message, StringComparison.Ordinal);
+    }
+
     private static BattleRecord CreateBattle(
         Guid cycleId,
         Guid systemId,

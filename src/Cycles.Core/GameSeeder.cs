@@ -46,14 +46,18 @@ public static class GameSeeder
         "Marrow Directorate"
     ];
 
-    public static GameState CreateDefault(int systemCount = 24, int empireCount = 4, int seed = 71421)
+    public static GameState CreateDefault(
+        int systemCount = 24,
+        int empireCount = 4,
+        int seed = 71421,
+        DateTimeOffset? createdAt = null)
     {
         if (systemCount < empireCount)
         {
             throw new ArgumentOutOfRangeException(nameof(systemCount), "There must be at least one system per empire.");
         }
 
-        var now = DateTimeOffset.UtcNow;
+        var now = createdAt ?? DateTimeOffset.UtcNow;
         var state = new GameState();
         var cycle = new Cycle
         {

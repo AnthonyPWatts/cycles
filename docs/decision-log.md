@@ -412,7 +412,7 @@ Consequences:
 
 - `CycleMajorEvents` stores selected battle references, rank, total losses, importance score, summary, and fact JSON at manual Cycle cutoff.
 - Final rankings still use `MapControlPercent`; selected battles are historical records, not winner criteria.
-- Selected systems and next-Cycle generation remain future Stage 5 work.
+- Richer selected-system rules and inter-Cycle continuity summaries remain future Stage 5 work.
 
 ## 2026-06-30: Persist Dedicated System Historical Signals
 
@@ -429,7 +429,24 @@ Consequences:
 - Completing a Cycle now records one `BattleActivity` signal per affected system.
 - Each signal stores the source largest local battle, battle count, total losses, largest local losses, whether the system hosted one of the Cycle's largest battles, and the applied historical-significance increase.
 - The CLI `show` command displays system history signals for completed Cycles.
-- Selected systems and next-Cycle generation remain future Stage 5 work.
+- Richer inter-Cycle summaries remain future Stage 5 work.
+
+## 2026-06-30: Generate Successor Cycles From Completed-Cycle History
+
+Decision: add a CLI-owned `cycle next` command that creates a new active Cycle from a completed Cycle's rankings, major battle selections, and system historical signals.
+
+Reasoning:
+
+- Cycle continuity needs to become executable before deeper history or narrative systems can be tested.
+- The existing completed-Cycle facts are enough to preserve player continuity and a small set of famous systems without inventing hidden outcomes.
+- Keeping this as a CLI/admin operation matches the manual `cycle end` boundary and avoids exposing lifecycle control through player-facing APIs.
+
+Consequences:
+
+- A successor Cycle can only be generated after the source Cycle is completed and no other Cycle is active.
+- Players from the ranked source empires are attached to successor empires in final-rank order, while empire advantages do not mechanically carry over.
+- A small selected set of historical systems keeps names, historical significance, and a strategic-value echo in the generated galaxy.
+- Richer reset policy, inter-Cycle summaries, and AI-written continuity remain follow-on work.
 
 ## 2026-06-30: Start Chronicle Narrative With Deterministic Battle Templates
 

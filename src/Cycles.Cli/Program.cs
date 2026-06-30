@@ -219,6 +219,38 @@ static int RunCycleCommand(string[] args)
                 return 0;
             }
 
+        case "next":
+            {
+                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
+                var requestedCycleId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
+                var seed = args.Length > 4 ? int.Parse(args[4]) : (int?)null;
+                var store = GameStateStoreFactory.Create(statePath);
+                var result = store.Update(state =>
+                {
+                    var cycleId = requestedCycleId
+                        ?? state.Cycles
+                            .Where(cycle => cycle.Status == CycleStatus.Completed)
+                            .OrderByDescending(cycle => cycle.EndAt)
+                            .ThenByDescending(cycle => cycle.CreatedAt)
+                            .FirstOrDefault()
+                            ?.CycleId
+                        ?? throw new InvalidOperationException("No completed cycle exists.");
+                    return CycleContinuityService.GenerateNextCycle(state, cycleId, DateTimeOffset.UtcNow, seed);
+                });
+
+                Console.WriteLine($"Generated successor Cycle: {result.CycleId}");
+                Console.WriteLine($"Source Cycle: {result.SourceCycleId}");
+                Console.WriteLine($"Seed: {result.Seed}");
+                Console.WriteLine($"Successor empires: {result.SuccessorEmpires.Count}");
+                Console.WriteLine($"Preserved systems: {result.PreservedSystems.Count}");
+                foreach (var system in result.PreservedSystems.OrderBy(system => system.SystemName))
+                {
+                    Console.WriteLine($"- {system.SystemName}: history {system.HistoricalSignificance}, strategic value {system.StrategicValue}");
+                }
+
+                return 0;
+            }
+
         default:
             PrintUsage();
             return 2;
@@ -476,6 +508,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next [statePath] [completedCycleId] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <statePath> <cycleId> --operator <name> --reason <reason>");

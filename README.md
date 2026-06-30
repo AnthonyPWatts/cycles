@@ -75,6 +75,7 @@ dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- tick data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- show data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle end data/cycles-state.json
+dotnet run --project src/Cycles.Cli -- cycle next data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- recovery data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- recovery details data/cycles-state.json
 ```

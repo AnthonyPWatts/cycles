@@ -107,7 +107,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add historical signal fields or tables for systems.
 - [x] Increase historical system significance from repeated conflict.
 - [x] Preserve largest battle per Cycle.
-- [ ] Generate next Cycle from prior historical facts.
+- [x] Generate next Cycle from prior historical facts.
 - [x] Surface historical markers in API and dashboard.
 - [x] Add tests for Cycle end and historical system updates.
 
