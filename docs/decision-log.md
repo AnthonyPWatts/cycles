@@ -263,3 +263,35 @@ Consequences:
 - Ships cost 25 industry each, take 3 ticks to complete, and join the empire's home fleet by default.
 - Material ship construction queue and completion facts are written as events.
 - The SQL tick runner now loads priorities and persists ship construction rows.
+
+## 2026-06-30: Keep Expansion As Derived Influence Projection
+
+Decision: make expansion priority increase an empire's effective presence, rather than storing ownership or introducing outposts.
+
+Reasoning:
+
+- The established territorial model treats influence as derived presence, not binary ownership.
+- Expansion needed a visible first effect without adding colonisation, discovery, or a new persistence shape.
+- Scaling existing fleet and home-system presence keeps the first behaviour transparent and testable.
+
+Consequences:
+
+- Expansion priority can change resource shares and system-detail influence even when fleet counts are unchanged.
+- The projection is recalculated from current priorities whenever effective presence is requested.
+- Future colonisation or outpost mechanics should build on this model deliberately instead of silently replacing it.
+
+## 2026-06-30: Rank Cycle Winners By Map Control
+
+Decision: define the first Cycle-end winner metric as `MapControlPercent`, calculated from each empire's share of effective presence across all systems.
+
+Reasoning:
+
+- Product-owner direction favours influence across the map rather than a blended score.
+- Effective presence already captures active fleets, home-system pressure, and expansion projection without storing ownership.
+- A single primary metric keeps the first Cycle-end command explainable.
+
+Consequences:
+
+- Future ranking persistence should store one winner plus ranked standings for all active empires.
+- Strategic value, resources, battles, and Chronicle score can become historical categories, but they do not decide the first winner.
+- Tie-breaking should be deterministic, with details defined in `ranking-metrics.md`.

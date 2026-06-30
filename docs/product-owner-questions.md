@@ -4,7 +4,7 @@ Last updated: 2026-06-30
 
 This file collects product-owner questions and answers that shape player-visible behaviour. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`.
 
-The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, and resources cannot go negative.
+The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, expansion priority projects influence, and resources cannot go negative.
 
 ## Priority 1: Strategic Economy MVP
 

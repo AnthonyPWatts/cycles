@@ -5,6 +5,7 @@ namespace Cycles.Core;
 public static class InfluenceCalculator
 {
     public const int HomeSystemMinimumPresence = 10;
+    public const decimal MaximumExpansionProjectionBonus = 1m;
 
     public static IReadOnlyDictionary<Guid, decimal> CalculateEffectivePresence(
         GameState state,
@@ -25,6 +26,12 @@ public static class InfluenceCalculator
             presence[homeEmpire.EmpireId] = presence.TryGetValue(homeEmpire.EmpireId, out var currentPresence)
                 ? Math.Max(currentPresence, HomeSystemMinimumPresence)
                 : HomeSystemMinimumPresence;
+        }
+
+        foreach (var (empireId, effectivePresence) in presence.ToArray())
+        {
+            var projectionBonus = CalculateExpansionProjectionBonus(state, empireId);
+            presence[empireId] = decimal.Round(effectivePresence * (1m + projectionBonus), 2);
         }
 
         return presence;
@@ -102,6 +109,18 @@ public static class InfluenceCalculator
                 CreatedAt = now
             });
         }
+    }
+
+    private static decimal CalculateExpansionProjectionBonus(GameState state, Guid empireId)
+    {
+        var priority = state.EmpirePriorities.SingleOrDefault(item => item.EmpireId == empireId);
+        if (priority is null)
+        {
+            return 0m;
+        }
+
+        var expansionWeight = Math.Clamp(priority.ExpansionWeight, 0, 100);
+        return MaximumExpansionProjectionBonus * expansionWeight / 100m;
     }
 }
 

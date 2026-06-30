@@ -46,6 +46,7 @@ public sealed class InfluenceTests
     public void MultipleActiveFleetsFromOneEmpireAggregatePresence()
     {
         var state = TestState.CreateTwoEmpireContest(attackerShips: 40, defenderShips: 40);
+        SetExpansionWeight(state, 0);
         var cycle = state.GetActiveCycle()!;
         var firstFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[0].EmpireId);
         state.Fleets.Add(new Fleet
@@ -89,6 +90,7 @@ public sealed class InfluenceTests
     public void HomeSystemMinimumPresenceAppliesOnlyToHomeEmpire()
     {
         var state = TestState.CreateSingleEmpireState(includeFleet: false);
+        SetExpansionWeight(state, 0);
         var cycle = state.GetActiveCycle()!;
         var empire = Assert.Single(state.Empires);
         var system = Assert.Single(state.Systems);
@@ -96,5 +98,56 @@ public sealed class InfluenceTests
         var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
 
         Assert.Equal(InfluenceCalculator.HomeSystemMinimumPresence, presence[empire.EmpireId]);
+    }
+
+    [Fact]
+    public void ExpansionPriorityProjectsFleetPresence()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 50, defenderShips: 50);
+        var cycle = state.GetActiveCycle()!;
+
+        SetExpansionWeight(state.EmpirePriorities[0], 100);
+        SetExpansionWeight(state.EmpirePriorities[1], 0);
+
+        var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, state.Systems[0].SystemId);
+
+        Assert.Equal(100m, presence[state.Empires[0].EmpireId]);
+        Assert.Equal(50m, presence[state.Empires[1].EmpireId]);
+    }
+
+    [Fact]
+    public void ExpansionProjectionChangesResourceShare()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 50, defenderShips: 50);
+        var cycle = state.GetActiveCycle()!;
+
+        SetExpansionWeight(state.EmpirePriorities[0], 100);
+        SetExpansionWeight(state.EmpirePriorities[1], 0);
+
+        InfluenceCalculator.GenerateResources(state, cycle.CycleId, 1, TestState.Now);
+
+        var first = state.EmpireResources.Single(resource => resource.EmpireId == state.Empires[0].EmpireId);
+        var second = state.EmpireResources.Single(resource => resource.EmpireId == state.Empires[1].EmpireId);
+
+        Assert.Equal(66.67m, first.Industry);
+        Assert.Equal(33.33m, second.Industry);
+        Assert.Equal(66.67m, first.LastGeneratedIndustry);
+        Assert.Equal(33.33m, second.LastGeneratedIndustry);
+    }
+
+    private static void SetExpansionWeight(GameState state, int expansionWeight)
+    {
+        foreach (var priority in state.EmpirePriorities)
+        {
+            SetExpansionWeight(priority, expansionWeight);
+        }
+    }
+
+    private static void SetExpansionWeight(EmpirePriority priority, int expansionWeight)
+    {
+        priority.IndustryWeight = 100 - expansionWeight;
+        priority.ResearchWeight = 0;
+        priority.MilitaryWeight = 0;
+        priority.ExpansionWeight = expansionWeight;
     }
 }

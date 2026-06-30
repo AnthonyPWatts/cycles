@@ -13,6 +13,7 @@ This folder records the current project state and the intended development path.
 7. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
 8. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
 9. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
+10. [Ranking metrics](ranking-metrics.md) - first Cycle-end ranking metric definition.
 
 ## Source Documents
 

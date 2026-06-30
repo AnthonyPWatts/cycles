@@ -64,6 +64,7 @@ This is not yet a production game service. It is a working architecture slice.
 - Last-tick generated and spent resource amounts are stored separately from stockpile totals.
 - Strategic priority weights must total 100.
 - Military priority spending automatically queues ship construction from available industry.
+- Expansion priority increases an empire's derived effective presence for resource and system-detail influence calculations.
 - Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
 
@@ -161,7 +162,7 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No production-grade per-Cycle tick locking.
 - No real deployment story.
-- No end-of-Cycle rankings, winners, reset, or continuity.
+- Cycle-end ranking metrics are documented, but there is no ranking command, winner persistence, reset, or continuity.
 - Research and population stockpiles do not yet drive unlock or colonisation effects.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.

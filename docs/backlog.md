@@ -71,7 +71,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Decide where new ships appear: home fleet, rally fleet, or new reserve fleet.
 - [x] Add spending events for material changes.
 - [ ] Add simple research accumulation effect.
-- [ ] Add simple expansion/influence projection effect.
+- [x] Add simple expansion/influence projection effect.
 - [x] Add UI controls for priority changes.
 - [x] Add UI display for last tick gains and spending.
 - [x] Add balance tests for growth and non-negative resources.
@@ -98,7 +98,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 5: History And Cycle Continuity
 
-- [ ] Define ranking metrics.
+- [x] Define ranking metrics.
 - [ ] Store per-tick or per-Cycle empire metrics.
 - [ ] Add Cycle-end processing command.
 - [ ] Persist final Cycle rankings.

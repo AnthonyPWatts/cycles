@@ -8,6 +8,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - server-authoritative tick processing;
 - influence-based resource generation and first-pass priority spending;
 - automatic ship construction from military industry investment;
+- derived expansion priority projection for influence and resource shares;
 - durable movement, hold, and attack orders;
 - simple structured combat with deterministic randomness;
 - factual event logging;
@@ -38,6 +39,7 @@ Start here before adding the next substantial feature:
 - [Decisions before continuing](docs/decisions-before-continuing.md)
 - [Tick recovery](docs/recovery.md)
 - [Determinism contract](docs/determinism.md)
+- [Ranking metrics](docs/ranking-metrics.md)
 
 ## Run
 
