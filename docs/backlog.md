@@ -103,10 +103,10 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Store per-tick or per-Cycle empire metrics.
 - [x] Add Cycle-end processing command.
 - [x] Persist final Cycle rankings.
-- [ ] Select major Cycle events.
+- [x] Select major Cycle events.
 - [ ] Add historical signal fields or tables for systems.
 - [x] Increase historical system significance from repeated conflict.
-- [ ] Preserve largest battle per Cycle.
+- [x] Preserve largest battle per Cycle.
 - [ ] Generate next Cycle from prior historical facts.
 - [x] Surface historical markers in API and dashboard.
 - [x] Add tests for Cycle end and historical system updates.

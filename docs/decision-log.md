@@ -329,7 +329,7 @@ Consequences:
 - Completed Cycles no longer appear as active Cycles.
 - Final standings store rank, winner flag, map-control percentage, total effective presence, active ship count, cutoff tick, and cutoff time.
 - Pending orders remain pending at cutoff; only already-processed state affects the final ranking.
-- Next-Cycle generation, selected major-event preservation, and historical-system updates remain future Stage 5 work.
+- Next-Cycle generation, selected major-event preservation, and historical-system updates were left for follow-on Stage 5 work.
 
 ## 2026-06-30: Apply First Historical System Signals At Cycle End
 
@@ -345,7 +345,7 @@ Consequences:
 
 - Repeated battle systems become more historically important when a Cycle is completed.
 - The Cycle-completion event fact JSON includes the applied historical signals.
-- Dedicated historical signal tables, selected major-event persistence, and next-Cycle continuity remain future Stage 5 work.
+- Dedicated historical signal tables and next-Cycle continuity remain future Stage 5 work.
 
 ## 2026-06-30: Use Development Auth Before Production Auth
 
@@ -381,3 +381,19 @@ Consequences:
 - System details outside active-fleet visibility return map/static system facts without exact influence or local fleet lists.
 - Player-owned empire/audit events remain visible even when they have no system location.
 - Destroyed fleets, sensors, public summaries, delayed discoveries, and Chronicle redaction remain future design work.
+
+## 2026-06-30: Preserve Selected Major Battles At Cycle End
+
+Decision: when a Cycle is completed, preserve the top 10% of that Cycle's battles by total ship losses, with a minimum of one battle when any battles occurred.
+
+Reasoning:
+
+- Product-owner direction says Cycle history should preserve enough to maintain history without making every minor skirmish famous.
+- Total ship losses are already deterministic battle facts and provide a simple first magnitude signal.
+- Keeping selected major events in a dedicated table gives next-Cycle continuity and narrative work a stable historical input without changing battle resolution or Chronicle visibility.
+
+Consequences:
+
+- `CycleMajorEvents` stores selected battle references, rank, total losses, importance score, summary, and fact JSON at manual Cycle cutoff.
+- Final rankings still use `MapControlPercent`; selected battles are historical records, not winner criteria.
+- Selected systems, richer historical signal tables, and next-Cycle generation remain future Stage 5 work.

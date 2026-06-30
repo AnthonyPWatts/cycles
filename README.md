@@ -14,6 +14,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - factual event logging;
 - Chronicle candidate scoring and preserved battle entries;
 - per-tick map-control metric snapshots;
+- Cycle-end ranking and selected major-battle preservation;
 - a local JSON state store with file locking for prototype use;
 - a CLI tick runner;
 - a minimal API and browser dashboard for viewing state and submitting orders.

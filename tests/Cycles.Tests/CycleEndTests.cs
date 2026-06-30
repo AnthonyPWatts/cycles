@@ -66,17 +66,55 @@ public sealed class CycleEndTests
         Assert.Contains("historicalSignals", completionEvent.FactJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CompleteCyclePreservesTopTenPercentOfBattlesAsMajorEvents()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var system = state.Systems.Single();
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var battles = Enumerable.Range(1, 11)
+            .Select(losses => CreateBattle(
+                cycle.CycleId,
+                system.SystemId,
+                firstEmpire.EmpireId,
+                secondEmpire.EmpireId,
+                attackerLosses: losses,
+                defenderLosses: 0,
+                tickNumber: losses))
+            .ToArray();
+        state.BattleRecords.AddRange(battles);
+
+        CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now);
+
+        var majorEvents = state.CycleMajorEvents.OrderBy(item => item.SelectionRank).ToArray();
+        Assert.Equal(2, majorEvents.Length);
+        Assert.Equal(battles[10].BattleId, majorEvents[0].SourceBattleId);
+        Assert.Equal(11, majorEvents[0].TotalLosses);
+        Assert.Equal(CycleMajorEventType.Battle, majorEvents[0].EventType);
+        Assert.Equal(TestState.Now, majorEvents[0].CreatedAt);
+        Assert.Contains("Battle at Contest", majorEvents[0].Summary, StringComparison.Ordinal);
+        Assert.Contains("totalLosses", majorEvents[0].FactJson, StringComparison.Ordinal);
+        Assert.Equal(battles[9].BattleId, majorEvents[1].SourceBattleId);
+        Assert.Equal(10, majorEvents[1].TotalLosses);
+
+        var completionEvent = Assert.Single(state.Events, item => item.EventType == EventType.CycleCompleted);
+        Assert.Contains("majorEvents", completionEvent.FactJson, StringComparison.Ordinal);
+    }
+
     private static BattleRecord CreateBattle(
         Guid cycleId,
         Guid systemId,
         Guid attackerEmpireId,
         Guid defenderEmpireId,
         int attackerLosses,
-        int defenderLosses) =>
+        int defenderLosses,
+        int tickNumber = 1) =>
         new()
         {
             CycleId = cycleId,
-            TickNumber = 1,
+            TickNumber = tickNumber,
             SystemId = systemId,
             AttackerEmpireId = attackerEmpireId,
             DefenderEmpireId = defenderEmpireId,

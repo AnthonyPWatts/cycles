@@ -155,6 +155,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             EmpirePriorities = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpirePriorities", ReadEmpirePriority),
             EmpireMetrics = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireMetrics", ReadEmpireMetric),
             CycleRankings = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleRankings", ReadCycleRanking),
+            CycleMajorEvents = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleMajorEvents", ReadCycleMajorEvent),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
             Fleets = ReadRows(connection, transaction, "SELECT * FROM dbo.Fleets", ReadFleet),
             FleetOrders = ReadRows(connection, transaction, "SELECT * FROM dbo.FleetOrders", ReadFleetOrder),
@@ -345,6 +346,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertBattleRecord(connection, transaction, item);
         }
 
+        foreach (var item in state.CycleMajorEvents)
+        {
+            UpsertCycleMajorEvent(connection, transaction, item);
+        }
+
         foreach (var item in state.ChronicleEntries)
         {
             UpsertChronicleEntry(connection, transaction, item);
@@ -512,6 +518,22 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         ActiveShipCount = GetInt(reader, "ActiveShipCount"),
         CutoffTickNumber = GetInt(reader, "CutoffTickNumber"),
         CutoffAt = GetDateTimeOffset(reader, "CutoffAt")
+    };
+
+    private static CycleMajorEvent ReadCycleMajorEvent(SqlDataReader reader) => new()
+    {
+        CycleMajorEventId = GetGuid(reader, "CycleMajorEventID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        SourceBattleId = GetNullableGuid(reader, "SourceBattleID"),
+        SystemId = GetNullableGuid(reader, "SystemID"),
+        EventType = GetEnum<CycleMajorEventType>(reader, "EventType"),
+        TickNumber = GetInt(reader, "TickNumber"),
+        SelectionRank = GetInt(reader, "SelectionRank"),
+        ImportanceScore = GetInt(reader, "ImportanceScore"),
+        TotalLosses = GetInt(reader, "TotalLosses"),
+        Summary = GetString(reader, "Summary"),
+        FactJson = GetString(reader, "FactJson"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
     private static SystemLink ReadSystemLink(SqlDataReader reader) => new()
@@ -1111,6 +1133,43 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertCycleMajorEvent(SqlConnection connection, SqlTransaction transaction, CycleMajorEvent item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.CycleMajorEvents
+            SET CycleID = @CycleID,
+                SourceBattleID = @SourceBattleID,
+                SystemID = @SystemID,
+                EventType = @EventType,
+                TickNumber = @TickNumber,
+                SelectionRank = @SelectionRank,
+                ImportanceScore = @ImportanceScore,
+                TotalLosses = @TotalLosses,
+                Summary = @Summary,
+                FactJson = @FactJson,
+                CreatedAt = @CreatedAt
+            WHERE CycleMajorEventID = @CycleMajorEventID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.CycleMajorEvents(CycleMajorEventID, CycleID, SourceBattleID, SystemID, EventType, TickNumber, SelectionRank, ImportanceScore, TotalLosses, Summary, FactJson, CreatedAt)
+            VALUES (@CycleMajorEventID, @CycleID, @SourceBattleID, @SystemID, @EventType, @TickNumber, @SelectionRank, @ImportanceScore, @TotalLosses, @Summary, @FactJson, @CreatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@CycleMajorEventID", item.CycleMajorEventId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddNullableGuid(command, "@SourceBattleID", item.SourceBattleId);
+            AddNullableGuid(command, "@SystemID", item.SystemId);
+            AddString(command, "@EventType", item.EventType.ToString(), 64);
+            AddInt(command, "@TickNumber", item.TickNumber);
+            AddInt(command, "@SelectionRank", item.SelectionRank);
+            AddInt(command, "@ImportanceScore", item.ImportanceScore);
+            AddInt(command, "@TotalLosses", item.TotalLosses);
+            AddString(command, "@Summary", item.Summary, 2048);
+            AddMaxString(command, "@FactJson", item.FactJson);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
     private static void UpsertChronicleEntry(SqlConnection connection, SqlTransaction transaction, ChronicleEntry item) =>
         Execute(connection, transaction, """
             UPDATE dbo.ChronicleEntries
@@ -1148,6 +1207,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
+        DeleteMissingRows(connection, transaction, "dbo.CycleMajorEvents", "CycleMajorEventID", state.CycleMajorEvents.Select(item => item.CycleMajorEventId));
         DeleteMissingRows(connection, transaction, "dbo.ChronicleEntries", "ChronicleEntryID", state.ChronicleEntries.Select(item => item.ChronicleEntryId));
         DeleteMissingRows(connection, transaction, "dbo.BattleRecords", "BattleID", state.BattleRecords.Select(item => item.BattleId));
         DeleteMissingRows(connection, transaction, "dbo.Events", "EventID", state.Events.Select(item => item.EventId));

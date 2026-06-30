@@ -4,6 +4,8 @@ namespace Cycles.Core;
 
 public static class CycleEndService
 {
+    private const decimal MajorBattleSelectionShare = 0.10m;
+
     public static IReadOnlyList<CycleRanking> CompleteCycle(
         GameState state,
         Guid cycleId,
@@ -42,6 +44,9 @@ public static class CycleEndService
         state.CycleRankings.RemoveAll(ranking => ranking.CycleId == cycleId);
         state.CycleRankings.AddRange(rankings);
         var historicalSignals = ApplyHistoricalSystemSignals(state, cycleId);
+        var majorEvents = SelectMajorBattleEvents(state, cycleId, cutoffAt);
+        state.CycleMajorEvents.RemoveAll(item => item.CycleId == cycleId);
+        state.CycleMajorEvents.AddRange(majorEvents);
         cycle.Status = CycleStatus.Completed;
 
         var winner = rankings.Single(ranking => ranking.IsWinner);
@@ -69,7 +74,19 @@ public static class CycleEndService
                     ranking.TotalEffectivePresence,
                     ranking.ActiveShipCount
                 }),
-                historicalSignals
+                historicalSignals,
+                majorEvents = majorEvents.Select(item => new
+                {
+                    item.CycleMajorEventId,
+                    item.SourceBattleId,
+                    item.SystemId,
+                    item.EventType,
+                    item.TickNumber,
+                    item.SelectionRank,
+                    item.ImportanceScore,
+                    item.TotalLosses,
+                    item.Summary
+                })
             }, GameStateJson.Options),
             CreatedAt = cutoffAt
         });
@@ -116,6 +133,87 @@ public static class CycleEndService
 
     private static int TotalLosses(BattleRecord battle) =>
         battle.AttackerLosses + battle.DefenderLosses;
+
+    private static IReadOnlyList<CycleMajorEvent> SelectMajorBattleEvents(
+        GameState state,
+        Guid cycleId,
+        DateTimeOffset cutoffAt)
+    {
+        var battles = state.BattleRecords
+            .Where(battle => battle.CycleId == cycleId)
+            .ToArray();
+        if (battles.Length == 0)
+        {
+            return [];
+        }
+
+        var selectedCount = Math.Max(1, (int)Math.Ceiling(battles.Length * MajorBattleSelectionShare));
+        return battles
+            .OrderByDescending(TotalLosses)
+            .ThenBy(battle => battle.TickNumber)
+            .ThenBy(battle => battle.BattleId)
+            .Take(selectedCount)
+            .Select((battle, index) => CreateMajorBattleEvent(state, battle, index + 1, cutoffAt))
+            .ToArray();
+    }
+
+    private static CycleMajorEvent CreateMajorBattleEvent(
+        GameState state,
+        BattleRecord battle,
+        int selectionRank,
+        DateTimeOffset cutoffAt)
+    {
+        var system = state.Systems.Single(item => item.SystemId == battle.SystemId);
+        var attacker = state.Empires.Single(item => item.EmpireId == battle.AttackerEmpireId);
+        var defender = state.Empires.Single(item => item.EmpireId == battle.DefenderEmpireId);
+        var totalLosses = TotalLosses(battle);
+
+        return new CycleMajorEvent
+        {
+            CycleId = battle.CycleId,
+            SourceBattleId = battle.BattleId,
+            SystemId = battle.SystemId,
+            EventType = CycleMajorEventType.Battle,
+            TickNumber = battle.TickNumber,
+            SelectionRank = selectionRank,
+            ImportanceScore = ChronicleScoring.ScoreBattle(battle, system),
+            TotalLosses = totalLosses,
+            Summary = CreateBattleSummary(battle, system, attacker, defender, totalLosses),
+            FactJson = JsonSerializer.Serialize(new
+            {
+                battle.BattleId,
+                battle.TickNumber,
+                battle.SystemId,
+                battle.AttackerEmpireId,
+                battle.DefenderEmpireId,
+                battle.AttackerShipsBefore,
+                battle.DefenderShipsBefore,
+                battle.AttackerLosses,
+                battle.DefenderLosses,
+                battle.Outcome,
+                totalLosses
+            }, GameStateJson.Options),
+            CreatedAt = cutoffAt
+        };
+    }
+
+    private static string CreateBattleSummary(
+        BattleRecord battle,
+        GalaxySystem system,
+        Empire attacker,
+        Empire defender,
+        int totalLosses)
+    {
+        var outcome = battle.Outcome switch
+        {
+            BattleOutcome.AttackerVictory => $"{attacker.EmpireName} defeated {defender.EmpireName}",
+            BattleOutcome.DefenderVictory => $"{defender.EmpireName} held against {attacker.EmpireName}",
+            BattleOutcome.MutualDestruction => $"{attacker.EmpireName} and {defender.EmpireName} destroyed each other",
+            _ => "The battle was resolved"
+        };
+
+        return $"Battle at {system.SystemName}: {outcome} with {totalLosses} ship losses.";
+    }
 
     private sealed record HistoricalSystemSignal(
         Guid SystemId,

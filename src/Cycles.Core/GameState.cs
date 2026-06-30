@@ -9,6 +9,7 @@ public sealed class GameState
     public List<EmpirePriority> EmpirePriorities { get; set; } = [];
     public List<EmpireMetric> EmpireMetrics { get; set; } = [];
     public List<CycleRanking> CycleRankings { get; set; } = [];
+    public List<CycleMajorEvent> CycleMajorEvents { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -35,6 +36,7 @@ public sealed class GameState
             EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
             EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
             CycleRankings = CycleRankings.Select(Clone).ToList(),
+            CycleMajorEvents = CycleMajorEvents.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -55,6 +57,7 @@ public sealed class GameState
         EmpirePriorities = other.EmpirePriorities;
         EmpireMetrics = other.EmpireMetrics;
         CycleRankings = other.CycleRankings;
+        CycleMajorEvents = other.CycleMajorEvents;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -154,6 +157,22 @@ public sealed class GameState
         ActiveShipCount = item.ActiveShipCount,
         CutoffTickNumber = item.CutoffTickNumber,
         CutoffAt = item.CutoffAt
+    };
+
+    private static CycleMajorEvent Clone(CycleMajorEvent item) => new()
+    {
+        CycleMajorEventId = item.CycleMajorEventId,
+        CycleId = item.CycleId,
+        SourceBattleId = item.SourceBattleId,
+        SystemId = item.SystemId,
+        EventType = item.EventType,
+        TickNumber = item.TickNumber,
+        SelectionRank = item.SelectionRank,
+        ImportanceScore = item.ImportanceScore,
+        TotalLosses = item.TotalLosses,
+        Summary = item.Summary,
+        FactJson = item.FactJson,
+        CreatedAt = item.CreatedAt
     };
 
     private static GalaxySystem Clone(GalaxySystem item) => new()
@@ -374,6 +393,22 @@ public sealed class CycleRanking
     public int ActiveShipCount { get; set; }
     public int CutoffTickNumber { get; set; }
     public DateTimeOffset CutoffAt { get; set; }
+}
+
+public sealed class CycleMajorEvent
+{
+    public Guid CycleMajorEventId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid? SourceBattleId { get; set; }
+    public Guid? SystemId { get; set; }
+    public CycleMajorEventType EventType { get; set; }
+    public int TickNumber { get; set; }
+    public int SelectionRank { get; set; }
+    public int ImportanceScore { get; set; }
+    public int TotalLosses { get; set; }
+    public string Summary { get; set; } = "";
+    public string FactJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class GalaxySystem
@@ -609,4 +644,9 @@ public enum ChronicleEntryType
     System,
     Diplomacy,
     Discovery
+}
+
+public enum CycleMajorEventType
+{
+    Battle
 }

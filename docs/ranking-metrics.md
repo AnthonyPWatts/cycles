@@ -56,7 +56,8 @@ The first Cycle-end implementation:
 - reuses the same `MapControlPercent`, total effective presence, active ship count, and deterministic tie-break ordering used by per-tick `EmpireMetrics`;
 - persists one winner and ranked standings for every active empire in `CycleRankings`;
 - records the tick number and cutoff time used for the calculation;
+- preserves the top 10% of battles by total losses, with a minimum of one battle, in `CycleMajorEvents`;
 - increases system historical significance for repeated battles and systems that hosted one of the largest-loss battles;
 - tests final ranking persistence and the completed-Cycle guard.
 
-Future history work should add selected major battles, selected systems, historical-system signals, and next-Cycle continuity.
+Future history work should add selected systems, dedicated historical-system signals, and next-Cycle continuity.
