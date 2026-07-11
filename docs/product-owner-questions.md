@@ -4,6 +4,12 @@ Last updated: 2026-07-11
 
 This file collects product-owner questions and answers that shape player-visible behaviour. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`.
 
+## GitHub Decision Queue
+
+Questions Q013-Q130 are tracked as individual GitHub product-decision issues assigned to William Sayers. Start with [the pinned PO decision index](https://github.com/AnthonyPWatts/cycles/issues/119), which groups the 118 questions into P0/P1/P2 milestones, functional-area labels, saved filters, and a recommended answer order.
+
+GitHub holds the active discussion and answer workflow. This document remains the canonical repository record of settled answers; copy each accepted decision here and into `decision-log.md` where it establishes durable behaviour.
+
 ## 2026-06-30 Follow-Up Response
 
 The partial response in `Cycles_PO_Questions_2026-06-30.docx` answers Q001-Q012 from the next-question bank. Questions Q013 onward remain unanswered unless an earlier decision in this file already settles them.

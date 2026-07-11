@@ -13,6 +13,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add issue templates once GitHub issue tracking begins.
 - [x] Decide whether the original Word documents remain source artefacts long-term or move to `docs/source`.
 - [x] Record the partial Q001-Q012 product-owner response received on 2026-07-11.
+- [x] Publish Q013-Q130 as individually assigned, prioritised GitHub decision issues with a pinned navigation index.
 
 ## Stage 1: Simulation Spine Hardening
 
