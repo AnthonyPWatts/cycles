@@ -30,6 +30,12 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() => store.Update(state => Login(state, request, httpContext, app.Environment.IsDevelopment(), DateTimeOffset.UtcNow))));
 
+app.MapPost("/auth/logout", (HttpContext httpContext) =>
+{
+    DevelopmentAuth.SignOut(httpContext);
+    return Results.Ok(new { signedOut = true });
+});
+
 app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {

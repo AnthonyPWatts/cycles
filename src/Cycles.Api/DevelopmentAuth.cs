@@ -20,6 +20,11 @@ public static class DevelopmentAuth
             });
     }
 
+    public static void SignOut(HttpContext httpContext)
+    {
+        httpContext.Response.Cookies.Delete(CookieName);
+    }
+
     public static DevelopmentActor RequireActor(HttpContext httpContext, GameState state)
     {
         var player = RequirePlayer(httpContext, state);

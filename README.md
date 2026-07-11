@@ -71,7 +71,7 @@ Run the API and dashboard:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:StatePath ../../data/cycles-state.json
 ```
 
-Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Log in as the prefilled `player-1` to receive the curated Aurelian opening. The development login creates or finds a local player and issues an HttpOnly cookie; it is suitable only for trusted local testing.
+Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Log in as the prefilled `player-1` to receive the curated Aurelian opening. The development login creates or finds a local player and issues an HttpOnly cookie; **Sign out** removes that cookie and returns to the login prompt. This flow is suitable only for trusted local testing.
 
 Run one manual tick or inspect the state:
 

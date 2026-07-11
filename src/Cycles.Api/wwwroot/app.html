@@ -13,12 +13,17 @@
             <p id="cycleStatus">Loading...</p>
         </div>
         <form id="loginForm" class="login-form">
-            <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username">
-            <button type="submit">Login</button>
+            <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username" required>
+            <button id="loginButton" type="submit">Login</button>
+            <p id="loginMessage" class="login-message" role="status">Enter your player name to continue.</p>
         </form>
+        <div id="sessionSummary" class="session-summary" hidden>
+            <span>Signed in as <strong id="sessionUsername"></strong></span>
+            <button id="signOutButton" type="button">Sign out</button>
+        </div>
     </header>
 
-    <main class="shell">
+    <main id="appShell" class="shell" hidden>
         <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
             <div class="toolbar">
                 <div>
@@ -167,6 +172,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260711-day-one-guide-4"></script>
+    <script src="app.js?v=20260711-login-state-2"></script>
 </body>
 </html>

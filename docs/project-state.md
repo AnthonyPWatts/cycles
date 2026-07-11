@@ -16,7 +16,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers, declarations, alliance effects, or shared visibility. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
-| Identity and visibility | Development cookie auth, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
+| Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. | Generic API/admin SQL mutations still use the whole-state bridge. |
 | Client | Public landing page and playable static dashboard for map, state, priorities, fleets, orders, events, Chronicle, and a resumable Day One guide. | Prototype interface, not a finished game client. |
 
@@ -94,7 +94,7 @@ Latest local verification on 2026-07-11:
 .\eng\test.ps1
 ```
 
-Result: **130 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
+Result: **133 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 

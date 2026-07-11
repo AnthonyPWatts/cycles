@@ -181,6 +181,38 @@ select {
     gap: 8px;
 }
 
+.login-form[hidden],
+.session-summary[hidden],
+.shell[hidden] {
+    display: none;
+}
+
+.login-message {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.session-summary {
+    margin: 0;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.session-summary strong {
+    color: var(--text);
+}
+
+.session-summary button {
+    min-height: 44px;
+    padding: 7px 11px;
+    font-size: 0.78rem;
+}
+
 .shell {
     flex: 1 1 auto;
     display: grid;
@@ -963,6 +995,14 @@ dd {
 
     .login-form {
         grid-template-columns: 1fr;
+    }
+
+    .session-summary {
+        justify-content: space-between;
+    }
+
+    .login-message {
+        text-align: left;
     }
 
     .map-stats,

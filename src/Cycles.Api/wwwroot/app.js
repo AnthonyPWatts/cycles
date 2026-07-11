@@ -33,6 +33,12 @@ const tutorialSessionStore = new Map();
 const elements = {
     loginForm: document.querySelector("#loginForm"),
     username: document.querySelector("#username"),
+    loginButton: document.querySelector("#loginButton"),
+    loginMessage: document.querySelector("#loginMessage"),
+    sessionSummary: document.querySelector("#sessionSummary"),
+    sessionUsername: document.querySelector("#sessionUsername"),
+    signOutButton: document.querySelector("#signOutButton"),
+    appShell: document.querySelector("#appShell"),
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
     resources: document.querySelector("#resources"),
@@ -78,8 +84,10 @@ const elements = {
 
 elements.loginForm.addEventListener("submit", async event => {
     event.preventDefault();
-    await login(elements.username.value);
+    await login(elements.username.value.trim());
 });
+
+elements.signOutButton.addEventListener("click", signOut);
 
 elements.refreshButton.addEventListener("click", refresh);
 
@@ -260,19 +268,56 @@ elements.orders.addEventListener("click", async event => {
 async function boot() {
     elements.username.value = readStoredValue("cycles.username") || elements.username.value;
     try {
-        applySession(await getJson("/auth/session"));
+        const session = await getJson("/auth/session");
+        applySession(session);
+    } catch (error) {
+        showLogin("Enter your player name to continue.");
+        elements.username.focus();
+        return;
+    }
+
+    try {
         await refresh();
-    } catch {
-        await login(elements.username.value);
+    } catch (error) {
+        setTurnMessage(error.message);
     }
 }
 
 async function login(username) {
-    const login = await postJson("/auth/login", { username, empireName: null });
-    applySession(login);
-    writeStoredValue("cycles.username", login.username);
-    removeStoredValue("cycles.playerId");
-    await refresh();
+    if (!username) {
+        showLogin("Enter your player name to continue.");
+        elements.username.focus();
+        return;
+    }
+
+    elements.loginButton.disabled = true;
+    elements.loginMessage.textContent = "Signing in...";
+
+    try {
+        const login = await postJson("/auth/login", { username, empireName: null });
+        applySession(login);
+        writeStoredValue("cycles.username", login.username);
+        removeStoredValue("cycles.playerId");
+        await refresh();
+    } catch (error) {
+        showLogin(error.message);
+    } finally {
+        elements.loginButton.disabled = false;
+    }
+}
+
+async function signOut() {
+    elements.signOutButton.disabled = true;
+
+    try {
+        await postJson("/auth/logout", {});
+        showLogin("You have signed out. Enter your player name to continue.");
+        elements.username.focus();
+    } catch (error) {
+        setTurnMessage(error.message);
+    } finally {
+        elements.signOutButton.disabled = false;
+    }
 }
 
 function applySession(login) {
@@ -285,6 +330,25 @@ function applySession(login) {
     state.canAdvanceTurn = login.canAdvanceTurn;
     state.empire = login.empire;
     elements.advanceTurnButton.hidden = !login.canAdvanceTurn;
+    elements.sessionUsername.textContent = login.username;
+    elements.loginForm.hidden = true;
+    elements.sessionSummary.hidden = false;
+    elements.appShell.hidden = false;
+}
+
+function showLogin(message) {
+    if (state.playerId) {
+        resetTutorialContext();
+    }
+
+    state.playerId = null;
+    state.role = null;
+    state.canAdvanceTurn = false;
+    state.empire = null;
+    elements.loginMessage.textContent = message;
+    elements.loginForm.hidden = false;
+    elements.sessionSummary.hidden = true;
+    elements.appShell.hidden = true;
 }
 
 async function refresh() {

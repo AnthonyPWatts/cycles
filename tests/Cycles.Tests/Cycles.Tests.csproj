@@ -15,6 +15,12 @@
     <None Include="..\..\database\sqldockerdeploykit\SQLScripts\002_seed_cycles_data.sql"
           Link="Fixtures\002_seed_cycles_data.sql"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\app.html"
+          Link="Fixtures\Dashboard\app.html"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\app.js"
+          Link="Fixtures\Dashboard\app.js"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
