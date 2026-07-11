@@ -165,7 +165,7 @@ function drawRoutes() {
 
 function drawSystems() {
     context.save();
-    context.font = "600 13px Bahnschrift, Segoe UI, sans-serif";
+    context.font = "600 13px 'Arial Narrow', 'Helvetica Neue', system-ui, sans-serif";
     context.textBaseline = "middle";
 
     for (const system of scene.systems) {
@@ -183,7 +183,7 @@ function drawSystems() {
         context.arc(system.x, system.y, system.radius, 0, Math.PI * 2);
         context.fill();
 
-        if (scene.width >= 760) {
+        if (scene.width >= 1024) {
             context.fillStyle = palette.text;
             context.fillText(system.name, system.x + system.radius + 12, system.y);
         }
