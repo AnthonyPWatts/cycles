@@ -75,10 +75,12 @@ Run the tests:
 ```powershell
 .\eng\test.ps1
 .\eng\test.ps1 -Filter InfluenceTests
+.\eng\alpha-gameplay-smoke.ps1
 ```
 
 The test script builds into `%TEMP%\cycles-test-bin\` so tests can run while a local `Cycles.Api` process is serving from the normal `bin\Debug` output directory.
-GitHub Actions runs the same suite on Linux, performs CLI and API smoke checks, and runs the full suite again against a migrated SQL Server service container.
+The alpha gameplay smoke script seeds disposable state, starts the real API, logs in as a player, changes priorities, queues a move, runs an admin tick, and verifies the processed movement, resources, and visible events.
+GitHub Actions runs the same suite on Linux, performs CLI and alpha-gameplay smoke checks, and runs the full suite again against a migrated SQL Server service container.
 
 Seed and tick a local state file:
 

@@ -42,28 +42,9 @@ jobs:
           dotnet run --no-build --project src/Cycles.Cli -- tick $statePath
           dotnet run --no-build --project src/Cycles.Cli -- show $statePath
 
-      - name: API smoke check
-        shell: bash
-        run: |
-          set -euo pipefail
-          state_path="$RUNNER_TEMP/cycles-ci-api-state.json"
-          dotnet run --no-build --project src/Cycles.Cli -- seed "$state_path" 8 2 90210
-          dotnet run --no-build --project src/Cycles.Api -- \
-            --urls http://127.0.0.1:5086 \
-            --Cycles:StatePath "$state_path" >"$RUNNER_TEMP/cycles-api.log" 2>&1 &
-          api_pid=$!
-          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
-
-          for attempt in {1..20}; do
-            if curl --fail --silent http://127.0.0.1:5086/health >/dev/null; then
-              curl --fail --silent http://127.0.0.1:5086/cycles/current >/dev/null
-              exit 0
-            fi
-            sleep 1
-          done
-
-          cat "$RUNNER_TEMP/cycles-api.log"
-          exit 1
+      - name: Alpha gameplay smoke check
+        shell: pwsh
+        run: ./eng/alpha-gameplay-smoke.ps1 -NoBuild -StatePath (Join-Path $env:RUNNER_TEMP "cycles-ci-alpha-state.json")
 
   sql-server-integration:
     name: SQL Server integration

@@ -234,6 +234,7 @@ Additional smoke checks performed during the MVP build-out:
 - API response-contract regression test preventing domain-entity leakage.
 - Scheduled worker smoke run against an isolated JSON state file.
 - Colonisation dashboard flow and development-admin tick control in the in-app browser before the response-DTO hardening pass.
+- Automated running-API alpha journey covering player login, priority editing, pending movement, admin tick execution, processed movement, resource generation, and visible events.
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
 - Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
