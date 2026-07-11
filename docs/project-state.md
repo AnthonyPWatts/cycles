@@ -78,6 +78,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Tick processing works on a cloned state and commits back only after successful processing.
 - Failed ticks are recorded and mark the Cycle as `RecoveryRequired`.
 - The CLI has `recovery`, `recovery details`, `recovery clear`, and `recovery retry` commands for inspecting failed ticks, clearing repaired Cycles, and retrying the same tick number.
+- The CLI has a `diagnostics` command for store identity, Cycle cadence, next-due time, tick-log health, due orders, queued construction, and recovery action guidance.
 - `Cycles.Worker` polls the configured store and runs one authoritative tick when the active Cycle is due, using `TickLengthMinutes` and the last completed tick time rather than attempting a backlog of catch-up ticks.
 - Development-admin sessions can trigger the same store-level tick operation from the dashboard; ordinary players cannot access that endpoint.
 
@@ -215,7 +216,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database
 .\eng\test.ps1
 ```
 
-Result: 113 tests passed, including domain, API, worker, balance-scenario, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
+Result: 116 tests passed, including domain, API, worker, operational-diagnostics, balance-scenario, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 The balance scenario suite verifies repeatable reports, existing-rule coverage, non-negative resources, invalid inputs, and an explicit retained-record stop for long diagnostic runs.
@@ -236,6 +237,8 @@ Additional smoke checks performed during the MVP build-out:
 - Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
 - SQL Server recovery repair/clear/retry persistence, including failed and completed attempts for the same tick.
 - SQL Server successor-Cycle round-trip with final rankings and player continuity.
+- CLI operational-diagnostics smoke check against a ticked JSON state.
+- GitHub Actions Linux build/test, CLI/API smoke, migration, and SQL Server integration jobs.
 
 SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 

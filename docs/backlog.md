@@ -99,6 +99,7 @@ Blocked/deferred: Q119 must settle whether JSON is removed, retained for develop
 - [x] Replace prototype login with deliberate development auth.
 - [x] Add a development-admin tick endpoint and dashboard control without exposing tick execution to players.
 - [x] Add a scheduled worker using Cycle cadence and the store-level authoritative tick boundary.
+- [x] Add local operational diagnostics for Cycle cadence, tick-log health, due orders, construction, and recovery state.
 - [ ] Define future production auth option before deployment.
 - [x] Add player/empire authorisation checks.
 - [x] Stop trusting caller-supplied empire IDs where auth context can derive them.

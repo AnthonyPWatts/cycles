@@ -83,6 +83,7 @@ Seed and tick a local state file:
 dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- tick data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- show data/cycles-state.json
+dotnet run --project src/Cycles.Cli -- diagnostics data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle end data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle next data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- balance 48 24 4 71421

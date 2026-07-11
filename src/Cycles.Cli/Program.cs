@@ -39,6 +39,9 @@ try
         case "show":
             Show(store);
             break;
+        case "diagnostics":
+            ShowDiagnostics(store);
+            break;
         case "move":
             SubmitMove(args, store);
             break;
@@ -210,6 +213,29 @@ static void Show(IGameStateStore store)
             var battleText = signal.BattleCount == 1 ? "1 battle" : $"{signal.BattleCount} battles";
             Console.WriteLine($"- {system.SystemName}: {battleText}, {signal.TotalLosses} losses, +{signal.HistoricalSignificanceIncrease} history");
         }
+    }
+}
+
+static void ShowDiagnostics(IGameStateStore store)
+{
+    var diagnostics = OperationalDiagnosticsService.Create(store.LoadOrCreate(), DateTimeOffset.UtcNow);
+
+    Console.WriteLine($"Store: {store.Description}");
+    if (!diagnostics.CycleId.HasValue)
+    {
+        Console.WriteLine("Cycle: none");
+        return;
+    }
+
+    Console.WriteLine($"Cycle: {diagnostics.CycleName} ({diagnostics.CycleId})");
+    Console.WriteLine($"Status: {diagnostics.CycleStatus}; current tick: {diagnostics.CurrentTickNumber}; cadence: {diagnostics.TickLengthMinutes} minute(s)");
+    Console.WriteLine($"Last completed: {FormatDateTime(diagnostics.LastCompletedAt)}; next due: {FormatDateTime(diagnostics.NextDueAt)}; due now: {diagnostics.IsTickDue}");
+    Console.WriteLine($"Tick logs: {diagnostics.CompletedTickLogs} completed; {diagnostics.FailedTickLogs} failed; {diagnostics.RunningTickLogs} running");
+    Console.WriteLine($"Orders: {diagnostics.PendingOrders} pending; {diagnostics.OrdersDueNextTick} due by next tick");
+    Console.WriteLine($"Construction: {diagnostics.QueuedShipConstructions} queued; {diagnostics.ConstructionsDueNextTick} due by next tick");
+    if (diagnostics.RequiresRecovery)
+    {
+        Console.WriteLine("Action required: inspect recovery details, repair the underlying state, then clear or retry recovery with an operator and reason.");
     }
 }
 
@@ -545,6 +571,9 @@ static Guid ParseRequiredGuid(string[] args, int index, string label)
 static string FormatCompletedAt(DateTimeOffset? completedAt) =>
     completedAt.HasValue ? completedAt.Value.ToString("u") : "not completed";
 
+static string FormatDateTime(DateTimeOffset? value) =>
+    value.HasValue ? value.Value.ToString("u") : "none";
+
 static string FormatDiagnostic(string diagnosticLog, bool showDetails) =>
     showDetails
         ? diagnosticLog.Trim()
@@ -559,6 +588,7 @@ static void PrintUsage()
     Console.WriteLine("Usage:");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- diagnostics [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
