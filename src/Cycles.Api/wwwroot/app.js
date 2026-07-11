@@ -33,8 +33,10 @@ const elements = {
     destinationSelect: document.querySelector("#destinationSelect"),
     attackFleetSelect: document.querySelector("#attackFleetSelect"),
     targetEmpireSelect: document.querySelector("#targetEmpireSelect"),
+    coloniseFleetSelect: document.querySelector("#coloniseFleetSelect"),
     moveForm: document.querySelector("#moveForm"),
     attackForm: document.querySelector("#attackForm"),
+    coloniseForm: document.querySelector("#coloniseForm"),
     orderMessage: document.querySelector("#orderMessage"),
     orders: document.querySelector("#orders"),
     events: document.querySelector("#events"),
@@ -153,6 +155,23 @@ elements.attackForm.addEventListener("submit", async event => {
     await postJson("/orders/fleet/attack", { fleetId, targetEmpireId });
     setMessage("Attack order queued.");
     await refresh();
+});
+
+elements.coloniseForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const fleetId = elements.coloniseFleetSelect.value;
+    if (!fleetId) {
+        setMessage("Select a fleet outside its home system.");
+        return;
+    }
+
+    try {
+        await postJson("/orders/fleet/colonise", { fleetId });
+        setMessage("Colonisation order queued.");
+        await refresh();
+    } catch (error) {
+        setMessage(error.message);
+    }
 });
 
 elements.orders.addEventListener("click", async event => {
@@ -363,6 +382,8 @@ function renderOrders() {
     const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0);
     fillSelect(elements.fleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
     fillSelect(elements.attackFleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
+    const colonisingFleets = activeFleets.filter(item => item.fleet.currentSystemId !== state.empire.homeSystem.systemId);
+    fillSelect(elements.coloniseFleetSelect, colonisingFleets, item => item.fleet.fleetId, fleetSelectLabel);
 
     const selectedFleet = activeFleets.find(item => item.fleet.fleetId === elements.fleetSelect.value) ?? activeFleets[0];
     const destinations = selectedFleet ? linkedSystems(selectedFleet.fleet.currentSystemId) : [];
@@ -394,6 +415,10 @@ function renderSystemDetails() {
             const label = empireId === state.empire.empireId ? state.empire.empireName : empireId.slice(0, 8);
             return `<dt>${escapeHtml(label)}</dt><dd>${formatNumber(value)}</dd>`;
         }).join("");
+    const outposts = state.galaxy.colonialOutposts
+        .filter(item => item.systemId === system.systemId)
+        .map(item => `<span>${escapeHtml(item.empireName)} | established T${item.establishedTick} | ${item.isProjectingPresence ? "projecting" : "inactive"}</span>`)
+        .join("");
 
     elements.systemDetails.innerHTML = `
         <article class="item system-card">
@@ -410,6 +435,10 @@ function renderSystemDetails() {
             <dt>Population</dt><dd>${formatNumber(system.populationOutput)}</dd>
             ${presenceRows || "<dt>Presence</dt><dd>None</dd>"}
         </dl>
+        <div class="detail-block">
+            <strong>Colonial Outposts</strong>
+            ${outposts || "<span>None established.</span>"}
+        </div>
     `;
 }
 
@@ -581,7 +610,8 @@ function formatOrderType(value) {
     return String(value)
         .replace("moveFleet", "Move")
         .replace("hold", "Hold")
-        .replace("attack", "Attack");
+        .replace("attack", "Attack")
+        .replace("colonise", "Colonise");
 }
 
 function formatOrderTiming(order) {

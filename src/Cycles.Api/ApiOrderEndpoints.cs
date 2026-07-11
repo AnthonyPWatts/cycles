@@ -32,6 +32,17 @@ public static class ApiOrderEndpoints
                 now);
         }));
 
+    public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+        SubmitColonise(request, httpContext, store, DateTimeOffset.UtcNow);
+
+    public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
+        TryResult(() => store.Update(state =>
+        {
+            var actor = DevelopmentAuth.RequireActor(httpContext, state);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            return OrderService.SubmitColoniseOrder(state, request.FleetId, now);
+        }));
+
     public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
         Cancel(request, httpContext, store, DateTimeOffset.UtcNow);
 

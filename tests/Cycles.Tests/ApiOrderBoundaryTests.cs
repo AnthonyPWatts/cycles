@@ -123,6 +123,56 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task ColoniseOrderEndpointAcceptsOwnedFleetWithPopulationAndLeadingInfluence()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+        fleet.CurrentSystemId = state.Systems.Single(system => system.SystemName == "Destination").SystemId;
+        state.EmpireResources.Single().Population = OrderService.ColonisationPopulationCost;
+        var store = new InMemoryGameStateStore(state);
+        var httpContext = CreateAuthenticatedContext(state);
+
+        var result = ApiOrderEndpoints.SubmitColonise(
+            new ColoniseFleetRequest(fleet.FleetId),
+            httpContext,
+            store,
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+        var order = Assert.Single(state.FleetOrders);
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+        Assert.Equal(FleetOrderType.Colonise, order.OrderType);
+        Assert.Equal(fleet.CurrentSystemId, order.TargetSystemId);
+    }
+
+    [Fact]
+    public async Task ColoniseOrderEndpointRejectsFleetOwnedByAnotherEmpire()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 30, defenderShips: 20);
+        foreach (var empire in state.Empires)
+        {
+            empire.HomeSystemId = Guid.NewGuid();
+        }
+        var firstPlayer = state.Players.Single(player => player.Username == "first");
+        var secondFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires.Single(empire => empire.EmpireName == "Second").EmpireId);
+        state.EmpireResources.Single(resource => resource.EmpireId == secondFleet.EmpireId).Population = OrderService.ColonisationPopulationCost;
+        var store = new InMemoryGameStateStore(state);
+        var httpContext = CreateAuthenticatedContext(state, firstPlayer);
+
+        var result = ApiOrderEndpoints.SubmitColonise(
+            new ColoniseFleetRequest(secondFleet.FleetId),
+            httpContext,
+            store,
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Empty(state.FleetOrders);
+    }
+
+    [Fact]
     public async Task CancelOrderEndpointCancelsPendingOrderForOwningEmpire()
     {
         var state = TestState.CreateMovementState(linkSystems: true);

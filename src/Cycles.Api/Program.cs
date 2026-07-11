@@ -91,7 +91,17 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
                 ApiVisibility.FilterPresence(actor, visibleSystemIds, system.SystemId, effectivePresence));
         }).ToArray();
 
-        return new GalaxyResponse(cycle, systems, links, presence);
+        var outposts = state.ColonialOutposts
+            .Where(item => item.CycleId == cycle.CycleId)
+            .Where(item => actor.IsAdmin
+                           || visibleSystemIds.Contains(item.SystemId)
+                           || item.EmpireId == actor.Empire?.EmpireId)
+            .OrderBy(item => systems.Single(system => system.SystemId == item.SystemId).SystemName)
+            .ThenBy(item => state.Empires.Single(empire => empire.EmpireId == item.EmpireId).EmpireName)
+            .Select(item => ToColonialOutpostResponse(state, item))
+            .ToArray();
+
+        return new GalaxyResponse(cycle, systems, links, presence, outposts);
     }));
 
 app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
@@ -165,6 +175,9 @@ app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpCon
 
 app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.SubmitAttack(request, httpContext, store));
+
+app.MapPost("/orders/fleet/colonise", (ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.SubmitColonise(request, httpContext, store));
 
 app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.Cancel(request, httpContext, store));
@@ -500,6 +513,13 @@ static SystemDetailResponse ToSystemDetailResponse(
             .ToArray()
         : [];
 
+    var outposts = state.ColonialOutposts
+        .Where(item => item.CycleId == cycle.CycleId && item.SystemId == system.SystemId)
+        .Where(item => canSeeDetails || item.EmpireId == actor.Empire?.EmpireId)
+        .OrderBy(item => state.Empires.Single(empire => empire.EmpireId == item.EmpireId).EmpireName)
+        .Select(item => ToColonialOutpostResponse(state, item))
+        .ToArray();
+
     return new SystemDetailResponse(
         system.SystemId,
         system.SystemName,
@@ -512,7 +532,25 @@ static SystemDetailResponse ToSystemDetailResponse(
         system.HistoricalSignificance,
         influence,
         activeFleets,
-        linkedSystems);
+        linkedSystems,
+        outposts);
+}
+
+static ColonialOutpostResponse ToColonialOutpostResponse(GameState state, ColonialOutpost outpost)
+{
+    var empire = state.Empires.Single(item => item.EmpireId == outpost.EmpireId);
+    var isProjectingPresence = state.Fleets.Any(item => item.CycleId == outpost.CycleId
+                                                        && item.EmpireId == outpost.EmpireId
+                                                        && item.CurrentSystemId == outpost.SystemId
+                                                        && item.Status == FleetStatus.Active
+                                                        && item.ShipCount > 0);
+    return new ColonialOutpostResponse(
+        outpost.ColonialOutpostId,
+        outpost.SystemId,
+        outpost.EmpireId,
+        empire.EmpireName,
+        outpost.EstablishedTick,
+        isProjectingPresence);
 }
 
 static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
@@ -629,7 +667,8 @@ public sealed record GalaxyResponse(
     Cycle Cycle,
     IReadOnlyCollection<GalaxySystem> Systems,
     IReadOnlyCollection<SystemLink> Links,
-    IReadOnlyCollection<SystemPresenceResponse> Presence);
+    IReadOnlyCollection<SystemPresenceResponse> Presence,
+    IReadOnlyCollection<ColonialOutpostResponse> ColonialOutposts);
 
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
 
@@ -676,7 +715,16 @@ public sealed record SystemDetailResponse(
     int HistoricalSignificance,
     IReadOnlyCollection<SystemInfluenceResponse> Influence,
     IReadOnlyCollection<FleetAtSystemResponse> ActiveFleets,
-    IReadOnlyCollection<SystemSummaryResponse> LinkedSystems);
+    IReadOnlyCollection<SystemSummaryResponse> LinkedSystems,
+    IReadOnlyCollection<ColonialOutpostResponse> ColonialOutposts);
+
+public sealed record ColonialOutpostResponse(
+    Guid ColonialOutpostId,
+    Guid SystemId,
+    Guid EmpireId,
+    string EmpireName,
+    int EstablishedTick,
+    bool IsProjectingPresence);
 
 public sealed record SystemInfluenceResponse(
     Guid EmpireId,
@@ -728,6 +776,8 @@ public sealed record LastTickSummaryResponse(
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 
 public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId);
+
+public sealed record ColoniseFleetRequest(Guid FleetId);
 
 public sealed record CancelFleetOrderRequest(Guid FleetOrderId);
 
