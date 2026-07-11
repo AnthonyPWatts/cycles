@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-06-24
+Last updated: 2026-07-11
 
 ## Architectural Intent
 
