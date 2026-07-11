@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260711-day-one-guide-2">
 </head>
 <body>
     <header class="topbar">
@@ -19,13 +19,14 @@
     </header>
 
     <main class="shell">
-        <section class="map-panel" aria-label="Galaxy map">
+        <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
             <div class="toolbar">
                 <div>
                     <span class="toolbar-kicker">Command Nexus</span>
                     <strong id="empireName">Empire</strong>
                 </div>
                 <div class="toolbar-actions">
+                    <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
                     <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
                     <button id="refreshButton" type="button">Refresh</button>
                 </div>
@@ -46,17 +47,17 @@
         </section>
 
         <aside class="side-panel">
-            <section class="summary">
+            <section id="resourcesSection" class="summary">
                 <h2>Resources</h2>
                 <dl id="resources"></dl>
             </section>
 
-            <section>
+            <section id="systemSection">
                 <h2>System</h2>
                 <div id="systemDetails" class="system-details"></div>
             </section>
 
-            <section>
+            <section id="prioritySection">
                 <h2>Priorities</h2>
                 <form id="priorityForm" class="priority-form">
                     <label>
@@ -82,17 +83,17 @@
                 </form>
             </section>
 
-            <section>
+            <section id="fleetsSection">
                 <h2>Fleets</h2>
                 <div id="fleets" class="list"></div>
             </section>
 
-            <section>
+            <section id="fleetSection">
                 <h2>Fleet</h2>
                 <div id="fleetDetails" class="fleet-details"></div>
             </section>
 
-            <section>
+            <section id="ordersSection">
                 <h2>Orders</h2>
                 <form id="moveForm" class="order-form">
                     <label>
@@ -127,23 +128,42 @@
                 <p id="orderMessage" class="message" role="status"></p>
             </section>
 
-            <section>
+            <section id="orderQueueSection">
                 <h2>Order Queue</h2>
                 <div id="orders" class="list compact"></div>
             </section>
 
-            <section>
+            <section id="eventsSection">
                 <h2>Events</h2>
                 <div id="events" class="list compact"></div>
             </section>
 
-            <section>
+            <section id="chronicleSection">
                 <h2>Chronicle</h2>
                 <div id="chronicle" class="list compact"></div>
             </section>
         </aside>
     </main>
 
-    <script src="app.js?v=20260711-advance-turn"></script>
+    <aside id="tutorialPanel" class="tutorial-panel" aria-labelledby="tutorialTitle" hidden>
+        <div class="tutorial-heading-row">
+            <div>
+                <span class="tutorial-kicker">Day 1 guide</span>
+                <span id="tutorialProgress" class="tutorial-progress"></span>
+            </div>
+            <button id="tutorialPauseButton" class="tutorial-pause" type="button">Pause</button>
+        </div>
+        <h2 id="tutorialTitle" tabindex="-1"></h2>
+        <p id="tutorialBody"></p>
+        <p id="tutorialRequirement" class="tutorial-requirement"></p>
+        <div class="tutorial-actions">
+            <button id="tutorialSkipButton" class="secondary-action" type="button">Skip guide</button>
+            <span></span>
+            <button id="tutorialBackButton" class="secondary-action" type="button">Back</button>
+            <button id="tutorialNextButton" type="button">Next</button>
+        </div>
+    </aside>
+
+    <script src="app.js?v=20260711-day-one-guide-3"></script>
 </body>
 </html>

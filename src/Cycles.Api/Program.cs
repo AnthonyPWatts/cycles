@@ -700,12 +700,15 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
 
     return new FleetOrderResponse(
         order.FleetOrderId,
+        order.FleetId,
         order.OrderType,
         order.Status,
         order.SubmitTick,
         order.ExecuteAfterTick,
         order.ProcessedTick,
         order.RejectionReason,
+        order.TargetSystemId,
+        order.TargetEmpireId,
         fleet?.FleetName ?? "Unknown fleet",
         targetSystem?.SystemName,
         targetEmpire?.EmpireName);
@@ -889,12 +892,15 @@ public sealed record AdmiralSummaryResponse(
 
 public sealed record FleetOrderResponse(
     Guid FleetOrderId,
+    Guid FleetId,
     FleetOrderType OrderType,
     FleetOrderStatus Status,
     int SubmitTick,
     int ExecuteAfterTick,
     int? ProcessedTick,
     string? RejectionReason,
+    Guid? TargetSystemId,
+    Guid? TargetEmpireId,
     string FleetName,
     string? TargetSystemName,
     string? TargetEmpireName);

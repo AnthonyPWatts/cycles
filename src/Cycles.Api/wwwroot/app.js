@@ -2,6 +2,7 @@ const state = {
     playerId: null,
     role: null,
     canAdvanceTurn: false,
+    cycle: null,
     empire: null,
     galaxy: null,
     selectedSystemId: null,
@@ -12,6 +13,22 @@ const state = {
     events: [],
     chronicle: []
 };
+
+const tutorial = {
+    version: "v1",
+    active: false,
+    status: "available",
+    storageKey: null,
+    stepIndex: 0,
+    initialTick: 0,
+    briefing: null,
+    completedActions: new Set(),
+    target: null,
+    targetDescribedBy: null,
+    returnFocus: null
+};
+
+const tutorialSessionStore = new Map();
 
 const elements = {
     loginForm: document.querySelector("#loginForm"),
@@ -46,7 +63,17 @@ const elements = {
     mapStats: document.querySelector("#mapStats"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
     turnMessage: document.querySelector("#turnMessage"),
-    refreshButton: document.querySelector("#refreshButton")
+    refreshButton: document.querySelector("#refreshButton"),
+    tutorialButton: document.querySelector("#tutorialButton"),
+    tutorialPanel: document.querySelector("#tutorialPanel"),
+    tutorialProgress: document.querySelector("#tutorialProgress"),
+    tutorialTitle: document.querySelector("#tutorialTitle"),
+    tutorialBody: document.querySelector("#tutorialBody"),
+    tutorialRequirement: document.querySelector("#tutorialRequirement"),
+    tutorialPauseButton: document.querySelector("#tutorialPauseButton"),
+    tutorialSkipButton: document.querySelector("#tutorialSkipButton"),
+    tutorialBackButton: document.querySelector("#tutorialBackButton"),
+    tutorialNextButton: document.querySelector("#tutorialNextButton")
 };
 
 elements.loginForm.addEventListener("submit", async event => {
@@ -56,12 +83,26 @@ elements.loginForm.addEventListener("submit", async event => {
 
 elements.refreshButton.addEventListener("click", refresh);
 
+elements.tutorialButton.addEventListener("click", startOrResumeTutorial);
+elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
+elements.tutorialSkipButton.addEventListener("click", skipTutorial);
+elements.tutorialBackButton.addEventListener("click", previousTutorialStep);
+elements.tutorialNextButton.addEventListener("click", nextTutorialStep);
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && tutorial.active) {
+        event.preventDefault();
+        pauseTutorial();
+    }
+});
+
 elements.advanceTurnButton.addEventListener("click", async () => {
     elements.advanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
-        setTurnMessage(`Advanced to T${result.tickNumber}: ${result.ordersProcessed} orders, ${result.eventsCreated} events, ${result.battlesCreated} battles, ${result.chronicleEntriesCreated} Chronicle entries.`);
+        setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry")}.`);
         await refresh();
+        completeTutorialAction("turnAdvanced");
     } catch (error) {
         setTurnMessage(error.message);
     } finally {
@@ -140,6 +181,7 @@ elements.priorityForm.addEventListener("submit", async event => {
         await postJson("/orders/priorities", payload);
         setPriorityMessage("Priorities saved.");
         await refresh();
+        completeTutorialAction("prioritiesSaved");
     } catch (error) {
         setPriorityMessage(error.message);
     }
@@ -154,9 +196,14 @@ elements.moveForm.addEventListener("submit", async event => {
         return;
     }
 
-    await postJson("/orders/fleet/move", { fleetId, targetSystemId });
-    setMessage("Move order queued.");
-    await refresh();
+    try {
+        await postJson("/orders/fleet/move", { fleetId, targetSystemId });
+        setMessage("Move order queued.");
+        await refresh();
+        completeTutorialAction("moveQueued");
+    } catch (error) {
+        setMessage(error.message);
+    }
 });
 
 elements.attackForm.addEventListener("submit", async event => {
@@ -168,9 +215,14 @@ elements.attackForm.addEventListener("submit", async event => {
         return;
     }
 
-    await postJson("/orders/fleet/attack", { fleetId, targetEmpireId });
-    setMessage("Attack order queued.");
-    await refresh();
+    try {
+        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId });
+        setMessage("Attack order queued.");
+        await refresh();
+        completeTutorialAction("attackQueued");
+    } catch (error) {
+        setMessage(error.message);
+    }
 });
 
 elements.coloniseForm.addEventListener("submit", async event => {
@@ -185,6 +237,7 @@ elements.coloniseForm.addEventListener("submit", async event => {
         await postJson("/orders/fleet/colonise", { fleetId });
         setMessage("Colonisation order queued.");
         await refresh();
+        completeTutorialAction("coloniseQueued");
     } catch (error) {
         setMessage(error.message);
     }
@@ -200,7 +253,7 @@ elements.orders.addEventListener("click", async event => {
 });
 
 async function boot() {
-    elements.username.value = localStorage.getItem("cycles.username") || elements.username.value;
+    elements.username.value = readStoredValue("cycles.username") || elements.username.value;
     try {
         applySession(await getJson("/auth/session"));
         await refresh();
@@ -212,12 +265,16 @@ async function boot() {
 async function login(username) {
     const login = await postJson("/auth/login", { username, empireName: null });
     applySession(login);
-    localStorage.setItem("cycles.username", login.username);
-    localStorage.removeItem("cycles.playerId");
+    writeStoredValue("cycles.username", login.username);
+    removeStoredValue("cycles.playerId");
     await refresh();
 }
 
 function applySession(login) {
+    if (state.playerId && state.playerId !== login.playerId) {
+        resetTutorialContext();
+    }
+
     state.playerId = login.playerId;
     state.role = login.role;
     state.canAdvanceTurn = login.canAdvanceTurn;
@@ -237,6 +294,7 @@ async function refresh() {
     ]);
 
     state.empire = empire;
+    state.cycle = cycle;
     state.galaxy = galaxy;
     state.fleets = fleets;
     state.orders = orders;
@@ -266,6 +324,7 @@ async function refresh() {
     renderEvents(events);
     renderChronicle(chronicle);
     renderGalaxy(galaxy, empire);
+    syncTutorialAfterRefresh();
 }
 
 function renderCycle(cycle) {
@@ -407,11 +466,15 @@ function renderOrders() {
     const destinations = selectedFleet ? linkedSystems(selectedFleet.fleet.currentSystemId) : [];
     fillSelect(elements.destinationSelect, destinations, item => item.systemId, item => item.systemName);
 
-    const targetEmpires = collectTargetEmpires(selectedFleet);
+    const selectedAttackFleet = activeFleets.find(item => item.fleet.fleetId === elements.attackFleetSelect.value) ?? activeFleets[0];
+    const targetEmpires = collectTargetEmpires(selectedAttackFleet);
     fillSelect(elements.targetEmpireSelect, targetEmpires, item => item.empireId, item => item.empireName, true);
 
     elements.fleetSelect.onchange = renderOrders;
-    elements.attackFleetSelect.onchange = renderOrders;
+    elements.attackFleetSelect.onchange = async () => {
+        await selectFleet(elements.attackFleetSelect.value);
+        renderOrders();
+    };
 }
 
 function renderSystemDetails() {
@@ -499,6 +562,478 @@ async function cancelOrder(fleetOrderId) {
     }
 }
 
+function syncTutorialAfterRefresh() {
+    const storageKey = state.playerId && state.cycle
+        ? `cycles.tutorial.${tutorial.version}.${state.playerId}.${state.cycle.cycleId}`
+        : null;
+
+    if (!storageKey) {
+        return;
+    }
+
+    if (tutorial.storageKey !== storageKey) {
+        clearTutorialTarget();
+        tutorial.storageKey = storageKey;
+        tutorial.briefing = findOpeningBriefing();
+        tutorial.completedActions = new Set();
+        tutorial.initialTick = state.cycle.currentTickNumber;
+        tutorial.stepIndex = 0;
+        tutorial.status = "available";
+        tutorial.active = false;
+
+        const saved = loadTutorialState(storageKey);
+        if (saved) {
+            tutorial.status = saved.status ?? "available";
+            tutorial.initialTick = Number.isInteger(saved.initialTick) ? saved.initialTick : state.cycle.currentTickNumber;
+            tutorial.completedActions = new Set(Array.isArray(saved.completedActions) ? saved.completedActions : []);
+            tutorial.briefing = saved.briefing ?? tutorial.briefing;
+            const savedIndex = tutorialSteps().findIndex(step => step.id === saved.stepId);
+            tutorial.stepIndex = savedIndex >= 0 ? savedIndex : 0;
+            tutorial.active = tutorial.status === "active";
+        } else if (tutorial.briefing && state.cycle.currentTickNumber === 0 && state.orders.length === 0) {
+            tutorial.status = "active";
+            tutorial.active = true;
+            tutorial.initialTick = state.cycle.currentTickNumber;
+            saveTutorialState();
+        }
+    }
+
+    syncTutorialDisplay();
+}
+
+function startOrResumeTutorial() {
+    if (!tutorial.storageKey || !state.cycle) {
+        return;
+    }
+
+    tutorial.returnFocus = elements.tutorialButton;
+    if (tutorial.status === "paused") {
+        tutorial.status = "active";
+        tutorial.active = true;
+    } else if (!tutorial.active) {
+        tutorial.status = "active";
+        tutorial.active = true;
+        tutorial.stepIndex = 0;
+        tutorial.initialTick = state.cycle.currentTickNumber;
+        tutorial.completedActions = new Set();
+        tutorial.briefing = findOpeningBriefing() ?? tutorial.briefing;
+    }
+
+    saveTutorialState();
+    renderTutorial({ focusHeading: true });
+}
+
+function pauseTutorial() {
+    if (!tutorial.active) {
+        return;
+    }
+
+    tutorial.status = "paused";
+    tutorial.active = false;
+    saveTutorialState();
+    hideTutorial();
+}
+
+function skipTutorial() {
+    tutorial.status = "skipped";
+    tutorial.active = false;
+    saveTutorialState();
+    hideTutorial();
+}
+
+function completeTutorial() {
+    tutorial.status = "completed";
+    tutorial.active = false;
+    saveTutorialState();
+    hideTutorial();
+}
+
+function previousTutorialStep() {
+    if (!tutorial.active || tutorial.stepIndex === 0) {
+        return;
+    }
+
+    tutorial.stepIndex--;
+    saveTutorialState();
+    renderTutorial({ focusHeading: true });
+}
+
+function nextTutorialStep() {
+    if (!tutorial.active) {
+        return;
+    }
+
+    const steps = tutorialSteps();
+    const step = steps[tutorial.stepIndex];
+    if (step.required && !step.isSatisfied()) {
+        return;
+    }
+
+    if (tutorial.stepIndex >= steps.length - 1) {
+        completeTutorial();
+        return;
+    }
+
+    tutorial.stepIndex++;
+    saveTutorialState();
+    renderTutorial({ focusHeading: true });
+}
+
+function completeTutorialAction(action) {
+    if (!tutorial.storageKey) {
+        return;
+    }
+
+    tutorial.completedActions.add(action);
+    saveTutorialState();
+    syncTutorialDisplay();
+}
+
+function syncTutorialDisplay() {
+    updateTutorialButton();
+    if (tutorial.active) {
+        renderTutorial({ focusHeading: false });
+    } else {
+        elements.tutorialPanel.hidden = true;
+        document.body.classList.remove("tutorial-active");
+        clearTutorialTarget();
+    }
+}
+
+function renderTutorial({ focusHeading }) {
+    const steps = tutorialSteps();
+    tutorial.stepIndex = Math.min(tutorial.stepIndex, steps.length - 1);
+    const step = steps[tutorial.stepIndex];
+    const satisfied = !step.required || step.isSatisfied();
+
+    clearTutorialTarget();
+    elements.tutorialPanel.hidden = false;
+    document.body.classList.add("tutorial-active");
+    elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
+    elements.tutorialTitle.textContent = step.title;
+    elements.tutorialBody.textContent = step.body;
+    elements.tutorialRequirement.textContent = step.required
+        ? satisfied ? "Done. Continue when you are ready." : step.requirement
+        : "";
+    elements.tutorialBackButton.disabled = tutorial.stepIndex === 0;
+    elements.tutorialNextButton.disabled = !satisfied;
+    elements.tutorialNextButton.textContent = tutorial.stepIndex === 0
+        ? "Start"
+        : tutorial.stepIndex === steps.length - 1 ? "Finish" : satisfied ? "Next" : "Complete this step";
+
+    const target = step.target?.();
+    if (target) {
+        applyTutorialTarget(target);
+    }
+
+    if (focusHeading) {
+        requestAnimationFrame(() => elements.tutorialTitle.focus({ preventScroll: true }));
+    }
+}
+
+function hideTutorial() {
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    clearTutorialTarget();
+    updateTutorialButton();
+    (tutorial.returnFocus ?? elements.tutorialButton).focus();
+    tutorial.returnFocus = null;
+}
+
+function updateTutorialButton() {
+    elements.tutorialButton.textContent = tutorial.active
+        ? "Guide open"
+        : tutorial.status === "paused" ? "Resume guide"
+            : tutorial.status === "completed" || tutorial.status === "skipped" ? "Restart guide"
+                : "Guide";
+    elements.tutorialButton.setAttribute("aria-expanded", String(tutorial.active));
+}
+
+function applyTutorialTarget(target) {
+    tutorial.target = target;
+    tutorial.targetDescribedBy = target.getAttribute("aria-describedby");
+    target.classList.add("tutorial-target");
+    const describedBy = new Set((tutorial.targetDescribedBy ?? "").split(/\s+/).filter(Boolean));
+    describedBy.add("tutorialBody");
+    target.setAttribute("aria-describedby", [...describedBy].join(" "));
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => target.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "center",
+        inline: "nearest"
+    }));
+}
+
+function clearTutorialTarget() {
+    if (!tutorial.target) {
+        return;
+    }
+
+    tutorial.target.classList.remove("tutorial-target");
+    if (tutorial.targetDescribedBy) {
+        tutorial.target.setAttribute("aria-describedby", tutorial.targetDescribedBy);
+    } else {
+        tutorial.target.removeAttribute("aria-describedby");
+    }
+
+    tutorial.target = null;
+    tutorial.targetDescribedBy = null;
+}
+
+function resetTutorialContext() {
+    clearTutorialTarget();
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    tutorial.active = false;
+    tutorial.status = "available";
+    tutorial.storageKey = null;
+    tutorial.stepIndex = 0;
+    tutorial.initialTick = 0;
+    tutorial.briefing = null;
+    tutorial.completedActions = new Set();
+}
+
+function findOpeningBriefing() {
+    for (const event of state.events) {
+        if (event.eventType !== "openingBriefingIssued" || event.empireId !== state.empire?.empireId) {
+            continue;
+        }
+
+        try {
+            const facts = JSON.parse(event.factJson);
+            if (facts.scenarioKey === "development-cold-start-v1") {
+                return {
+                    scenarioKey: facts.scenarioKey,
+                    focusSystemId: facts.focusSystemId,
+                    objectives: facts.objectives,
+                    displayText: event.displayText
+                };
+            }
+        } catch {
+            // A malformed optional briefing should not block the dashboard.
+        }
+    }
+
+    return null;
+}
+
+function tutorialSteps() {
+    const briefing = tutorial.briefing;
+    const move = briefing?.objectives?.move;
+    const colonise = briefing?.objectives?.colonise;
+    const attack = briefing?.objectives?.attack;
+    const focusSystemId = briefing?.focusSystemId ?? state.empire?.homeSystem?.systemId;
+    const focusFleetId = attack?.fleetId ?? state.fleets[0]?.fleet?.fleetId;
+    const moveFleetId = move?.fleetId ?? state.fleets[0]?.fleet?.fleetId;
+    const moveTargetId = move?.targetSystemId ?? linkedSystems(state.fleets[0]?.fleet?.currentSystemId)[0]?.systemId;
+    const curated = Boolean(move && colonise && attack);
+    const steps = [
+        {
+            id: "welcome",
+            title: curated ? "Three fronts need orders" : "Command your first turn",
+            body: curated
+                ? "Treaty Gate is contested, Pale Harbour can support an outpost, and Nadir Crossing is open. This guide will help you issue all three orders, advance the turn, and read the consequences."
+                : "Your command loop is simple: inspect the galaxy, set priorities, issue an order, advance the turn, and review what changed. This guide uses the real controls and real simulation.",
+            required: false
+        },
+        {
+            id: "resources",
+            title: "Know what you can spend",
+            body: "Industry funds ships through Military priority. Research accumulates towards Survey Projection. Population pays for outposts. The small figures show what the previous turn generated and spent.",
+            target: () => document.querySelector("#resourcesSection"),
+            required: false
+        },
+        {
+            id: "priorities",
+            title: "Choose what this turn emphasises",
+            body: "Priorities must total 100. Military converts industry into ship construction; Expansion strengthens your projected influence. Adjust them or keep the opening allocation, then save.",
+            target: () => document.querySelector("#prioritySection"),
+            required: true,
+            requirement: "Save a valid priority allocation to continue.",
+            isSatisfied: () => tutorial.completedActions.has("prioritiesSaved")
+        },
+        {
+            id: "map",
+            title: curated ? "Find the flashpoint" : "Read the galaxy",
+            body: curated
+                ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`
+                : "Routes define where fleets can move. Rings show your presence, and red marks a contested system. Select your home system to inspect it.",
+            target: () => document.querySelector(`.system-node[data-system-id="${focusSystemId}"]`),
+            required: true,
+            requirement: "Select the highlighted system on the map.",
+            isSatisfied: () => state.selectedSystemId === focusSystemId
+        },
+        {
+            id: "fleet",
+            title: curated ? "Inspect the Vanguard" : "Inspect your fleet",
+            body: curated
+                ? `Select ${tutorialFleetName(focusFleetId)}. Fleet detail shows its ships, commander, current system, local rivals, and recorded orders.`
+                : "Select your fleet. Fleet detail shows its ships, commander, current system, adjacent routes, and recorded orders.",
+            target: () => document.querySelector(`[data-fleet-id="${focusFleetId}"]`),
+            required: true,
+            requirement: "Select the highlighted fleet.",
+            isSatisfied: () => state.selectedFleetId === focusFleetId
+        },
+        {
+            id: "move",
+            title: curated ? "Secure Nadir Crossing" : "Commit a movement order",
+            body: curated
+                ? `In Move, choose ${tutorialFleetName(moveFleetId)} and ${tutorialSystemName(moveTargetId)}. Orders are intentions: the server validates them again when the turn resolves.`
+                : `Choose ${tutorialFleetName(moveFleetId)} and ${tutorialSystemName(moveTargetId)}. The order will resolve on the next authoritative turn.`,
+            target: () => document.querySelector("#moveForm"),
+            required: true,
+            requirement: "Queue the highlighted movement objective.",
+            isSatisfied: () => tutorialOrderExists("moveFleet", moveFleetId, "targetSystemId", moveTargetId)
+                || tutorial.completedActions.has("moveQueued")
+        }
+    ];
+
+    if (curated) {
+        steps.push(
+            {
+                id: "colonise",
+                title: "Establish the Pale Harbour outpost",
+                body: `Choose ${tutorialFleetName(colonise.fleetId)}. Colonisation costs 100 population and succeeds because that fleet has the leading local influence.`,
+                target: () => document.querySelector("#coloniseForm"),
+                required: true,
+                requirement: "Queue the Pale Harbour outpost.",
+                isSatisfied: () => tutorialOrderExists("colonise", colonise.fleetId)
+                    || tutorial.completedActions.has("coloniseQueued")
+            },
+            {
+                id: "attack",
+                title: "Answer the Khepri challenge",
+                body: `Choose ${tutorialFleetName(attack.fleetId)} and the local Khepri force. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
+                target: () => document.querySelector("#attackForm"),
+                required: true,
+                requirement: "Queue the Treaty Gate attack.",
+                isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetEmpireId", attack.targetEmpireId)
+                    || tutorial.completedActions.has("attackQueued")
+            }
+        );
+    }
+
+    steps.push(
+        {
+            id: "queue",
+            title: "Review your commitments",
+            body: curated
+                ? "The queue should now hold three pending orders. You can cancel any pending intention before the turn resolves."
+                : "The queue records when the order will execute. You can cancel a pending intention before the turn resolves.",
+            target: () => document.querySelector("#orderQueueSection"),
+            required: false
+        },
+        {
+            id: "advance",
+            title: "Resolve the turn",
+            body: "Advance turn runs the same authoritative simulation boundary as the Worker and CLI. It resolves the whole development galaxy, not only your empire.",
+            target: () => elements.advanceTurnButton,
+            required: true,
+            requirement: "Advance the development galaxy by one turn.",
+            isSatisfied: () => state.cycle?.currentTickNumber > tutorial.initialTick
+                || tutorial.completedActions.has("turnAdvanced")
+        },
+        {
+            id: "events",
+            title: "Read what actually happened",
+            body: "Events are the factual audit trail. Check which orders processed, what resources changed, and whether anything was rejected when the world moved underneath an intention.",
+            target: () => document.querySelector("#eventsSection"),
+            required: false
+        }
+    );
+
+    if (curated) {
+        steps.push({
+            id: "chronicle",
+            title: "See what became history",
+            body: "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history.",
+            target: () => document.querySelector("#chronicleSection"),
+            required: false
+        });
+    }
+
+    steps.push({
+        id: "next",
+        title: "That is the Cycles loop",
+        body: "Inspect, prioritise, commit orders, resolve the turn, then read the consequences. From here, reinforce pressure, build ships, found outposts, or seek another battle worth remembering.",
+        required: false
+    });
+
+    return steps;
+}
+
+function tutorialOrderExists(orderType, fleetId, targetProperty, targetId) {
+    return state.orders.some(order =>
+        order.orderType === orderType
+        && order.fleetId === fleetId
+        && order.status !== "cancelled"
+        && order.status !== "rejected"
+        && (!targetProperty || order[targetProperty] === targetId));
+}
+
+function tutorialFleetName(fleetId) {
+    return state.fleets.find(item => item.fleet.fleetId === fleetId)?.fleet.fleetName ?? "the highlighted fleet";
+}
+
+function tutorialSystemName(systemId) {
+    return state.galaxy?.systems.find(system => system.systemId === systemId)?.systemName ?? "the highlighted system";
+}
+
+function saveTutorialState() {
+    if (!tutorial.storageKey) {
+        return;
+    }
+
+    const steps = tutorialSteps();
+    const value = {
+        status: tutorial.status,
+        stepId: steps[tutorial.stepIndex]?.id ?? "welcome",
+        initialTick: tutorial.initialTick,
+        completedActions: [...tutorial.completedActions],
+        briefing: tutorial.briefing
+    };
+    tutorialSessionStore.set(tutorial.storageKey, value);
+    writeStoredValue(tutorial.storageKey, JSON.stringify(value));
+}
+
+function loadTutorialState(storageKey) {
+    const value = readStoredValue(storageKey);
+    if (value) {
+        try {
+            return JSON.parse(value);
+        } catch {
+            removeStoredValue(storageKey);
+        }
+    }
+
+    return tutorialSessionStore.get(storageKey) ?? null;
+}
+
+function readStoredValue(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function writeStoredValue(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Storage-restricted browsers keep tutorial state in memory for this session.
+    }
+}
+
+function removeStoredValue(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch {
+        // There is no persistent value to remove when storage is unavailable.
+    }
+}
+
 function collectTargetEmpires(selectedFleet) {
     if (!selectedFleet || !state.galaxy) {
         return [];
@@ -513,7 +1048,13 @@ function collectTargetEmpires(selectedFleet) {
     const empireIds = Object.keys(presence.effectivePresence)
         .filter(id => id !== state.empire.empireId);
 
-    return empireIds.map(id => ({ empireId: id, empireName: id.slice(0, 8) }));
+    const visibleEmpireNames = new Map(
+        (state.fleetDetail?.activeFleetsInSystem ?? []).map(fleet => [fleet.empireId, fleet.empireName]));
+
+    return empireIds.map(id => ({
+        empireId: id,
+        empireName: visibleEmpireNames.get(id) ?? id.slice(0, 8)
+    }));
 }
 
 function renderEvents(events) {
@@ -588,6 +1129,7 @@ function selectSystem(systemId) {
     state.selectedSystemId = systemId;
     renderSystemDetails();
     renderGalaxy(state.galaxy, state.empire);
+    syncTutorialDisplay();
 }
 
 async function selectFleet(fleetId) {
@@ -596,6 +1138,7 @@ async function selectFleet(fleetId) {
         state.fleetDetail = await getJson(`/fleets/${fleetId}`);
         renderFleets(state.fleets);
         renderFleetDetails();
+        syncTutorialDisplay();
     } catch (error) {
         setMessage(error.message);
     }
@@ -719,6 +1262,10 @@ function parseWeight(value) {
 
 function formatNumber(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatCount(value, singular) {
+    return `${formatNumber(value)} ${singular}${Number(value) === 1 ? "" : "s"}`;
 }
 
 function resourceCard(label, value, maxResource, generated, spent) {
