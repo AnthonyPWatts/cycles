@@ -217,40 +217,37 @@ a {
     line-height: 1.65;
 }
 
-.vision-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
+.vision-sequence {
+    border-top: 1px solid var(--line);
 }
 
-.vision-grid article,
-.roadmap-list li {
-    min-width: 0;
-    padding: 20px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--panel);
-    box-shadow: 0 18px 46px var(--shadow);
+.vision-sequence article {
+    display: grid;
+    grid-template-columns: clamp(64px, 9vw, 132px) minmax(0, 720px);
+    gap: clamp(18px, 4vw, 52px);
+    align-items: start;
+    padding: clamp(24px, 4vw, 42px) 0;
+    border-bottom: 1px solid var(--line);
 }
 
 .metric {
     color: var(--green);
-    font-size: 0.9rem;
+    font-size: clamp(1.6rem, 3vw, 2.6rem);
     font-weight: 900;
+    line-height: 1;
 }
 
-.vision-grid h3,
-.roadmap-list strong {
-    display: block;
-    margin: 14px 0 8px;
-    font-size: 1.12rem;
+.vision-sequence h3 {
+    margin: 0 0 8px;
+    font-size: clamp(1.35rem, 2.4vw, 2rem);
 }
 
-.vision-grid p,
-.roadmap-list p {
+.vision-sequence p {
+    max-width: 62ch;
     margin: 0;
     color: var(--muted);
-    line-height: 1.55;
+    font-size: 1.06rem;
+    line-height: 1.62;
 }
 
 .signal-band {
@@ -394,20 +391,61 @@ a {
     text-decoration: none;
 }
 
-.roadmap-list {
+.release-layout {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    padding: 0;
-    margin: 0;
-    list-style: none;
+    grid-template-columns: minmax(260px, 0.82fr) minmax(360px, 1.18fr);
+    gap: clamp(34px, 7vw, 108px);
+    align-items: start;
+    padding-top: 10px;
 }
 
-.roadmap-list span {
+.release-mark {
+    position: sticky;
+    top: 112px;
+}
+
+.release-mark > span,
+.release-ledger dt {
     color: var(--gold);
     font-size: 0.78rem;
     font-weight: 900;
     text-transform: uppercase;
+}
+
+.release-mark > strong {
+    display: block;
+    max-width: 12ch;
+    margin-top: 18px;
+    font-size: clamp(2.2rem, 4.5vw, 4.6rem);
+    line-height: 0.94;
+}
+
+.release-mark p {
+    max-width: 48ch;
+    margin: 20px 0 26px;
+    color: var(--muted);
+    font-size: 1.06rem;
+    line-height: 1.62;
+}
+
+.release-ledger {
+    margin: 0;
+    border-top: 1px solid var(--line);
+}
+
+.release-ledger div {
+    display: grid;
+    grid-template-columns: minmax(116px, 0.34fr) minmax(0, 0.66fr);
+    gap: 28px;
+    padding: clamp(24px, 4vw, 38px) 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.release-ledger dd {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1.06rem;
+    line-height: 1.62;
 }
 
 .site-footer {
@@ -442,11 +480,14 @@ a {
         min-height: calc(100svh - 188px);
     }
 
-    .vision-grid,
     .signal-band,
-    .roadmap-list,
-    .signal-panel {
+    .signal-panel,
+    .release-layout {
         grid-template-columns: 1fr;
+    }
+
+    .release-mark {
+        position: static;
     }
 
     .signal-feed {
@@ -476,5 +517,11 @@ a {
 
     .star {
         white-space: normal;
+    }
+
+    .vision-sequence article,
+    .release-ledger div {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Cycles is a persistent galactic strategy game where influence shapes the present and history survives every reset.">
     <title>Cycles | Command the Present. Become Part of the Past.</title>
-    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="site.css?v=20260711">
 </head>
 <body>
     <canvas id="heroScene" class="hero-scene" aria-hidden="true"></canvas>
@@ -44,21 +44,27 @@
                 <p class="eyebrow">The premise</p>
                 <h2>Win the Cycle. Leave a mark the galaxy cannot erase.</h2>
             </div>
-            <div class="vision-grid">
+            <div class="vision-sequence">
                 <article>
                     <span class="metric">01</span>
-                    <h3>Project influence</h3>
-                    <p>Fleets create pressure rather than permanent borders. A system can be shared, contested, isolated, or pulled from a rival without becoming a painted tile.</p>
+                    <div>
+                        <h3>Project influence</h3>
+                        <p>Fleets create pressure rather than permanent borders. A system can be shared, contested, isolated, or pulled from a rival without becoming a painted tile.</p>
+                    </div>
                 </article>
                 <article>
                     <span class="metric">02</span>
-                    <h3>Commit your intent</h3>
-                    <p>Set priorities, move fleets, establish outposts, and choose when cold pressure becomes open war. The next tick resolves every commitment.</p>
+                    <div>
+                        <h3>Commit your intent</h3>
+                        <p>Set priorities, move fleets, establish outposts, and choose when cold pressure becomes open war. The next tick resolves every commitment.</p>
+                    </div>
                 </article>
                 <article>
                     <span class="metric">03</span>
-                    <h3>Become history</h3>
-                    <p>Most actions change the map. A few become battles, legends, and famous systems that echo into the next Cycle.</p>
+                    <div>
+                        <h3>Become history</h3>
+                        <p>Most actions change the map. A few become battles, legends, and famous systems that echo into the next Cycle.</p>
+                    </div>
                 </article>
             </div>
         </section>
@@ -94,23 +100,28 @@
                 <p class="eyebrow">Current frontier</p>
                 <h2>Built enough to play. Open enough to shape.</h2>
             </div>
-            <ol class="roadmap-list">
-                <li>
-                    <span>Live now</span>
-                    <strong>Private alpha</strong>
-                    <p>Influence, economy, fleets, combat, colonisation, admirals, Cycle history, and successor galaxies form a complete local loop.</p>
-                </li>
-                <li>
-                    <span>Taking shape</span>
-                    <strong>Deeper strategy</strong>
-                    <p>Diplomacy, doctrine, intelligence, and sharper balance will grow from real play rather than guesswork.</p>
-                </li>
-                <li>
-                    <span>Beyond the alpha</span>
-                    <strong>A living Chronicle</strong>
-                    <p>Factual history will support richer reports, character stories, and a galaxy that remembers why each place became famous.</p>
-                </li>
-            </ol>
+            <div class="release-layout">
+                <div class="release-mark">
+                    <span>Private alpha · live now</span>
+                    <strong>One complete Cycle loop.</strong>
+                    <p>Influence, economy, fleets, combat, colonisation, admirals, Cycle history, and successor galaxies are playable today.</p>
+                    <a class="primary-action" href="/app.html">Enter the Alpha</a>
+                </div>
+                <dl class="release-ledger">
+                    <div>
+                        <dt>Taking shape</dt>
+                        <dd>Diplomacy, doctrine, intelligence, and sharper balance will grow from real play rather than guesswork.</dd>
+                    </div>
+                    <div>
+                        <dt>Beyond the alpha</dt>
+                        <dd>Factual history will support richer reports, character stories, and a galaxy that remembers why each place became famous.</dd>
+                    </div>
+                    <div>
+                        <dt>The rule that stays</dt>
+                        <dd>The simulation writes the facts. The Chronicle decides what matters. Narrative never changes the outcome.</dd>
+                    </div>
+                </dl>
+            </div>
         </section>
     </main>
 
