@@ -23,15 +23,15 @@ Seed `71421`, 24 systems, four empires:
 | 24 | 24 | 60 | 22 | 10 | 84 | 777 | 40-74 | 664-2,215 | 623-1,660 |
 | 48 | 48 | 125 | 51 | 11 | 180 | 1,484 | 48-71 | 1,280-4,249 | 1,357-3,586 |
 | 96 | 96 | 256 | 107 | 12 | 367 | 2,892 | 52-76 | 3,001-8,402 | 3,147-7,468 |
-| 2,160 | 474 | 1,867 | 501 | 12 | 1,827 | 15,001 | 37-972 | 11,309-50,550 | 13,533-50,340 |
+| 2,160 | 2,160 | 25,766 | 2,298 | 12 | 8,304 | 102,343 | 34-2,193 | 45,812-255,095 | 57,595-247,831 |
 
-The 2,160-tick request stopped before tick 475 at the diagnostic record budget. Before that safeguard was added, two full-Cycle attempts terminated the process before it could return a report. This is evidence of an engineering scalability limit in the current whole-state in-memory tick path, not a simulated balance result for a complete Cycle.
+The full 2,160-tick run now completes without deleting or archiving historical records. On the local 2026-07-11 verification run, order planning took 3.16 seconds, Core tick processing took 5.37 seconds, and total CLI wall time including build and startup was 18.39 seconds. The fix replaced full-history entity cloning with a focused transactional working copy and replaced per-fleet planner rescans with per-tick indexes and a precomputed route map.
 
 ## Current Interpretation
 
 - Military construction and sustained combat broadly offset each other through the first 96 ticks, although one empire can still accumulate a large surviving fleet over longer runs.
 - Research and population stockpiles grow continuously after the one research unlock and the available colonisation targets are exhausted. This is expected from the currently implemented sinks, but the quantities become very large long before the configured 90-day Cycle ends.
 - Map control remains fairly compressed in this artificial convergence policy. The scenario does not justify changing the colonisation cost, outpost presence, ship cost, build delay, research threshold, or Chronicle threshold in isolation.
-- The next evidence-led balance step should compare deliberate priority strategies and less aggressive movement policies. The next engineering step should address retained-history growth before claiming full-Cycle simulation capacity.
+- Full-Cycle local simulation capacity is now proven for this deliberately busy scenario. The next evidence-led balance step should compare deliberate priority strategies and less aggressive movement policies.
 
 No balance constant was changed from this first baseline. The accepted product direction permits uncapped within-Cycle growth, and changing a single number would hide the missing long-term resource sinks rather than establish better balance.

@@ -191,7 +191,7 @@ Blocked: Q035-Q046 must define doctrine choice, research spending/unlocks, modif
 - [ ] Current `FactJson` strings are flexible but weakly typed. Consider typed facts or validated schemas once diplomacy/narrative fact contracts stabilise.
 - [ ] Current combat model is not balanced.
 - [ ] Current dashboard assumes a small galaxy.
-- [ ] Full-Cycle in-memory simulation exceeds the diagnostic retained-history budget under sustained combat; profile and bound state growth before claiming 90-day simulation capacity.
+- [x] Replace whole-history in-memory tick cloning, index the balance planner, and verify a sustained-conflict 2,160-tick Cycle completes without discarding historical facts.
 - [x] Replace direct domain-entity API responses with explicit response DTOs and a regression guard.
 - [ ] Current development auth is not production security.
 - [x] Bring the main documents up to date with the private-alpha implementation pass.

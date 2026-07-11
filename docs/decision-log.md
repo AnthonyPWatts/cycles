@@ -586,3 +586,22 @@ Consequences:
 - Recovery-required and non-active Cycles are not scheduled.
 - Ordinary player endpoints still cannot execute ticks.
 - Production hosting, worker health, leader election, multi-Cycle policy, and admin provisioning remain deployment decisions.
+
+## 2026-07-11: Use A Focused Transactional Working Copy For In-Memory Ticks
+
+Decision: stop deep-cloning every retained entity before each in-memory tick; clone only mutable tick entities, share append-only fact collections during processing, and roll appended facts back if the tick fails.
+
+Reasoning:
+
+- The original full-state clone allocated about 159 KB at 1,086 retained records and 2.17 MB at 15,086 records on each tick.
+- Historical events, battles, Chronicle entries, metrics, completed construction, and processed orders grow throughout a Cycle, making repeated full cloning cumulative quadratic work.
+- Existing tick transaction semantics still require partial resource, fleet, order, diplomacy, construction, and admiral changes to be discarded on failure.
+- Append-only facts can safely share their lists during the synchronous tick when their original counts are captured and additions are removed before recording the failed attempt.
+
+Consequences:
+
+- Mutable Cycle entities use independent copies; read-only reference data and immutable history are not rebuilt on every tick.
+- Existing `GameState.DeepClone` behaviour remains available for callers and tests that require a fully independent state.
+- Focused and full-clone tick outcomes are compared by regression test, including combat, diplomacy, resources, orders, events, metrics, and Chronicle facts.
+- The deterministic balance planner also builds per-tick indexes and one route map instead of rescanning all retained orders, fleets, outposts, and links for each expedition.
+- A 2,160-tick sustained-conflict scenario now completes locally with 102,343 retained records, 25,766 processed orders, and 2,298 battles.

@@ -1,3 +1,7 @@
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Cycles.Tests")]
+
 namespace Cycles.Core;
 
 public sealed class GameState
@@ -57,6 +61,54 @@ public sealed class GameState
             BattleRecords = BattleRecords.Select(Clone).ToList(),
             ChronicleEntries = ChronicleEntries.Select(Clone).ToList()
         };
+
+    internal GameState CreateTickWorkingCopy(Guid cycleId, int tickNumber)
+    {
+        var empireIds = Empires
+            .Where(item => item.CycleId == cycleId)
+            .Select(item => item.EmpireId)
+            .ToHashSet();
+
+        return new GameState
+        {
+            // These collections are read-only during tick processing.
+            Players = Players,
+            Empires = Empires,
+            EmpirePriorities = EmpirePriorities,
+            CycleRankings = CycleRankings,
+            CycleMajorEvents = CycleMajorEvents,
+            SystemHistoricalSignals = SystemHistoricalSignals,
+            Systems = Systems,
+            SystemLinks = SystemLinks,
+
+            // Only the active Cycle's mutable entities need independent copies.
+            Cycles = Cycles.Select(item => item.CycleId == cycleId ? Clone(item) : item).ToList(),
+            EmpireResources = EmpireResources.Select(item => empireIds.Contains(item.EmpireId) ? Clone(item) : item).ToList(),
+            EmpireMetrics = EmpireMetrics.ToList(),
+            DiplomaticRelationships = DiplomaticRelationships.Select(item => item.CycleId == cycleId ? Clone(item) : item).ToList(),
+            Admirals = Admirals.Select(item => item.CycleId == cycleId ? Clone(item) : item).ToList(),
+            Fleets = Fleets.Select(item => item.CycleId == cycleId ? Clone(item) : item).ToList(),
+            FleetOrders = FleetOrders.Select(item => item.CycleId == cycleId
+                                                     && item.Status == FleetOrderStatus.Pending
+                                                     && item.ExecuteAfterTick <= tickNumber
+                ? Clone(item)
+                : item).ToList(),
+            ShipConstructions = ShipConstructions.Select(item => item.CycleId == cycleId
+                                                                 && item.Status == ShipConstructionStatus.Queued
+                                                                 && item.CompleteAfterTick <= tickNumber
+                ? Clone(item)
+                : item).ToList(),
+
+            // Tick processing only appends to these lists. TickEngine rolls additions
+            // back on failure, avoiding an O(history) copy on every successful tick.
+            ColonialOutposts = ColonialOutposts,
+            AdmiralBattleHistories = AdmiralBattleHistories,
+            TickLogs = TickLogs,
+            Events = Events,
+            BattleRecords = BattleRecords,
+            ChronicleEntries = ChronicleEntries
+        };
+    }
 
     public void ReplaceWith(GameState other)
     {

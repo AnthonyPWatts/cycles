@@ -322,6 +322,7 @@ static int RunBalanceScenario(string[] args)
     Console.WriteLine($"Orders: {result.OrdersProcessed}; battles: {result.Battles}; colonies: {result.ColonialOutposts}; Chronicle entries: {result.ChronicleEntries}");
     Console.WriteLine($"Completed ship construction: {result.CompletedShipConstructions}; doctrine unlocks: {result.DoctrineUnlocks}; map-control gap: {result.MapControlGap:0.##} points");
     Console.WriteLine($"Retained records: {result.RetainedRecords:N0}");
+    Console.WriteLine($"Timing: order planning {result.OrderPlanningMilliseconds:0.00} ms; tick processing {result.TickProcessingMilliseconds:0.00} ms");
     if (result.StopReason is not null)
     {
         Console.WriteLine($"Partial run: {result.StopReason}");

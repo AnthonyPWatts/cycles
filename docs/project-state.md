@@ -217,10 +217,11 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database
 .\eng\test.ps1
 ```
 
-Result: 122 tests passed, including domain, API, worker, operational-diagnostics, balance-scenario, SQL-profile validation, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
+Result: 125 tests passed, including domain, API, worker, operational-diagnostics, full-Cycle simulation, SQL-profile validation, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 The balance scenario suite verifies repeatable reports, existing-rule coverage, non-negative resources, invalid inputs, and an explicit retained-record stop for long diagnostic runs.
+The tick suite verifies focused-working-copy equivalence with the former full-clone transaction, rollback of facts appended before a late failure, and completion of a sustained-conflict 2,160-tick Cycle retaining more than 100,000 records.
 The test helper uses a temporary `BaseOutputPath` so the suite can run even when a local `Cycles.Api` process has the normal build output locked.
 
 Additional smoke checks performed during the MVP build-out:
@@ -269,7 +270,7 @@ These are known gaps, not defects in the current MVP claim:
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
 - Combat is deliberately primitive and not balanced.
-- A sustained-conflict balance scenario reaches the 15,000-record diagnostic guard after tick 474 of a requested 2,160-tick Cycle; the current whole-state in-memory tick path is not yet proven safe for a complete high-activity Cycle.
+- In-memory tick execution uses a focused transactional working copy: mutable Cycle entities are cloned, append-only facts are rolled back on failure, and immutable history is not rebuilt on every tick.
 - The dashboard is a prototype, not a full game client.
 
 ## Current Development Priority

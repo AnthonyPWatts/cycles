@@ -225,6 +225,70 @@ public sealed class OrderAndTickTests
     }
 
     [Fact]
+    public void FailedTickRollsBackFactsAppendedBeforeLateFailure()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var resourcesBefore = Assert.Single(state.EmpireResources).Industry;
+        var eventsBefore = state.Events.Count;
+        state.EmpirePriorities.Clear();
+
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Failed, result.Status);
+        Assert.Equal(resourcesBefore, Assert.Single(state.EmpireResources).Industry);
+        Assert.Equal(eventsBefore, state.Events.Count);
+        Assert.Single(state.TickLogs, item => item.Status == TickLogStatus.Failed);
+        Assert.Empty(state.BattleRecords);
+        Assert.Empty(state.ChronicleEntries);
+    }
+
+    [Fact]
+    public void FocusedWorkingCopyMatchesFullCloneTickOutcome()
+    {
+        var source = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 55, strategicValue: 35);
+        var cycle = source.GetActiveCycle()!;
+        var attacker = source.Empires.Single(item => item.EmpireName == "First");
+        var defender = source.Empires.Single(item => item.EmpireName == "Second");
+        var attackerFleet = source.Fleets.Single(item => item.EmpireId == attacker.EmpireId);
+        DiplomacyService.SetState(
+            source,
+            cycle.CycleId,
+            attacker.EmpireId,
+            defender.EmpireId,
+            DiplomaticRelationshipState.Alliance,
+            tickNumber: 0,
+            TestState.Now);
+        OrderService.SubmitAttackOrder(source, attackerFleet.FleetId, defender.EmpireId, TestState.Now);
+        var focusedState = source.DeepClone();
+        var referenceState = source.DeepClone();
+
+        var focusedResult = new TickEngine().RunTick(focusedState, cycle.CycleId, TestState.Now);
+        var referenceResult = new TickEngine(
+            static (state, _, _) => state.DeepClone(),
+            rollbackSharedAppends: false).RunTick(referenceState, cycle.CycleId, TestState.Now);
+
+        Assert.Equal(referenceResult, focusedResult);
+        AssertEquivalentTickState(referenceState, focusedState, cycle.CycleId);
+    }
+
+    [Fact]
+    public void SustainedConflictScenarioCompletesConfiguredFullCycle()
+    {
+        var result = BalanceScenarioRunner.Run(new BalanceScenarioOptions(
+            TickCount: 2_160,
+            SystemCount: 24,
+            EmpireCount: 4,
+            Seed: 71421,
+            RetainedRecordLimit: 150_000));
+
+        Assert.Equal(2_160, result.CompletedTicks);
+        Assert.Null(result.StopReason);
+        Assert.True(result.RetainedRecords > 15_000);
+        Assert.True(result.Battles > 1_000);
+    }
+
+    [Fact]
     public void RecoveryRequiredCycleCannotProcessAnotherTick()
     {
         var state = TestState.CreateSingleEmpireState();
@@ -310,5 +374,50 @@ public sealed class OrderAndTickTests
         Assert.Equal(1, committedCycle.CurrentTickNumber);
         Assert.Contains(state.TickLogs, log => log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
         Assert.Contains(state.TickLogs, log => log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
+    }
+
+    private static void AssertEquivalentTickState(GameState expected, GameState actual, Guid cycleId)
+    {
+        Assert.Equal(
+            expected.Cycles.Where(item => item.CycleId == cycleId).Select(item => (item.CurrentTickNumber, item.Status)),
+            actual.Cycles.Where(item => item.CycleId == cycleId).Select(item => (item.CurrentTickNumber, item.Status)));
+        Assert.Equal(
+            expected.EmpireResources.OrderBy(item => item.EmpireId).Select(item =>
+                (item.EmpireId, item.Industry, item.Research, item.Population, item.LastGeneratedIndustry, item.LastSpentIndustry)),
+            actual.EmpireResources.OrderBy(item => item.EmpireId).Select(item =>
+                (item.EmpireId, item.Industry, item.Research, item.Population, item.LastGeneratedIndustry, item.LastSpentIndustry)));
+        Assert.Equal(
+            expected.Fleets.OrderBy(item => item.FleetId).Select(item =>
+                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.ArrivalTickNumber, item.ShipCount, item.Status)),
+            actual.Fleets.OrderBy(item => item.FleetId).Select(item =>
+                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.ArrivalTickNumber, item.ShipCount, item.Status)));
+        Assert.Equal(
+            expected.FleetOrders.OrderBy(item => item.FleetOrderId).Select(item =>
+                (item.FleetOrderId, item.Status, item.ProcessedTick, item.RejectionReason)),
+            actual.FleetOrders.OrderBy(item => item.FleetOrderId).Select(item =>
+                (item.FleetOrderId, item.Status, item.ProcessedTick, item.RejectionReason)));
+        Assert.Equal(
+            expected.DiplomaticRelationships.OrderBy(item => item.DiplomaticRelationshipId).Select(item =>
+                (item.FirstEmpireId, item.SecondEmpireId, item.State, item.UpdatedTick)),
+            actual.DiplomaticRelationships.OrderBy(item => item.DiplomaticRelationshipId).Select(item =>
+                (item.FirstEmpireId, item.SecondEmpireId, item.State, item.UpdatedTick)));
+        Assert.Equal(
+            expected.Events.Where(item => item.TickNumber == 1).Select(item =>
+                (item.EventType, item.SystemId, item.EmpireId, item.Severity, item.DisplayText)),
+            actual.Events.Where(item => item.TickNumber == 1).Select(item =>
+                (item.EventType, item.SystemId, item.EmpireId, item.Severity, item.DisplayText)));
+        Assert.Equal(
+            expected.BattleRecords.Select(item =>
+                (item.TickNumber, item.AttackerEmpireId, item.DefenderEmpireId, item.AttackerLosses, item.DefenderLosses, item.Outcome)),
+            actual.BattleRecords.Select(item =>
+                (item.TickNumber, item.AttackerEmpireId, item.DefenderEmpireId, item.AttackerLosses, item.DefenderLosses, item.Outcome)));
+        Assert.Equal(
+            expected.ChronicleEntries.Select(item => (item.Title, item.ImportanceScore, item.FactualSummary, item.NarrativeText)),
+            actual.ChronicleEntries.Select(item => (item.Title, item.ImportanceScore, item.FactualSummary, item.NarrativeText)));
+        Assert.Equal(
+            expected.EmpireMetrics.OrderBy(item => item.EmpireId).Select(item =>
+                (item.EmpireId, item.TickNumber, item.Rank, item.MapControlPercent, item.TotalEffectivePresence, item.ActiveShipCount)),
+            actual.EmpireMetrics.OrderBy(item => item.EmpireId).Select(item =>
+                (item.EmpireId, item.TickNumber, item.Rank, item.MapControlPercent, item.TotalEffectivePresence, item.ActiveShipCount)));
     }
 }

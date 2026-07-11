@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,7 +9,7 @@ public sealed record BalanceScenarioOptions(
     int SystemCount = 24,
     int EmpireCount = 4,
     int Seed = 71421,
-    int RetainedRecordLimit = 15_000);
+    int RetainedRecordLimit = 150_000);
 
 public sealed record BalanceEmpireResult(
     string EmpireName,
@@ -36,6 +37,8 @@ public sealed record BalanceScenarioResult(
     decimal MapControlGap,
     int RetainedRecords,
     string? StopReason,
+    double OrderPlanningMilliseconds,
+    double TickProcessingMilliseconds,
     IReadOnlyList<BalanceEmpireResult> Empires);
 
 public static class BalanceScenarioRunner
@@ -67,6 +70,8 @@ public static class BalanceScenarioRunner
             empire => ActiveShipCount(state, empire.EmpireId));
         var ordersProcessed = 0;
         string? stopReason = null;
+        var orderPlanningTime = TimeSpan.Zero;
+        var tickProcessingTime = TimeSpan.Zero;
         var engine = new TickEngine();
 
         for (var tick = 1; tick <= options.TickCount; tick++)
@@ -79,9 +84,13 @@ public static class BalanceScenarioRunner
             }
 
             var now = ScenarioStart.AddMinutes(cycle.TickLengthMinutes * tick);
+            var orderPlanningStarted = Stopwatch.GetTimestamp();
             LaunchAvailableExpeditions(state, cycle.CycleId, options.Seed, now);
             SubmitScenarioOrders(state, cycle.CycleId, rendezvous.SystemId, now);
+            orderPlanningTime += Stopwatch.GetElapsedTime(orderPlanningStarted);
+            var tickProcessingStarted = Stopwatch.GetTimestamp();
             var tickResult = engine.RunTick(state, cycle.CycleId, now);
+            tickProcessingTime += Stopwatch.GetElapsedTime(tickProcessingStarted);
             if (tickResult.Status != TickLogStatus.Completed)
             {
                 throw new InvalidOperationException($"Balance scenario tick {tick} failed.");
@@ -115,58 +124,91 @@ public static class BalanceScenarioRunner
             mapControlValues.Max() - mapControlValues.Min(),
             GameStateRecordCounter.CountCycleRecords(state, cycle.CycleId),
             stopReason,
+            orderPlanningTime.TotalMilliseconds,
+            tickProcessingTime.TotalMilliseconds,
             empireResults);
     }
 
     private static void SubmitScenarioOrders(GameState state, Guid cycleId, Guid rendezvousSystemId, DateTimeOffset now)
     {
+        var empiresById = state.Empires
+            .Where(empire => empire.CycleId == cycleId)
+            .ToDictionary(empire => empire.EmpireId);
+        var resourcesByEmpireId = state.EmpireResources.ToDictionary(resources => resources.EmpireId);
+        var fleetsById = state.Fleets
+            .Where(fleet => fleet.CycleId == cycleId)
+            .ToDictionary(fleet => fleet.FleetId);
+        var pendingFleetIds = state.FleetOrders
+            .Where(order => order.CycleId == cycleId && order.Status == FleetOrderStatus.Pending)
+            .Select(order => order.FleetId)
+            .ToHashSet();
+        var pendingColonisations = state.FleetOrders
+            .Where(order => order.CycleId == cycleId
+                            && order.OrderType == FleetOrderType.Colonise
+                            && order.Status == FleetOrderStatus.Pending
+                            && order.TargetSystemId.HasValue
+                            && fleetsById.ContainsKey(order.FleetId))
+            .Select(order => (fleetsById[order.FleetId].EmpireId, order.TargetSystemId!.Value))
+            .ToHashSet();
+        var establishedOutposts = state.ColonialOutposts
+            .Where(outpost => outpost.CycleId == cycleId)
+            .Select(outpost => (outpost.EmpireId, outpost.SystemId))
+            .ToHashSet();
+        var activeFleetsBySystem = state.Fleets
+            .Where(fleet => fleet.CycleId == cycleId && fleet.Status == FleetStatus.Active && fleet.ShipCount > 0)
+            .ToLookup(fleet => fleet.CurrentSystemId);
+        var nextHops = BuildNextHops(state, cycleId, rendezvousSystemId);
+        var presenceBySystem = new Dictionary<Guid, IReadOnlyDictionary<Guid, decimal>>();
+
         foreach (var fleet in state.Fleets
                      .Where(fleet => fleet.CycleId == cycleId
                                      && fleet.FleetName.Contains(" Scenario Expedition ", StringComparison.Ordinal)
                                      && fleet.Status == FleetStatus.Active
                                      && fleet.ShipCount > 0)
-                     .OrderBy(fleet => state.Empires.Single(empire => empire.EmpireId == fleet.EmpireId).EmpireName)
+                     .OrderBy(fleet => empiresById[fleet.EmpireId].EmpireName)
                      .ThenBy(fleet => fleet.FleetName))
         {
-            if (state.FleetOrders.Any(order => order.FleetId == fleet.FleetId && order.Status == FleetOrderStatus.Pending))
+            if (pendingFleetIds.Contains(fleet.FleetId))
             {
                 continue;
             }
 
-            var hostileEmpire = state.Fleets
-                .Where(other => other.CycleId == cycleId
-                                && other.CurrentSystemId == fleet.CurrentSystemId
-                                && other.EmpireId != fleet.EmpireId
-                                && other.Status == FleetStatus.Active
-                                && other.ShipCount > 0)
-                .Select(other => state.Empires.Single(empire => empire.EmpireId == other.EmpireId))
+            var hostileEmpire = activeFleetsBySystem[fleet.CurrentSystemId]
+                .Where(other => other.FleetId != fleet.FleetId
+                                && other.EmpireId != fleet.EmpireId)
+                .Select(other => empiresById[other.EmpireId])
+                .DistinctBy(empire => empire.EmpireId)
                 .OrderBy(empire => empire.EmpireName)
                 .FirstOrDefault();
             if (hostileEmpire is not null)
             {
                 OrderService.SubmitAttackOrder(state, fleet.FleetId, hostileEmpire.EmpireId, now);
+                pendingFleetIds.Add(fleet.FleetId);
                 continue;
             }
 
-            var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
-            var resources = state.EmpireResources.Single(item => item.EmpireId == fleet.EmpireId);
-            var empireFleetIds = state.Fleets
-                .Where(item => item.CycleId == cycleId && item.EmpireId == fleet.EmpireId)
-                .Select(item => item.FleetId)
-                .ToHashSet();
+            var empire = empiresById[fleet.EmpireId];
+            var resources = resourcesByEmpireId[fleet.EmpireId];
+            if (!presenceBySystem.TryGetValue(fleet.CurrentSystemId, out var localPresence))
+            {
+                localPresence = InfluenceCalculator.CalculateEffectivePresence(state, cycleId, fleet.CurrentSystemId);
+                presenceBySystem[fleet.CurrentSystemId] = localPresence;
+            }
+
+            var hasLeadingPresence = localPresence.TryGetValue(fleet.EmpireId, out var empirePresence)
+                                     && localPresence
+                                         .Where(item => item.Key != fleet.EmpireId)
+                                         .All(item => empirePresence > item.Value);
             var canColonise = fleet.CurrentSystemId != empire.HomeSystemId
                               && resources.Population >= OrderService.ColonisationPopulationCost
-                              && !state.ColonialOutposts.Any(item => item.EmpireId == fleet.EmpireId
-                                                                    && item.SystemId == fleet.CurrentSystemId)
-                              && !state.FleetOrders.Any(item => item.CycleId == cycleId
-                                                                && item.OrderType == FleetOrderType.Colonise
-                                                                && item.Status == FleetOrderStatus.Pending
-                                                                && item.TargetSystemId == fleet.CurrentSystemId
-                                                                && empireFleetIds.Contains(item.FleetId))
-                              && OrderService.HasLeadingPresence(state, cycleId, fleet.CurrentSystemId, fleet.EmpireId);
+                              && !establishedOutposts.Contains((fleet.EmpireId, fleet.CurrentSystemId))
+                              && !pendingColonisations.Contains((fleet.EmpireId, fleet.CurrentSystemId))
+                              && hasLeadingPresence;
             if (canColonise)
             {
                 OrderService.SubmitColoniseOrder(state, fleet.FleetId, now);
+                pendingFleetIds.Add(fleet.FleetId);
+                pendingColonisations.Add((fleet.EmpireId, fleet.CurrentSystemId));
                 continue;
             }
 
@@ -175,8 +217,9 @@ public static class BalanceScenarioRunner
                 continue;
             }
 
-            var nextSystemId = FindNextHop(state, cycleId, fleet.CurrentSystemId, rendezvousSystemId);
+            var nextSystemId = nextHops[fleet.CurrentSystemId];
             OrderService.SubmitMoveOrder(state, fleet.FleetId, nextSystemId, now);
+            pendingFleetIds.Add(fleet.FleetId);
         }
     }
 
@@ -242,15 +285,19 @@ public static class BalanceScenarioRunner
             .First();
     }
 
-    private static Guid FindNextHop(GameState state, Guid cycleId, Guid startSystemId, Guid targetSystemId)
+    private static IReadOnlyDictionary<Guid, Guid> BuildNextHops(
+        GameState state,
+        Guid cycleId,
+        Guid targetSystemId)
     {
         var names = state.Systems
             .Where(system => system.CycleId == cycleId)
             .ToDictionary(system => system.SystemId, system => system.SystemName);
         var links = state.SystemLinks.Where(link => link.CycleId == cycleId).ToArray();
         var queue = new Queue<Guid>();
-        var previous = new Dictionary<Guid, Guid?> { [startSystemId] = null };
-        queue.Enqueue(startSystemId);
+        var nextHops = new Dictionary<Guid, Guid>();
+        var visited = new HashSet<Guid> { targetSystemId };
+        queue.Enqueue(targetSystemId);
 
         while (queue.Count > 0)
         {
@@ -261,34 +308,22 @@ public static class BalanceScenarioRunner
                          .Distinct()
                          .OrderBy(systemId => names[systemId]))
             {
-                if (previous.ContainsKey(neighbour))
+                if (!visited.Add(neighbour))
                 {
                     continue;
                 }
 
-                previous[neighbour] = current;
-                if (neighbour == targetSystemId)
-                {
-                    return TraceFirstHop(previous, startSystemId, targetSystemId);
-                }
-
+                nextHops[neighbour] = current;
                 queue.Enqueue(neighbour);
             }
         }
 
-        throw new InvalidOperationException("The seeded galaxy graph is not connected.");
-    }
-
-    private static Guid TraceFirstHop(IReadOnlyDictionary<Guid, Guid?> previous, Guid startSystemId, Guid targetSystemId)
-    {
-        var current = targetSystemId;
-        while (previous[current] != startSystemId)
+        if (visited.Count != names.Count)
         {
-            current = previous[current]
-                ?? throw new InvalidOperationException("The target system cannot be traced to the starting system.");
+            throw new InvalidOperationException("The seeded galaxy graph is not connected.");
         }
 
-        return current;
+        return nextHops;
     }
 
     private static BalanceEmpireResult CreateEmpireResult(

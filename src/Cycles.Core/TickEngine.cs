@@ -4,6 +4,24 @@ namespace Cycles.Core;
 
 public sealed class TickEngine
 {
+    private readonly Func<GameState, Guid, int, GameState> createWorkingState;
+    private readonly bool rollbackSharedAppends;
+
+    public TickEngine()
+        : this(
+            static (state, cycleId, tickNumber) => state.CreateTickWorkingCopy(cycleId, tickNumber),
+            rollbackSharedAppends: true)
+    {
+    }
+
+    internal TickEngine(
+        Func<GameState, Guid, int, GameState> createWorkingState,
+        bool rollbackSharedAppends)
+    {
+        this.createWorkingState = createWorkingState;
+        this.rollbackSharedAppends = rollbackSharedAppends;
+    }
+
     public TickResult RunTick(GameState state, Guid cycleId, DateTimeOffset now)
     {
         if (state.TickLogs.Any(log => log.CycleId == cycleId && log.Status == TickLogStatus.Running))
@@ -20,7 +38,8 @@ public sealed class TickEngine
         }
 
         var nextTick = cycle.CurrentTickNumber + 1;
-        var working = state.DeepClone();
+        var appendCounts = AppendOnlyCounts.Capture(state);
+        var working = createWorkingState(state, cycleId, nextTick);
 
         try
         {
@@ -30,6 +49,11 @@ public sealed class TickEngine
         }
         catch (Exception ex)
         {
+            if (rollbackSharedAppends)
+            {
+                appendCounts.RollBack(state);
+            }
+
             state.TickLogs.Add(new TickLog
             {
                 CycleId = cycleId,
@@ -42,6 +66,41 @@ public sealed class TickEngine
 
             cycle.Status = CycleStatus.RecoveryRequired;
             return new TickResult(nextTick, TickLogStatus.Failed, 0, 0, 0, 0);
+        }
+    }
+
+    private readonly record struct AppendOnlyCounts(
+        int ColonialOutposts,
+        int AdmiralBattleHistories,
+        int TickLogs,
+        int Events,
+        int BattleRecords,
+        int ChronicleEntries)
+    {
+        public static AppendOnlyCounts Capture(GameState state) => new(
+            state.ColonialOutposts.Count,
+            state.AdmiralBattleHistories.Count,
+            state.TickLogs.Count,
+            state.Events.Count,
+            state.BattleRecords.Count,
+            state.ChronicleEntries.Count);
+
+        public void RollBack(GameState state)
+        {
+            TrimToCount(state.ColonialOutposts, ColonialOutposts);
+            TrimToCount(state.AdmiralBattleHistories, AdmiralBattleHistories);
+            TrimToCount(state.TickLogs, TickLogs);
+            TrimToCount(state.Events, Events);
+            TrimToCount(state.BattleRecords, BattleRecords);
+            TrimToCount(state.ChronicleEntries, ChronicleEntries);
+        }
+
+        private static void TrimToCount<T>(List<T> items, int count)
+        {
+            if (items.Count > count)
+            {
+                items.RemoveRange(count, items.Count - count);
+            }
         }
     }
 
