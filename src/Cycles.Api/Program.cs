@@ -41,7 +41,7 @@ app.MapGet("/cycles/current", (IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
-        return state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
+        return ToCycleResponse(state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists."));
     }));
 
 app.MapGet("/ticks/last-summary", (HttpContext httpContext, IGameStateStore store) =>
@@ -81,9 +81,10 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
-        var systems = state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderBy(system => system.SystemName).ToArray();
-        var links = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).ToArray();
-        var presence = systems.Select(system =>
+        var domainSystems = state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderBy(system => system.SystemName).ToArray();
+        var systems = domainSystems.Select(ToGalaxySystemResponse).ToArray();
+        var links = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).Select(ToSystemLinkResponse).ToArray();
+        var presence = domainSystems.Select(system =>
         {
             var effectivePresence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
             return new SystemPresenceResponse(
@@ -96,12 +97,12 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
             .Where(item => actor.IsAdmin
                            || visibleSystemIds.Contains(item.SystemId)
                            || item.EmpireId == actor.Empire?.EmpireId)
-            .OrderBy(item => systems.Single(system => system.SystemId == item.SystemId).SystemName)
+            .OrderBy(item => domainSystems.Single(system => system.SystemId == item.SystemId).SystemName)
             .ThenBy(item => state.Empires.Single(empire => empire.EmpireId == item.EmpireId).EmpireName)
             .Select(item => ToColonialOutpostResponse(state, item))
             .ToArray();
 
-        return new GalaxyResponse(cycle, systems, links, presence, outposts);
+        return new GalaxyResponse(ToCycleResponse(cycle), systems, links, presence, outposts);
     }));
 
 app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
@@ -200,6 +201,7 @@ app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateSto
             .Where(item => ApiVisibility.CanSeeEvent(item, actor, visibleSystemIds))
             .OrderByDescending(item => item.CreatedAt)
             .Take(Math.Clamp(limit ?? 25, 1, 100))
+            .Select(ToEventResponse)
             .ToArray();
     }));
 
@@ -214,6 +216,7 @@ app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
             .Where(entry => entry.CycleId == cycle.CycleId)
             .Where(entry => ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds))
             .OrderByDescending(entry => entry.ImportanceScore)
+            .Select(ToChronicleEntryResponse)
             .ToArray();
     }));
 
@@ -357,9 +360,9 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
         empire.EmpireId,
         empire.PlayerId,
         empire.EmpireName,
-        home,
-        resources,
-        priorities,
+        ToGalaxySystemResponse(home),
+        ToEmpireResourceResponse(resources),
+        ToEmpirePriorityResponse(priorities),
         state.Fleets.Count(fleet => fleet.EmpireId == empire.EmpireId && fleet.Status != FleetStatus.Destroyed));
 }
 
@@ -372,7 +375,7 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
         : null;
 
     return new FleetResponse(
-        fleet,
+        ToFleetDataResponse(fleet),
         empire.EmpireName,
         currentSystem.SystemName,
         destination?.SystemName,
@@ -460,6 +463,122 @@ static SystemSummaryResponse ToSystemSummaryResponse(GalaxySystem system) =>
         system.Y,
         system.StrategicValue,
         system.HistoricalSignificance);
+
+static CycleResponse ToCycleResponse(Cycle cycle) =>
+    new(
+        cycle.CycleId,
+        cycle.Name,
+        cycle.StartAt,
+        cycle.EndAt,
+        cycle.TickLengthMinutes,
+        cycle.CurrentTickNumber,
+        cycle.Status,
+        cycle.CreatedAt);
+
+static GalaxySystemResponse ToGalaxySystemResponse(GalaxySystem system) =>
+    new(
+        system.SystemId,
+        system.CycleId,
+        system.SystemName,
+        system.X,
+        system.Y,
+        system.IndustryOutput,
+        system.ResearchOutput,
+        system.PopulationOutput,
+        system.StrategicValue,
+        system.HistoricalSignificance,
+        system.CreatedAt);
+
+static SystemLinkResponse ToSystemLinkResponse(SystemLink link) =>
+    new(link.SystemLinkId, link.CycleId, link.SystemAId, link.SystemBId, link.Distance, link.TravelTicks);
+
+static EmpireResourceResponse ToEmpireResourceResponse(EmpireResource resources) =>
+    new(
+        resources.EmpireResourceId,
+        resources.EmpireId,
+        resources.Industry,
+        resources.Research,
+        resources.Population,
+        resources.LastGeneratedIndustry,
+        resources.LastGeneratedResearch,
+        resources.LastGeneratedPopulation,
+        resources.LastSpentIndustry,
+        resources.LastSpentResearch,
+        resources.LastSpentPopulation,
+        resources.UpdatedAt);
+
+static EmpirePriorityResponse ToEmpirePriorityResponse(EmpirePriority priorities) =>
+    new(
+        priorities.EmpirePriorityId,
+        priorities.EmpireId,
+        priorities.IndustryWeight,
+        priorities.ResearchWeight,
+        priorities.MilitaryWeight,
+        priorities.ExpansionWeight,
+        priorities.UpdatedAt);
+
+static FleetDataResponse ToFleetDataResponse(Fleet fleet) =>
+    new(
+        fleet.FleetId,
+        fleet.CycleId,
+        fleet.EmpireId,
+        fleet.AdmiralId,
+        fleet.FleetName,
+        fleet.CurrentSystemId,
+        fleet.DestinationSystemId,
+        fleet.ArrivalTickNumber,
+        fleet.ShipCount,
+        fleet.Status,
+        fleet.CreatedAt);
+
+static EventResponse ToEventResponse(EventRecord item) =>
+    new(
+        item.EventId,
+        item.CycleId,
+        item.TickNumber,
+        item.EventType,
+        item.SystemId,
+        item.EmpireId,
+        item.Severity,
+        item.FactJson,
+        item.DisplayText,
+        item.CreatedAt);
+
+static BattleResponse ToBattleResponse(BattleRecord item) =>
+    new(
+        item.BattleId,
+        item.CycleId,
+        item.TickNumber,
+        item.SystemId,
+        item.AttackerEmpireId,
+        item.DefenderEmpireId,
+        item.AttackerFleetIds,
+        item.DefenderFleetIds,
+        item.AttackerShipsBefore,
+        item.DefenderShipsBefore,
+        item.AttackerLosses,
+        item.DefenderLosses,
+        item.Outcome,
+        item.FactJson,
+        item.CreatedAt);
+
+static ChronicleEntryResponse ToChronicleEntryResponse(ChronicleEntry item) =>
+    new(
+        item.ChronicleEntryId,
+        item.SourceEventId,
+        item.SourceBattleId,
+        item.CycleId,
+        item.SystemId,
+        item.Title,
+        item.EntryType,
+        item.ImportanceScore,
+        item.FactualSummary,
+        item.NarrativeText,
+        item.NarrativeStatus,
+        item.NarrativeContextJson,
+        item.NarrativeGeneratedAt,
+        item.NarrativeFailureReason,
+        item.CreatedAt);
 
 static SystemDetailResponse ToSystemDetailResponse(
     GameState state,
@@ -648,9 +767,9 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(
         events.Length,
         battles.Length,
         chronicleEntries.Length,
-        events,
-        battles,
-        chronicleEntries);
+        events.Select(ToEventResponse).ToArray(),
+        battles.Select(ToBattleResponse).ToArray(),
+        chronicleEntries.Select(ToChronicleEntryResponse).ToArray());
 }
 
 public sealed record LoginRequest(string Username, string? EmpireName, bool IsAdmin = false);
@@ -661,22 +780,22 @@ public sealed record EmpireResponse(
     Guid EmpireId,
     Guid PlayerId,
     string EmpireName,
-    GalaxySystem HomeSystem,
-    EmpireResource Resources,
-    EmpirePriority Priorities,
+    GalaxySystemResponse HomeSystem,
+    EmpireResourceResponse Resources,
+    EmpirePriorityResponse Priorities,
     int FleetCount);
 
 public sealed record GalaxyResponse(
-    Cycle Cycle,
-    IReadOnlyCollection<GalaxySystem> Systems,
-    IReadOnlyCollection<SystemLink> Links,
+    CycleResponse Cycle,
+    IReadOnlyCollection<GalaxySystemResponse> Systems,
+    IReadOnlyCollection<SystemLinkResponse> Links,
     IReadOnlyCollection<SystemPresenceResponse> Presence,
     IReadOnlyCollection<ColonialOutpostResponse> ColonialOutposts);
 
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
 
 public sealed record FleetResponse(
-    Fleet Fleet,
+    FleetDataResponse Fleet,
     string EmpireName,
     string CurrentSystemName,
     string? DestinationSystemName,
@@ -772,9 +891,122 @@ public sealed record LastTickSummaryResponse(
     int EventsCreated,
     int BattlesCreated,
     int ChronicleEntriesCreated,
-    IReadOnlyCollection<EventRecord> Events,
-    IReadOnlyCollection<BattleRecord> Battles,
-    IReadOnlyCollection<ChronicleEntry> ChronicleEntries);
+    IReadOnlyCollection<EventResponse> Events,
+    IReadOnlyCollection<BattleResponse> Battles,
+    IReadOnlyCollection<ChronicleEntryResponse> ChronicleEntries);
+
+public sealed record CycleResponse(
+    Guid CycleId,
+    string Name,
+    DateTimeOffset StartAt,
+    DateTimeOffset EndAt,
+    int TickLengthMinutes,
+    int CurrentTickNumber,
+    CycleStatus Status,
+    DateTimeOffset CreatedAt);
+
+public sealed record GalaxySystemResponse(
+    Guid SystemId,
+    Guid CycleId,
+    string SystemName,
+    int X,
+    int Y,
+    decimal IndustryOutput,
+    decimal ResearchOutput,
+    decimal PopulationOutput,
+    int StrategicValue,
+    int HistoricalSignificance,
+    DateTimeOffset CreatedAt);
+
+public sealed record SystemLinkResponse(
+    Guid SystemLinkId,
+    Guid CycleId,
+    Guid SystemAId,
+    Guid SystemBId,
+    decimal Distance,
+    int TravelTicks);
+
+public sealed record EmpireResourceResponse(
+    Guid EmpireResourceId,
+    Guid EmpireId,
+    decimal Industry,
+    decimal Research,
+    decimal Population,
+    decimal LastGeneratedIndustry,
+    decimal LastGeneratedResearch,
+    decimal LastGeneratedPopulation,
+    decimal LastSpentIndustry,
+    decimal LastSpentResearch,
+    decimal LastSpentPopulation,
+    DateTimeOffset UpdatedAt);
+
+public sealed record EmpirePriorityResponse(
+    Guid EmpirePriorityId,
+    Guid EmpireId,
+    int IndustryWeight,
+    int ResearchWeight,
+    int MilitaryWeight,
+    int ExpansionWeight,
+    DateTimeOffset UpdatedAt);
+
+public sealed record FleetDataResponse(
+    Guid FleetId,
+    Guid CycleId,
+    Guid EmpireId,
+    Guid? AdmiralId,
+    string FleetName,
+    Guid CurrentSystemId,
+    Guid? DestinationSystemId,
+    int? ArrivalTickNumber,
+    int ShipCount,
+    FleetStatus Status,
+    DateTimeOffset CreatedAt);
+
+public sealed record EventResponse(
+    Guid EventId,
+    Guid CycleId,
+    int TickNumber,
+    EventType EventType,
+    Guid? SystemId,
+    Guid? EmpireId,
+    EventSeverity Severity,
+    string FactJson,
+    string DisplayText,
+    DateTimeOffset CreatedAt);
+
+public sealed record BattleResponse(
+    Guid BattleId,
+    Guid CycleId,
+    int TickNumber,
+    Guid SystemId,
+    Guid AttackerEmpireId,
+    Guid DefenderEmpireId,
+    string AttackerFleetIds,
+    string DefenderFleetIds,
+    int AttackerShipsBefore,
+    int DefenderShipsBefore,
+    int AttackerLosses,
+    int DefenderLosses,
+    BattleOutcome Outcome,
+    string FactJson,
+    DateTimeOffset CreatedAt);
+
+public sealed record ChronicleEntryResponse(
+    Guid ChronicleEntryId,
+    Guid? SourceEventId,
+    Guid? SourceBattleId,
+    Guid CycleId,
+    Guid? SystemId,
+    string Title,
+    ChronicleEntryType EntryType,
+    int ImportanceScore,
+    string FactualSummary,
+    string NarrativeText,
+    NarrativeGenerationStatus NarrativeStatus,
+    string NarrativeContextJson,
+    DateTimeOffset? NarrativeGeneratedAt,
+    string? NarrativeFailureReason,
+    DateTimeOffset CreatedAt);
 
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
 

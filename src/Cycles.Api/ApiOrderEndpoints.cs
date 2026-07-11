@@ -10,11 +10,11 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
-            return OrderService.SubmitMoveOrder(
+            return ToCommandResponse(OrderService.SubmitMoveOrder(
                 state,
                 request.FleetId,
                 request.TargetSystemId,
-                now);
+                now));
         }));
 
     public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -25,11 +25,11 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
-            return OrderService.SubmitAttackOrder(
+            return ToCommandResponse(OrderService.SubmitAttackOrder(
                 state,
                 request.FleetId,
                 request.TargetEmpireId,
-                now);
+                now));
         }));
 
     public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -40,7 +40,7 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
-            return OrderService.SubmitColoniseOrder(state, request.FleetId, now);
+            return ToCommandResponse(OrderService.SubmitColoniseOrder(state, request.FleetId, now));
         }));
 
     public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -51,11 +51,11 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             var empireId = DevelopmentAuth.ResolveOrderOwnerEmpireId(state, actor, request.FleetOrderId);
-            return OrderService.CancelFleetOrder(
+            return ToCommandResponse(OrderService.CancelFleetOrder(
                 state,
                 request.FleetOrderId,
                 empireId,
-                now);
+                now));
         }));
 
     public static IResult UpdatePriorities(PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -66,15 +66,40 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             var empireId = DevelopmentAuth.ResolveEmpireId(state, actor, request.EmpireId);
-            return OrderService.UpdatePriorities(
+            return ToCommandResponse(OrderService.UpdatePriorities(
                 state,
                 empireId,
                 request.IndustryWeight,
                 request.ResearchWeight,
                 request.MilitaryWeight,
                 request.ExpansionWeight,
-                now);
+                now));
         }));
+
+    private static FleetOrderCommandResponse ToCommandResponse(FleetOrder order) =>
+        new(
+            order.FleetOrderId,
+            order.CycleId,
+            order.FleetId,
+            order.OrderType,
+            order.TargetSystemId,
+            order.TargetEmpireId,
+            order.SubmitTick,
+            order.ExecuteAfterTick,
+            order.ProcessedTick,
+            order.Status,
+            order.RejectionReason,
+            order.CreatedAt);
+
+    private static PriorityCommandResponse ToCommandResponse(EmpirePriority priorities) =>
+        new(
+            priorities.EmpirePriorityId,
+            priorities.EmpireId,
+            priorities.IndustryWeight,
+            priorities.ResearchWeight,
+            priorities.MilitaryWeight,
+            priorities.ExpansionWeight,
+            priorities.UpdatedAt);
 
     private static IResult TryResult<T>(Func<T> action)
     {
@@ -100,3 +125,26 @@ public static class ApiOrderEndpoints
         }
     }
 }
+
+public sealed record FleetOrderCommandResponse(
+    Guid FleetOrderId,
+    Guid CycleId,
+    Guid FleetId,
+    FleetOrderType OrderType,
+    Guid? TargetSystemId,
+    Guid? TargetEmpireId,
+    int SubmitTick,
+    int ExecuteAfterTick,
+    int? ProcessedTick,
+    FleetOrderStatus Status,
+    string? RejectionReason,
+    DateTimeOffset CreatedAt);
+
+public sealed record PriorityCommandResponse(
+    Guid EmpirePriorityId,
+    Guid EmpireId,
+    int IndustryWeight,
+    int ResearchWeight,
+    int MilitaryWeight,
+    int ExpansionWeight,
+    DateTimeOffset UpdatedAt);

@@ -15,7 +15,14 @@ public static class ApiAdminEndpoints
                 throw new ApiForbiddenException("Only an administrator can run a tick.");
             }
 
-            return store.RunTick(now);
+            var result = store.RunTick(now);
+            return new TickCommandResponse(
+                result.TickNumber,
+                result.Status,
+                result.OrdersProcessed,
+                result.EventsCreated,
+                result.BattlesCreated,
+                result.ChronicleEntriesCreated);
         });
 
     private static IResult TryResult<T>(Func<T> action)
@@ -38,3 +45,11 @@ public static class ApiAdminEndpoints
         }
     }
 }
+
+public sealed record TickCommandResponse(
+    int TickNumber,
+    TickLogStatus Status,
+    int OrdersProcessed,
+    int EventsCreated,
+    int BattlesCreated,
+    int ChronicleEntriesCreated);
