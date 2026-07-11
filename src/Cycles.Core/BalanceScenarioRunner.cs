@@ -71,7 +71,7 @@ public static class BalanceScenarioRunner
 
         for (var tick = 1; tick <= options.TickCount; tick++)
         {
-            var retainedRecords = CountRetainedRecords(state, cycle.CycleId);
+            var retainedRecords = GameStateRecordCounter.CountCycleRecords(state, cycle.CycleId);
             if (tick > 1 && retainedRecords >= options.RetainedRecordLimit)
             {
                 stopReason = $"Stopped before tick {tick} because retained simulation records reached {retainedRecords:N0}, above the configured limit of {options.RetainedRecordLimit:N0}.";
@@ -113,7 +113,7 @@ public static class BalanceScenarioRunner
                                                         && construction.Status == ShipConstructionStatus.Completed),
             state.Events.Count(item => item.CycleId == cycle.CycleId && item.EventType == EventType.DoctrineUnlocked),
             mapControlValues.Max() - mapControlValues.Min(),
-            CountRetainedRecords(state, cycle.CycleId),
+            GameStateRecordCounter.CountCycleRecords(state, cycle.CycleId),
             stopReason,
             empireResults);
     }
@@ -327,23 +327,6 @@ public static class BalanceScenarioRunner
         state.Fleets
             .Where(fleet => fleet.EmpireId == empireId && fleet.Status != FleetStatus.Destroyed)
             .Sum(fleet => fleet.ShipCount);
-
-    private static int CountRetainedRecords(GameState state, Guid cycleId) =>
-        state.Systems.Count(item => item.CycleId == cycleId)
-        + state.SystemLinks.Count(item => item.CycleId == cycleId)
-        + state.Empires.Count(item => item.CycleId == cycleId)
-        + state.Fleets.Count(item => item.CycleId == cycleId)
-        + state.FleetOrders.Count(item => item.CycleId == cycleId)
-        + state.ShipConstructions.Count(item => item.CycleId == cycleId)
-        + state.ColonialOutposts.Count(item => item.CycleId == cycleId)
-        + state.TickLogs.Count(item => item.CycleId == cycleId)
-        + state.Events.Count(item => item.CycleId == cycleId)
-        + state.BattleRecords.Count(item => item.CycleId == cycleId)
-        + state.ChronicleEntries.Count(item => item.CycleId == cycleId)
-        + state.EmpireMetrics.Count(item => item.CycleId == cycleId)
-        + state.Admirals.Count(item => item.CycleId == cycleId)
-        + state.AdmiralBattleHistories.Count(item => item.CycleId == cycleId)
-        + state.DiplomaticRelationships.Count(item => item.CycleId == cycleId);
 
     private static long SquaredDistance(GalaxySystem first, GalaxySystem second)
     {

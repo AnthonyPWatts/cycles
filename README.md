@@ -57,6 +57,7 @@ Start here before adding the next substantial feature:
 - [Determinism contract](docs/determinism.md)
 - [Ranking metrics](docs/ranking-metrics.md)
 - [Balance scenarios](docs/balance-scenarios.md)
+- [SQL state path profile](docs/sql-state-profile.md)
 
 ## Run
 
@@ -123,6 +124,8 @@ The container uses SQL Server 2022, creates `CyclesDb`, applies the SQL migratio
 dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 ```
+
+For repeatable engineering measurements against a disposable database, `db profile` compares whole-state replacement/load/update with the focused tick path. It refuses to run without `--confirm-replace`; see [SQL state path profile](docs/sql-state-profile.md).
 
 Run the CLI against SQL Server:
 

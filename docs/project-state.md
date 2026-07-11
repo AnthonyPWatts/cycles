@@ -200,6 +200,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - SQL Server migration `012_add_diplomatic_relationships` persists one canonical relationship per Cycle/empire pair.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
+- The guarded CLI `db profile` command measures generic SQL replace/load/update operations against the focused tick path on a disposable database.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
 - SQL Server updates run inside a transaction protected by `sp_getapplock`.
 - Generic SQL Server updates load the whole prototype state, then synchronise mapped rows with targeted deletes and upserts; this remains a bridge, not the final application-service/repository model.
@@ -216,7 +217,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database
 .\eng\test.ps1
 ```
 
-Result: 116 tests passed, including domain, API, worker, operational-diagnostics, balance-scenario, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
+Result: 122 tests passed, including domain, API, worker, operational-diagnostics, balance-scenario, SQL-profile validation, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 The balance scenario suite verifies repeatable reports, existing-rule coverage, non-negative resources, invalid inputs, and an explicit retained-record stop for long diagnostic runs.
@@ -239,6 +240,7 @@ Additional smoke checks performed during the MVP build-out:
 - SQL Server successor-Cycle round-trip with final rankings and player continuity.
 - CLI operational-diagnostics smoke check against a ticked JSON state.
 - GitHub Actions Linux build/test, CLI/API smoke, migration, and SQL Server integration jobs.
+- Guarded SQL state profiling against a disposable local SQL Server database, including refusal without `--confirm-replace`.
 
 SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 
@@ -267,7 +269,7 @@ These are known gaps, not defects in the current MVP claim:
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
 - Combat is deliberately primitive and not balanced.
-- A sustained-conflict balance scenario reaches the 15,000-record diagnostic guard after tick 475 of a requested 2,160-tick Cycle; the current whole-state in-memory tick path is not yet proven safe for a complete high-activity Cycle.
+- A sustained-conflict balance scenario reaches the 15,000-record diagnostic guard after tick 474 of a requested 2,160-tick Cycle; the current whole-state in-memory tick path is not yet proven safe for a complete high-activity Cycle.
 - The dashboard is a prototype, not a full game client.
 
 ## Current Development Priority

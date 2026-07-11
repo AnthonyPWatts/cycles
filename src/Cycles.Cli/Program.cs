@@ -506,6 +506,30 @@ static int RunDatabaseCommand(string[] args)
 
             return 0;
 
+        case "profile":
+            if (!args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Database profiling replaces all Cycles state in the target database. Re-run with --confirm-replace against a disposable database.");
+            }
+
+            migrator.Migrate();
+            var profileOptions = new SqlServerStateProfileOptions(
+                SystemCount: ParseOptionalInt(args, 3, 24),
+                EmpireCount: ParseOptionalInt(args, 4, 4),
+                HistoryTicks: ParseOptionalInt(args, 5, 0),
+                Iterations: ParseOptionalInt(args, 6, 3),
+                Seed: ParseOptionalInt(args, 7, 71421));
+            var profile = SqlServerStateProfiler.Run(connectionString, profileOptions);
+            Console.WriteLine($"SQL state profile | {profileOptions.SystemCount} systems | {profileOptions.EmpireCount} empires | {profileOptions.HistoryTicks} history ticks | {profileOptions.Iterations} iteration(s)");
+            Console.WriteLine("Iteration | Records | Replace ms | Load ms | Generic update ms | Focused tick ms");
+            foreach (var sample in profile.Samples)
+            {
+                Console.WriteLine($"{sample.Iteration} | {sample.RetainedRecords} | {sample.ReplaceMilliseconds:0.00} | {sample.LoadMilliseconds:0.00} | {sample.GenericUpdateMilliseconds:0.00} | {sample.FocusedTickMilliseconds:0.00}");
+            }
+
+            Console.WriteLine($"Average | - | {profile.AverageReplaceMilliseconds:0.00} | {profile.AverageLoadMilliseconds:0.00} | {profile.AverageGenericUpdateMilliseconds:0.00} | {profile.AverageFocusedTickMilliseconds:0.00}");
+            return 0;
+
         default:
             PrintUsage();
             return 2;
@@ -603,6 +627,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db init <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db migrate <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db profile <sqlserver:connectionString> [systemCount] [empireCount] [historyTicks] [iterations] [seed] --confirm-replace");
     Console.WriteLine();
     Console.WriteLine("Use sqlserver:<connectionString> instead of a state path to read and write SQL Server state.");
 }
