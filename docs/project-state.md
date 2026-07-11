@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 ## Current Status
 
@@ -249,13 +249,15 @@ These are known gaps, not defects in the current MVP claim:
 
 ## Current Development Priority
 
-The next stage should keep hardening the simulation spine while adding the next history-rich strategy systems carefully:
+The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. Engineering may use sensible, tuneable defaults and prioritise mechanically complete behaviour over polish.
 
-1. keep adding live SQL Server integration verification around migrations and focused repository operations whenever the local container is available;
-2. harden next-Cycle continuity with richer reset policy and historical summaries;
-3. deepen visibility with sensors, estimates, and public/private Chronicle redaction;
-4. add narrative-generation status and validation around Chronicle prose;
-5. add diplomacy, doctrine, and other feature systems only as small extensions of influence, events, and history.
+The next stage should therefore:
+
+1. make population fund a small tick-processed colonisation loop that extends derived influence without introducing binary ownership;
+2. persist and expose that loop through SQL Server, authenticated API DTOs, and a functional dashboard control;
+3. add repeatable worker/admin tick operation after the gameplay slice, while keeping development auth off untrusted networks;
+4. record the accepted diplomacy baseline but defer full treaty actions until Q013-Q022 define their lifecycle and effects;
+5. keep adding live SQL Server integration verification around every new migration and focused tick write.
 
 ## Definition Of The Next Stable State
 
@@ -266,5 +268,6 @@ The project reaches the next stable state when:
 - the same due order cannot be processed twice;
 - one tick per Cycle is enforced by storage-level locking or an equivalent mechanism;
 - a completed Cycle can create a successor Cycle from preserved historical facts;
+- population creates an observable strategic choice through a persisted colonisation loop;
 - core behaviours are covered by deterministic automated tests;
 - the dashboard remains able to view state and submit orders against the new persistence layer.

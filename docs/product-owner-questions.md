@@ -1,8 +1,45 @@
 # Product Owner Questions
 
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 This file collects product-owner questions and answers that shape player-visible behaviour. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`.
+
+## 2026-06-30 Follow-Up Response
+
+The partial response in `Cycles_PO_Questions_2026-06-30.docx` answers Q001-Q012 from the next-question bank. Questions Q013 onward remain unanswered unless an earlier decision in this file already settles them.
+
+### Product focus and delivery posture
+
+- Q001: Population/colonisation is the next headline product slice.
+- Q002: The next playable test should prove strategic choice.
+- Q003: The target is a private alpha.
+- Q004: Engineering may choose the two data-model areas that change next.
+- Q005: Engineering may continue taking sensible defaults for balance numbers, thresholds, and UI ordering.
+- Q006: Mechanically complete but visually rough behaviour is acceptable for the next build.
+- Q007: Success after repeated ticks means influence is beginning to affect player decisions.
+- Q008: Unanswered product decisions may be tracked as GitHub design-decision issues.
+
+Decision:
+
+- Implement a bounded population-funded colonisation slice before starting another broad gameplay system.
+- Preserve influence as derived pressure rather than introducing binary system ownership.
+- Use named, test-covered constants for initial colonisation costs and effects so private-alpha play can tune them without changing the model.
+- Keep player-facing UI functional and understandable, but prioritise a complete domain, persistence, API, and verification path over visual polish.
+- Treat private-alpha deployment as a target, not as permission to expose development authentication to untrusted users.
+
+### Diplomacy baseline
+
+- Q009: The proposed minimum diplomacy states were accepted in principle.
+- Q010: Empires are Neutral by default.
+- Q011: An attack does not automatically create War; escalation is at the attacked empire's discretion.
+- Q012: An attack through a treaty cancels that treaty and may lead to War at the attacked empire's discretion.
+
+Decision:
+
+- The safe first relationship states are Neutral, War, Non-Aggression Pact, and Alliance. Truce and Rivalry remain names without agreed mechanics and should not be added merely as unused enum values.
+- The first stored relationship model may default missing relationships to Neutral.
+- Attack processing may record aggression and cancel an existing pact or alliance, but must not automatically change Neutral to War.
+- Treaty offers, acceptance timing, unilateral declarations, alliance effects, shared visibility, and Chronicle treatment remain blocked on Q013-Q022.
 
 The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, expansion priority projects influence, and resources cannot go negative.
 

@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 This backlog is grouped by intended development stage. It is not a promise that every item belongs in the next sprint.
 
@@ -12,6 +12,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Record known decisions.
 - [x] Add issue templates once GitHub issue tracking begins.
 - [x] Decide whether the original Word documents remain source artefacts long-term or move to `docs/source`.
+- [x] Record the partial Q001-Q012 product-owner response received on 2026-07-11.
 
 ## Stage 1: Simulation Spine Hardening
 
@@ -76,6 +77,18 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add UI display for last tick gains and spending.
 - [x] Add balance tests for growth and non-negative resources.
 
+## Stage 3A: Population And Colonisation
+
+- [x] Select population/colonisation as the next headline gameplay slice.
+- [ ] Define the smallest colonisation model without introducing binary system ownership.
+- [ ] Add population-funded colonisation as a durable tick-processed intention.
+- [ ] Persist colonial outposts in JSON and SQL Server.
+- [ ] Feed colonial outposts into local influence without creating fleetless permanent control.
+- [ ] Add factual colonisation events and rejection reasons.
+- [ ] Expose colonisation through authenticated API response DTOs and commands.
+- [ ] Add functional dashboard controls and outpost visibility.
+- [ ] Add domain, API-boundary, persistence, and SQL integration tests.
+
 ## Stage 4: API And Dashboard Hardening
 
 - [x] Replace prototype login with deliberate development auth.
@@ -136,13 +149,15 @@ This backlog is grouped by intended development stage. It is not a promise that 
 
 ## Stage 8: Diplomacy
 
-- [ ] Define diplomacy stance model.
+- [x] Define the initial stored diplomacy stance model: Neutral, War, Non-Aggression Pact, and Alliance.
 - [ ] Add non-aggression/alliance/war states.
 - [ ] Add diplomatic actions as durable orders/events.
-- [ ] Add betrayal event type.
+- [ ] Add treaty-cancellation and aggression event types.
 - [ ] Decide how alliances affect influence and combat.
 - [ ] Add tests for diplomacy state changes.
 - [ ] Add Chronicle criteria for betrayals and treaties.
+
+Blocked decisions: Q013-Q022 still need to settle action timing, mutual acceptance, unilateral declarations, alliance mechanics, visibility, Chronicle selection, and cross-Cycle diplomatic memory.
 
 ## Stage 9: Technology, Doctrine, Cloaking, Detection, Logistics
 

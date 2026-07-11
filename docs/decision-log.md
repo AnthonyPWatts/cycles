@@ -531,3 +531,37 @@ Consequences:
 - Destroyed assigned fleets mark their admiral killed; high-reputation survivors can become legendary.
 - SQL migration `010_add_admirals` persists admirals, fleet assignments, and battle history.
 - Future work can add transfer/retirement/succession flows without changing the current battle-fact contract.
+
+## 2026-07-11: Make Population-Funded Colonisation The Next Gameplay Slice
+
+Decision: use population/colonisation as the next headline system, with the next playable build proving that influence affects strategic choices.
+
+Reasoning:
+
+- The product-owner response selected population/colonisation over diplomacy, deeper visibility, doctrine, narrative AI, or worker-first development.
+- Population already accumulates as an unused stockpile, so a bounded colonisation loop adds a real choice without inventing another resource.
+- Engineering remains authorised to choose sensible balance constants and the smallest compatible data model.
+- The established territorial model derives influence from presence rather than binary ownership, so colonisation should extend that model instead of replacing it.
+
+Consequences:
+
+- The first colonisation implementation will require local fleet presence and meaningful local influence.
+- A colonial outpost will provide a modest local projection only while the owning empire maintains an active fleet there; it will not create permanent fleetless control.
+- Population cost, completion timing, and projection strength will be explicit constants covered by tests and can be tuned after private-alpha play.
+- Colony capture, destruction, migration, infrastructure, comeback effects, and cross-Cycle mechanical inheritance remain follow-on decisions.
+
+## 2026-07-11: Record The First Diplomacy State Boundaries Without Starting The Full Feature
+
+Decision: model the first diplomacy vocabulary as Neutral, War, Non-Aggression Pact, and Alliance, with Neutral as the default, but do not implement player-facing treaty actions until their lifecycle is defined.
+
+Reasoning:
+
+- The partial product-owner response accepted the proposed minimum states and explicitly chose Neutral as the default.
+- An attack should not automatically declare War; the attacked empire decides whether to escalate.
+- An attack through a pact or alliance cancels that treaty, but the response did not settle offers, acceptance, timing, alliance mechanics, or visibility.
+
+Consequences:
+
+- A future relationship row can treat absence as Neutral and can record treaty cancellation separately from War declaration.
+- Attack processing must not silently infer War from combat.
+- Q013-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
