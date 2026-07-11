@@ -4,16 +4,17 @@ This folder records the current project state and the intended development path.
 
 ## Reading Order
 
-1. [Project state](project-state.md) - what exists now, what is verified, game screenshots, and what is still only a prototype.
-2. [Development roadmap](development-roadmap.md) - staged implementation plan for the next several development phases.
-3. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
-4. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.
-5. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
-6. [Product owner questions](product-owner-questions.md) - current unanswered product decisions for the next implementation passes.
-7. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
-8. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
-9. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
-10. [Ranking metrics](ranking-metrics.md) - first Cycle-end ranking metric definition.
+1. [Alpha tester's guide to gameplay](alpha-testers-guide.md) - how invited players use the current dashboard and report useful feedback.
+2. [Project state](project-state.md) - what exists now, what is verified, game screenshots, and what is still only a prototype.
+3. [Development roadmap](development-roadmap.md) - staged implementation plan for the next several development phases.
+4. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
+5. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.
+6. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
+7. [Product owner questions](product-owner-questions.md) - current unanswered product decisions for the next implementation passes.
+8. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
+9. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
+10. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
+11. [Ranking metrics](ranking-metrics.md) - first Cycle-end ranking metric definition.
 
 ## Source Documents
 

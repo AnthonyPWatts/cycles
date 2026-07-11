@@ -30,6 +30,8 @@ This implementation covers the technical MVP from the supplied design documents:
 
 The current playable surface is a command dashboard: players read the galaxy map, inspect system influence, adjust strategic priorities, queue fleet orders, and watch events graduate into the Chronicle when a battle becomes historically important.
 
+Invited players should start with the [Alpha Tester's Guide to Gameplay](docs/alpha-testers-guide.md).
+
 ![Cycles dashboard showing the contested Aster Vale system after a resolved tick](docs/images/cycles-dashboard-map.png)
 
 ## Projects
