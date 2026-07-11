@@ -590,6 +590,56 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_persists_recovery_clear_and_successful_retry_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var empire = state.Empires.Single();
+        state.EmpireResources.Clear();
+        store.Replace(state);
+
+        var failed = store.RunTick(cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Failed, failed.Status);
+
+        var retried = store.Update(current =>
+        {
+            current.EmpireResources.Add(new EmpireResource
+            {
+                EmpireId = empire.EmpireId,
+                Industry = 100,
+                Research = 100,
+                Population = 100,
+                UpdatedAt = TestState.Now
+            });
+            RecoveryService.ClearRecovery(
+                current,
+                cycle.CycleId,
+                "sql-integration",
+                "restored the missing resource row",
+                TestState.Now.AddMinutes(1));
+            return new TickEngine().RunTick(current, cycle.CycleId, TestState.Now.AddMinutes(1));
+        });
+
+        Assert.Equal(TickLogStatus.Completed, retried.Status);
+
+        var updated = store.LoadOrCreate();
+        var updatedCycle = updated.Cycles.Single(item => item.CycleId == cycle.CycleId);
+        Assert.Equal(CycleStatus.Active, updatedCycle.Status);
+        Assert.Equal(1, updatedCycle.CurrentTickNumber);
+        Assert.Contains(updated.Events, item => item.CycleId == cycle.CycleId && item.EventType == EventType.RecoveryCleared);
+        Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Failed);
+        Assert.Contains(updated.TickLogs, log => log.CycleId == cycle.CycleId && log.TickNumber == 1 && log.Status == TickLogStatus.Completed);
+    }
+
+    [Fact]
     public void Store_persists_cycle_rankings_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -669,6 +719,50 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(20, historicalSignal.TotalLosses);
         Assert.Equal(2, historicalSignal.HistoricalSignificanceIncrease);
         Assert.True(historicalSignal.HostedCycleLargestBattle);
+    }
+
+    [Fact]
+    public void Store_round_trips_successor_cycle_and_player_continuity_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = GameSeeder.CreateDefault(
+            systemCount: 8,
+            empireCount: 2,
+            seed: 7722,
+            createdAt: TestState.Now);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        sourceCycle.CurrentTickNumber = 3;
+        var sourcePlayers = state.Empires
+            .Where(empire => empire.CycleId == sourceCycle.CycleId)
+            .Select(empire => empire.PlayerId)
+            .Order()
+            .ToArray();
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now.AddHours(3));
+        var continuity = CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 7723);
+
+        store.Replace(state);
+
+        var updated = store.LoadOrCreate();
+        var successor = updated.Cycles.Single(item => item.CycleId == continuity.CycleId);
+        var successorEmpires = updated.Empires.Where(empire => empire.CycleId == successor.CycleId).ToArray();
+
+        Assert.Equal(CycleStatus.Completed, updated.Cycles.Single(item => item.CycleId == sourceCycle.CycleId).Status);
+        Assert.Equal(CycleStatus.Active, successor.Status);
+        Assert.Equal(2, updated.Cycles.Count);
+        Assert.Equal(2, updated.CycleRankings.Count(item => item.CycleId == sourceCycle.CycleId));
+        Assert.Equal(sourcePlayers, successorEmpires.Select(empire => empire.PlayerId).Order().ToArray());
+        Assert.Equal(8, updated.Systems.Count(system => system.CycleId == successor.CycleId));
+        Assert.Contains(updated.Events, item => item.CycleId == successor.CycleId && item.EventType == EventType.CycleSeeded);
     }
 
     private static GameState CombineStates(params GameState[] states) =>

@@ -214,7 +214,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database
 .\eng\test.ps1
 ```
 
-Result: 107 tests passed, including domain, API, worker, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
+Result: 113 tests passed, including domain, API, worker, balance-scenario, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 The balance scenario suite verifies repeatable reports, existing-rule coverage, non-negative resources, invalid inputs, and an explicit retained-record stop for long diagnostic runs.
@@ -233,6 +233,8 @@ Additional smoke checks performed during the MVP build-out:
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
 - Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
+- SQL Server recovery repair/clear/retry persistence, including failed and completed attempts for the same tick.
+- SQL Server successor-Cycle round-trip with final rankings and player continuity.
 
 SQL checks rerun after the migration and SQLDockerDeployKit alignment work:
 
