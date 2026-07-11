@@ -185,6 +185,9 @@ app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContex
 app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
 
+app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
+    ApiAdminEndpoints.RunTick(httpContext, store));
+
 app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {

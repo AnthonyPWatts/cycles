@@ -368,6 +368,13 @@ public sealed class ApiOrderBoundaryTests
 
         public T Update<T>(Func<GameState, T> update) => update(state);
 
+        public TickResult RunTick(DateTimeOffset now)
+        {
+            var cycle = state.GetActiveCycle()
+                ?? throw new InvalidOperationException("No active cycle exists.");
+            return new TickEngine().RunTick(state, cycle.CycleId, now);
+        }
+
         public void Replace(GameState replacement)
         {
             throw new NotSupportedException("Replacement is not needed for API boundary tests.");

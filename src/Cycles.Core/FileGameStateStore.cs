@@ -34,6 +34,14 @@ public sealed class FileGameStateStore : IGameStateStore
         return result;
     }
 
+    public TickResult RunTick(DateTimeOffset now) =>
+        Update(state =>
+        {
+            var cycle = state.GetActiveCycle()
+                ?? throw new InvalidOperationException("No active cycle exists.");
+            return new TickEngine().RunTick(state, cycle.CycleId, now);
+        });
+
     public void Replace(GameState state)
     {
         using var stateLock = AcquireLock();

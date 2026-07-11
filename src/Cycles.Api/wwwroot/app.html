@@ -25,7 +25,10 @@
                     <span class="toolbar-kicker">Command Nexus</span>
                     <strong id="empireName">Empire</strong>
                 </div>
-                <button id="refreshButton" type="button">Refresh</button>
+                <div class="toolbar-actions">
+                    <button id="adminTickButton" type="button" hidden>Run tick</button>
+                    <button id="refreshButton" type="button">Refresh</button>
+                </div>
             </div>
             <div class="map-stage">
                 <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
@@ -140,6 +143,6 @@
         </aside>
     </main>
 
-    <script src="app.js?v=20260711-colonisation"></script>
+    <script src="app.js?v=20260711-admin-tick"></script>
 </body>
 </html>

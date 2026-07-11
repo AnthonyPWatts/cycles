@@ -8,5 +8,7 @@ public interface IGameStateStore
 
     T Update<T>(Func<GameState, T> update);
 
+    TickResult RunTick(DateTimeOffset now);
+
     void Replace(GameState state);
 }

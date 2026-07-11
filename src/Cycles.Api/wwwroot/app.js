@@ -43,6 +43,7 @@ const elements = {
     chronicle: document.querySelector("#chronicle"),
     galaxyMap: document.querySelector("#galaxyMap"),
     mapStats: document.querySelector("#mapStats"),
+    adminTickButton: document.querySelector("#adminTickButton"),
     refreshButton: document.querySelector("#refreshButton")
 };
 
@@ -52,6 +53,19 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.refreshButton.addEventListener("click", refresh);
+
+elements.adminTickButton.addEventListener("click", async () => {
+    elements.adminTickButton.disabled = true;
+    try {
+        const result = await postJson("/admin/tick", {});
+        setMessage(`Tick ${result.tickNumber} ${formatStatus(result.status)}.`);
+        await refresh();
+    } catch (error) {
+        setMessage(error.message);
+    } finally {
+        elements.adminTickButton.disabled = false;
+    }
+});
 
 elements.galaxyMap.addEventListener("click", event => {
     const node = event.target.closest(".system-node");
@@ -205,6 +219,7 @@ function applySession(login) {
     state.playerId = login.playerId;
     state.role = login.role;
     state.empire = login.empire;
+    elements.adminTickButton.hidden = login.role !== "admin";
 }
 
 async function refresh() {
