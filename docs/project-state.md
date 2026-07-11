@@ -2,14 +2,14 @@
 
 Last updated: 2026-07-11
 
-Cycles is a local, runnable private-alpha technical MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet a production game service or a balanced multiplayer game.
+Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
 ## Capability Summary
 
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
-| Galaxy | Deterministic seeded systems, routes, home systems, resources, and strategic/history fields. | The dashboard assumes a small galaxy. |
-| Tick execution | CLI tick runner, scheduled Worker, development-admin trigger, duplicate-running-tick guards, and explicit recovery state. | Production health, leader election, multi-Cycle scheduling, and deployment policy are undefined. |
+| Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated development opening. | The dashboard assumes a small galaxy. |
+| Tick execution | CLI tick runner, scheduled Worker, temporary authenticated-development-player trigger, duplicate-running-tick guards, and explicit recovery state. | Production health, leader election, multi-Cycle scheduling, and deployment policy are undefined. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point priorities, military ship construction, expansion projection, and one research unlock. | Industry and research priorities have no separate direct spending effects; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
@@ -18,7 +18,7 @@ Cycles is a local, runnable private-alpha technical MVP. It proves the server-au
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie auth, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. | Generic API/admin SQL mutations still use the whole-state bridge. |
-| Client | Public landing page and playable static dashboard for map, state, priorities, fleets, orders, events, and Chronicle. | Prototype interface, not a finished game client. |
+| Client | Public landing page and playable static dashboard for map, state, priorities, fleets, orders, events, Chronicle, and a resumable Day One guide. | Prototype interface, not a finished game client. |
 
 ## Implemented Rules
 
@@ -30,6 +30,13 @@ Cycles is a local, runnable private-alpha technical MVP. It proves the server-au
 - Tick work uses a focused transactional working copy. Mutable entities are isolated; append-only facts are rolled back if processing fails.
 - A failed tick records diagnostics, marks the Cycle `RecoveryRequired`, and blocks further ticks until an operator clears or retries it.
 - The CLI exposes `diagnostics`, `recovery`, `recovery details`, `recovery clear`, and `recovery retry`.
+
+### Curated Development Opening
+
+- A normal CLI `seed [statePath]` and a missing Development-host store create the fixed `development-cold-start-v1` scenario. Explicit system, empire, or seed arguments retain generic deterministic generation.
+- The Aurelian player begins with three genuine first-turn opportunities: move the Home Guard from Aster Vale to Nadir Crossing, establish an outpost from the Pale Harbour Survey, and attack the local Khepri force with the Treaty Gate Vanguard.
+- Both principal empires retain 60 starting ships. The Treaty Gate outcome is resolved by the normal combat engine and is important enough to enter the Chronicle; it is not a scripted result.
+- An empire-scoped `OpeningBriefingIssued` fact carries stable objective identifiers so the dashboard guide does not infer intent from display names.
 
 ### Influence, Resources, And Growth
 
@@ -66,7 +73,9 @@ Cycles is a local, runnable private-alpha technical MVP. It proves the server-au
 - Ordinary player endpoints expose filtered state and accept intentions through explicit response DTOs.
 - Player mutations derive empire authority from the authenticated development session rather than caller-supplied empire IDs.
 - Players can see the full map structure, but exact presence, local fleets, events, last-tick facts, and Chronicle entries are limited by active-fleet visibility. Development admins can inspect all state.
-- Ordinary players cannot execute ticks. The protected development-admin endpoint invokes the same authoritative store operation used by the Worker and CLI.
+- In Development, every authenticated player receives an **Advance turn** capability that invokes the same authoritative store operation used by the Worker and CLI. This does not change the player's role, visibility, or empire authority.
+- Ordinary production players cannot execute ticks; a trusted admin can still use the protected operational endpoint.
+- The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
 
 ### Persistence
 
@@ -85,20 +94,21 @@ Latest local verification on 2026-07-11:
 .\eng\test.ps1
 ```
 
-Result: **126 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
+Result: **130 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 
 - simulation, influence, economy, orders, movement, combat, admirals, diplomacy, colonisation, Chronicle, Cycle end, continuity, and determinism;
-- development auth, authorisation, visibility, API contracts, admin ticks, and Worker scheduling;
+- development auth, authorisation, visibility, API contracts, protected Development turn advancement, and Worker scheduling;
+- the curated opening contract and its complete move, colonise, battle, event, and Chronicle outcome;
 - tick rollback, recovery, duplicate-running-tick prevention, focused-working-copy equivalence, and a 2,160-tick retained-history scenario;
 - migration discovery/application and opt-in live SQL Server coverage for round trips, focused tick loading and writes, recovery attempts, Cycle locks, rankings, successor continuity, admirals, diplomacy, and colonisation;
-- the running-API alpha journey in `eng/alpha-gameplay-smoke.ps1`.
+- the running-API development gameplay journey in `eng/alpha-gameplay-smoke.ps1`.
 
 The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`; CI runs them against a migrated SQL Server service container. See the [SQL Server runbook](../database/sqldockerdeploykit/README.md).
 
 ## Current Boundaries
 
-The private alpha is suitable for trusted local testing. Before inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, and operational monitoring.
+The development build is suitable for trusted local play-testing. Before calling it an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). The [Backlog](backlog.md) separates work that engineering can continue now from work blocked on those calls.

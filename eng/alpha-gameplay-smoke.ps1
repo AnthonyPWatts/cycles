@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [int] $Port = 5087,
-    [string] $StatePath = (Join-Path ([System.IO.Path]::GetTempPath()) "cycles-alpha-smoke-$([Guid]::NewGuid().ToString('N')).json"),
+    [string] $StatePath = (Join-Path ([System.IO.Path]::GetTempPath()) "cycles-gameplay-smoke-$([Guid]::NewGuid().ToString('N')).json"),
     [string] $Configuration = "Debug",
     [switch] $NoBuild,
     [switch] $KeepArtifacts
@@ -66,7 +66,7 @@ function New-SessionClient {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $stateFullPath = [System.IO.Path]::GetFullPath($StatePath)
 if (Test-Path -LiteralPath $stateFullPath) {
-    throw "Alpha smoke state path already exists: $stateFullPath"
+    throw "Gameplay smoke state path already exists: $stateFullPath"
 }
 
 $artifactDirectory = Split-Path -Parent $stateFullPath
@@ -91,13 +91,13 @@ try {
     )
     & dotnet @seedArguments
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to seed the alpha smoke state."
+        throw "Failed to seed the gameplay smoke state."
     }
 
     if (-not $NoBuild) {
         & dotnet build $apiProject --configuration $Configuration --no-restore
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to build the API for the alpha smoke journey."
+            throw "Failed to build the API for the gameplay smoke journey."
         }
     }
     Assert-Condition (Test-Path -LiteralPath $apiAssembly) "The built API assembly was not found at $apiAssembly."
@@ -159,7 +159,7 @@ try {
     $fleetsBefore = @(Get-Json $playerClient "/fleets")
     $galaxy = Get-Json $playerClient "/galaxy"
     $fleet = $fleetsBefore[0].fleet
-    Assert-Condition ($null -ne $fleet) "The alpha player did not receive a fleet."
+    Assert-Condition ($null -ne $fleet) "The development player did not receive a fleet."
 
     $link = @($galaxy.links | Where-Object {
         $_.systemAId -eq $fleet.currentSystemId -or $_.systemBId -eq $fleet.currentSystemId
@@ -173,7 +173,7 @@ try {
         militaryWeight = 40
         expansionWeight = 20
     }
-    Assert-Condition ($priorities.militaryWeight -eq 40) "The API did not save the alpha player's priorities."
+    Assert-Condition ($priorities.militaryWeight -eq 40) "The API did not save the development player's priorities."
 
     $move = Post-Json $playerClient "/orders/fleet/move" @{
         fleetId = $fleet.fleetId
@@ -207,7 +207,7 @@ try {
     Assert-Condition ($events.eventType -contains "prioritiesChanged") "The priority-change event was not visible to the player."
     Assert-Condition ($events.eventType -contains "fleetMoved") "The fleet-movement event was not visible to the player."
 
-    Write-Host "Alpha gameplay journey passed: player login, priorities, pending move, Development turn advancement, processed movement, resources, and events."
+    Write-Host "Development gameplay journey passed: player login, priorities, pending move, turn advancement, processed movement, resources, and events."
 }
 catch {
     if (Test-Path -LiteralPath $stdoutPath) {
@@ -237,6 +237,6 @@ finally {
         Remove-Item -LiteralPath $stateFullPath, $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     }
     else {
-        Write-Host "Alpha smoke artifacts retained at $stateFullPath and adjacent log files."
+        Write-Host "Gameplay smoke artifacts retained at $stateFullPath and adjacent log files."
     }
 }

@@ -97,12 +97,20 @@ document.addEventListener("keydown", event => {
 });
 
 elements.advanceTurnButton.addEventListener("click", async () => {
+    if (tutorial.active
+        && tutorial.briefing
+        && state.cycle?.currentTickNumber === 0
+        && !curatedObjectiveOrdersReady()) {
+        setTurnMessage("Complete the three Day 1 commitments before advancing the turn.");
+        syncTutorialDisplay();
+        return;
+    }
+
     elements.advanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
         setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry")}.`);
         await refresh();
-        completeTutorialAction("turnAdvanced");
     } catch (error) {
         setTurnMessage(error.message);
     } finally {
@@ -200,7 +208,6 @@ elements.moveForm.addEventListener("submit", async event => {
         await postJson("/orders/fleet/move", { fleetId, targetSystemId });
         setMessage("Move order queued.");
         await refresh();
-        completeTutorialAction("moveQueued");
     } catch (error) {
         setMessage(error.message);
     }
@@ -219,7 +226,6 @@ elements.attackForm.addEventListener("submit", async event => {
         await postJson("/orders/fleet/attack", { fleetId, targetEmpireId });
         setMessage("Attack order queued.");
         await refresh();
-        completeTutorialAction("attackQueued");
     } catch (error) {
         setMessage(error.message);
     }
@@ -237,7 +243,6 @@ elements.coloniseForm.addEventListener("submit", async event => {
         await postJson("/orders/fleet/colonise", { fleetId });
         setMessage("Colonisation order queued.");
         await refresh();
-        completeTutorialAction("coloniseQueued");
     } catch (error) {
         setMessage(error.message);
     }
@@ -564,7 +569,7 @@ async function cancelOrder(fleetOrderId) {
 
 function syncTutorialAfterRefresh() {
     const storageKey = state.playerId && state.cycle
-        ? `cycles.tutorial.${tutorial.version}.${state.playerId}.${state.cycle.cycleId}`
+        ? `cycles.tutorial.${tutorial.version}.${state.playerId}.${state.cycle.cycleId}.${state.cycle.createdAt}`
         : null;
 
     if (!storageKey) {
@@ -692,7 +697,7 @@ function completeTutorialAction(action) {
 function syncTutorialDisplay() {
     updateTutorialButton();
     if (tutorial.active) {
-        renderTutorial({ focusHeading: false });
+        renderTutorial({ focusHeading: elements.tutorialPanel.hidden });
     } else {
         elements.tutorialPanel.hidden = true;
         document.body.classList.remove("tutorial-active");
@@ -885,7 +890,6 @@ function tutorialSteps() {
             required: true,
             requirement: "Queue the highlighted movement objective.",
             isSatisfied: () => tutorialOrderExists("moveFleet", moveFleetId, "targetSystemId", moveTargetId)
-                || tutorial.completedActions.has("moveQueued")
         }
     ];
 
@@ -899,7 +903,6 @@ function tutorialSteps() {
                 required: true,
                 requirement: "Queue the Pale Harbour outpost.",
                 isSatisfied: () => tutorialOrderExists("colonise", colonise.fleetId)
-                    || tutorial.completedActions.has("coloniseQueued")
             },
             {
                 id: "attack",
@@ -909,7 +912,6 @@ function tutorialSteps() {
                 required: true,
                 requirement: "Queue the Treaty Gate attack.",
                 isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetEmpireId", attack.targetEmpireId)
-                    || tutorial.completedActions.has("attackQueued")
             }
         );
     }
@@ -922,7 +924,9 @@ function tutorialSteps() {
                 ? "The queue should now hold three pending orders. You can cancel any pending intention before the turn resolves."
                 : "The queue records when the order will execute. You can cancel a pending intention before the turn resolves.",
             target: () => document.querySelector("#orderQueueSection"),
-            required: false
+            required: curated,
+            requirement: curated ? "Keep exactly the three highlighted commitments ready for Day 1." : "",
+            isSatisfied: () => !curated || curatedObjectiveOrdersReady()
         },
         {
             id: "advance",
@@ -932,7 +936,6 @@ function tutorialSteps() {
             required: true,
             requirement: "Advance the development galaxy by one turn.",
             isSatisfied: () => state.cycle?.currentTickNumber > tutorial.initialTick
-                || tutorial.completedActions.has("turnAdvanced")
         },
         {
             id: "events",
@@ -970,6 +973,50 @@ function tutorialOrderExists(orderType, fleetId, targetProperty, targetId) {
         && order.status !== "cancelled"
         && order.status !== "rejected"
         && (!targetProperty || order[targetProperty] === targetId));
+}
+
+function curatedObjectiveOrdersReady() {
+    const objectives = tutorial.briefing?.objectives;
+    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
+        return false;
+    }
+
+    const expectedOrders = [
+        {
+            orderType: "moveFleet",
+            fleetId: objectives.move.fleetId,
+            targetProperty: "targetSystemId",
+            targetId: objectives.move.targetSystemId
+        },
+        {
+            orderType: "colonise",
+            fleetId: objectives.colonise.fleetId
+        },
+        {
+            orderType: "attack",
+            fleetId: objectives.attack.fleetId,
+            targetProperty: "targetEmpireId",
+            targetId: objectives.attack.targetEmpireId
+        }
+    ];
+
+    if (state.cycle?.currentTickNumber !== 0) {
+        return expectedOrders.every(expected => tutorialOrderExists(
+            expected.orderType,
+            expected.fleetId,
+            expected.targetProperty,
+            expected.targetId));
+    }
+
+    const objectiveFleetIds = new Set(expectedOrders.map(expected => expected.fleetId));
+    const pendingObjectiveOrders = state.orders.filter(order =>
+        order.status === "pending" && objectiveFleetIds.has(order.fleetId));
+
+    return pendingObjectiveOrders.length === expectedOrders.length
+        && expectedOrders.every(expected => pendingObjectiveOrders.some(order =>
+            order.orderType === expected.orderType
+            && order.fleetId === expected.fleetId
+            && (!expected.targetProperty || order[expected.targetProperty] === expected.targetId)));
 }
 
 function tutorialFleetName(fleetId) {

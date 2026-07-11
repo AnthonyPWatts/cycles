@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-11
 
-This runbook covers local/private-alpha tick operation, diagnostics, failed-tick recovery, and guarded SQL state profiling. It is not a production operations guide.
+This runbook covers local development tick operation, diagnostics, failed-tick recovery, and guarded SQL state profiling. It is not a production operations guide.
 
 ## Store Selection
 
@@ -25,6 +25,22 @@ dotnet run --project src/Cycles.Worker -- --Cycles:StatePath data/cycles-state.j
 
 Configure SQL Server for the API or Worker through `ConnectionStrings:Cycles` using the connection string without the `sqlserver:` prefix. The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions.
 
+## Development Cold Start
+
+The normal local seed command creates the curated Day One scenario:
+
+```powershell
+dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
+```
+
+Use explicit generation arguments when a generic galaxy is required:
+
+```powershell
+dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json 24 4 71421
+```
+
+The curated seed is fixed so tutorial objective identifiers and first-turn outcomes are reproducible. Development API and Worker hosts also use it when their configured store does not yet exist. Production hosts retain generic seeding.
+
 ## Scheduled And Manual Ticks
 
 `Cycles.Worker` checks once on startup and then polls every 30 seconds by default. It runs at most one tick if the active Cycle is due; it does not process a backlog of catch-up ticks after downtime.
@@ -37,7 +53,7 @@ Configuration keys:
 
 The Cycle's `TickLengthMinutes` controls simulation cadence. Recovery-required and non-active Cycles are not scheduled.
 
-Trusted development admins can run the same authoritative store operation from the dashboard. Ordinary players cannot. The CLI remains available for deliberate local operation:
+Every authenticated Development session can run the same authoritative store operation from **Advance turn**. This is a temporary play-testing capability, not role promotion: normal players keep ordinary visibility and empire authority. In Production, ordinary players cannot advance turns and the endpoint remains admin-only. The CLI remains available for deliberate local operation:
 
 ```powershell
 dotnet run --project src/Cycles.Cli -- tick data/cycles-state.json

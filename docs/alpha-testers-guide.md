@@ -1,35 +1,61 @@
-# Alpha Tester's Guide to Gameplay
+# Gameplay Guide
 
-This guide is for invited testers using the Cycles browser dashboard. It describes the private-alpha build as of 11 July 2026 and can grow into the full gameplay tutorial as the game develops.
+This is the player-facing guide for the pre-alpha development build as of 11 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
-The alpha does not have a finished victory screen or a complete set of game systems. Test the decisions that exist, note where the result surprises you, and report anything that makes the next choice unclear.
+The development build does not have a finished victory screen or a complete set of game systems. Test the decisions that exist, note where the result surprises you, and report anything that makes the next choice unclear.
 
 ## What you need
 
-Your test organiser should give you:
+For the curated local opening:
 
-- the dashboard URL;
-- an assigned username;
-- the expected tick schedule;
-- a contact or issue tracker for feedback.
+- follow the [run instructions](../README.md#run-locally);
+- open `/app.html` on the local site;
+- use the prefilled `player-1` username;
+- start from tick 0 of a freshly seeded state.
 
-Use the assigned username. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use this login in a trusted private test.
+Reseed the local file if the opening has already been played:
 
-If you are running the project on your own machine, follow the [run instructions](../README.md#run-locally) and open `/app.html` on the local site.
+```powershell
+dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
+```
 
-## Your first session
+Stop the API before replacing a state file that it is using, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening. Explicit dimensions and seed values create a generic galaxy instead.
 
-### Step 1: Log in
+For an organised hosted test, use the username and tick schedule supplied by the organiser. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
 
-1. Open the dashboard URL.
-2. Replace the username shown in the top-right field with your assigned username.
-3. Select **Login**.
+## Curated Day One
 
-The dashboard shows your empire name under **Command Nexus**. It also loads your home system, resources, fleet, and strategic priorities.
+The Day One guide opens automatically for `player-1` when the curated Cycle is at tick 0 with no submitted orders. It is a click-along walkthrough, not a slideshow: required steps unlock only after the real server action succeeds.
 
-### Step 2: Read the command map
+Your Aurelian command begins with three live problems:
+
+- **Nadir Crossing is open.** Move the 30-ship **Aurelian Home Guard** there from Aster Vale.
+- **Pale Harbour is ready for an outpost.** Commit the 12-ship **Pale Harbour Survey** and 100 Population.
+- **Treaty Gate is contested.** Send the 18-ship **Treaty Gate Vanguard** against the local Khepri force.
+
+The guide takes you through this sequence:
+
+1. Read the resource cards and what each stockpile pays for.
+2. Review the four priorities and select **Save priorities**. You may keep the opening allocation or choose another valid total of 100.
+3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
+4. In **Move**, choose **Aurelian Home Guard** and **Nadir Crossing**, then select **Queue move**.
+5. In **Colonise**, choose **Pale Harbour Survey**, then select **Queue outpost**.
+6. In **Attack**, choose **Treaty Gate Vanguard** and the **Khepri Mandate**, then select **Queue attack**.
+7. Check that the order queue contains the three commitments.
+8. Select **Advance turn**.
+9. Read the factual results in **Events**, then open the **Chronicle** account of Treaty Gate.
+
+All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The battle is deliberately staged at a sufficiently important system to create an immediate Chronicle entry without scripting its outcome.
+
+The guide remembers progress for each player and seeded Cycle instance in that browser. Reseeding creates a fresh tutorial. **Pause** or Escape closes it without losing the current step. **Skip guide** dismisses it. **Guide**, **Resume guide**, or **Restart guide** in the dashboard toolbar opens it again.
+
+**Advance turn** is a temporary Development capability for every authenticated player. It resolves the whole galaxy, not only your empire. It does not grant admin visibility or control of another empire, and ordinary players do not receive the capability in Production.
+
+If the curated briefing is unavailable, **Guide** presents a shorter generic version of the same loop: inspect, prioritise, move, advance, and review.
+
+## Read the dashboard
 
 The map shows every system and route. Select a system to inspect its resource output, strategic value, historical significance, visible influence, and colonial outposts.
 
@@ -44,11 +70,9 @@ The **Held** count means systems where your empire has positive presence. It doe
 
 You can see the full galaxy structure, but exact presence, local fleets, events, and Chronicle entries depend on fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 
-### Step 3: Choose strategic priorities
-
 The four priority weights must total 100. Change the values, check the displayed total, then select **Save priorities**. The new allocation affects the next tick.
 
-| Priority | Effect in the current alpha |
+| Priority | Effect in the current build |
 | --- | --- |
 | Industry | Stored as part of your allocation, but has no separate spending effect yet. Industry income comes from influence. |
 | Research | Stored as part of your allocation, but has no separate spending effect yet. Research income comes from influence. |
@@ -57,23 +81,11 @@ The four priority weights must total 100. Change the values, check the displayed
 
 Research still matters even though its priority weight has no direct effect. At 200 research, your empire unlocks **Survey Projection**, which adds a further 10% effective-presence bonus.
 
-For the clearest alpha experiment, change the balance between Military and Expansion. Putting weight into Industry or Research reduces those two active effects, but does not yet create another direct benefit.
-
-### Step 4: Queue a move
-
-Under **Orders**:
-
-1. Select an active fleet.
-2. Select one of its linked destinations.
-3. Select **Queue move**.
+For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Industry or Research reduces those two active effects, but does not yet create another direct benefit.
 
 The order appears as **Pending** in the order queue and says which tick can process it. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
 
 You can select the fleet in the **Fleets** panel to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
-
-### Step 5: Let the tick resolve
-
-Ordinary players cannot run ticks. Wait for the schedule or ask the test organiser to advance the game. The **Refresh** button reloads state but does not process a tick.
 
 After the tick, select **Refresh** and check:
 
@@ -84,7 +96,7 @@ After the tick, select **Refresh** and check:
 - new events;
 - any Chronicle entry created by a major battle.
 
-You have now completed the main loop: inspect, decide, queue, wait, and review.
+You have now completed the main loop: inspect, decide, queue, resolve, and review.
 
 ## The gameplay loop
 
@@ -99,7 +111,7 @@ Repeat these actions before each tick:
 
 The server rechecks each order when it processes the tick. An order that was valid when queued can fail if the fleet moves, the target disappears, a rival changes local influence, or another action spends the required resources.
 
-Queue one order per fleet per tick while learning the game. The alpha accepts multiple pending orders for one fleet and processes them in submission order, so a later order may become invalid after the first one changes the fleet.
+Queue one order per fleet per tick while learning the game. The current build accepts multiple pending orders for one fleet and processes them in submission order, so a later order may become invalid after the first one changes the fleet.
 
 ## Influence and resources
 
@@ -110,7 +122,7 @@ Your home system provides a minimum presence of 10, which gives a weakened found
 Resources are stockpiles:
 
 - **Industry** pays for ship construction through Military priority spending.
-- **Research** accumulates towards doctrine unlocks. Survey Projection is the sole unlock in this alpha.
+- **Research** accumulates towards doctrine unlocks. Survey Projection is the sole unlock in this build.
 - **Population** pays for colonial outposts.
 
 The dashboard shows each total alongside the amount generated and spent during the last tick.
@@ -156,9 +168,9 @@ The **Fleet** panel names an assigned admiral and shows reputation and status. B
 
 The **Chronicle** records battles that cross the current historical-importance threshold. Battle size, strategic value, existing history, an underdog result, and notable admirals can raise the score. Most events do not become Chronicle entries.
 
-Chronicle reports use deterministic templates in this alpha. They are not generated by an AI service.
+Chronicle reports use deterministic templates in this build. They are not generated by an AI service.
 
-## What the alpha does not include
+## What the development build does not include
 
 Set expectations against the current build:
 
@@ -171,7 +183,7 @@ Set expectations against the current build:
 - no balanced combat guarantee;
 - no hidden-map exploration, sensors, or partial intelligence model.
 
-An administrator ends a Cycle and creates its successor outside the player dashboard. Final ranking uses map-control percentage, but the alpha focuses on testing the choices that create influence rather than presenting a finished victory flow.
+An administrator ends a Cycle and creates its successor outside the player dashboard. Final ranking uses map-control percentage, but the development build focuses on testing the choices that create influence rather than presenting a finished victory flow.
 
 ## Troubleshooting
 
@@ -192,11 +204,11 @@ The list contains active fleets outside their home system. Move a fleet to anoth
 
 ### The map shows a system but no local details
 
-Your empire lacks an active fleet there. The alpha reveals the map structure while hiding exact remote presence and fleet facts.
+Your empire lacks an active fleet there. The current build reveals the map structure while hiding exact remote presence and fleet facts.
 
 ### Refresh did not advance the game
 
-Refresh reloads data without processing a tick. Wait for the scheduled tick or contact the test organiser. Development administrators see the **Run tick** button; ordinary players do not.
+Refresh reloads data without processing a tick. In Development, every authenticated player sees **Advance turn**. In Production, ordinary players must wait for the scheduled tick or contact the operator; only a trusted admin receives the manual capability.
 
 ### My priorities will not save
 

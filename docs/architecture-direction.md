@@ -6,7 +6,7 @@ Cycles is server-authoritative and simulation-first. Clients submit intentions a
 
 ## Invariants
 
-1. Ordinary player actions cannot execute or choose simulation outcomes.
+1. Player orders cannot choose simulation outcomes; ordinary production players cannot trigger authoritative ticks.
 2. One authoritative tick for a Cycle is processed at a time.
 3. Failed ticks do not partially apply state and block further execution until explicitly recovered.
 4. Influence is derived from presence and modifiers, not stored as binary system ownership.
@@ -21,7 +21,7 @@ Cycles is server-authoritative and simulation-first. Clients submit intentions a
 Browser
    |
    v
-Cycles.Api ---- development-admin tick trigger
+Cycles.Api ---- development tick capability
    |                         |
    |                         v
    +---- IGameStateStore.RunTick <---- Cycles.Worker / Cycles.Cli
@@ -52,7 +52,7 @@ It must not depend on database providers, HTTP concerns, authentication provider
 
 Owns HTTP contracts, development authentication and authorisation, visibility filtering, dashboard hosting, and player intention submission.
 
-Ordinary endpoints must not run ticks. The development-admin endpoint is an operational exception: it invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API.
+Ordinary order endpoints must not run ticks. The protected tick endpoint invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API. It is available to admins in every environment and, temporarily, to any authenticated player in Development. That capability does not promote the actor or bypass normal visibility and empire ownership.
 
 ### `Cycles.Worker`
 
@@ -116,7 +116,7 @@ Events and battle records are factual, queryable records tied to Cycle, tick, sy
 
 Chronicle entries select historically important facts. Factual summaries, narrative text, importance scores, source identifiers, generation status, and generation context remain separate. Future AI generation must run outside the tick transaction and must fail without affecting gameplay.
 
-Development-auth players see the full galaxy topology but exact local presence, fleets, events, last-tick facts, and Chronicle entries only where active-fleet visibility allows. Admins bypass that filter for trusted support. Production identity and security must preserve the actor/empire boundary without treating the current cookie as a deployable solution.
+Development-auth players see the full galaxy topology but exact local presence, fleets, events, last-tick facts, and Chronicle entries only where active-fleet visibility allows. Admins bypass that filter for trusted support. The temporary Development turn capability changes timing control, not authorisation over player data or simulation outcomes. Production identity and security must preserve the actor/empire boundary without treating the current cookie as a deployable solution.
 
 ## Deployment Gate
 
@@ -129,4 +129,4 @@ No production deployment path is defined. Before an untrusted online test, decid
 - secrets, logging, monitoring, and incident diagnostics;
 - database backup, restore, and recovery administration.
 
-Until those decisions exist, keep the runnable target local or trusted private-alpha use.
+Until those decisions exist, keep the runnable target local and treat it as a pre-alpha development build.

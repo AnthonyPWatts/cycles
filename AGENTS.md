@@ -36,7 +36,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 
 - `Cycles.Core` owns simulation/domain behaviour and should stay independent of database packages.
 - `Cycles.Api` exposes state and accepts player intentions; do not casually expose tick execution through public API endpoints.
-- Scheduled tick execution is Worker-owned. The CLI remains an operator convenience, and development admins can invoke the same authoritative store boundary; ordinary player actions must not execute ticks.
+- Scheduled tick execution is Worker-owned. The CLI remains an operator convenience. As a temporary development-only exception, any authenticated player can invoke the same authoritative store boundary without gaining admin visibility or cross-empire authority; ordinary production players must not execute ticks.
 - SQL Server is the current primary relational path. Plain SQL migrations live under `database/migrations` and are applied through the small migration runner.
 - JSON persistence remains useful for local development, but the accepted long-term direction is SQL-backed runtime with JSON demoted to import/export support.
 - Recovery handling is explicit and audited; failed ticks should not silently auto-retry.
@@ -44,6 +44,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 ## Dashboard And UI
 
 - The playable dashboard is static HTML/CSS/JS under `src/Cycles.Api/wwwroot`.
+- The curated Day One guide reads objective identifiers from the empire-scoped `OpeningBriefingIssued` fact. Keep it tied to real orders and authoritative tick outcomes rather than display-name matching or scripted results.
 - Keep dashboard polish narrow unless the user explicitly asks for a redesign or gameplay change.
 - Avoid backend/gameplay drift when doing visual-only work.
 - Do not maintain dashboard screenshots as current-state evidence while the interface is changing quickly. Prefer source, contract, and smoke-test evidence unless the user explicitly asks for maintained tutorial captures.

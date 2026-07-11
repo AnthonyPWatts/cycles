@@ -6,7 +6,7 @@ The maintained documentation has one owner for each kind of information. Update 
 
 | Document | Owns |
 | --- | --- |
-| [Alpha Tester's Guide](alpha-testers-guide.md) | Player-facing tutorial and private-alpha expectations. |
+| [Gameplay Guide](alpha-testers-guide.md) | Player-facing Day One tutorial and development-build expectations. |
 | [Project State](project-state.md) | What is implemented, verified, and still limited. |
 | [Architecture Direction](architecture-direction.md) | System boundaries, invariants, and intended technical shape. |
 | [Backlog](backlog.md) | The only repository implementation queue and blocker list. |

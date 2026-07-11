@@ -9,7 +9,7 @@ This is the repository's implementation queue. It records unfinished work and bl
 These items can proceed without another product-owner decision:
 
 - [ ] Add a mixed-strategy balance scenario in which different policies compete in the same Cycle.
-- [ ] Gather private-alpha evidence on colonisation, combat, priority clarity, and order feedback before changing named balance constants.
+- [ ] Gather guided development-play evidence, then private-alpha evidence, on colonisation, combat, priority clarity, and order feedback before changing named balance constants.
 - [ ] Add focused regression or live SQL Server integration coverage whenever an existing specified behaviour exposes a gap.
 - [ ] Continue profiling retained-history and generic state paths when a measured caller or scenario justifies it.
 - [ ] Improve diagnostics, CI, migration safety, documentation, and clean-checkout reproducibility when concrete friction appears.
@@ -52,7 +52,7 @@ Blocked by Q023-Q046. Survey Projection remains the single automatic threshold u
 
 ### Combat, Comeback, And Colonisation
 
-- [ ] Tune combat or colonisation constants only from repeatable scenario or private-alpha evidence.
+- [ ] Tune combat or colonisation constants only from repeatable scenarios, guided development play, or later private-alpha evidence.
 - [ ] Define comeback mechanics beyond minimum home-system presence.
 - [ ] Define outpost capture, destruction, infrastructure, migration, and cross-Cycle treatment.
 - [ ] Define whether home systems are merely protected by pressure or mechanically unconquerable.
@@ -106,7 +106,8 @@ The following are established and should not remain as open roadmap stages:
 - JSON and SQL Server stores, ordered migrations, focused SQL tick loading/writes, and per-Cycle locking;
 - strategic priorities, ship construction, expansion projection, Survey Projection, and colonisation;
 - development auth, actor-derived empire authority, active-fleet visibility, explicit API DTOs, and order cancellation;
-- scheduled Worker ticks, development-admin ticks, diagnostics, and running-API smoke coverage;
+- scheduled Worker ticks, temporary development-player turn advancement, diagnostics, and running-API smoke coverage;
+- the curated Day One opening, structured objective briefing, and resumable click-along dashboard guide;
 - Cycle-end rankings, major-battle preservation, historical signals, and successor-Cycle generation;
 - deterministic Chronicle reports, admirals, and the diplomacy storage/aggression foundation.
 
