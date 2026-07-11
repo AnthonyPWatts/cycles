@@ -27,6 +27,12 @@ Decision:
 - Keep player-facing UI functional and understandable, but prioritise a complete domain, persistence, API, and verification path over visual polish.
 - Treat private-alpha deployment as a target, not as permission to expose development authentication to untrusted users.
 
+Implemented:
+
+- Population now funds a 100-population, next-tick colonisation order in a non-home system where the empire has an active fleet and strictly leading influence.
+- A completed colonial outpost adds five local presence only while supported by an active fleet, preserving derived influence and avoiding binary ownership.
+- The model, SQL migration, focused tick persistence, authenticated API, dashboard control, and automated tests are complete.
+
 ### Diplomacy baseline
 
 - Q009: The proposed minimum diplomacy states were accepted in principle.
@@ -52,7 +58,7 @@ Current implementation:
 - Industry, research, and population are generated from influence.
 - Empire priorities are stored and editable.
 - Military priority spending now consumes industry stockpile into queued ship construction.
-- Research now unlocks the first simple doctrine effect at 200 stockpiled research; population remains a stockpile for future colonisation effects.
+- Research now unlocks the first simple doctrine effect at 200 stockpiled research; population now funds the first colonial-outpost effect.
 
 Questions and answers:
 
@@ -66,7 +72,7 @@ Decision:
 
 - Industry is the first spendable stockpile and currently builds ships through military priority spending.
 - Research accumulates toward unlocks; the first implemented unlock is Survey Projection, a 10% effective-presence doctrine bonus.
-- Population accumulates toward future colonisation.
+- Population accumulates as a stockpile and can now be spent on colonial outposts.
 - Per-tick generated and spent amounts are stored separately from stockpile totals.
 
 ### How should priority spending work?

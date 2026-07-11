@@ -80,14 +80,14 @@ This backlog is grouped by intended development stage. It is not a promise that 
 ## Stage 3A: Population And Colonisation
 
 - [x] Select population/colonisation as the next headline gameplay slice.
-- [ ] Define the smallest colonisation model without introducing binary system ownership.
-- [ ] Add population-funded colonisation as a durable tick-processed intention.
-- [ ] Persist colonial outposts in JSON and SQL Server.
-- [ ] Feed colonial outposts into local influence without creating fleetless permanent control.
-- [ ] Add factual colonisation events and rejection reasons.
-- [ ] Expose colonisation through authenticated API response DTOs and commands.
-- [ ] Add functional dashboard controls and outpost visibility.
-- [ ] Add domain, API-boundary, persistence, and SQL integration tests.
+- [x] Define the smallest colonisation model without introducing binary system ownership.
+- [x] Add population-funded colonisation as a durable tick-processed intention.
+- [x] Persist colonial outposts in JSON and SQL Server.
+- [x] Feed colonial outposts into local influence without creating fleetless permanent control.
+- [x] Add factual colonisation events and rejection reasons.
+- [x] Expose colonisation through authenticated API response DTOs and commands.
+- [x] Add functional dashboard controls and outpost visibility.
+- [x] Add domain, API-boundary, persistence, and SQL integration tests.
 
 ## Stage 4: API And Dashboard Hardening
 

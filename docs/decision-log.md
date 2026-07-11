@@ -545,9 +545,10 @@ Reasoning:
 
 Consequences:
 
-- The first colonisation implementation will require local fleet presence and meaningful local influence.
-- A colonial outpost will provide a modest local projection only while the owning empire maintains an active fleet there; it will not create permanent fleetless control.
-- Population cost, completion timing, and projection strength will be explicit constants covered by tests and can be tuned after private-alpha play.
+- Colonisation requires an active fleet in a non-home system, 100 population, and strictly leading local influence at submission and processing time.
+- A colonial outpost provides five local presence only while the owning empire maintains an active fleet there; it does not create permanent fleetless control.
+- Colonisation is a next-tick `FleetOrder`, persists in JSON and SQL Server, and is exposed through authenticated API and dashboard controls.
+- Population cost and projection strength are explicit constants covered by tests and can be tuned after private-alpha play.
 - Colony capture, destruction, migration, infrastructure, comeback effects, and cross-Cycle mechanical inheritance remain follow-on decisions.
 
 ## 2026-07-11: Record The First Diplomacy State Boundaries Without Starting The Full Feature

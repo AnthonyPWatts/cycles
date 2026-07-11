@@ -34,7 +34,7 @@ The map shows a Cycle at tick 1, contested influence at Aster Vale, last-tick re
 
 ### Issuing Orders
 
-Players can queue fleet movement or attack orders from the dashboard. Orders remain pending until an authoritative tick processes them.
+Players can queue fleet movement, attack, or population-funded colonisation orders from the dashboard. Orders remain pending until an authoritative tick processes them.
 
 ![Cycles dashboard showing a pending attack order](images/cycles-dashboard-attack-order.png)
 
@@ -96,6 +96,8 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Strategic priority weights must total 100.
 - Military priority spending automatically queues ship construction from available industry.
 - Expansion priority increases an empire's derived effective presence for resource and system-detail influence calculations.
+- Population can fund a colonial outpost in a non-home system where the empire has an active fleet and strictly leading influence.
+- Colonial outposts add five local presence while the owning empire maintains an active fleet in that system; they do not create binary ownership or fleetless control.
 - Research stockpiles unlock the first doctrine effect: reaching 200 research records a one-time Survey Projection unlock event, which adds a 10% effective-presence bonus for that empire.
 - Queued ships cost 25 industry each, complete after 3 ticks, and join the empire's home fleet.
 - Generated resource facts are recorded as events.
@@ -109,11 +111,12 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 ### Orders
 
 - Fleet orders are stored as durable records.
-- Supported order types are `MoveFleet`, `Hold`, and `Attack`.
+- Supported order types are `MoveFleet`, `Hold`, `Attack`, and `Colonise`.
 - Orders have submit tick, execute-after tick, processed tick, status, and rejection reason.
 - Submission-time validation prevents clearly invalid moves and self-attacks.
 - Pending orders can be cancelled before their execution tick by the owning empire.
 - Processing-time validation rejects orders that became invalid before execution.
+- Colonisation costs 100 population at processing time and is rejected if the fleet leaves, the empire loses leading influence, population is insufficient, or an outpost already exists.
 
 ### Movement
 
@@ -153,13 +156,13 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 
 ### API And Dashboard
 
-- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, order cancellation, priorities, recent events, and Chronicle entries.
+- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, colonisation orders, order cancellation, priorities, recent events, and Chronicle entries.
 - The API has development auth: `/auth/login` creates or finds a local player and empire, assigns a `Player` or `Admin` role, and issues an HttpOnly development cookie.
 - `/auth/session` restores the current development-auth session for the dashboard.
 - Player order and priority mutations derive empire authority from the authenticated player context.
 - Admin players can inspect all fleets/orders and can act for an empire for local support/debugging.
 - The public website is served from `/`.
-- The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, selected-fleet details, resources, priority editing, fleets, fleet admirals, order queue, events, Chronicle placeholder/content, and order forms.
+- The browser dashboard is served from `/app.html` and uses the development-auth session to render the map, selected-system details, colonial outposts, selected-fleet details, resources, priority editing, fleets, fleet admirals, order queue, events, Chronicle placeholder/content, and order forms.
 - Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, exact presence and local fleet details are only returned for systems where the player has an active fleet, and recent events, last-tick summaries, and Chronicle entries are filtered through the same visibility model.
 - Admin development users bypass fog-of-war filtering for local support/debugging.
 - System summary/detail responses expose historical significance, and the dashboard marks historically significant systems on the map.
@@ -178,6 +181,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - SQL Server persists `SystemHistoricalSignals` for completed Cycle system-history inputs.
 - SQL Server persists Chronicle narrative generation status and context snapshot fields.
 - SQL Server persists admirals, fleet admiral assignments, and admiral battle histories.
+- SQL Server migration `011_add_colonial_outposts` persists one colonial outpost per empire/system.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
@@ -236,7 +240,7 @@ These are known gaps, not defects in the current MVP claim:
 - No scheduled worker service.
 - No real deployment story.
 - Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, dedicated historical-signal records, and first next-Cycle continuity generation exist, but there is no richer reset policy, successor diplomacy, or AI-written inter-Cycle history yet.
-- Population stockpiles do not yet drive colonisation effects.
+- Colonisation has no capture, destruction, migration, infrastructure, comeback, or cross-Cycle inheritance rules yet.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
 - No diplomacy, alliances, treaties, or betrayal mechanics.
 - No broader technology tree, doctrine choices, cloaking, detection, or logistics.
@@ -249,15 +253,15 @@ These are known gaps, not defects in the current MVP claim:
 
 ## Current Development Priority
 
-The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. Engineering may use sensible, tuneable defaults and prioritise mechanically complete behaviour over polish.
+The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. The first population-funded colonisation loop is now implemented and verified through Core, JSON, SQL Server, authenticated API endpoints, and the dashboard.
 
 The next stage should therefore:
 
-1. make population fund a small tick-processed colonisation loop that extends derived influence without introducing binary ownership;
-2. persist and expose that loop through SQL Server, authenticated API DTOs, and a functional dashboard control;
-3. add repeatable worker/admin tick operation after the gameplay slice, while keeping development auth off untrusted networks;
-4. record the accepted diplomacy baseline but defer full treaty actions until Q013-Q022 define their lifecycle and effects;
-5. keep adding live SQL Server integration verification around every new migration and focused tick write.
+1. add repeatable worker/admin tick operation for private-alpha preparation, while keeping development auth off untrusted networks;
+2. exercise colonisation balance over repeated ticks before adding capture, destruction, or infrastructure mechanics;
+3. record the accepted diplomacy baseline but defer full treaty actions until Q013-Q022 define their lifecycle and effects;
+4. keep adding live SQL Server integration verification around every new migration and focused tick write;
+5. choose production authentication, admin provisioning, hosting, and backup boundaries before any untrusted online test.
 
 ## Definition Of The Next Stable State
 

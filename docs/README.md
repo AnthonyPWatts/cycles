@@ -23,4 +23,6 @@ The original design source is kept under `docs/source`:
 - `source/Cycles_Technical_Design_Document_v0_1.docx`
 - `source/Cycles_Expanded_History_and_Strategy_Spec.docx`
 
+The partial 2026-06-30 follow-up response is retained as `Cycles_PO_Questions_2026-06-30.docx`; its settled Q001-Q012 answers are normalised into `product-owner-questions.md` and `decision-log.md`.
+
 The Markdown docs are the working development layer derived from those source documents and the current implementation.
