@@ -563,8 +563,9 @@ Reasoning:
 
 Consequences:
 
-- A future relationship row can treat absence as Neutral and can record treaty cancellation separately from War declaration.
-- Attack processing must not silently infer War from combat.
+- `DiplomaticRelationships` now stores one canonical empire pair per Cycle, while absence still means Neutral.
+- Attack processing records aggression, cancels a pact or alliance to Neutral, and does not silently infer War from combat.
+- Migration `012_add_diplomatic_relationships` and the focused SQL tick path persist relationship changes and their factual events.
 - Q013-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
 
 ## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary

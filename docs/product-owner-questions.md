@@ -47,6 +47,11 @@ Decision:
 - Attack processing may record aggression and cancel an existing pact or alliance, but must not automatically change Neutral to War.
 - Treaty offers, acceptance timing, unilateral declarations, alliance effects, shared visibility, and Chronicle treatment remain blocked on Q013-Q022.
 
+Current status:
+
+- The canonical relationship model, SQL migration, focused tick persistence, aggression event, treaty-cancellation event, and automated tests are complete.
+- No player-facing diplomatic action has been added while Q013-Q022 remain unanswered.
+
 The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, expansion priority projects influence, and resources cannot go negative.
 
 ## Priority 1: Strategic Economy MVP

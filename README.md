@@ -12,6 +12,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - derived expansion priority projection for influence and resource shares;
 - durable movement, hold, and attack orders;
 - simple structured combat with deterministic randomness;
+- persisted Neutral, War, Non-Aggression Pact, and Alliance relationship states with treaty-breaking aggression facts;
 - named admirals assigned to fleets, with battle reputation and status history;
 - factual event logging;
 - Chronicle candidate scoring and preserved battle entries;
@@ -134,6 +135,6 @@ See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for ver
 
 ## Notes
 
-The current SQL Server store still uses the prototype `GameState` as its generic read/write unit for API and admin mutations, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a narrower path: it loads only the active Cycle's tick workspace, due work, colonial outposts, and running tick guards, then persists the tick outcome rows without the generic missing-row deletion pass. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the generic state writer remains a bridge rather than the final application-service/repository model.
+The current SQL Server store still uses the prototype `GameState` as its generic read/write unit for API and admin mutations, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a narrower path: it loads only the active Cycle's tick workspace, due work, colonial outposts, diplomatic relationships, and running tick guards, then persists the tick outcome rows without the generic missing-row deletion pass. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the generic state writer remains a bridge rather than the final application-service/repository model.
 
-The API exposes state and accepts movement, attack, cancellation, priority, and colonisation intentions. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires and manually trigger a tick. Chronicle entries keep factual summaries separate from deterministic template prose, leaving future AI narrative generation non-authoritative. Scheduled tick execution belongs to `Cycles.Worker`; the CLI remains a developer convenience and ordinary player API calls cannot decide simulation outcomes.
+The API exposes state and accepts movement, attack, cancellation, priority, and colonisation intentions. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires and manually trigger a tick. Diplomacy currently persists the accepted relationship vocabulary and treaty-breaking attack facts, but has no player-facing offers, declarations, or alliance effects. Chronicle entries keep factual summaries separate from deterministic template prose, leaving future AI narrative generation non-authoritative. Scheduled tick execution belongs to `Cycles.Worker`; the CLI remains a developer convenience and ordinary player API calls cannot decide simulation outcomes.

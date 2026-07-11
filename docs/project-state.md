@@ -137,6 +137,15 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Battle records store participants, ships before battle, losses, outcome, and fact JSON.
 - Combat events are generated from battle facts.
 
+### Diplomacy Foundation
+
+- Empire pairs can persist Neutral, War, Non-Aggression Pact, or Alliance states; an absent row means Neutral.
+- Relationship pairs are canonical and unique per Cycle.
+- A resolved attack records a diplomatic aggression event.
+- Attacking through a Non-Aggression Pact or Alliance cancels that relationship to Neutral and records a separate treaty-cancellation event.
+- Attacks do not automatically create War; the attacked empire's escalation decision remains future work.
+- No player-facing diplomatic actions or alliance effects exist because Q013-Q022 have not yet defined their lifecycle and behaviour.
+
 ### Admirals And Named Figures
 
 - Seeded empires start with a named admiral assigned to their home fleet.
@@ -185,6 +194,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - SQL Server persists Chronicle narrative generation status and context snapshot fields.
 - SQL Server persists admirals, fleet admiral assignments, and admiral battle histories.
 - SQL Server migration `011_add_colonial_outposts` persists one colonial outpost per empire/system.
+- SQL Server migration `012_add_diplomatic_relationships` persists one canonical relationship per Cycle/empire pair.
 - SQL Server schema migrations are plain SQL scripts under `database/migrations`.
 - The CLI exposes `db init`, `db migrate`, and `db status` for SQL Server schema setup and inspection.
 - Applied SQL migrations are tracked in `dbo.SchemaMigrations`.
@@ -245,7 +255,7 @@ These are known gaps, not defects in the current MVP claim:
 - Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, dedicated historical-signal records, and first next-Cycle continuity generation exist, but there is no richer reset policy, successor diplomacy, or AI-written inter-Cycle history yet.
 - Colonisation has no capture, destruction, migration, infrastructure, comeback, or cross-Cycle inheritance rules yet.
 - Industry spending only drives the first simple ship construction loop; infrastructure and logistics effects are not implemented.
-- No diplomacy, alliances, treaties, or betrayal mechanics.
+- Diplomacy has no player-facing offers, acceptance, declarations, alliance mechanics, shared visibility, Chronicle criteria, or cross-Cycle memory yet.
 - No broader technology tree, doctrine choices, cloaking, detection, or logistics.
 - Admirals are first-pass fleet commanders, not a full character-management system; there are no promotions, transfers, succession rules, biographies, or retirement workflows yet.
 - No AI narrative generation or asynchronous narrative worker; Chronicle battle reports currently use validated deterministic templates and store generation metadata synchronously.
@@ -261,7 +271,7 @@ The partial Q001-Q012 product-owner response selected population/colonisation as
 The next stage should therefore:
 
 1. exercise colonisation balance over repeated ticks before adding capture, destruction, or infrastructure mechanics;
-2. persist the accepted diplomacy baseline and treaty-breaking aggression facts, while deferring player-facing treaty actions until Q013-Q022 define their lifecycle and effects;
+2. keep player-facing diplomacy deferred until Q013-Q022 define treaty lifecycle, declarations, alliance effects, visibility, and Chronicle treatment;
 3. keep adding live SQL Server integration verification around every new migration and focused tick write;
 4. remove remaining direct domain-entity API responses where stable response DTOs can now be defined;
 5. choose production authentication, admin provisioning, hosting, worker health, and backup boundaries before any untrusted online test.

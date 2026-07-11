@@ -153,11 +153,11 @@ This backlog is grouped by intended development stage. It is not a promise that 
 ## Stage 8: Diplomacy
 
 - [x] Define the initial stored diplomacy stance model: Neutral, War, Non-Aggression Pact, and Alliance.
-- [ ] Add non-aggression/alliance/war states.
+- [x] Add non-aggression/alliance/war states.
 - [ ] Add diplomatic actions as durable orders/events.
-- [ ] Add treaty-cancellation and aggression event types.
+- [x] Add treaty-cancellation and aggression event types.
 - [ ] Decide how alliances affect influence and combat.
-- [ ] Add tests for diplomacy state changes.
+- [x] Add tests for diplomacy state changes.
 - [ ] Add Chronicle criteria for betrayals and treaties.
 
 Blocked decisions: Q013-Q022 still need to settle action timing, mutual acceptance, unilateral declarations, alliance mechanics, visibility, Chronicle selection, and cross-Cycle diplomatic memory.
