@@ -63,6 +63,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 | `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
 | `docs` | Working development intent, state, roadmap, backlog, decision records, and original source documents under `docs/source`. |
 | `.github/ISSUE_TEMPLATE` | GitHub issue forms for bug reports, implementation tasks, and design decisions. |
+| `.github/workflows/ci.yml` | Linux build/test/smoke verification plus migrated SQL Server integration coverage. |
 
 ## Implemented Behaviour
 

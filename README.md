@@ -1,5 +1,7 @@
 # Cycles
 
+[![CI](https://github.com/AnthonyPWatts/cycles/actions/workflows/ci.yml/badge.svg)](https://github.com/AnthonyPWatts/cycles/actions/workflows/ci.yml)
+
 Cycles is a tick-based strategy prototype about influence, history, and legacy across recurring galactic Cycles.
 
 This implementation covers the technical MVP from the supplied design documents:
@@ -73,6 +75,7 @@ Run the tests:
 ```
 
 The test script builds into `%TEMP%\cycles-test-bin\` so tests can run while a local `Cycles.Api` process is serving from the normal `bin\Debug` output directory.
+GitHub Actions runs the same suite on Linux, performs CLI and API smoke checks, and runs the full suite again against a migrated SQL Server service container.
 
 Seed and tick a local state file:
 
