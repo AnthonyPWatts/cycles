@@ -36,6 +36,7 @@ public sealed class SqlServerMigratorTests
         var systemHistoricalSignals = Assert.Single(migrations, migration => migration.MigrationId == "008_add_system_historical_signals");
         var chronicleGenerationState = Assert.Single(migrations, migration => migration.MigrationId == "009_add_chronicle_generation_state");
         var admirals = Assert.Single(migrations, migration => migration.MigrationId == "010_add_admirals");
+        var colonialOutposts = Assert.Single(migrations, migration => migration.MigrationId == "011_add_colonial_outposts");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -51,5 +52,6 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("NarrativeStatus", chronicleGenerationState.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Admirals", admirals.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.AdmiralBattleHistories", admirals.Script, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE dbo.ColonialOutposts", colonialOutposts.Script, StringComparison.Ordinal);
     }
 }

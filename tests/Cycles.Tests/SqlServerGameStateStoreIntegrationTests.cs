@@ -145,6 +145,38 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_dedicated_tick_runner_persists_colonial_outpost_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var fleet = state.Fleets.Single();
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        fleet.CurrentSystemId = destination.SystemId;
+        state.EmpireResources.Single().Population = 100m;
+        var order = OrderService.SubmitColoniseOrder(state, fleet.FleetId, TestState.Now);
+
+        store.Replace(state);
+
+        var result = store.RunTick(cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var updated = store.LoadOrCreate();
+        var outpost = Assert.Single(updated.ColonialOutposts);
+        Assert.Equal(fleet.EmpireId, outpost.EmpireId);
+        Assert.Equal(destination.SystemId, outpost.SystemId);
+        Assert.Equal(1, outpost.EstablishedTick);
+        Assert.Equal(FleetOrderStatus.Processed, updated.FleetOrders.Single(item => item.FleetOrderId == order.FleetOrderId).Status);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.ColonialOutpostEstablished);
+    }
+
+    [Fact]
     public void Store_dedicated_tick_runner_persists_admiral_battle_history_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
