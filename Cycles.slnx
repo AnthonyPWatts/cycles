@@ -4,6 +4,7 @@
     <Project Path="src/Cycles.Cli/Cycles.Cli.csproj" />
     <Project Path="src/Cycles.Core/Cycles.Core.csproj" />
     <Project Path="src/Cycles.Infrastructure.SqlServer/Cycles.Infrastructure.SqlServer.csproj" />
+    <Project Path="src/Cycles.Worker/Cycles.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Cycles.Tests/Cycles.Tests.csproj" />

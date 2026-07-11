@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\src\Cycles.Api\Cycles.Api.csproj" />
     <ProjectReference Include="..\..\src\Cycles.Core\Cycles.Core.csproj" />
     <ProjectReference Include="..\..\src\Cycles.Infrastructure.SqlServer\Cycles.Infrastructure.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\Cycles.Worker\Cycles.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
