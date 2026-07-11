@@ -11,6 +11,8 @@
     --red: #d86455;
     --paper: #f1e7cf;
     --shadow: rgba(0, 0, 0, 0.42);
+    --font-body: "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    --font-display: "Bahnschrift", "DIN Alternate", "Arial Narrow", sans-serif;
 }
 
 * {
@@ -19,6 +21,7 @@
 
 html {
     scroll-behavior: smooth;
+    scroll-padding-top: 92px;
 }
 
 body {
@@ -29,7 +32,11 @@ body {
         linear-gradient(180deg, rgba(10, 13, 11, 0.34), var(--ink) 72%),
         var(--ink);
     color: var(--text);
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -64,9 +71,10 @@ a {
     display: inline-flex;
     align-items: center;
     color: var(--text);
-    font-size: 1.1rem;
-    font-weight: 900;
-    letter-spacing: 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.035em;
     text-decoration: none;
 }
 
@@ -88,8 +96,10 @@ a {
 
 .site-nav a {
     color: var(--muted);
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
     text-decoration: none;
 }
 
@@ -117,10 +127,12 @@ a {
 }
 
 .site-hero {
+    position: relative;
     display: grid;
     align-items: center;
     min-height: calc(100svh - 172px);
     padding: clamp(34px, 6vw, 72px) clamp(20px, 6vw, 84px) clamp(26px, 5vw, 48px);
+    background: linear-gradient(90deg, rgba(7, 10, 8, 0.78) 0%, rgba(7, 10, 8, 0.38) 52%, transparent 82%);
 }
 
 .hero-copy {
@@ -130,26 +142,29 @@ a {
 .eyebrow {
     margin: 0 0 14px;
     color: var(--gold);
-    font-size: 0.78rem;
-    font-weight: 900;
-    letter-spacing: 0;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
 }
 
 .site-hero h1 {
     margin: 0;
     color: var(--text);
-    font-size: clamp(4.5rem, 10.5vw, 9.5rem);
-    line-height: 0.82;
-    letter-spacing: 0;
+    font-family: var(--font-display);
+    font-size: clamp(4.6rem, 10.5vw, 9.4rem);
+    font-weight: 650;
+    line-height: 0.84;
+    letter-spacing: -0.045em;
 }
 
 .hero-lede {
-    width: min(720px, 100%);
-    margin: 22px 0 0;
+    width: min(680px, 100%);
+    margin: 26px 0 0;
     color: #e1e7dc;
-    font-size: clamp(1.2rem, 2.5vw, 2rem);
-    line-height: 1.26;
+    font-size: clamp(1.18rem, 2.25vw, 1.86rem);
+    line-height: 1.32;
 }
 
 .hero-actions {
@@ -163,7 +178,9 @@ a {
     padding: 0 22px;
     background: var(--paper);
     color: #12140f;
-    font-weight: 900;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .secondary-action {
@@ -171,7 +188,9 @@ a {
     border: 1px solid var(--line);
     color: var(--text);
     background: rgba(13, 18, 15, 0.52);
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: 0.02em;
 }
 
 .hero-readout {
@@ -206,9 +225,12 @@ a {
 
 .section-copy h2 {
     margin: 0;
-    font-size: clamp(2rem, 5vw, 4.5rem);
-    line-height: 0.96;
-    letter-spacing: 0;
+    max-width: 18ch;
+    font-family: var(--font-display);
+    font-size: clamp(2.3rem, 5vw, 4.7rem);
+    font-weight: 600;
+    line-height: 0.98;
+    letter-spacing: -0.035em;
 }
 
 .section-copy p:not(.eyebrow) {
@@ -232,14 +254,19 @@ a {
 
 .metric {
     color: var(--green);
+    font-family: var(--font-display);
     font-size: clamp(1.6rem, 3vw, 2.6rem);
-    font-weight: 900;
+    font-weight: 650;
+    letter-spacing: -0.03em;
     line-height: 1;
 }
 
 .vision-sequence h3 {
     margin: 0 0 8px;
+    font-family: var(--font-display);
     font-size: clamp(1.35rem, 2.4vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
 }
 
 .vision-sequence p {
@@ -373,7 +400,9 @@ a {
 
 .signal-feed strong {
     color: var(--green);
+    font-family: var(--font-display);
     font-size: 1.2rem;
+    font-weight: 650;
 }
 
 .signal-feed span {
@@ -387,7 +416,9 @@ a {
     display: inline-flex;
     margin-top: 10px;
     color: var(--green);
-    font-weight: 900;
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: 0.015em;
     text-decoration: none;
 }
 
@@ -407,8 +438,10 @@ a {
 .release-mark > span,
 .release-ledger dt {
     color: var(--gold);
-    font-size: 0.78rem;
-    font-weight: 900;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
@@ -416,8 +449,11 @@ a {
     display: block;
     max-width: 12ch;
     margin-top: 18px;
-    font-size: clamp(2.2rem, 4.5vw, 4.6rem);
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 4.5vw, 4.8rem);
+    font-weight: 600;
     line-height: 0.94;
+    letter-spacing: -0.035em;
 }
 
 .release-mark p {
@@ -461,7 +497,8 @@ a {
 
 .site-footer a {
     color: var(--text);
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-weight: 650;
     text-decoration: none;
 }
 
