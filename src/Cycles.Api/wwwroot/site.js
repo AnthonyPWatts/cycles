@@ -1,5 +1,6 @@
 const canvas = document.querySelector("#heroScene");
 const context = canvas.getContext("2d");
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 const scene = {
     width: 0,
     height: 0,
@@ -7,6 +8,9 @@ const scene = {
     systems: [],
     time: 0
 };
+let animationFrame = null;
+let resizeFrame = null;
+let lastFrameTime = null;
 
 const palette = {
     text: "rgba(243, 241, 232, 0.78)",
@@ -17,7 +21,7 @@ const palette = {
 };
 
 function resize() {
-    const ratio = window.devicePixelRatio || 1;
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
     scene.width = window.innerWidth;
     scene.height = window.innerHeight;
     canvas.width = Math.floor(scene.width * ratio);
@@ -26,6 +30,7 @@ function resize() {
     canvas.style.height = `${scene.height}px`;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     seedScene();
+    renderScene();
 }
 
 function seedScene() {
@@ -53,8 +58,7 @@ function seedScene() {
     }));
 }
 
-function draw() {
-    scene.time += 0.006;
+function renderScene() {
     context.clearRect(0, 0, scene.width, scene.height);
     context.fillStyle = "#090d0b";
     context.fillRect(0, 0, scene.width, scene.height);
@@ -63,8 +67,51 @@ function draw() {
     drawStars();
     drawRoutes();
     drawSystems();
+}
 
-    requestAnimationFrame(draw);
+function animate(frameTime) {
+    const elapsed = lastFrameTime === null ? 0 : Math.min(frameTime - lastFrameTime, 50);
+    lastFrameTime = frameTime;
+    scene.time += elapsed * 0.00036;
+    renderScene();
+
+    animationFrame = requestAnimationFrame(animate);
+}
+
+function stopAnimation() {
+    if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+    }
+
+    lastFrameTime = null;
+}
+
+function syncAnimation() {
+    if (reducedMotionQuery.matches || document.hidden) {
+        stopAnimation();
+        if (reducedMotionQuery.matches) {
+            scene.time = 0;
+        }
+
+        renderScene();
+        return;
+    }
+
+    if (animationFrame === null) {
+        animationFrame = requestAnimationFrame(animate);
+    }
+}
+
+function scheduleResize() {
+    if (resizeFrame !== null) {
+        return;
+    }
+
+    resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        resize();
+    });
 }
 
 function drawGrid() {
@@ -118,7 +165,7 @@ function drawRoutes() {
 
 function drawSystems() {
     context.save();
-    context.font = "700 13px Segoe UI, Arial, sans-serif";
+    context.font = "600 13px Bahnschrift, Segoe UI, sans-serif";
     context.textBaseline = "middle";
 
     for (const system of scene.systems) {
@@ -150,6 +197,8 @@ function pseudo(seed) {
     return value - Math.floor(value);
 }
 
-window.addEventListener("resize", resize);
+window.addEventListener("resize", scheduleResize, { passive: true });
+document.addEventListener("visibilitychange", syncAnimation);
+reducedMotionQuery.addEventListener("change", syncAnimation);
 resize();
-draw();
+syncAnimation();

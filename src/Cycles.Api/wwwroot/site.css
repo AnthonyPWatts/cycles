@@ -638,3 +638,37 @@ a:focus-visible {
         gap: 12px;
     }
 }
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .nav-cta,
+    .primary-action,
+    .secondary-action,
+    .text-link::after {
+        transition: none;
+    }
+
+    .nav-cta:hover,
+    .primary-action:hover,
+    .secondary-action:hover,
+    .text-link:hover::after {
+        transform: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .hero-scene,
+    .signal-map {
+        display: none;
+    }
+
+    .site-hero,
+    .section-band,
+    .signal-panel,
+    .signal-feed {
+        background: Canvas;
+    }
+}
