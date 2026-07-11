@@ -2,6 +2,7 @@
 param(
     [int] $Port = 5087,
     [string] $StatePath = (Join-Path ([System.IO.Path]::GetTempPath()) "cycles-alpha-smoke-$([Guid]::NewGuid().ToString('N')).json"),
+    [string] $Configuration = "Debug",
     [switch] $NoBuild,
     [switch] $KeepArtifacts
 )
@@ -73,10 +74,12 @@ $artifactDirectory = Split-Path -Parent $stateFullPath
 $stdoutPath = "$stateFullPath.api.stdout.log"
 $stderrPath = "$stateFullPath.api.stderr.log"
 $baseAddress = [Uri]"http://127.0.0.1:$Port"
-$runArguments = @("run")
+$runArguments = @("run", "--configuration", $Configuration)
 if ($NoBuild) {
     $runArguments += "--no-build"
 }
+$apiProject = Join-Path $repoRoot "src/Cycles.Api/Cycles.Api.csproj"
+$apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net8.0/Cycles.Api.dll"
 
 $apiProcess = $null
 $playerClient = $null
@@ -92,9 +95,17 @@ try {
         throw "Failed to seed the alpha smoke state."
     }
 
-    $apiArguments = $runArguments + @(
-        "--project", (Join-Path $repoRoot "src/Cycles.Api"),
-        "--", "--urls", $baseAddress.AbsoluteUri.TrimEnd('/'),
+    if (-not $NoBuild) {
+        & dotnet build $apiProject --configuration $Configuration --no-restore
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to build the API for the alpha smoke journey."
+        }
+    }
+    Assert-Condition (Test-Path -LiteralPath $apiAssembly) "The built API assembly was not found at $apiAssembly."
+
+    $apiArguments = @(
+        $apiAssembly,
+        "--urls", $baseAddress.AbsoluteUri.TrimEnd('/'),
         "--Cycles:StatePath", $stateFullPath
     )
     $apiProcess = Start-Process dotnet `
