@@ -225,6 +225,56 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_dedicated_tick_runner_persists_treaty_breaking_aggression_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 50, defenderShips: 40);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var attacker = state.Empires[0];
+        var defender = state.Empires[1];
+        state.Systems.Add(new GalaxySystem
+        {
+            SystemId = defender.HomeSystemId,
+            CycleId = cycle.CycleId,
+            SystemName = "Defender Home",
+            X = 250,
+            Y = 250,
+            IndustryOutput = 10,
+            ResearchOutput = 10,
+            PopulationOutput = 10,
+            StrategicValue = 10,
+            CreatedAt = TestState.Now
+        });
+        var attackerFleet = state.Fleets.Single(fleet => fleet.EmpireId == attacker.EmpireId);
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            attacker.EmpireId,
+            defender.EmpireId,
+            DiplomaticRelationshipState.Alliance,
+            0,
+            TestState.Now);
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, defender.EmpireId, TestState.Now);
+
+        store.Replace(state);
+        var result = store.RunTick(cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var updated = store.LoadOrCreate();
+        var relationship = Assert.Single(updated.DiplomaticRelationships);
+        Assert.Equal(DiplomaticRelationshipState.Neutral, relationship.State);
+        Assert.Equal(1, relationship.UpdatedTick);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.DiplomaticAggression);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.TreatyCancelledByAggression);
+    }
+
+    [Fact]
     public void Store_dedicated_tick_runner_persists_failed_tick_recovery_state_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);

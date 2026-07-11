@@ -12,6 +12,7 @@ public sealed class GameState
     public List<CycleMajorEvent> CycleMajorEvents { get; set; } = [];
     public List<SystemHistoricalSignal> SystemHistoricalSignals { get; set; } = [];
     public List<ColonialOutpost> ColonialOutposts { get; set; } = [];
+    public List<DiplomaticRelationship> DiplomaticRelationships { get; set; } = [];
     public List<Admiral> Admirals { get; set; } = [];
     public List<AdmiralBattleHistory> AdmiralBattleHistories { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
@@ -43,6 +44,7 @@ public sealed class GameState
             CycleMajorEvents = CycleMajorEvents.Select(Clone).ToList(),
             SystemHistoricalSignals = SystemHistoricalSignals.Select(Clone).ToList(),
             ColonialOutposts = ColonialOutposts.Select(Clone).ToList(),
+            DiplomaticRelationships = DiplomaticRelationships.Select(Clone).ToList(),
             Admirals = Admirals.Select(Clone).ToList(),
             AdmiralBattleHistories = AdmiralBattleHistories.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
@@ -68,6 +70,7 @@ public sealed class GameState
         CycleMajorEvents = other.CycleMajorEvents;
         SystemHistoricalSignals = other.SystemHistoricalSignals;
         ColonialOutposts = other.ColonialOutposts;
+        DiplomaticRelationships = other.DiplomaticRelationships;
         Admirals = other.Admirals;
         AdmiralBattleHistories = other.AdmiralBattleHistories;
         Systems = other.Systems;
@@ -213,6 +216,17 @@ public sealed class GameState
         SystemId = item.SystemId,
         EstablishedTick = item.EstablishedTick,
         CreatedAt = item.CreatedAt
+    };
+
+    private static DiplomaticRelationship Clone(DiplomaticRelationship item) => new()
+    {
+        DiplomaticRelationshipId = item.DiplomaticRelationshipId,
+        CycleId = item.CycleId,
+        FirstEmpireId = item.FirstEmpireId,
+        SecondEmpireId = item.SecondEmpireId,
+        State = item.State,
+        UpdatedTick = item.UpdatedTick,
+        UpdatedAt = item.UpdatedAt
     };
 
     private static Admiral Clone(Admiral item) => new()
@@ -646,6 +660,17 @@ public sealed class EventRecord
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class DiplomaticRelationship
+{
+    public Guid DiplomaticRelationshipId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid FirstEmpireId { get; set; }
+    public Guid SecondEmpireId { get; set; }
+    public DiplomaticRelationshipState State { get; set; } = DiplomaticRelationshipState.Neutral;
+    public int UpdatedTick { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 public sealed class BattleRecord
 {
     public Guid BattleId { get; set; } = Guid.NewGuid();
@@ -785,7 +810,17 @@ public enum EventType
     CycleCompleted,
     DoctrineUnlocked,
     AdmiralBattleReported,
-    ColonialOutpostEstablished
+    ColonialOutpostEstablished,
+    DiplomaticAggression,
+    TreatyCancelledByAggression
+}
+
+public enum DiplomaticRelationshipState
+{
+    Neutral,
+    War,
+    NonAggressionPact,
+    Alliance
 }
 
 public enum EventSeverity

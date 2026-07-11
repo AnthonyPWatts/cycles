@@ -295,6 +295,14 @@ public sealed class TickEngine
         defenderFleets = defenderFleets.Where(fleet => fleet.EmpireId == defenderEmpireId).ToList();
         var system = state.Systems.Single(item => item.SystemId == attackerFleet.CurrentSystemId);
         var battle = CombatResolver.Resolve(state, tickNumber, now, system, attackerFleet, defenderFleets);
+        DiplomacyService.RecordAggression(
+            state,
+            order.CycleId,
+            tickNumber,
+            attackerFleet.EmpireId,
+            defenderEmpireId,
+            system,
+            now);
 
         order.Status = FleetOrderStatus.Processed;
         order.ProcessedTick = tickNumber;

@@ -168,6 +168,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             CycleMajorEvents = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleMajorEvents", ReadCycleMajorEvent),
             SystemHistoricalSignals = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemHistoricalSignals", ReadSystemHistoricalSignal),
             ColonialOutposts = ReadRows(connection, transaction, "SELECT * FROM dbo.ColonialOutposts", ReadColonialOutpost),
+            DiplomaticRelationships = ReadRows(connection, transaction, "SELECT * FROM dbo.DiplomaticRelationships", ReadDiplomaticRelationship),
             Admirals = ReadRows(connection, transaction, "SELECT * FROM dbo.Admirals", ReadAdmiral),
             AdmiralBattleHistories = ReadRows(connection, transaction, "SELECT * FROM dbo.AdmiralBattleHistories", ReadAdmiralBattleHistory),
             SystemLinks = ReadRows(connection, transaction, "SELECT * FROM dbo.SystemLinks", ReadSystemLink),
@@ -229,6 +230,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 "SELECT * FROM dbo.ColonialOutposts WHERE CycleID = @CycleID",
                 command => AddGuid(command, "@CycleID", cycleId),
                 ReadColonialOutpost),
+            DiplomaticRelationships = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.DiplomaticRelationships WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadDiplomaticRelationship),
             SystemLinks = ReadRows(
                 connection,
                 transaction,
@@ -392,6 +399,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertColonialOutpost(connection, transaction, item);
         }
 
+        foreach (var item in state.DiplomaticRelationships)
+        {
+            UpsertDiplomaticRelationship(connection, transaction, item);
+        }
+
         foreach (var item in state.CycleMajorEvents)
         {
             UpsertCycleMajorEvent(connection, transaction, item);
@@ -438,6 +450,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.ColonialOutposts.Where(outpost => outpost.CycleId == cycleId))
         {
             UpsertColonialOutpost(connection, transaction, item);
+        }
+
+        foreach (var item in state.DiplomaticRelationships.Where(relationship => relationship.CycleId == cycleId))
+        {
+            UpsertDiplomaticRelationship(connection, transaction, item);
         }
 
         foreach (var item in state.ShipConstructions.Where(construction => construction.CycleId == cycleId))
@@ -623,6 +640,17 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         SystemId = GetGuid(reader, "SystemID"),
         EstablishedTick = GetInt(reader, "EstablishedTick"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static DiplomaticRelationship ReadDiplomaticRelationship(SqlDataReader reader) => new()
+    {
+        DiplomaticRelationshipId = GetGuid(reader, "DiplomaticRelationshipID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        FirstEmpireId = GetGuid(reader, "FirstEmpireID"),
+        SecondEmpireId = GetGuid(reader, "SecondEmpireID"),
+        State = GetEnum<DiplomaticRelationshipState>(reader, "State"),
+        UpdatedTick = GetInt(reader, "UpdatedTick"),
+        UpdatedAt = GetDateTimeOffset(reader, "UpdatedAt")
     };
 
     private static Admiral ReadAdmiral(SqlDataReader reader) => new()
@@ -1435,6 +1463,33 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertDiplomaticRelationship(SqlConnection connection, SqlTransaction transaction, DiplomaticRelationship item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.DiplomaticRelationships
+            SET CycleID = @CycleID,
+                FirstEmpireID = @FirstEmpireID,
+                SecondEmpireID = @SecondEmpireID,
+                State = @State,
+                UpdatedTick = @UpdatedTick,
+                UpdatedAt = @UpdatedAt
+            WHERE DiplomaticRelationshipID = @DiplomaticRelationshipID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.DiplomaticRelationships(DiplomaticRelationshipID, CycleID, FirstEmpireID, SecondEmpireID, State, UpdatedTick, UpdatedAt)
+            VALUES (@DiplomaticRelationshipID, @CycleID, @FirstEmpireID, @SecondEmpireID, @State, @UpdatedTick, @UpdatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@DiplomaticRelationshipID", item.DiplomaticRelationshipId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@FirstEmpireID", item.FirstEmpireId);
+            AddGuid(command, "@SecondEmpireID", item.SecondEmpireId);
+            AddString(command, "@State", item.State.ToString(), 32);
+            AddInt(command, "@UpdatedTick", item.UpdatedTick);
+            AddDateTimeOffset(command, "@UpdatedAt", item.UpdatedAt);
+        });
+
     private static void UpsertChronicleEntry(SqlConnection connection, SqlTransaction transaction, ChronicleEntry item) =>
         Execute(connection, transaction, """
             UPDATE dbo.ChronicleEntries
@@ -1481,6 +1536,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
         DeleteMissingRows(connection, transaction, "dbo.AdmiralBattleHistories", "AdmiralBattleHistoryID", state.AdmiralBattleHistories.Select(item => item.AdmiralBattleHistoryId));
+        DeleteMissingRows(connection, transaction, "dbo.DiplomaticRelationships", "DiplomaticRelationshipID", state.DiplomaticRelationships.Select(item => item.DiplomaticRelationshipId));
         DeleteMissingRows(connection, transaction, "dbo.ColonialOutposts", "ColonialOutpostID", state.ColonialOutposts.Select(item => item.ColonialOutpostId));
         DeleteMissingRows(connection, transaction, "dbo.SystemHistoricalSignals", "SystemHistoricalSignalID", state.SystemHistoricalSignals.Select(item => item.SystemHistoricalSignalId));
         DeleteMissingRows(connection, transaction, "dbo.CycleMajorEvents", "CycleMajorEventID", state.CycleMajorEvents.Select(item => item.CycleMajorEventId));
