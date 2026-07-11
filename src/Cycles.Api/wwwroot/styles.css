@@ -677,7 +677,24 @@ dd {
 .order-form {
     display: grid;
     gap: 9px;
-    margin-bottom: 13px;
+    margin: 0 0 12px;
+    padding: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.order-form:last-of-type {
+    margin-bottom: 0;
+}
+
+.order-form-title {
+    margin: 0 0 2px;
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .order-form label,

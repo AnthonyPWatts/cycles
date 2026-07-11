@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260711-day-one-guide-2">
+    <link rel="stylesheet" href="styles.css?v=20260711-order-headings-1">
 </head>
 <body>
     <header class="topbar">
@@ -95,7 +95,8 @@
 
             <section id="ordersSection">
                 <h2>Orders</h2>
-                <form id="moveForm" class="order-form">
+                <form id="moveForm" class="order-form" aria-labelledby="moveOrderHeading">
+                    <h3 id="moveOrderHeading" class="order-form-title">Move</h3>
                     <label>
                         Fleet
                         <select id="fleetSelect"></select>
@@ -106,7 +107,8 @@
                     </label>
                     <button type="submit">Queue move</button>
                 </form>
-                <form id="attackForm" class="order-form">
+                <form id="attackForm" class="order-form" aria-labelledby="attackOrderHeading">
+                    <h3 id="attackOrderHeading" class="order-form-title">Attack</h3>
                     <label>
                         Attacker
                         <select id="attackFleetSelect"></select>
@@ -117,7 +119,8 @@
                     </label>
                     <button type="submit">Queue attack</button>
                 </form>
-                <form id="coloniseForm" class="order-form">
+                <form id="coloniseForm" class="order-form" aria-labelledby="coloniseOrderHeading">
+                    <h3 id="coloniseOrderHeading" class="order-form-title">Colonise</h3>
                     <label>
                         Colonising fleet
                         <select id="coloniseFleetSelect"></select>
