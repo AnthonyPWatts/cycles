@@ -28,7 +28,7 @@ app.UseStaticFiles();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() => store.Update(state => Login(state, request, httpContext, DateTimeOffset.UtcNow))));
+    TryResult(() => store.Update(state => Login(state, request, httpContext, app.Environment.IsDevelopment(), DateTimeOffset.UtcNow))));
 
 app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
@@ -37,7 +37,7 @@ app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var empire = actor.Empire
             ?? throw new InvalidOperationException("Admin requests must identify an empire.");
-        return ToLoginResponse(state, actor.Player, empire);
+        return ToLoginResponse(state, actor.Player, empire, app.Environment.IsDevelopment());
     }));
 
 app.MapGet("/cycles/current", (IGameStateStore store) =>
@@ -190,7 +190,7 @@ app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpCont
     ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
 
 app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
-    ApiAdminEndpoints.RunTick(httpContext, store));
+    ApiAdminEndpoints.RunTick(httpContext, store, app.Environment.IsDevelopment()));
 
 app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
@@ -252,7 +252,12 @@ static IResult TryResult<T>(Func<T> action)
 static Cycle GetActiveCycle(GameState state) =>
     state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
 
-static LoginResponse Login(GameState state, LoginRequest request, HttpContext httpContext, DateTimeOffset now)
+static LoginResponse Login(
+    GameState state,
+    LoginRequest request,
+    HttpContext httpContext,
+    bool isDevelopment,
+    DateTimeOffset now)
 {
     var username = string.IsNullOrWhiteSpace(request.Username) ? "player-1" : request.Username.Trim();
     var player = state.Players.FirstOrDefault(item => string.Equals(item.Username, username, StringComparison.OrdinalIgnoreCase));
@@ -281,11 +286,16 @@ static LoginResponse Login(GameState state, LoginRequest request, HttpContext ht
         ?? AddEmpireForPlayer(state, cycle, player, request.EmpireName, now);
 
     DevelopmentAuth.SignIn(httpContext, player);
-    return ToLoginResponse(state, player, empire);
+    return ToLoginResponse(state, player, empire, isDevelopment);
 }
 
-static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire) =>
-    new(player.PlayerId, player.Username, player.Role, ToEmpireResponse(state, empire));
+static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool isDevelopment) =>
+    new(
+        player.PlayerId,
+        player.Username,
+        player.Role,
+        player.Role == PlayerRole.Admin || isDevelopment,
+        ToEmpireResponse(state, empire));
 
 static Empire AddEmpireForPlayer(GameState state, Cycle cycle, Player player, string? requestedEmpireName, DateTimeOffset now)
 {
@@ -777,7 +787,12 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(
 
 public sealed record LoginRequest(string Username, string? EmpireName, bool IsAdmin = false);
 
-public sealed record LoginResponse(Guid PlayerId, string Username, PlayerRole Role, EmpireResponse Empire);
+public sealed record LoginResponse(
+    Guid PlayerId,
+    string Username,
+    PlayerRole Role,
+    bool CanAdvanceTurn,
+    EmpireResponse Empire);
 
 public sealed record EmpireResponse(
     Guid EmpireId,

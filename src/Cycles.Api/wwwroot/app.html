@@ -26,10 +26,11 @@
                     <strong id="empireName">Empire</strong>
                 </div>
                 <div class="toolbar-actions">
-                    <button id="adminTickButton" type="button" hidden>Run tick</button>
+                    <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
                     <button id="refreshButton" type="button">Refresh</button>
                 </div>
             </div>
+            <p id="turnMessage" class="turn-message" role="status"></p>
             <div class="map-stage">
                 <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
                 <div class="map-readout" aria-label="Galaxy summary">
@@ -143,6 +144,6 @@
         </aside>
     </main>
 
-    <script src="app.js?v=20260711-admin-tick"></script>
+    <script src="app.js?v=20260711-advance-turn"></script>
 </body>
 </html>

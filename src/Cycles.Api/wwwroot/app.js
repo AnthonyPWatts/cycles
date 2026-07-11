@@ -1,6 +1,7 @@
 const state = {
     playerId: null,
     role: null,
+    canAdvanceTurn: false,
     empire: null,
     galaxy: null,
     selectedSystemId: null,
@@ -43,7 +44,8 @@ const elements = {
     chronicle: document.querySelector("#chronicle"),
     galaxyMap: document.querySelector("#galaxyMap"),
     mapStats: document.querySelector("#mapStats"),
-    adminTickButton: document.querySelector("#adminTickButton"),
+    advanceTurnButton: document.querySelector("#advanceTurnButton"),
+    turnMessage: document.querySelector("#turnMessage"),
     refreshButton: document.querySelector("#refreshButton")
 };
 
@@ -54,16 +56,16 @@ elements.loginForm.addEventListener("submit", async event => {
 
 elements.refreshButton.addEventListener("click", refresh);
 
-elements.adminTickButton.addEventListener("click", async () => {
-    elements.adminTickButton.disabled = true;
+elements.advanceTurnButton.addEventListener("click", async () => {
+    elements.advanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
-        setMessage(`Tick ${result.tickNumber} ${formatStatus(result.status)}.`);
+        setTurnMessage(`Advanced to T${result.tickNumber}: ${result.ordersProcessed} orders, ${result.eventsCreated} events, ${result.battlesCreated} battles, ${result.chronicleEntriesCreated} Chronicle entries.`);
         await refresh();
     } catch (error) {
-        setMessage(error.message);
+        setTurnMessage(error.message);
     } finally {
-        elements.adminTickButton.disabled = false;
+        elements.advanceTurnButton.disabled = false;
     }
 });
 
@@ -218,8 +220,9 @@ async function login(username) {
 function applySession(login) {
     state.playerId = login.playerId;
     state.role = login.role;
+    state.canAdvanceTurn = login.canAdvanceTurn;
     state.empire = login.empire;
-    elements.adminTickButton.hidden = login.role !== "admin";
+    elements.advanceTurnButton.hidden = !login.canAdvanceTurn;
 }
 
 async function refresh() {
@@ -680,6 +683,10 @@ function setMessage(message) {
 
 function setPriorityMessage(message) {
     elements.priorityMessage.textContent = message;
+}
+
+function setTurnMessage(message) {
+    elements.turnMessage.textContent = message;
 }
 
 function updatePriorityTotal() {

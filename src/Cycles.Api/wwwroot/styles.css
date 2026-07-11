@@ -229,6 +229,17 @@ select {
     overflow-wrap: anywhere;
 }
 
+.turn-message {
+    margin: 0;
+    color: var(--gold);
+    background: rgba(23, 26, 24, 0.92);
+}
+
+.turn-message:not(:empty) {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--line);
+}
+
 .map-stage {
     position: relative;
     min-height: 0;

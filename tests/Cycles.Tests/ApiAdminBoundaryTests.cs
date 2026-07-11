@@ -44,6 +44,22 @@ public sealed class ApiAdminBoundaryTests
     }
 
     [Fact]
+    public async Task Admin_tick_endpoint_allows_player_with_development_capability()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var player = Assert.Single(state.Players);
+        var store = new InMemoryGameStateStore(state);
+        var context = CreateAuthenticatedContext(player);
+
+        var result = ApiAdminEndpoints.RunTick(context, store, allowDevelopmentPlayer: true, TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+        Assert.Equal(1, store.RunTickCalls);
+        Assert.Equal(1, state.GetActiveCycle()!.CurrentTickNumber);
+    }
+
+    [Fact]
     public async Task Admin_tick_endpoint_requires_login()
     {
         var state = TestState.CreateSingleEmpireState();

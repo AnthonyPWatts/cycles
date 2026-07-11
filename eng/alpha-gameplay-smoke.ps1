@@ -83,7 +83,6 @@ $apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net8.0/Cyc
 
 $apiProcess = $null
 $playerClient = $null
-$adminClient = $null
 
 try {
     $seedArguments = $runArguments + @(
@@ -105,6 +104,7 @@ try {
 
     $apiArguments = @(
         $apiAssembly,
+        "--environment", "Development",
         "--urls", $baseAddress.AbsoluteUri.TrimEnd('/'),
         "--Cycles:StatePath", $stateFullPath
     )
@@ -145,7 +145,6 @@ try {
     }
 
     $playerClient = New-SessionClient $baseAddress
-    $adminClient = New-SessionClient $baseAddress
 
     $login = Post-Json $playerClient "/auth/login" @{
         username = "player-1"
@@ -153,6 +152,7 @@ try {
         isAdmin = $false
     }
     Assert-Condition ($login.role -eq "player") "Expected player-1 to receive the player role."
+    Assert-Condition $login.canAdvanceTurn "Expected a Development player to receive the advance-turn capability."
 
     $cycleBefore = Get-Json $playerClient "/cycles/current"
     $empireBefore = Get-Json $playerClient "/empire"
@@ -185,16 +185,9 @@ try {
     $pendingOrders = @(Get-Json $playerClient "/orders")
     Assert-Condition ($pendingOrders.fleetOrderId -contains $move.fleetOrderId) "The pending order was not visible to its player."
 
-    $adminLogin = Post-Json $adminClient "/auth/login" @{
-        username = "player-2"
-        empireName = $null
-        isAdmin = $true
-    }
-    Assert-Condition ($adminLogin.role -eq "admin") "Expected player-2 to receive the admin role for the smoke journey."
-
-    $tick = Post-Json $adminClient "/admin/tick" @{}
-    Assert-Condition ($tick.status -eq "completed") "The admin tick did not complete."
-    Assert-Condition ($tick.tickNumber -eq ($cycleBefore.currentTickNumber + 1)) "The admin tick advanced to an unexpected number."
+    $tick = Post-Json $playerClient "/admin/tick" @{}
+    Assert-Condition ($tick.status -eq "completed") "The player's Development tick did not complete."
+    Assert-Condition ($tick.tickNumber -eq ($cycleBefore.currentTickNumber + 1)) "The Development tick advanced to an unexpected number."
 
     $ordersAfter = @(Get-Json $playerClient "/orders")
     $processedMove = $ordersAfter | Where-Object { $_.fleetOrderId -eq $move.fleetOrderId } | Select-Object -First 1
@@ -214,7 +207,7 @@ try {
     Assert-Condition ($events.eventType -contains "prioritiesChanged") "The priority-change event was not visible to the player."
     Assert-Condition ($events.eventType -contains "fleetMoved") "The fleet-movement event was not visible to the player."
 
-    Write-Host "Alpha gameplay journey passed: player login, priorities, pending move, admin tick, processed movement, resources, and events."
+    Write-Host "Alpha gameplay journey passed: player login, priorities, pending move, Development turn advancement, processed movement, resources, and events."
 }
 catch {
     if (Test-Path -LiteralPath $stdoutPath) {
@@ -230,9 +223,6 @@ catch {
 finally {
     if ($null -ne $playerClient) {
         $playerClient.Dispose()
-    }
-    if ($null -ne $adminClient) {
-        $adminClient.Dispose()
     }
 
     if ($null -ne $apiProcess -and -not $apiProcess.HasExited) {
