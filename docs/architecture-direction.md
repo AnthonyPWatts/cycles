@@ -117,7 +117,7 @@ Should avoid:
 
 ### `Cycles.Worker`
 
-Recommended future project or host mode.
+Current scheduled execution host.
 
 Owns:
 
@@ -125,7 +125,7 @@ Owns:
 - one-tick-at-a-time enforcement through application/persistence services;
 - logging and health checks for tick processing.
 
-The CLI can remain a developer convenience, but a worker should become the production tick runner.
+The CLI remains a developer convenience. The worker now owns scheduled execution, while the API exposes only a development-admin manual trigger. Production deployment still needs health, leader-election, and operational policy.
 
 ## Persistence Direction
 

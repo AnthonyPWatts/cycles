@@ -92,6 +92,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 ## Stage 4: API And Dashboard Hardening
 
 - [x] Replace prototype login with deliberate development auth.
+- [x] Add a development-admin tick endpoint and dashboard control without exposing tick execution to players.
+- [x] Add a scheduled worker using Cycle cadence and the store-level authoritative tick boundary.
 - [ ] Define future production auth option before deployment.
 - [x] Add player/empire authorisation checks.
 - [x] Stop trusting caller-supplied empire IDs where auth context can derive them.
@@ -109,6 +111,7 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Add API tests for order submission boundaries.
 - [x] Split public website from playable dashboard.
 - [x] Improve dashboard visual polish without changing order flows.
+- [ ] Add production worker health, hosting, and leader-election policy before deployment.
 
 ## Stage 5: History And Cycle Continuity
 

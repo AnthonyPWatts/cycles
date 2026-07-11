@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 This file records decisions that shape future implementation. It is intentionally lightweight; add entries when a choice would otherwise be rediscovered or debated repeatedly.
 
@@ -566,3 +566,22 @@ Consequences:
 - A future relationship row can treat absence as Neutral and can record treaty cancellation separately from War declaration.
 - Attack processing must not silently infer War from combat.
 - Q013-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
+
+## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary
+
+Decision: use `Cycles.Worker` for scheduled tick execution and allow development-admin sessions to trigger the same store-level operation manually.
+
+Reasoning:
+
+- Private-alpha operation needs repeatable ticks without conflating player intentions with authoritative simulation execution.
+- `IGameStateStore.RunTick` provides one shared operation for JSON and SQL Server, while SQL Server retains its transaction-scoped per-Cycle application lock.
+- The Cycle already stores `TickLengthMinutes`; scheduling from the last completed tick avoids an immediate catch-up storm after downtime.
+- The existing development-admin role is sufficient for local/private-alpha support but is not a production security boundary.
+
+Consequences:
+
+- The worker checks immediately on startup, then polls every 30 seconds by default, and runs at most one due tick per poll.
+- The first tick becomes due at the Cycle start; later ticks become due one configured cadence after the last completed tick.
+- Recovery-required and non-active Cycles are not scheduled.
+- Ordinary player endpoints still cannot execute ticks.
+- Production hosting, worker health, leader election, multi-Cycle policy, and admin provisioning remain deployment decisions.

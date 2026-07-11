@@ -210,8 +210,8 @@ Decision:
 Current direction:
 
 - Public player-facing API calls should not decide simulation outcomes.
-- CLI remains the current tick runner.
-- A worker is likely needed later for scheduled ticks.
+- CLI remains a developer tick runner.
+- `Cycles.Worker` owns scheduled ticks through the same authoritative store boundary.
 
 Questions and answers:
 
@@ -219,10 +219,11 @@ Questions and answers:
 - Should manual tick triggering remain CLI-only until auth/admin boundaries exist? Yes.
 - Should the next worker run hourly by default, or should scheduling wait until economy behaviour is implemented? Scheduling can wait for now.
 
-Decision needed:
+Implemented decision:
 
-- Keep manual tick triggering CLI-only until admin auth boundaries exist.
-- Add an admin/development dashboard tick control only after those boundaries exist.
+- Development-admin sessions can trigger a tick from the dashboard; ordinary players cannot.
+- The worker uses the active Cycle's `TickLengthMinutes`, checks once on startup and then on a configurable polling interval, and runs at most one due tick at a time.
+- This does not settle production authentication, admin provisioning, worker hosting, health, or leader-election policy.
 
 ### What dashboard feedback matters next?
 

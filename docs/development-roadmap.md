@@ -291,7 +291,7 @@ Goal: make the prototype playable through the API/dashboard without weakening th
    - Last completed tick.
    - Last tick summary.
    - Failed/recovery-required state.
-   - Next expected tick time, once scheduling exists.
+   - Next expected tick time from the active Cycle cadence.
 
 5. Improve dashboard flows.
    - Priority editing.
@@ -307,7 +307,7 @@ Goal: make the prototype playable through the API/dashboard without weakening th
 
 ### Exit Criteria
 
-- A local player can run the app, view their empire, adjust priorities, queue movement/attack orders, run ticks, and see results without CLI-only state manipulation except for tick execution.
+- A local player can run the app, view their empire, adjust priorities, queue movement/attack/colonisation orders, and see results; a development admin or scheduled worker can run ticks without CLI-only state manipulation.
 - API does not allow arbitrary cross-empire mutation.
 - Dashboard reflects server state after refresh without console errors.
 

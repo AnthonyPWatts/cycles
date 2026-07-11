@@ -57,6 +57,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 | `src/Cycles.Core` | Domain model, seeding, order submission, tick processing, influence, combat, Chronicle scoring, and persistence abstraction. |
 | `src/Cycles.Cli` | Manual local runner for seeding, ticking, showing state, and submitting fleet orders. |
 | `src/Cycles.Api` | ASP.NET Core Minimal API plus a public website and browser dashboard under `wwwroot`. |
+| `src/Cycles.Worker` | Scheduled authoritative tick runner using the configured state store. |
 | `src/Cycles.Infrastructure.SqlServer` | SQL Server implementation of the prototype state store. |
 | `tests/Cycles.Tests` | xUnit tests for core simulation behaviours. |
 | `database/sqldockerdeploykit` | SQL Server container bootstrap, schema, and seed scripts based on the SQLDockerDeployKit pattern. |
@@ -76,6 +77,8 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Tick processing works on a cloned state and commits back only after successful processing.
 - Failed ticks are recorded and mark the Cycle as `RecoveryRequired`.
 - The CLI has `recovery`, `recovery details`, `recovery clear`, and `recovery retry` commands for inspecting failed ticks, clearing repaired Cycles, and retrying the same tick number.
+- `Cycles.Worker` polls the configured store and runs one authoritative tick when the active Cycle is due, using `TickLengthMinutes` and the last completed tick time rather than attempting a backlog of catch-up ticks.
+- Development-admin sessions can trigger the same store-level tick operation from the dashboard; ordinary players cannot access that endpoint.
 
 ### Galaxy
 
@@ -166,7 +169,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, exact presence and local fleet details are only returned for systems where the player has an active fleet, and recent events, last-tick summaries, and Chronicle entries are filtered through the same visibility model.
 - Admin development users bypass fog-of-war filtering for local support/debugging.
 - System summary/detail responses expose historical significance, and the dashboard marks historically significant systems on the map.
-- Tick execution is intentionally not exposed through the API.
+- Tick execution is intentionally absent from ordinary player APIs. A development-admin-only endpoint supports private-alpha operation and local testing.
 
 ### Persistence
 
@@ -237,7 +240,7 @@ These are known gaps, not defects in the current MVP claim:
 - The SQL Server tick runner still uses an in-memory `GameState` workspace for domain rules instead of a separate `Cycles.Application` tick use case or provider-neutral repository abstraction.
 - Development auth is intentionally not production authentication or a multiplayer security boundary.
 - Fog-of-war is only a first-pass active-fleet visibility model. There are no sensors, partial estimates, delayed discoveries, or nuanced public/private Chronicle redactions yet.
-- No scheduled worker service.
+- The scheduled worker is a first operational host only; it has no production deployment, health endpoint, leader election, or multi-Cycle scheduling policy yet.
 - No real deployment story.
 - Cycle-end ranking persistence, selected major-battle preservation, first historical-significance updates, dedicated historical-signal records, and first next-Cycle continuity generation exist, but there is no richer reset policy, successor diplomacy, or AI-written inter-Cycle history yet.
 - Colonisation has no capture, destruction, migration, infrastructure, comeback, or cross-Cycle inheritance rules yet.
@@ -253,15 +256,15 @@ These are known gaps, not defects in the current MVP claim:
 
 ## Current Development Priority
 
-The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. The first population-funded colonisation loop is now implemented and verified through Core, JSON, SQL Server, authenticated API endpoints, and the dashboard.
+The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. The first population-funded colonisation loop is implemented and verified through Core, JSON, SQL Server, authenticated API endpoints, and the dashboard. Private-alpha operation now also has a scheduled worker and a development-admin manual tick control without exposing simulation execution to ordinary players.
 
 The next stage should therefore:
 
-1. add repeatable worker/admin tick operation for private-alpha preparation, while keeping development auth off untrusted networks;
-2. exercise colonisation balance over repeated ticks before adding capture, destruction, or infrastructure mechanics;
-3. record the accepted diplomacy baseline but defer full treaty actions until Q013-Q022 define their lifecycle and effects;
-4. keep adding live SQL Server integration verification around every new migration and focused tick write;
-5. choose production authentication, admin provisioning, hosting, and backup boundaries before any untrusted online test.
+1. exercise colonisation balance over repeated ticks before adding capture, destruction, or infrastructure mechanics;
+2. persist the accepted diplomacy baseline and treaty-breaking aggression facts, while deferring player-facing treaty actions until Q013-Q022 define their lifecycle and effects;
+3. keep adding live SQL Server integration verification around every new migration and focused tick write;
+4. remove remaining direct domain-entity API responses where stable response DTOs can now be defined;
+5. choose production authentication, admin provisioning, hosting, worker health, and backup boundaries before any untrusted online test.
 
 ## Definition Of The Next Stable State
 

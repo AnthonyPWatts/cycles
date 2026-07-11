@@ -20,6 +20,7 @@ This implementation covers the technical MVP from the supplied design documents:
 - Cycle-end ranking and selected major-battle preservation;
 - a local JSON state store with file locking for prototype use;
 - a CLI tick runner;
+- a scheduled worker and development-admin manual tick control;
 - a minimal API and browser dashboard for viewing state and submitting orders.
 
 ## Game Surface
@@ -33,6 +34,7 @@ The current playable surface is a command dashboard: players read the galaxy map
 - `src/Cycles.Core`: domain model, seeding, order validation, simulation, combat, Chronicle scoring, and persistence abstraction.
 - `src/Cycles.Cli`: manual seeding, ticking, inspection, and order submission.
 - `src/Cycles.Api`: Minimal API, public website, and browser dashboard.
+- `src/Cycles.Worker`: scheduled authoritative tick runner.
 - `src/Cycles.Infrastructure.SqlServer`: SQL Server implementation of the prototype state store.
 - `tests/Cycles.Tests`: xUnit tests for the core simulation behaviours.
 - `database/sqldockerdeploykit`: SQL Server container bootstrap based on the SQLDockerDeployKit pattern.
@@ -91,6 +93,14 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Cycles:Sta
 Open `http://127.0.0.1:5086/` for the public site and `http://127.0.0.1:5086/app.html` for the dashboard.
 The dashboard uses development auth: `/auth/login` creates or finds a local player, issues an HttpOnly development cookie, and derives player empire authority from that session. Player read endpoints apply first-pass fog-of-war filtering: the full map structure remains visible, but exact local fleet/presence facts, events, and Chronicle entries are scoped to systems where the player has an active fleet. This is suitable for local/private testing only; production auth remains future work.
 
+Run scheduled ticks against the same state store as the API:
+
+```powershell
+dotnet run --project src/Cycles.Worker -- --Cycles:StatePath ../../data/cycles-state.json
+```
+
+The worker polls every 30 seconds by default and runs one tick when the active Cycle is due. Configure `Cycles:Worker:Enabled` or `Cycles:Worker:PollIntervalSeconds` through normal .NET configuration. The Cycle's `TickLengthMinutes` controls the simulation cadence. Development-admin dashboard sessions can also trigger one authoritative tick through the protected admin boundary; ordinary players cannot.
+
 ## Database
 
 The application uses the JSON state store by default. SQL Server can be used by passing a `sqlserver:` store specifier to the CLI or a connection string to the API.
@@ -126,4 +136,4 @@ See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for ver
 
 The current SQL Server store still uses the prototype `GameState` as its generic read/write unit for API and admin mutations, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a narrower path: it loads only the active Cycle's tick workspace, due work, colonial outposts, and running tick guards, then persists the tick outcome rows without the generic missing-row deletion pass. SQL schema changes are tracked in `dbo.SchemaMigrations`, but the generic state writer remains a bridge rather than the final application-service/repository model.
 
-The API exposes state and accepts movement, attack, cancellation, priority, and colonisation intentions. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires. Chronicle entries keep factual summaries separate from deterministic template prose, leaving future AI narrative generation non-authoritative. Tick execution remains in the CLI, matching the design principle that public API calls should not decide simulation outcomes.
+The API exposes state and accepts movement, attack, cancellation, priority, and colonisation intentions. Player mutations require the development-auth session and derive the acting empire from that context; admin development users can inspect and support other empires and manually trigger a tick. Chronicle entries keep factual summaries separate from deterministic template prose, leaving future AI narrative generation non-authoritative. Scheduled tick execution belongs to `Cycles.Worker`; the CLI remains a developer convenience and ordinary player API calls cannot decide simulation outcomes.
