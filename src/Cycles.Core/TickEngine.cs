@@ -149,6 +149,9 @@ public sealed class TickEngine
             case FleetOrderType.Attack:
                 ProcessAttackOrder(state, order, tickNumber, now);
                 break;
+            case FleetOrderType.Colonise:
+                ProcessColoniseOrder(state, order, tickNumber, now);
+                break;
             default:
                 RejectOrder(state, order, tickNumber, now, "Unsupported order type.");
                 break;
@@ -354,6 +357,89 @@ public sealed class TickEngine
                 CreatedAt = now
             });
         }
+    }
+
+    private static void ProcessColoniseOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now)
+    {
+        var fleet = TryGetActiveFleet(state, order.FleetId);
+        if (fleet is null)
+        {
+            RejectOrder(state, order, tickNumber, now, "Colonising fleet is not active.");
+            return;
+        }
+
+        if (!order.TargetSystemId.HasValue || fleet.CurrentSystemId != order.TargetSystemId.Value)
+        {
+            RejectOrder(state, order, tickNumber, now, "Colonising fleet is no longer present in the target system.");
+            return;
+        }
+
+        var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
+        if (fleet.CurrentSystemId == empire.HomeSystemId)
+        {
+            RejectOrder(state, order, tickNumber, now, "An empire cannot colonise its home system.");
+            return;
+        }
+
+        if (state.ColonialOutposts.Any(item => item.CycleId == order.CycleId
+                                                && item.EmpireId == fleet.EmpireId
+                                                && item.SystemId == fleet.CurrentSystemId))
+        {
+            RejectOrder(state, order, tickNumber, now, "The empire already has a colonial outpost in this system.");
+            return;
+        }
+
+        if (!OrderService.HasLeadingPresence(state, order.CycleId, fleet.CurrentSystemId, fleet.EmpireId))
+        {
+            RejectOrder(state, order, tickNumber, now, "Colonisation requires the empire to retain the leading influence in the system.");
+            return;
+        }
+
+        var resources = state.EmpireResources.Single(item => item.EmpireId == fleet.EmpireId);
+        if (resources.Population < OrderService.ColonisationPopulationCost)
+        {
+            RejectOrder(state, order, tickNumber, now, $"Colonisation requires {OrderService.ColonisationPopulationCost:0.##} population.");
+            return;
+        }
+
+        resources.Population -= OrderService.ColonisationPopulationCost;
+        resources.LastSpentPopulation += OrderService.ColonisationPopulationCost;
+        resources.UpdatedAt = now;
+
+        var outpost = new ColonialOutpost
+        {
+            CycleId = order.CycleId,
+            EmpireId = fleet.EmpireId,
+            SystemId = fleet.CurrentSystemId,
+            EstablishedTick = tickNumber,
+            CreatedAt = now
+        };
+        state.ColonialOutposts.Add(outpost);
+
+        order.Status = FleetOrderStatus.Processed;
+        order.ProcessedTick = tickNumber;
+
+        var system = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
+        state.Events.Add(new EventRecord
+        {
+            CycleId = order.CycleId,
+            TickNumber = tickNumber,
+            EventType = EventType.ColonialOutpostEstablished,
+            SystemId = system.SystemId,
+            EmpireId = fleet.EmpireId,
+            Severity = EventSeverity.Normal,
+            DisplayText = $"{empire.EmpireName} established a colonial outpost at {system.SystemName}.",
+            FactJson = JsonSerializer.Serialize(new
+            {
+                outpost.ColonialOutpostId,
+                empire.EmpireId,
+                fleet.FleetId,
+                system.SystemId,
+                populationCost = OrderService.ColonisationPopulationCost,
+                localPresence = InfluenceCalculator.ColonialOutpostPresence
+            }, GameStateJson.Options),
+            CreatedAt = now
+        });
     }
 
     private static Fleet? TryGetActiveFleet(GameState state, Guid fleetId) =>

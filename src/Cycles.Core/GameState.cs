@@ -11,6 +11,7 @@ public sealed class GameState
     public List<CycleRanking> CycleRankings { get; set; } = [];
     public List<CycleMajorEvent> CycleMajorEvents { get; set; } = [];
     public List<SystemHistoricalSignal> SystemHistoricalSignals { get; set; } = [];
+    public List<ColonialOutpost> ColonialOutposts { get; set; } = [];
     public List<Admiral> Admirals { get; set; } = [];
     public List<AdmiralBattleHistory> AdmiralBattleHistories { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
@@ -41,6 +42,7 @@ public sealed class GameState
             CycleRankings = CycleRankings.Select(Clone).ToList(),
             CycleMajorEvents = CycleMajorEvents.Select(Clone).ToList(),
             SystemHistoricalSignals = SystemHistoricalSignals.Select(Clone).ToList(),
+            ColonialOutposts = ColonialOutposts.Select(Clone).ToList(),
             Admirals = Admirals.Select(Clone).ToList(),
             AdmiralBattleHistories = AdmiralBattleHistories.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
@@ -65,6 +67,7 @@ public sealed class GameState
         CycleRankings = other.CycleRankings;
         CycleMajorEvents = other.CycleMajorEvents;
         SystemHistoricalSignals = other.SystemHistoricalSignals;
+        ColonialOutposts = other.ColonialOutposts;
         Admirals = other.Admirals;
         AdmiralBattleHistories = other.AdmiralBattleHistories;
         Systems = other.Systems;
@@ -199,6 +202,16 @@ public sealed class GameState
         HistoricalSignificanceAfter = item.HistoricalSignificanceAfter,
         Summary = item.Summary,
         FactJson = item.FactJson,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static ColonialOutpost Clone(ColonialOutpost item) => new()
+    {
+        ColonialOutpostId = item.ColonialOutpostId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        SystemId = item.SystemId,
+        EstablishedTick = item.EstablishedTick,
         CreatedAt = item.CreatedAt
     };
 
@@ -521,6 +534,16 @@ public sealed class SystemLink
         || (SystemAId == secondSystemId && SystemBId == firstSystemId);
 }
 
+public sealed class ColonialOutpost
+{
+    public Guid ColonialOutpostId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public Guid SystemId { get; set; }
+    public int EstablishedTick { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public sealed class Fleet
 {
     public Guid FleetId { get; set; } = Guid.NewGuid();
@@ -719,7 +742,8 @@ public enum FleetOrderType
 {
     MoveFleet,
     Hold,
-    Attack
+    Attack,
+    Colonise
 }
 
 public enum FleetOrderStatus
@@ -760,7 +784,8 @@ public enum EventType
     RecoveryCleared,
     CycleCompleted,
     DoctrineUnlocked,
-    AdmiralBattleReported
+    AdmiralBattleReported,
+    ColonialOutpostEstablished
 }
 
 public enum EventSeverity

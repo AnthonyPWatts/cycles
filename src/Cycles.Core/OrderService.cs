@@ -4,6 +4,8 @@ namespace Cycles.Core;
 
 public static class OrderService
 {
+    public const decimal ColonisationPopulationCost = 100m;
+
     public static FleetOrder SubmitMoveOrder(GameState state, Guid fleetId, Guid targetSystemId, DateTimeOffset now)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
@@ -40,6 +42,50 @@ public static class OrderService
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
         return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, now);
+    }
+
+    public static FleetOrder SubmitColoniseOrder(GameState state, Guid fleetId, DateTimeOffset now)
+    {
+        var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
+        var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
+
+        if (fleet.CurrentSystemId == empire.HomeSystemId)
+        {
+            throw new InvalidOperationException("An empire cannot colonise its home system.");
+        }
+
+        if (state.ColonialOutposts.Any(item => item.CycleId == cycle.CycleId
+                                                && item.EmpireId == fleet.EmpireId
+                                                && item.SystemId == fleet.CurrentSystemId))
+        {
+            throw new InvalidOperationException("The empire already has a colonial outpost in this system.");
+        }
+
+        var empireFleetIds = state.Fleets
+            .Where(item => item.CycleId == cycle.CycleId && item.EmpireId == fleet.EmpireId)
+            .Select(item => item.FleetId)
+            .ToHashSet();
+        if (state.FleetOrders.Any(item => item.CycleId == cycle.CycleId
+                                          && item.OrderType == FleetOrderType.Colonise
+                                          && item.Status == FleetOrderStatus.Pending
+                                          && item.TargetSystemId == fleet.CurrentSystemId
+                                          && empireFleetIds.Contains(item.FleetId)))
+        {
+            throw new InvalidOperationException("The empire already has a pending colonisation order for this system.");
+        }
+
+        var resources = state.EmpireResources.Single(item => item.EmpireId == fleet.EmpireId);
+        if (resources.Population < ColonisationPopulationCost)
+        {
+            throw new InvalidOperationException($"Colonisation requires {ColonisationPopulationCost:0.##} population.");
+        }
+
+        if (!HasLeadingPresence(state, cycle.CycleId, fleet.CurrentSystemId, fleet.EmpireId))
+        {
+            throw new InvalidOperationException("Colonisation requires the empire to have the leading influence in the system.");
+        }
+
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Colonise, fleet.CurrentSystemId, null, now);
     }
 
     public static FleetOrder CancelFleetOrder(GameState state, Guid fleetOrderId, Guid requestingEmpireId, DateTimeOffset now)
@@ -181,8 +227,22 @@ public static class OrderService
             FleetOrderType.MoveFleet => "move",
             FleetOrderType.Hold => "hold",
             FleetOrderType.Attack => "attack",
+            FleetOrderType.Colonise => "colonise",
             _ => orderType.ToString()
         };
+
+    internal static bool HasLeadingPresence(GameState state, Guid cycleId, Guid systemId, Guid empireId)
+    {
+        var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycleId, systemId);
+        if (!presence.TryGetValue(empireId, out var empirePresence))
+        {
+            return false;
+        }
+
+        return presence
+            .Where(item => item.Key != empireId)
+            .All(item => empirePresence > item.Value);
+    }
 
     private static (Cycle Cycle, Fleet Fleet) GetActiveFleetForOrder(GameState state, Guid fleetId)
     {

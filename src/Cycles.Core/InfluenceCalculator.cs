@@ -5,6 +5,7 @@ namespace Cycles.Core;
 public static class InfluenceCalculator
 {
     public const int HomeSystemMinimumPresence = 10;
+    public const int ColonialOutpostPresence = 5;
     public const decimal MaximumExpansionProjectionBonus = 1m;
 
     public static IReadOnlyDictionary<Guid, decimal> CalculateEffectivePresence(
@@ -26,6 +27,14 @@ public static class InfluenceCalculator
             presence[homeEmpire.EmpireId] = presence.TryGetValue(homeEmpire.EmpireId, out var currentPresence)
                 ? Math.Max(currentPresence, HomeSystemMinimumPresence)
                 : HomeSystemMinimumPresence;
+        }
+
+        foreach (var outpost in state.ColonialOutposts.Where(item => item.CycleId == cycleId && item.SystemId == systemId))
+        {
+            if (presence.TryGetValue(outpost.EmpireId, out var currentPresence))
+            {
+                presence[outpost.EmpireId] = currentPresence + ColonialOutpostPresence;
+            }
         }
 
         foreach (var (empireId, effectivePresence) in presence.ToArray())
