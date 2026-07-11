@@ -34,12 +34,12 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
 
 ## Connection String
 
 ```text
-Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10;
 ```
 
 ## Use From The Application
@@ -47,36 +47,32 @@ Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd
 Run the CLI against SQL Server by prefixing the connection string with `sqlserver:`:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
 Run the API against SQL Server with `ConnectionStrings:Cycles`:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
 The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a focused tick workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store is still a practical bridge from JSON persistence to the final application-service/repository model.
 
 ## Integration Test
 
-The normal test suite does not require Docker. To include the SQL Server integration test, point `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` at a disposable Cycles database before running `dotnet test`:
+The normal test suite does not require Docker. To include SQL Server integration coverage, point `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` at a disposable Cycles database before using the repository test helper:
 
 ```powershell
-$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet test Cycles.slnx --no-build
-```
-
-Or pass the variable directly to the test host:
-
-```powershell
-dotnet test Cycles.slnx --no-build --environment CYCLES_SQL_INTEGRATION_CONNECTION_STRING="Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+.\eng\test.ps1
 ```
 
 The integration test replaces the configured database contents, so do not run it against data you want to keep.
+
+See [Operations](../../docs/operations.md) for Worker paths, diagnostics, recovery, and the destructive `db profile` guard.
 
 ## Clean Up
 

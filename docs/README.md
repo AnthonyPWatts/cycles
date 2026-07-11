@@ -1,29 +1,46 @@
 # Cycles Documentation
 
-This folder records the current project state and the intended development path. Keep these documents honest: update them when implementation changes materially, and avoid describing planned systems as if they already exist.
+The maintained documentation has one owner for each kind of information. Update the owning document when behaviour changes instead of copying the same status into several files.
 
-## Reading Order
+## Core Documents
 
-1. [Alpha tester's guide to gameplay](alpha-testers-guide.md) - how invited players use the current dashboard and report useful feedback.
-2. [Project state](project-state.md) - what exists now, what is verified, game screenshots, and what is still only a prototype.
-3. [Development roadmap](development-roadmap.md) - staged implementation plan for the next several development phases.
-4. [Architecture direction](architecture-direction.md) - intended shape of the codebase and production system.
-5. [Backlog](backlog.md) - ordered work items grouped by stage and confidence.
-6. [Decision log](decision-log.md) - architectural/product decisions that should not be rediscovered every few days.
-7. [Product owner questions](product-owner-questions.md) - current unanswered product decisions for the next implementation passes.
-8. [Decisions before continuing](decisions-before-continuing.md) - the original decision prompt for the next substantial implementation pass.
-9. [Resolved continuation decisions](Decisions.txt) - answered product and architecture calls from the 2026-06-24 implementation gate.
-10. [Determinism contract](determinism.md) - what seeded generation and combat determinism currently guarantee.
-11. [Ranking metrics](ranking-metrics.md) - first Cycle-end ranking metric definition.
+| Document | Owns |
+| --- | --- |
+| [Alpha Tester's Guide](alpha-testers-guide.md) | Player-facing tutorial and private-alpha expectations. |
+| [Project State](project-state.md) | What is implemented, verified, and still limited. |
+| [Architecture Direction](architecture-direction.md) | System boundaries, invariants, and intended technical shape. |
+| [Backlog](backlog.md) | The only repository implementation queue and blocker list. |
+| [Product Owner Questions](product-owner-questions.md) | Accepted product answers and active product-decision gates. |
+| [Decision Log](decision-log.md) | Durable chronological decisions and their consequences. |
 
-## Source Documents
+The root [README](../README.md) owns project orientation and copy-and-run setup commands. It should link to deeper material rather than duplicate current-state or backlog detail.
 
-The original design source is kept under `docs/source`:
+## Supporting References
 
-- `source/Cycles_Vision_Statement.docx`
-- `source/Cycles_Technical_Design_Document_v0_1.docx`
-- `source/Cycles_Expanded_History_and_Strategy_Spec.docx`
+| Document | Owns |
+| --- | --- |
+| [Simulation Reference](simulation-reference.md) | Determinism, final ranking, and repeatable balance-scenario contracts. |
+| [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
+| [SQL Server Runbook](../database/sqldockerdeploykit/README.md) | Local database image, connection, migration, integration-test, and cleanup instructions. |
 
-The partial 2026-06-30 follow-up response is retained as `Cycles_PO_Questions_2026-06-30.docx`; its settled Q001-Q012 answers are normalised into `product-owner-questions.md` and `decision-log.md`.
+These references support the core documents but are not separate roadmaps or status reports.
 
-The Markdown docs are the working development layer derived from those source documents and the current implementation.
+## Source Artefacts
+
+The original design material is retained under `source/`:
+
+- `Cycles_Vision_Statement.docx`;
+- `Cycles_Technical_Design_Document_v0_1.docx`;
+- `Cycles_Expanded_History_and_Strategy_Spec.docx`;
+- `Cycles_PO_Questions_2026-06-30.docx`.
+
+These Word files preserve source intent and historical product prompts. The Markdown files above are the current working layer and take precedence when they describe implemented behaviour.
+
+## Maintenance Rules
+
+- Put current behaviour and verification only in `project-state.md`.
+- Put unfinished implementation work only in `backlog.md`.
+- Put unresolved product choices and accepted product answers only in `product-owner-questions.md`.
+- Add a decision-log entry when a choice would otherwise be rediscovered.
+- Keep commands in the root README, Operations, or the SQL Server runbook according to audience.
+- Do not use screenshots as current-state evidence while the dashboard is changing quickly. Add maintained tutorial images later when the interface stabilises.

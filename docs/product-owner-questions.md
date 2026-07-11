@@ -2,363 +2,128 @@
 
 Last updated: 2026-07-11
 
-This file collects product-owner questions and answers that shape player-visible behaviour. Earlier architecture and implementation decisions are recorded in `decision-log.md` and `Decisions.txt`.
+This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
+
+Implementation status belongs in [Project State](project-state.md), work sequencing in the [Backlog](backlog.md), and durable technical rationale in the [Decision Log](decision-log.md).
 
-## GitHub Decision Queue
-
-Questions Q013-Q130 are tracked as individual GitHub product-decision issues assigned to William Sayers. Start with [the pinned PO decision index](https://github.com/AnthonyPWatts/cycles/issues/119), which groups the 118 questions into P0/P1/P2 milestones, functional-area labels, saved filters, and a recommended answer order.
-
-GitHub holds the active discussion and answer workflow. This document remains the canonical repository record of settled answers; copy each accepted decision here and into `decision-log.md` where it establishes durable behaviour.
-
-## 2026-06-30 Follow-Up Response
-
-The partial response in `Cycles_PO_Questions_2026-06-30.docx` answers Q001-Q012 from the next-question bank. Questions Q013 onward remain unanswered unless an earlier decision in this file already settles them.
-
-### Product focus and delivery posture
-
-- Q001: Population/colonisation is the next headline product slice.
-- Q002: The next playable test should prove strategic choice.
-- Q003: The target is a private alpha.
-- Q004: Engineering may choose the two data-model areas that change next.
-- Q005: Engineering may continue taking sensible defaults for balance numbers, thresholds, and UI ordering.
-- Q006: Mechanically complete but visually rough behaviour is acceptable for the next build.
-- Q007: Success after repeated ticks means influence is beginning to affect player decisions.
-- Q008: Unanswered product decisions may be tracked as GitHub design-decision issues.
-
-Decision:
-
-- Implement a bounded population-funded colonisation slice before starting another broad gameplay system.
-- Preserve influence as derived pressure rather than introducing binary system ownership.
-- Use named, test-covered constants for initial colonisation costs and effects so private-alpha play can tune them without changing the model.
-- Keep player-facing UI functional and understandable, but prioritise a complete domain, persistence, API, and verification path over visual polish.
-- Treat private-alpha deployment as a target, not as permission to expose development authentication to untrusted users.
-
-Implemented:
-
-- Population now funds a 100-population, next-tick colonisation order in a non-home system where the empire has an active fleet and strictly leading influence.
-- A completed colonial outpost adds five local presence only while supported by an active fleet, preserving derived influence and avoiding binary ownership.
-- The model, SQL migration, focused tick persistence, authenticated API, dashboard control, and automated tests are complete.
-
-### Diplomacy baseline
-
-- Q009: The proposed minimum diplomacy states were accepted in principle.
-- Q010: Empires are Neutral by default.
-- Q011: An attack does not automatically create War; escalation is at the attacked empire's discretion.
-- Q012: An attack through a treaty cancels that treaty and may lead to War at the attacked empire's discretion.
-
-Decision:
-
-- The safe first relationship states are Neutral, War, Non-Aggression Pact, and Alliance. Truce and Rivalry remain names without agreed mechanics and should not be added merely as unused enum values.
-- The first stored relationship model may default missing relationships to Neutral.
-- Attack processing may record aggression and cancel an existing pact or alliance, but must not automatically change Neutral to War.
-- Treaty offers, acceptance timing, unilateral declarations, alliance effects, shared visibility, and Chronicle treatment remain blocked on Q013-Q022.
-
-Current status:
-
-- The canonical relationship model, SQL migration, focused tick persistence, aggression event, treaty-cancellation event, and automated tests are complete.
-- No player-facing diplomatic action has been added while Q013-Q022 remain unanswered.
-
-The Priority 1 economy answers have been implemented as the first strategic economy slice: resources are stockpiles, priority weights must total 100, military industry spending queues ships, queued ships complete into the home fleet, expansion priority projects influence, and resources cannot go negative.
-
-## Priority 1: Strategic Economy MVP
-
-### What should each resource do in the first playable economy loop?
-
-Current implementation:
-
-- Industry, research, and population are generated from influence.
-- Empire priorities are stored and editable.
-- Military priority spending now consumes industry stockpile into queued ship construction.
-- Research now unlocks the first simple doctrine effect at 200 stockpiled research; population now funds the first colonial-outpost effect.
-
-Questions and answers:
-
-- Should industry primarily build ships, infrastructure-like capacity, logistics, or a mix? A mix.
-- Should research initially accumulate toward a future unlock, or provide a simple immediate modifier? Future unlock.
-- Should population affect production, fleet support, recovery, colonisation, or something else? Colonisation.
-- Are resources stockpiles, per-tick capacities, or both? Stockpiles.
-- Can any resource go negative, or should all spending clamp at available resources? No negative resources.
-
-Decision:
-
-- Industry is the first spendable stockpile and currently builds ships through military priority spending.
-- Research accumulates toward unlocks; the first implemented unlock is Survey Projection, a 10% effective-presence doctrine bonus.
-- Population accumulates as a stockpile and can now be spent on colonial outposts.
-- Per-tick generated and spent amounts are stored separately from stockpile totals.
-
-### How should priority spending work?
-
-Questions and answers:
-
-- Are priority weights percentages that must total 100, or relative weights where any positive total is valid? Total 100.
-- Should spending happen automatically every tick? Yes.
-- Should all generated output be allocated, or can players reserve unspent resources? Can be reserved.
-- Should changing priorities affect the next tick only? Yes.
-- Should priority changes create public events, private events, or only audit-style records? Don't care, whatever works.
-
-Decision:
-
-- Priority weights must total 100.
-- Spending happens automatically during tick processing after resource generation.
-- Military spending uses its percentage of the current industry stockpile.
-- Industry that is not spent remains reserved.
-- Priority changes are low-severity audit-style events for now.
-
-### How should ships be built?
-
-Questions and answers:
-
-- What is the initial industry cost per ship? Pick a sensible figure.
-- How many ticks should ship construction take? Longer for more powerful ships, never more than 24 ticks.
-- Do completed ships join the home fleet, a reserve fleet, a rally fleet, or newly created fleets? By default join the home fleet.
-- Should military spending only create ships, or also add defensive/home-system pressure? Ships; keep it simple by only having ships rather than ground defences.
-- Should population or logistics cap the size or rate of fleet growth? No.
-
-Decision:
-
-- The first ship type costs 25 industry.
-- Ship construction takes 3 ticks.
-- Completed ships join the empire's home fleet.
-- Queue and completion events are emitted.
-
-### What are the first balance constraints?
-
-Questions and answers:
-
-- What should prevent runaway exponential growth? Nothing, the game will be reset every Cycle.
-- Should home systems have a soft recovery advantage beyond the current minimum presence rule? Sure.
-- Should low-population or isolated empires have a comeback mechanic? Yes, this would be useful.
-- Is it acceptable for the first implementation to be deliberately simple and rebalanced later? Yes.
-
-Decision:
-
-- The first implementation deliberately avoids growth caps beyond non-negative resources and deterministic tests.
-- Home-system minimum presence remains the first recovery advantage.
-- Explicit comeback mechanics remain future work.
-
-## Priority 2: Identity, Authorisation, And Visibility
-
-### What auth model is needed before the next playable test?
-
-Current implementation:
-
-- `/auth/login` establishes a deliberate development-auth cookie.
-- It creates or finds a local player by username.
-- Players now have explicit `Player` or `Admin` roles.
-- Player order and priority calls derive empire authority from the authenticated context.
-- This is still not production auth.
-
-Questions and answers:
-
-- Is simple development auth acceptable for the next testable build? Yes.
-- Should eventual production auth target OAuth/OpenID Connect, ASP.NET Core Identity, invite links, or another model? Yes.
-- Should local development keep a bypass identity? Yes.
-- Should the password fields currently in the prototype model be removed until real auth exists? No.
-- Does the next build need an admin identity distinct from player identities? Yes.
-
-Decision:
-
-- Development-only auth hardening can come before real production auth.
-- A distinct admin identity is needed before admin dashboard actions are exposed.
-- Production auth remains a future pre-deployment decision, likely through ASP.NET Core authentication with OAuth/OpenID Connect or Identity rather than the development cookie.
-
-### What should one player be allowed to control?
-
-Questions and answers:
-
-- Is the rule always one player to one empire? Yes.
-- Can admins inspect all empires? Yes.
-- Can admins act as an empire for repair/support/debugging? Yes.
-- Should shared/team control ever be supported, or explicitly parked? Parked.
-
-Decision:
-
-- Enforce one player to one empire for order submission and dashboard reads.
-- Add explicit admin exceptions for inspection and support/debug actions.
-
-### What does fog of war mean in the first version?
-
-Current implementation:
-
-- A player should only get detailed information about who is in a system and in what numbers if they have resources there.
-- The first implementation interprets "resources there" as active fleets.
-- The full map structure remains visible to logged-in players.
-- Exact effective presence and local fleet details are returned only for systems where the player has an active fleet.
-- Recent events, last-tick summaries, and Chronicle entries are filtered through the same active-fleet visibility model.
-- A player's own empire/audit events remain visible to that player.
-- Admin development users can inspect everything.
-
-Questions and answers:
-
-- Does "resources there" mean active fleets, home-system influence, any effective presence, or future sensors? Active fleets.
-- Can a player see the full galaxy map but only partial system details? Yes.
-- Should fleet counts be exact, approximate, or hidden outside visible systems? Hidden outside visible systems.
-- Should events be filtered by visibility, or remain globally visible until fog of war is implemented? Events should be filtered by visibility.
-- Should Chronicle entries reveal hidden facts, or only public summaries? Public summaries.
-
-Decision:
-
-- Implement full-map visibility with hidden fleet details outside systems where the player has active fleets.
-- Filter events and Chronicle entries through the same first visibility model.
-
-## Priority 3: Orders And Dashboard Workflow
-
-### Should order cancellation exist before deeper economy work?
-
-Questions and answers:
-
-- Can pending orders be cancelled before their execute-after tick? Yes.
-- Can processed or rejected orders ever be hidden, archived, or cleared? No.
-- Should cancellation create an event? Yes.
-- Should cancellation be restricted to the owning empire and admins? Yes.
-
-Decision:
-
-- Add pending-order cancellation when the next order workflow slice starts.
-
-### Should the dashboard expose tick controls for local testing?
-
-Current direction:
-
-- Public player-facing API calls should not decide simulation outcomes.
-- CLI remains a developer tick runner.
-- `Cycles.Worker` owns scheduled ticks through the same authoritative store boundary.
-
-Questions and answers:
-
-- Should the dashboard include an admin-only or development-only tick button? Yes.
-- Should manual tick triggering remain CLI-only until auth/admin boundaries exist? Yes.
-- Should the next worker run hourly by default, or should scheduling wait until economy behaviour is implemented? Scheduling can wait for now.
-
-Implemented decision:
-
-- Development-admin sessions can trigger a tick from the dashboard; ordinary players cannot.
-- The worker uses the active Cycle's `TickLengthMinutes`, checks once on startup and then on a configurable polling interval, and runs at most one due tick at a time.
-- This does not settle production authentication, admin provisioning, worker hosting, health, or leader-election policy.
-
-### What dashboard feedback matters next?
-
-Questions and answers:
-
-- Should the dashboard show last tick generated resources and spending before spending is implemented? Don't mind.
-- Should order history be filterable by pending, processed, rejected, and cancelled? Don't mind.
-- Should system detail replace the current client-side detail calculation immediately? Don't mind.
-- Should the player see raw event facts, summarised facts, or display text only? Don't mind.
-
-Decision:
-
-- The dashboard now shows last-tick generated and spent resource amounts on resource cards.
-- Further dashboard slices can follow the auth, visibility, or order-cancellation priorities.
-
-## Priority 4: Cycle End And Continuity
-
-### What makes an empire rank well at Cycle end?
-
-Current direction:
-
-- Cycle ends are manual and admin-run.
-- Cycle end is effectively a database freeze/cutoff.
-- The first `cycle end` command marks the Cycle completed and persists one winner plus ranked standings for every active empire.
-- Cycle completion now increases system historical significance from repeated battles and largest-loss battle locations.
-- Cycle completion now preserves the top 10% of battles by total losses, with a minimum of one battle when battles occurred.
-- The first `cycle next` command creates a successor Cycle from completed-Cycle history, preserving player continuity and selected historically significant systems as names, significance, and strategic echoes.
-
-Questions and answers:
-
-- Which metrics define final rankings: influence, fleets, resources, battles won, Chronicle score, survival, or a blend? Influence across systems, as percentage control of the map.
-- Should there be one winner, ranked standings, or several categories of legacy? One winner, with rankings for every player.
-- Can an empire be defeated before the Cycle ends? No empire can be fully defeated, as a home planet should not be conquerable. Players can be driven back to their own system.
-- What happens to pending orders at cutoff? Never completed.
-
-Decision:
-
-- Add a first Cycle-end command that produces one winner plus ranked standings from influence across systems.
-
-### What history should survive into the next Cycle?
-
-Questions and answers:
-
-- Which battles are important enough to preserve? Maybe the largest 10% of battles.
-- Should systems retain names, scars, strategic value changes, or historical significance? Yes.
-- Should surviving empires influence successor factions, starting positions, or only flavour text? Flavour text only.
-- How much private information can be used for history generation after the Cycle ends? All of it.
-- Should the next Cycle be generated deterministically from prior facts? The flavour text should be largely driven by facts, likely through an LLM integration.
-
-Decision:
-
-- The first persistent history schema should cover rankings, selected largest battles, selected systems, and historical system signals.
-- Rankings, selected largest battles, first system historical-significance updates, dedicated system historical signals, and first successor-Cycle generation now have persistence/behaviour. Richer inter-Cycle summaries remain future work.
-
-## Priority 5: Chronicle And Narrative
-
-### What is the Chronicle for?
-
-Questions and answers:
-
-- Is the Chronicle primarily flavour, strategic intelligence, historical record, or all three? Flavour and historical record.
-- Should Chronicle entries be visible to all players immediately? Unless hidden by fog of war.
-- Can Chronicle entries be private, delayed, disputed, discovered, or redacted by fog of war? Hidden by fog of war.
-- Should Chronicle importance thresholds be configurable? Yes.
-
-Decision needed:
-
-- Chronicle visibility should follow fog of war.
-- Importance thresholds should become configurable.
-
-### What should generated narrative be allowed to say?
-
-Current direction:
-
-- AI-generated narrative is desirable later.
-- Deterministic templates are acceptable for early development.
-- Generated prose must not decide simulation outcomes.
-- Battle Chronicle prose is currently generated from a source DTO and validated for required facts before it is stored/displayed.
-- Chronicle entries now persist generation status, context JSON, generated-at time, and failure reason fields for future queued/AI generation.
-
-Questions and answers:
-
-- Which facts must every generated battle report include? Admirals involved and interesting events, such as underdog victories.
-- Can generated text infer motive, emotion, or strategy, or must it stay factual? It can infer and build narrative.
-- Should generated entries require review before being shown? Not in MVP; likely later.
-- Should AI generation be queued outside the tick transaction with status tracking? Yes.
-- What should players see when generation fails? It shouldn't fail.
-
-Decision needed:
-
-- Generated narrative should be queued outside the tick transaction.
-- The first AI boundary should preserve the required-fact validation and use the persisted status/failure fields, even if player-facing fallback handling is revisited later.
-
-## Priority 6: Deployment And Test Access
-
-### When should the prototype be testable online?
-
-Current direction:
-
-- No immediate deployment is planned.
-- Being able to run and test online would be useful.
-- Vendor lock-in should be avoided where practical.
-
-Questions and answers:
-
-- Is online testing needed before auth is hardened? No.
-- Should `/` be public while `/app.html` is private? Whatever is most sensible.
-- Should the app deploy as a container, an app service, or another simple host? Don't mind.
-- Should SQL Server remain the online test database, or should provider portability be prioritised first? SQL Server is fine for now; for production/licensing it would need to be something free.
-- What backup/restore expectation is acceptable before inviting testers? Limited.
-
-Decision needed:
-
-- Deployment work belongs after auth hardening and the first economy loop.
-- SQL Server is acceptable for now, but future production hosting should revisit a free relational provider.
-
-## Engineering Defaults Unless Overridden
-
-These do not need product-owner decisions unless product behaviour should differ:
-
-- Keep SQL Server as the current relational implementation.
-- Keep JSON persistence only as development/import/export support.
-- Keep tick execution outside public player-facing endpoints.
-- Keep recovery administration CLI-only for the current private alpha; define a production admin recovery boundary with production auth.
-- Prefer explicit API response DTOs over returning domain entities directly.
-- Keep facts authoritative and generated prose non-authoritative.
-- Keep player-facing diplomacy, doctrine, cloaking, logistics, and complex AI narrative parked until their unanswered product contracts are settled; the admiral slice and diplomacy storage/aggression foundation are complete.
+## Active Decision Queue
+
+[GitHub issue #119](https://github.com/AnthonyPWatts/cycles/issues/119) indexes Q013-Q130 by priority and functional area. As of 2026-07-11, all 118 questions are filed as individual issues and assigned to `wsay`.
+
+When an answer is accepted:
+
+1. record the concise answer and any authorised default here;
+2. add a decision-log entry if it creates a durable rule or boundary;
+3. update the backlog to show what became ready or remains blocked;
+4. implement only the behaviour the answer actually settles.
+
+## Accepted Q001-Q012 Answers
+
+The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the first twelve questions.
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| Q001 | Population and colonisation was the next headline slice. | Build a bounded population-funded outpost loop. |
+| Q002 | The next playable test should prove strategic choice. | Priorities, influence, movement, combat, and colonisation must produce traceable trade-offs. |
+| Q003 | Target a private alpha. | Improve repeatable operation without treating development auth as production security. |
+| Q004 | Engineering may select the two data-model areas changed next. | Keep changes bounded and compatible with existing influence/history rules. |
+| Q005 | Engineering may choose sensible balance constants, thresholds, and UI ordering. | Use named, test-covered defaults and change them only when evidence supports it. |
+| Q006 | Mechanically complete but visually rough behaviour is acceptable. | Complete domain, persistence, API, UI, and verification paths before polish. |
+| Q007 | Success after repeated ticks means influence affects decisions. | Scenario and alpha evidence should focus on choice, not cosmetic activity. |
+| Q008 | Unanswered decisions may be tracked as GitHub issues. | GitHub is the active queue; this file remains the accepted-answer record. |
+| Q009 | Use the proposed minimum diplomacy states. | Neutral, War, Non-Aggression Pact, and Alliance form the stored vocabulary. |
+| Q010 | Empires are Neutral by default. | An absent relationship row means Neutral. |
+| Q011 | An attack does not automatically create War. | Record aggression; the attacked empire controls escalation. |
+| Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
+
+The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013-Q022 still gate player-facing diplomacy.
+
+## Established Product Contracts
+
+These earlier answers remain in force unless a later accepted question explicitly supersedes them.
+
+### Strategy And Economy
+
+- Industry, Research, and Population are non-negative stockpiles.
+- Priority weights are percentages totalling 100 and affect the next tick.
+- Automatic spending may leave resources reserved.
+- Industry has mixed future roles; the first spend converts Military allocation into ships.
+- The first ship costs 25 industry, takes three ticks, and joins the home fleet.
+- Research accumulates towards future unlocks; Survey Projection is the first automatic threshold effect.
+- Population's first role is colonisation.
+- Uncapped within-Cycle growth is acceptable for the prototype because each Cycle resets, but comeback mechanics remain desirable.
+- Engineering may tune named constants from repeatable evidence without seeking approval for each number.
+
+### Identity, Authority, And Visibility
+
+- Development authentication is acceptable for trusted private testing.
+- Production identity should use a deliberate ASP.NET Core authentication boundary, likely OAuth/OpenID Connect or Identity; the provider is not selected.
+- One player controls one empire.
+- Admins may inspect all empires and act for support or repair.
+- Team/shared control is parked.
+- Players see the full galaxy topology.
+- Exact local presence, fleets, events, last-tick facts, and Chronicle detail require an active fleet in the relevant system.
+- Players continue to see their own empire and audit events; development admins bypass visibility filters.
+
+### Orders And Tick Control
+
+- Pending orders may be cancelled before their execution tick by the owning empire or an admin.
+- Processed, rejected, and cancelled order history remains durable.
+- Cancellation records an event.
+- Ordinary player actions must not execute ticks.
+- Scheduled ticks belong to a Worker; development admins may trigger the same authoritative operation manually.
+
+### Cycle End And History
+
+- An admin ends a Cycle manually at the current database cutoff.
+- Final ranking uses percentage map control derived from effective presence.
+- There is one winner and a ranking for every active empire.
+- Pending orders do not complete merely because the Cycle ends.
+- Preserve roughly the largest 10% of battles, with enough system history to support continuity without promoting every skirmish.
+- Successor Cycles may preserve flavour and historical system echoes, but not mechanical empire advantages.
+- Post-Cycle history generation may use complete factual records, including facts that were private during play.
+
+### Chronicle And Narrative
+
+- The Chronicle is player-facing flavour and historical record, not an authority over outcomes.
+- Chronicle visibility follows fog-of-war in the current model.
+- Importance thresholds should become configurable when the product needs per-Cycle control.
+- Deterministic templates are acceptable before AI integration.
+- Future generated prose may infer motive or emotion, but must retain required facts and cannot change simulation outcomes.
+- AI work must run outside the tick transaction with durable status.
+- Review/safety may be needed after MVP; provider, fallback, and visible failure behaviour remain unanswered.
+
+### Persistence And Deployment
+
+- SQL Server is the current relational implementation; do not add SQLite merely for parity.
+- A future production deployment may choose PostgreSQL or MySQL to avoid SQL Server licensing.
+- JSON's accepted long-term role is import/export rather than production runtime persistence. Q119 must still settle transition timing and development compatibility.
+- Online testing follows authentication hardening and a coherent operational boundary.
+- Hosting form, production database, backup/restore expectations, and vendor choices remain open.
+
+## Current Gates
+
+Do not expand these areas until the referenced questions have accepted answers:
+
+| Area | Questions | Decision required |
+| --- | --- | --- |
+| Diplomacy | Q013-Q022 | Timing, mutual acceptance, declarations, alliance effects, ranking, visibility, Chronicle treatment, memory. |
+| Visibility and intelligence | Q023-Q034 | Sensors, stale or estimated contacts, alliance sharing, public Chronicle detail, live ranking visibility. |
+| Doctrine and technology | Q035-Q046 | Unlock choice, research spending, modifier scope, logistics, detection, cloaking, reset behaviour. |
+| Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
+| Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
+| Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
+| JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
+| Production access | Deployment/auth question groups | Identity provider, admin provisioning, hosting, Worker topology, secrets, backups, and test boundary. |
+
+## Engineering Defaults
+
+No further product call is needed to:
+
+- add regression and live SQL Server integration coverage for established behaviour;
+- improve deterministic scenario evidence, profiling, diagnostics, migrations, CI, and documentation;
+- fix correctness, data-safety, recovery, and concurrency defects without changing rules;
+- keep SQL Server as the present relational proof path;
+- keep ordinary tick execution outside player endpoints;
+- keep factual records authoritative and generated prose non-authoritative;
+- extract a new architecture layer only when measured orchestration complexity justifies it.

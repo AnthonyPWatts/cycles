@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-11
 
-This file records decisions that shape future implementation. It is intentionally lightweight; add entries when a choice would otherwise be rediscovered or debated repeatedly.
+This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
 ## 2026-06-23: Build A Runnable MVP Before Production Infrastructure
 
@@ -23,6 +23,8 @@ Consequences:
 ## 2026-06-23: Keep Tick Execution Out Of The Public API
 
 Decision: the API accepts orders and exposes state; the CLI runs ticks.
+
+Status: superseded on 2026-07-11 by the dedicated Worker and development-admin boundary. The enduring rule is that ordinary player endpoints do not execute ticks.
 
 Reasoning:
 
@@ -89,7 +91,7 @@ Decision: add a Cycles-specific SQL Server container bootstrap under `database/s
 
 Reasoning:
 
-- The user explicitly wanted database progress and preferred using SQLDockerDeployKit if feasible.
+- Database progress was explicitly prioritised, with SQLDockerDeployKit preferred where feasible.
 - SQLDockerDeployKit builds locally and provides a useful SQL Server container initialisation pattern.
 - A schema-first SQL Server image gives the project a concrete relational target while keeping the application persistence migration scoped to a later commit.
 
@@ -120,6 +122,8 @@ Consequences:
 ## 2026-06-23: Do Not Add Future Feature Systems Before Hardening The Simulation Spine
 
 Decision: admirals, diplomacy, technologies, cloaking, and AI narrative generation should wait until persistence and tick semantics are stronger.
+
+Status: fulfilled as a sequencing gate. Persistence and tick semantics were hardened before first-pass admirals and the diplomacy storage/aggression foundation were added. Deeper diplomacy, doctrine, cloaking, and AI narrative remain decision-gated.
 
 Reasoning:
 
@@ -302,6 +306,8 @@ Consequences:
 
 Decision: make expansion priority increase an empire's effective presence, rather than storing ownership or introducing outposts.
 
+Status: extended on 2026-07-11. Expansion still modifies derived presence; population-funded outposts now add another supported presence source without introducing binary ownership.
+
 Reasoning:
 
 - The established territorial model treats influence as derived presence, not binary ownership.
@@ -344,7 +350,7 @@ Consequences:
 
 - Future ranking persistence should store one winner plus ranked standings for all active empires.
 - Strategic value, resources, battles, and Chronicle score can become historical categories, but they do not decide the first winner.
-- Tie-breaking should be deterministic, with details defined in `ranking-metrics.md`.
+- Tie-breaking should be deterministic, with details defined in `simulation-reference.md`.
 
 ## 2026-06-30: Add Manual Cycle-End Ranking Persistence
 

@@ -2,300 +2,131 @@
 
 Last updated: 2026-07-11
 
-## Architectural Intent
+Cycles is server-authoritative and simulation-first. Clients submit intentions and read permitted state. A tick host decides outcomes, persistence stores authoritative facts, and narrative systems interpret those facts only after the simulation has resolved them.
 
-Cycles should remain server-authoritative and simulation-first.
+## Invariants
 
-Clients submit orders and read state. The simulation decides outcomes during ticks. Persistence stores authoritative state and factual history. Narrative systems interpret facts only after simulation outcomes exist.
+1. Ordinary player actions cannot execute or choose simulation outcomes.
+2. One authoritative tick for a Cycle is processed at a time.
+3. Failed ticks do not partially apply state and block further execution until explicitly recovered.
+4. Influence is derived from presence and modifiers, not stored as binary system ownership.
+5. Events, battles, rankings, and history are grounded in structured facts.
+6. Narrative text cannot alter or contradict simulation facts.
+7. `Cycles.Core` remains independent of ASP.NET Core and database packages.
+8. New systems extend the existing order, influence, event, and history boundaries instead of bypassing them.
 
-The long-term shape should be:
+## Current Shape
 
 ```text
-Browser / other clients
-        |
-        v
-API / Auth / Order Submission
-        |
-        v
-Application Services
-        |
-        +-------------------+
-        |                   |
-        v                   v
-Persistence          Tick Processor
-        |                   |
-        +---------+---------+
+Browser
+   |
+   v
+Cycles.Api ---- development-admin tick trigger
+   |                         |
+   |                         v
+   +---- IGameStateStore.RunTick <---- Cycles.Worker / Cycles.Cli
                   |
-                  v
-       Events / Battles / Chronicle
-                  |
-                  v
-       Narrative generation later
+          +-------+--------+
+          |                |
+          v                v
+     JSON store       SQL Server store
+                           |
+                           v
+              focused Cycle tick workspace
+
+Cycles.Core owns simulation rules used by every host and store path.
+Events, battles, Chronicle entries, metrics, and Cycle history are outputs.
 ```
 
-## Current Architecture
+The API also uses the generic store for authenticated state queries and player/admin mutations. SQL-backed ticks use a narrower path than those generic mutations.
 
-Current implementation:
-
-- `Cycles.Core` owns domain models and simulation behaviour.
-- `Cycles.Cli` manually seeds state, submits orders, runs ticks, and shows summaries.
-- `Cycles.Api` exposes state and accepts orders.
-- `IGameStateStore` is the current persistence boundary.
-- `FileGameStateStore` persists the whole `GameState` as JSON by default.
-- `Cycles.Infrastructure.SqlServer` can persist the same prototype state through SQL Server when configured, using row-level deletes and upserts rather than full table resets.
-- SQL-backed tick execution uses a focused tick workspace and targeted outcome writes instead of loading historical/full-cycle artefacts through the generic state path.
-- The dashboard is static HTML/CSS/JavaScript served by the API.
-
-This is acceptable for the initial MVP but should not become the production architecture by inertia.
-
-## Desired Project Boundaries
+## Project Boundaries
 
 ### `Cycles.Core`
 
-Owns:
+Owns domain models, validation, simulation rules, influence, economy, combat, Chronicle scoring, Cycle completion, continuity, and persistence interfaces.
 
-- domain models;
-- pure simulation rules;
-- influence calculation;
-- combat resolution;
-- Chronicle scoring;
-- order validation rules that are independent of transport;
-- result types and domain errors.
-
-Should avoid:
-
-- database package references;
-- ASP.NET Core dependencies;
-- file-system persistence details;
-- authentication provider details;
-- AI provider calls.
-
-### `Cycles.Application`
-
-Recommended future project.
-
-Owns:
-
-- use cases such as submit order, update priorities, run tick, seed Cycle, query player dashboard;
-- transaction orchestration abstractions;
-- clock/random abstractions where needed;
-- mapping between domain operations and persistence ports.
-
-This layer may be small at first. Add it when persistence work begins, not as an empty abstraction exercise.
-
-### `Cycles.Infrastructure.SqlServer`
-
-Current SQL Server infrastructure project.
-
-Owns:
-
-- SQL Server state-store implementation;
-- SQL Server connection-string parsing helpers;
-- transaction-scoped application locking for prototype state updates.
-
-Should grow toward:
-
-- schema/migrations;
-- incremental repository/store implementations;
-- per-Cycle tick locking implementation;
-- optional JSON import/export tooling.
+It must not depend on database providers, HTTP concerns, authentication providers, file-system configuration, or narrative-service clients.
 
 ### `Cycles.Api`
 
-Owns:
+Owns HTTP contracts, development authentication and authorisation, visibility filtering, dashboard hosting, and player intention submission.
 
-- HTTP endpoints;
-- authentication/authorisation;
-- API request/response contracts;
-- dashboard hosting while the client remains simple.
-
-Should avoid:
-
-- simulation outcomes;
-- direct database mutation that bypasses application/domain services;
-- accepting empire IDs as authority when player context can derive them.
+Ordinary endpoints must not run ticks. The development-admin endpoint is an operational exception: it invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API.
 
 ### `Cycles.Worker`
 
-Current scheduled execution host.
+Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.
 
-Owns:
+Production use still needs health reporting, leader election or equivalent singleton ownership, multi-Cycle policy, graceful shutdown expectations, and deployment monitoring.
 
-- scheduled or manually triggered tick execution;
-- one-tick-at-a-time enforcement through application/persistence services;
-- logging and health checks for tick processing.
+### `Cycles.Cli`
 
-The CLI remains a developer convenience. The worker now owns scheduled execution, while the API exposes only a development-admin manual trigger. Production deployment still needs health, leader-election, and operational policy.
+Owns local development and operator workflows: seeding, inspection, manual ticking, migrations, recovery, Cycle completion and continuation, diagnostics, profiling, and balance scenarios.
 
-## Persistence Direction
+It is an administrative convenience, not the scheduled production host.
 
-The technical design calls for a relational database. The current JSON store should be treated as a convenient prototype/dev store.
+### `Cycles.Infrastructure.SqlServer`
 
-Recommended sequence:
+Owns SQL Server connection handling, migrations, generic state persistence, the focused tick workspace, targeted tick outcome writes, and transaction-scoped application locks.
 
-1. Keep the `IGameStateStore` boundary while the prototype shape is still moving.
-2. Use the SQLDockerDeployKit-style SQL Server container as the local relational target.
-3. Replace full-table SQL reset writes with targeted row-level synchronisation.
-4. Add schema versioning and a migration/initialisation command.
-5. Keep refining tick execution around focused incremental repository operations.
-6. Decide later whether PostgreSQL, SQLite, or hosted SQL Server should be the production target.
+### Optional `Cycles.Application`
+
+Do not add an empty application project for architectural symmetry. Extract application services when use-case orchestration demonstrably outgrows Core and the current store boundary, or when another persistence provider needs provider-neutral repositories that cannot remain clear within the existing shape.
 
 ## Tick Transaction Model
 
-The intended tick model:
+An authoritative tick follows this logical sequence:
 
-1. Acquire lock for active Cycle.
-2. Determine next tick number.
-3. Begin transaction.
-4. Insert `TickLog` with `Running`.
-5. Load state needed for the tick.
-6. Load due pending orders.
-7. Process arrivals.
-8. Generate resources.
-9. Process orders.
-10. Resolve combat.
-11. Append events, battles, and Chronicle entries.
-12. Mark orders processed/rejected.
-13. Mark `TickLog` completed.
-14. Commit transaction.
-15. Release lock.
+1. acquire the Cycle lock;
+2. determine the next tick number;
+3. begin transactional work and record a running attempt;
+4. load the state required for the tick;
+5. process arrivals, construction, resource generation, research, spending, and due orders;
+6. resolve combat and diplomacy consequences;
+7. append events, battles, Chronicle entries, admiral history, and metrics;
+8. mark orders and the tick attempt complete;
+9. commit and release the lock.
 
-Failure rule:
+Failure rules:
 
-- Failed ticks must not partially apply outcomes.
-- If rollback is not possible, the Cycle must enter `RecoveryRequired`.
-- A new tick must not start while recovery is required.
-- Admin recovery is CLI-only for now. Clearing recovery requires an operator and reason, writes a `RecoveryCleared` event, and can retry the repaired tick with the same tick number while preserving failed tick logs.
+- do not expose partially applied outcomes;
+- record the failed attempt and diagnostics;
+- mark the Cycle `RecoveryRequired`;
+- reject another tick until an operator repairs and clears or retries the Cycle;
+- preserve failed attempts when a repaired tick later succeeds with the same tick number.
 
-## Domain Modelling Notes
+The in-memory path uses a focused transactional working copy and rolls back appended facts on failure. The SQL path provides database transactionality and a per-Cycle `sp_getapplock` named `Cycles.Tick.{CycleID}`.
 
-### Influence
+## Persistence Position
 
-Influence should remain derived from presence and modifiers. Avoid storing permanent ownership as the primary territorial model.
+SQL Server is the primary relational proof path. JSON remains useful for zero-service development, while the accepted long-term product direction is to demote it to import/export support. The timing and compatibility details remain open in Q119.
 
-Allowed future inputs:
+Current SQL paths:
 
-- ships;
-- home-system protection;
-- admirals;
-- doctrines;
-- logistics;
-- cloaking/detection;
-- alliances;
-- system terrain;
-- historical significance.
+- generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;
+- `RunTick` acquires a per-Cycle lock, loads only the active tick workspace, and persists targeted outcomes without loading unrelated retained history;
+- plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`.
 
-### Events
+The generic path is a bridge for low-frequency API/admin mutations. Profile a new high-frequency caller before placing it on that path. Do not start a broad repository rewrite without evidence that the existing orchestration boundary is the problem.
 
-Events are factual records of gameplay. They should be concise, queryable, and tied to Cycle/tick/system/empire where possible.
+## Facts, Visibility, And Narrative
 
-Event text can be player-visible, but event facts should be the source of truth.
+Events and battle records are factual, queryable records tied to Cycle, tick, system, empire, and source identifiers where possible. `FactJson` remains flexible prototype storage; introduce typed fact contracts only when the relevant diplomacy and narrative shapes have stabilised.
 
-### Battle Records
+Chronicle entries select historically important facts. Factual summaries, narrative text, importance scores, source identifiers, generation status, and generation context remain separate. Future AI generation must run outside the tick transaction and must fail without affecting gameplay.
 
-Battle records should contain structured facts:
+Development-auth players see the full galaxy topology but exact local presence, fleets, events, last-tick facts, and Chronicle entries only where active-fleet visibility allows. Admins bypass that filter for trusted support. Production identity and security must preserve the actor/empire boundary without treating the current cookie as a deployable solution.
 
-- participants;
-- fleets;
-- ships before battle;
-- losses;
-- outcome;
-- system;
-- tick;
-- deterministic resolution inputs where useful.
+## Deployment Gate
 
-Do not rely on display text as the authoritative battle record.
+No production deployment path is defined. Before an untrusted online test, decide and implement:
 
-### Chronicle Entries
+- production authentication and admin provisioning;
+- hosting and database provider;
+- migration execution and rollback;
+- Worker health, leadership, and multi-Cycle behaviour;
+- secrets, logging, monitoring, and incident diagnostics;
+- database backup, restore, and recovery administration.
 
-Chronicle entries are selected historical records. They should point back to source events or battles.
-
-Keep:
-
-- factual summary;
-- narrative text;
-- importance score;
-- entry type;
-- source IDs.
-
-Narrative text may become stylised later, but it must not contradict facts.
-
-## API Direction
-
-The API should expose state and accept orders. It should not run tick logic.
-
-Near-term endpoint direction:
-
-- `POST /auth/login` establishes the development-auth session until real auth exists.
-- `GET /auth/session`
-- `GET /cycles/current`
-- `GET /empire`
-- `GET /galaxy`
-- `GET /fleets`
-- `GET /orders`
-- `POST /orders/fleet/move`
-- `POST /orders/fleet/attack`
-- `POST /orders/fleet/cancel`
-- `POST /orders/priorities`
-- `GET /events/recent`
-- `GET /chronicle`
-
-Order endpoints derive player/empire context from the development-auth user rather than trusting arbitrary IDs. Production auth should preserve that actor boundary with a real authentication provider.
-
-## Client Direction
-
-The dashboard should become a functional game surface, not a marketing page.
-
-Near-term priorities:
-
-- state overview;
-- map with system details;
-- fleet list and fleet detail;
-- move/attack order submission;
-- pending order list;
-- priority controls;
-- recent event feed;
-- Chronicle view.
-
-Avoid:
-
-- decorative UI that hides state;
-- layout that requires frequent scrolling for primary actions;
-- client-side simulation;
-- optimistic outcomes that contradict the server.
-
-## Testing Direction
-
-Testing should grow in layers:
-
-1. Domain/unit tests for influence, movement, combat, Chronicle scoring.
-2. Tick tests for order lifecycle and transactional behaviour.
-3. Persistence integration tests using the local SQL Server container.
-4. API tests for auth boundaries and endpoint contracts.
-5. Browser smoke tests for the dashboard once UI behaviour becomes more important.
-
-Important regression tests:
-
-- A tick cannot complete twice.
-- Due orders process once.
-- Invalid orders become rejected events.
-- Battle facts and events match.
-- Chronicle entries preserve source IDs.
-- Narrative generation never changes facts.
-
-## Deployment Direction
-
-No production deployment path exists yet.
-
-When deployment becomes relevant, define:
-
-- database choice;
-- migration strategy;
-- worker scheduling strategy;
-- environment configuration;
-- logging and monitoring;
-- secret handling;
-- backup/restore plan;
-- admin recovery process.
-
-Relational persistence and tick recovery are now stable enough for a local/private alpha. Do not add production deployment complexity until authentication, admin provisioning, worker topology, secrets, and backup/restore expectations are explicitly chosen.
+Until those decisions exist, keep the runnable target local or trusted private-alpha use.

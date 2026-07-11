@@ -36,9 +36,9 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 
 - `Cycles.Core` owns simulation/domain behaviour and should stay independent of database packages.
 - `Cycles.Api` exposes state and accepts player intentions; do not casually expose tick execution through public API endpoints.
-- Tick execution is currently CLI-owned and should eventually move to a worker/admin boundary, not to ordinary dashboard actions.
+- Scheduled tick execution is Worker-owned. The CLI remains an operator convenience, and development admins can invoke the same authoritative store boundary; ordinary player actions must not execute ticks.
 - SQL Server is the current primary relational path. Plain SQL migrations live under `database/migrations` and are applied through the small migration runner.
-- JSON persistence remains useful for local/dev convenience, but the architecture direction is SQL-backed runtime with possible future import/export.
+- JSON persistence remains useful for local development, but the accepted long-term direction is SQL-backed runtime with JSON demoted to import/export support.
 - Recovery handling is explicit and audited; failed ticks should not silently auto-retry.
 
 ## Dashboard And UI
@@ -46,8 +46,8 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 - The playable dashboard is static HTML/CSS/JS under `src/Cycles.Api/wwwroot`.
 - Keep dashboard polish narrow unless the user explicitly asks for a redesign or gameplay change.
 - Avoid backend/gameplay drift when doing visual-only work.
-- For screenshot verification on this machine, direct Playwright through the bundled Codex Node runtime is reliable after installing the expected browser revision. The gstack `browse.exe` path is still flaky: it needs `BROWSE_SERVER_SCRIPT` pointed at `C:\Users\antho\.codex\skills\gstack\browse\dist\server-node.mjs`, then may still miss its server startup window.
-- If screenshots are needed and `browse.exe` flakes, use Playwright directly and save PNGs under `%TEMP%`; inspect the generated PNG before treating the screenshot as evidence.
+- Do not maintain dashboard screenshots as current-state evidence while the interface is changing quickly. Prefer source, contract, and smoke-test evidence unless the user explicitly asks for maintained tutorial captures.
+- If a screenshot is explicitly required, inspect the generated image before treating it as evidence and avoid turning a documentation check into a browser-tooling exercise.
 
 ## Docs And Backlog Hygiene
 
@@ -57,5 +57,5 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 
 ## Future-System Discipline
 
-- Admirals, diplomacy, deeper technology, cloaking, logistics, and AI narrative generation should wait until persistence and tick semantics are strong enough to support them.
+- First-pass admirals and the diplomacy storage/aggression foundation exist. Player-facing diplomacy, deeper doctrine/technology, cloaking, logistics, and AI narrative generation remain decision-gated.
 - If a broad feature seems tempting, prefer the smallest tested extension point and document the remaining decision.
