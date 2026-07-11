@@ -79,6 +79,7 @@ Blocked/deferred: Q119 must settle whether JSON is removed, retained for develop
 - [x] Add UI controls for priority changes.
 - [x] Add UI display for last tick gains and spending.
 - [x] Add balance tests for growth and non-negative resources.
+- [x] Add a deterministic repeated-tick balance scenario harness and record baseline evidence.
 
 ## Stage 3A: Population And Colonisation
 
@@ -187,6 +188,7 @@ Blocked: Q035-Q046 must define doctrine choice, research spending/unlocks, modif
 - [ ] Current `FactJson` strings are flexible but weakly typed. Consider typed facts or validated schemas once diplomacy/narrative fact contracts stabilise.
 - [ ] Current combat model is not balanced.
 - [ ] Current dashboard assumes a small galaxy.
+- [ ] Full-Cycle in-memory simulation exceeds the diagnostic retained-history budget under sustained combat; profile and bound state growth before claiming 90-day simulation capacity.
 - [x] Replace direct domain-entity API responses with explicit response DTOs and a regression guard.
 - [ ] Current development auth is not production security.
 - [x] Bring the main documents up to date with the private-alpha implementation pass.

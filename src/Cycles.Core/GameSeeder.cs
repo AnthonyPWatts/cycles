@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Cycles.Core;
@@ -62,6 +64,26 @@ public static class GameSeeder
         int seed = 71421,
         DateTimeOffset? createdAt = null)
     {
+        return Create(systemCount, empireCount, seed, createdAt, Guid.NewGuid);
+    }
+
+    internal static GameState CreateDeterministicScenario(
+        int systemCount,
+        int empireCount,
+        int seed,
+        DateTimeOffset createdAt)
+    {
+        var identitySequence = new DeterministicIdentitySequence(seed);
+        return Create(systemCount, empireCount, seed, createdAt, identitySequence.Next);
+    }
+
+    private static GameState Create(
+        int systemCount,
+        int empireCount,
+        int seed,
+        DateTimeOffset? createdAt,
+        Func<Guid> nextId)
+    {
         if (systemCount < empireCount)
         {
             throw new ArgumentOutOfRangeException(nameof(systemCount), "There must be at least one system per empire.");
@@ -71,7 +93,7 @@ public static class GameSeeder
         var state = new GameState();
         var cycle = new Cycle
         {
-            CycleId = Guid.NewGuid(),
+            CycleId = nextId(),
             Name = $"Cycle {now:yyyy.MM}",
             StartAt = now,
             EndAt = now.AddDays(90),
@@ -82,11 +104,12 @@ public static class GameSeeder
         };
 
         state.Cycles.Add(cycle);
-        AddGalaxy(state, cycle, systemCount, seed, now);
-        AddPlayersAndEmpires(state, cycle, empireCount, now);
+        AddGalaxy(state, cycle, systemCount, seed, now, nextId);
+        AddPlayersAndEmpires(state, cycle, empireCount, now, nextId);
 
         state.Events.Add(new EventRecord
         {
+            EventId = nextId(),
             CycleId = cycle.CycleId,
             TickNumber = 0,
             EventType = EventType.CycleSeeded,
@@ -105,7 +128,13 @@ public static class GameSeeder
         return state;
     }
 
-    private static void AddGalaxy(GameState state, Cycle cycle, int systemCount, int seed, DateTimeOffset now)
+    private static void AddGalaxy(
+        GameState state,
+        Cycle cycle,
+        int systemCount,
+        int seed,
+        DateTimeOffset now,
+        Func<Guid> nextId)
     {
         var random = new Random(seed);
         var names = SystemNames
@@ -122,6 +151,7 @@ public static class GameSeeder
 
             state.Systems.Add(new GalaxySystem
             {
+                SystemId = nextId(),
                 CycleId = cycle.CycleId,
                 SystemName = names[index],
                 X = random.Next(60, 941),
@@ -135,11 +165,11 @@ public static class GameSeeder
             });
         }
 
-        EnsureConnectivity(state, cycle.CycleId);
-        AddNearestNeighbourLinks(state, cycle.CycleId, neighboursPerSystem: 2);
+        EnsureConnectivity(state, cycle.CycleId, nextId);
+        AddNearestNeighbourLinks(state, cycle.CycleId, neighboursPerSystem: 2, nextId);
     }
 
-    private static void EnsureConnectivity(GameState state, Guid cycleId)
+    private static void EnsureConnectivity(GameState state, Guid cycleId, Func<Guid> nextId)
     {
         var systems = state.Systems.Where(system => system.CycleId == cycleId).ToArray();
         for (var index = 1; index < systems.Length; index++)
@@ -150,11 +180,15 @@ public static class GameSeeder
                 .OrderBy(other => Distance(current, other))
                 .First();
 
-            AddLinkIfMissing(state, cycleId, current, nearestPrevious);
+            AddLinkIfMissing(state, cycleId, current, nearestPrevious, nextId);
         }
     }
 
-    private static void AddNearestNeighbourLinks(GameState state, Guid cycleId, int neighboursPerSystem)
+    private static void AddNearestNeighbourLinks(
+        GameState state,
+        Guid cycleId,
+        int neighboursPerSystem,
+        Func<Guid> nextId)
     {
         var systems = state.Systems.Where(system => system.CycleId == cycleId).ToArray();
         foreach (var system in systems)
@@ -164,12 +198,17 @@ public static class GameSeeder
                          .OrderBy(candidate => Distance(system, candidate))
                          .Take(neighboursPerSystem))
             {
-                AddLinkIfMissing(state, cycleId, system, neighbour);
+                AddLinkIfMissing(state, cycleId, system, neighbour, nextId);
             }
         }
     }
 
-    private static void AddLinkIfMissing(GameState state, Guid cycleId, GalaxySystem first, GalaxySystem second)
+    private static void AddLinkIfMissing(
+        GameState state,
+        Guid cycleId,
+        GalaxySystem first,
+        GalaxySystem second,
+        Func<Guid> nextId)
     {
         if (state.SystemLinks.Any(link => link.CycleId == cycleId && link.Connects(first.SystemId, second.SystemId)))
         {
@@ -179,6 +218,7 @@ public static class GameSeeder
         var distance = Distance(first, second);
         state.SystemLinks.Add(new SystemLink
         {
+            SystemLinkId = nextId(),
             CycleId = cycleId,
             SystemAId = first.SystemId,
             SystemBId = second.SystemId,
@@ -187,7 +227,12 @@ public static class GameSeeder
         });
     }
 
-    private static void AddPlayersAndEmpires(GameState state, Cycle cycle, int empireCount, DateTimeOffset now)
+    private static void AddPlayersAndEmpires(
+        GameState state,
+        Cycle cycle,
+        int empireCount,
+        DateTimeOffset now,
+        Func<Guid> nextId)
     {
         var homeSystems = SelectHomeSystems(state.Systems.Where(system => system.CycleId == cycle.CycleId), empireCount);
 
@@ -195,6 +240,7 @@ public static class GameSeeder
         {
             var player = new Player
             {
+                PlayerId = nextId(),
                 Username = $"player-{index + 1}",
                 Email = $"player-{index + 1}@cycles.local",
                 PasswordHash = "prototype",
@@ -207,6 +253,7 @@ public static class GameSeeder
             var homeSystem = homeSystems[index];
             var empire = new Empire
             {
+                EmpireId = nextId(),
                 CycleId = cycle.CycleId,
                 PlayerId = player.PlayerId,
                 EmpireName = EmpireNames[index % EmpireNames.Length],
@@ -218,6 +265,7 @@ public static class GameSeeder
 
             state.EmpireResources.Add(new EmpireResource
             {
+                EmpireResourceId = nextId(),
                 EmpireId = empire.EmpireId,
                 Industry = 100,
                 Research = 100,
@@ -227,6 +275,7 @@ public static class GameSeeder
 
             state.EmpirePriorities.Add(new EmpirePriority
             {
+                EmpirePriorityId = nextId(),
                 EmpireId = empire.EmpireId,
                 IndustryWeight = 30,
                 ResearchWeight = 25,
@@ -237,6 +286,7 @@ public static class GameSeeder
 
             var admiral = new Admiral
             {
+                AdmiralId = nextId(),
                 CycleId = cycle.CycleId,
                 EmpireId = empire.EmpireId,
                 AdmiralName = AdmiralNames[index % AdmiralNames.Length],
@@ -249,6 +299,7 @@ public static class GameSeeder
 
             state.Fleets.Add(new Fleet
             {
+                FleetId = nextId(),
                 CycleId = cycle.CycleId,
                 EmpireId = empire.EmpireId,
                 AdmiralId = admiral.AdmiralId,
@@ -284,5 +335,17 @@ public static class GameSeeder
         var x = first.X - second.X;
         var y = first.Y - second.Y;
         return Math.Sqrt((x * x) + (y * y));
+    }
+
+    private sealed class DeterministicIdentitySequence(int seed)
+    {
+        private int sequence;
+
+        public Guid Next()
+        {
+            var value = $"cycles-balance:{seed}:{sequence++}";
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+            return new Guid(hash.AsSpan(0, 16));
+        }
     }
 }

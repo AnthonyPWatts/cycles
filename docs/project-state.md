@@ -110,6 +110,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Completing a Cycle records `SystemHistoricalSignals` for affected systems, including battle count, total losses, largest local battle, and historical-significance increase.
 - Completing a Cycle preserves the top 10% of battles by total losses, with a minimum of one battle, in `CycleMajorEvents`.
 - The CLI can generate a successor Cycle with `cycle next`, using completed-Cycle rankings to preserve player continuity and selected historical system facts to carry famous system names/significance into the new galaxy.
+- The CLI can run a deterministic repeated-tick balance scenario that drives existing orders and reports economy, colonisation, combat, map-control, and retained-history evidence without changing production state.
 
 ### Orders
 
@@ -216,6 +217,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database
 Result: 107 tests passed, including domain, API, worker, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
+The balance scenario suite verifies repeatable reports, existing-rule coverage, non-negative resources, invalid inputs, and an explicit retained-record stop for long diagnostic runs.
 The test helper uses a temporary `BaseOutputPath` so the suite can run even when a local `Cycles.Api` process has the normal build output locked.
 
 Additional smoke checks performed during the MVP build-out:
@@ -259,6 +261,7 @@ These are known gaps, not defects in the current MVP claim:
 - No historical-system evolution across Cycles.
 - No multiplayer security boundary.
 - Combat is deliberately primitive and not balanced.
+- A sustained-conflict balance scenario reaches the 15,000-record diagnostic guard after tick 475 of a requested 2,160-tick Cycle; the current whole-state in-memory tick path is not yet proven safe for a complete high-activity Cycle.
 - The dashboard is a prototype, not a full game client.
 
 ## Current Development Priority

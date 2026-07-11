@@ -54,6 +54,7 @@ Start here before adding the next substantial feature:
 - [Tick recovery](docs/recovery.md)
 - [Determinism contract](docs/determinism.md)
 - [Ranking metrics](docs/ranking-metrics.md)
+- [Balance scenarios](docs/balance-scenarios.md)
 
 ## Run
 
@@ -81,6 +82,7 @@ dotnet run --project src/Cycles.Cli -- tick data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- show data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle end data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle next data/cycles-state.json
+dotnet run --project src/Cycles.Cli -- balance 48 24 4 71421
 dotnet run --project src/Cycles.Cli -- recovery data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- recovery details data/cycles-state.json
 ```

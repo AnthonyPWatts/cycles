@@ -20,6 +20,11 @@ try
         return RunCycleCommand(args);
     }
 
+    if (command == "balance")
+    {
+        return RunBalanceScenario(args);
+    }
+
     var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
     var store = GameStateStoreFactory.Create(statePath);
 
@@ -277,6 +282,34 @@ static int RunCycleCommand(string[] args)
     }
 }
 
+static int RunBalanceScenario(string[] args)
+{
+    var options = new BalanceScenarioOptions(
+        TickCount: ParseOptionalInt(args, 1, 48),
+        SystemCount: ParseOptionalInt(args, 2, 24),
+        EmpireCount: ParseOptionalInt(args, 3, 4),
+        Seed: ParseOptionalInt(args, 4, 71421));
+    var result = BalanceScenarioRunner.Run(options);
+
+    Console.WriteLine($"Balance scenario | seed {options.Seed} | {options.TickCount} ticks | {options.SystemCount} systems | {options.EmpireCount} empires");
+    Console.WriteLine($"Rendezvous: {result.RendezvousSystem}");
+    Console.WriteLine($"Orders: {result.OrdersProcessed}; battles: {result.Battles}; colonies: {result.ColonialOutposts}; Chronicle entries: {result.ChronicleEntries}");
+    Console.WriteLine($"Completed ship construction: {result.CompletedShipConstructions}; doctrine unlocks: {result.DoctrineUnlocks}; map-control gap: {result.MapControlGap:0.##} points");
+    Console.WriteLine($"Retained records: {result.RetainedRecords:N0}");
+    if (result.StopReason is not null)
+    {
+        Console.WriteLine($"Partial run: {result.StopReason}");
+    }
+    Console.WriteLine();
+    Console.WriteLine("Empire | Ships | Growth | Map | Colonies | Industry | Research | Population | W-L");
+    foreach (var empire in result.Empires)
+    {
+        Console.WriteLine($"{empire.EmpireName} | {empire.ActiveShips} | {empire.ShipGrowthFactor:0.00}x | {empire.MapControlPercent:0.00}% | {empire.ColonialOutposts} | {empire.Industry:0.00} | {empire.Research:0.00} | {empire.Population:0.00} | {empire.BattlesWon}-{empire.BattlesLost}");
+    }
+
+    return 0;
+}
+
 static int RunRecoveryCommand(string[] args)
 {
     var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
@@ -527,6 +560,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next [statePath] [completedCycleId] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
