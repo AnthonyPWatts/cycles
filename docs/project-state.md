@@ -168,7 +168,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 
 ### API And Dashboard
 
-- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, colonisation orders, order cancellation, priorities, recent events, and Chronicle entries.
+- The API exposes current Cycle, last tick summary, empire summary, galaxy, system detail, fleets, fleet detail, order queue, movement orders, attack orders, colonisation orders, order cancellation, priorities, recent events, and Chronicle entries through explicit response DTOs rather than domain entities.
 - The API has development auth: `/auth/login` creates or finds a local player and empire, assigns a `Player` or `Admin` role, and issues an HttpOnly development cookie.
 - `/auth/session` restores the current development-auth session for the dashboard.
 - Player order and priority mutations derive empire authority from the authenticated player context.
@@ -206,20 +206,14 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 
 ## Verified Checks
 
-Last full restore/build/test verification on 2026-06-24:
+Latest full verification on 2026-07-11 used the repository test helper with SQL Server integration enabled:
 
 ```powershell
-dotnet restore Cycles.slnx --configfile NuGet.Config
-dotnet build Cycles.slnx --no-restore
-dotnet test Cycles.slnx --no-build
-```
-
-Local test helper verified on 2026-06-30:
-
-```powershell
-.\eng\test.ps1 -Filter InfluenceTests
+$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14335;Database=CyclesDb;User Id=sa;Password=<local-password>;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 .\eng\test.ps1
 ```
+
+Result: 107 tests passed, including domain, API, worker, migration, and live SQL Server integration coverage. Migration `012_add_diplomatic_relationships` was applied through the CLI before the run.
 
 The automated suite includes determinism tests for seeded galaxy layout fields and combat resolution with stable persisted IDs.
 The test helper uses a temporary `BaseOutputPath` so the suite can run even when a local `Cycles.Api` process has the normal build output locked.
@@ -231,6 +225,9 @@ Additional smoke checks performed during the MVP build-out:
 - Browser dashboard desktop and mobile layout checks.
 - Browser dashboard move-order submission.
 - API development-auth and player/empire authorisation boundary tests.
+- API response-contract regression test preventing domain-entity leakage.
+- Scheduled worker smoke run against an isolated JSON state file.
+- Colonisation dashboard flow and development-admin tick control in the in-app browser before the response-DTO hardening pass.
 - CLI `show` and `tick` against SQL Server.
 - API `/cycles/current` against SQL Server.
 - Opt-in SQL Server integration tests with `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`.
@@ -268,17 +265,17 @@ These are known gaps, not defects in the current MVP claim:
 
 The partial Q001-Q012 product-owner response selected population/colonisation as the next headline system, strategic choice as the next test goal, and a private alpha as the delivery target. The first population-funded colonisation loop is implemented and verified through Core, JSON, SQL Server, authenticated API endpoints, and the dashboard. Private-alpha operation now also has a scheduled worker and a development-admin manual tick control without exposing simulation execution to ordinary players.
 
-The next stage should therefore:
+All implementation directly authorised by Q001-Q012 is now present. The next stage should therefore:
 
 1. exercise colonisation balance over repeated ticks before adding capture, destruction, or infrastructure mechanics;
 2. keep player-facing diplomacy deferred until Q013-Q022 define treaty lifecycle, declarations, alliance effects, visibility, and Chronicle treatment;
 3. keep adding live SQL Server integration verification around every new migration and focused tick write;
-4. remove remaining direct domain-entity API responses where stable response DTOs can now be defined;
-5. choose production authentication, admin provisioning, hosting, worker health, and backup boundaries before any untrusted online test.
+4. choose production authentication, admin provisioning, hosting, worker health, and backup boundaries before any untrusted online test;
+5. answer the doctrine, combat, narrative, visibility, continuity, and JSON-lifecycle questions before expanding those systems.
 
 ## Definition Of The Next Stable State
 
-The project reaches the next stable state when:
+The repository has reached the locally runnable stable state defined by these checks:
 
 - a fresh checkout can restore, build, test, seed, tick, and run the API from documented commands;
 - simulation state can be persisted in a relational store;

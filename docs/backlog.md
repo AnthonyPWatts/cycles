@@ -63,6 +63,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Demote JSON persistence to import/export-only once the SQL-backed flow is stable.
 - [ ] Optional: add JSON import/export for developer convenience.
 
+Blocked/deferred: Q119 must settle whether JSON is removed, retained for development, or becomes import/export-only. The optional import/export tool should follow that decision rather than pre-empt it. `Cycles.Application` remains a conditional extraction, not unfinished behaviour; add it only when orchestration demonstrably outgrows the current Core/store boundaries.
+
 ## Stage 3: Strategic Economy
 
 - [x] Define resource semantics for industry, research, and population.
@@ -113,6 +115,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [x] Improve dashboard visual polish without changing order flows.
 - [ ] Add production worker health, hosting, and leader-election policy before deployment.
 
+Blocked: production authentication, admin provisioning, hosting, worker topology, secrets, and backup expectations require the unanswered deployment/auth decisions before the private alpha can be exposed to untrusted users.
+
 ## Stage 5: History And Cycle Continuity
 
 - [x] Define ranking metrics.
@@ -138,6 +142,8 @@ This backlog is grouped by intended development stage. It is not a promise that 
 - [ ] Decide AI provider boundary.
 - [ ] Add provider failure handling.
 - [x] Add tests that generated text includes required facts.
+
+Blocked: Q094-Q101 must settle whether AI generation is in the near-term alpha, which provider boundary is acceptable, how work is queued, and what player-visible failure/fallback behaviour is required.
 
 ## Stage 7: Admirals And Named Figures
 
@@ -172,15 +178,19 @@ Blocked decisions: Q013-Q022 still need to settle action timing, mutual acceptan
 - [ ] Add hidden/partial influence rules carefully.
 - [ ] Add tests for each modifier against influence/combat.
 
+Blocked: Q035-Q046 must define doctrine choice, research spending/unlocks, modifier scope, logistics, cloaking, detection, and visibility semantics before these systems can be implemented coherently. The existing Survey Projection threshold remains a deliberately small research accumulation effect, not the missing doctrine system.
+
 ## Technical Debt And Risks
 
 - [x] Replace JSON-backed `GameState.DeepClone` before state grows large.
-- [ ] Current `FactJson` strings are flexible but weakly typed. Consider typed facts or validated schemas.
+- [ ] Current `FactJson` strings are flexible but weakly typed. Consider typed facts or validated schemas once diplomacy/narrative fact contracts stabilise.
 - [ ] Current combat model is not balanced.
 - [ ] Current dashboard assumes a small galaxy.
-- [ ] Current API returns some domain entities directly.
+- [x] Replace direct domain-entity API responses with explicit response DTOs and a regression guard.
 - [ ] Current development auth is not production security.
-- [ ] Current docs are manual and can drift; update them as part of meaningful feature work.
+- [x] Bring the main documents up to date with the private-alpha implementation pass.
+
+Deferred/blocked: combat balance needs private-alpha evidence and the unanswered combat decisions; dashboard scaling needs a target galaxy/player scale; production security needs the unanswered auth and deployment decisions. Typed fact schemas should follow stable diplomacy and narrative contracts instead of freezing prototype JSON prematurely.
 
 ## Parking Lot
 

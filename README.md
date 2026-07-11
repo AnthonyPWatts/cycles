@@ -37,7 +37,7 @@ The current playable surface is a command dashboard: players read the galaxy map
 - `src/Cycles.Api`: Minimal API, public website, and browser dashboard.
 - `src/Cycles.Worker`: scheduled authoritative tick runner.
 - `src/Cycles.Infrastructure.SqlServer`: SQL Server implementation of the prototype state store.
-- `tests/Cycles.Tests`: xUnit tests for the core simulation behaviours.
+- `tests/Cycles.Tests`: xUnit tests for simulation, API contracts, worker scheduling, and SQL Server persistence.
 - `database/sqldockerdeploykit`: SQL Server container bootstrap based on the SQLDockerDeployKit pattern.
 - `docs`: current state, roadmap, architecture direction, backlog, and decision log.
 
@@ -114,21 +114,21 @@ docker run --name cycles-sql -d -p 14333:1433 -e "MSSQL_SA_PASSWORD=YourStrong!P
 The container uses SQL Server 2022, creates `CyclesDb`, applies the SQL migrations, and seeds a small smoke-test Cycle. For an existing or empty SQL Server database, apply migrations through the CLI:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
+dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 ```
 
 Run the CLI against SQL Server:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
-dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
+dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 ```
 
 Run the API against SQL Server:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 ```
 
 See [database/sqldockerdeploykit](database/sqldockerdeploykit/README.md) for verification queries, persistence notes, and cleanup.

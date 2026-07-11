@@ -352,7 +352,7 @@ These do not need product-owner decisions unless product behaviour should differ
 - Keep SQL Server as the current relational implementation.
 - Keep JSON persistence only as development/import/export support.
 - Keep tick execution outside public player-facing endpoints.
-- Keep recovery administration CLI-only until admin auth exists.
+- Keep recovery administration CLI-only for the current private alpha; define a production admin recovery boundary with production auth.
 - Prefer explicit API response DTOs over returning domain entities directly.
 - Keep facts authoritative and generated prose non-authoritative.
-- Keep future diplomacy, admirals, doctrine, cloaking, logistics, and complex AI narrative parked until the simulation spine and economy are stronger.
+- Keep player-facing diplomacy, doctrine, cloaking, logistics, and complex AI narrative parked until their unanswered product contracts are settled; the admiral slice and diplomacy storage/aggression foundation are complete.

@@ -298,4 +298,4 @@ When deployment becomes relevant, define:
 - backup/restore plan;
 - admin recovery process.
 
-Do not add deployment complexity before relational persistence and tick recovery are stable.
+Relational persistence and tick recovery are now stable enough for a local/private alpha. Do not add production deployment complexity until authentication, admin provisioning, worker topology, secrets, and backup/restore expectations are explicitly chosen.

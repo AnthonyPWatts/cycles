@@ -435,14 +435,14 @@ This order favours history first. Admirals create narrative anchors; diplomacy c
 - Do not let AI invent outcomes.
 - Do not make future extensibility more important than current clarity.
 
-## Suggested Immediate Next Sprint
+## Next Decision-Gated Sprint
 
-The next development sprint should finish the remaining Stage 2 hardening, then move into the next player-visible spine work. A sensible next sprint:
+The simulation spine, focused SQL tick path, per-Cycle lock, first visibility model, colonisation loop, scheduled worker, admin tick control, diplomacy foundation, and explicit API response contracts are implemented. The next sprint should start only after selecting one coherent gate:
 
-1. Add live SQL Server integration verification around the migration command and focused tick operations when the local container is available.
-2. Add per-Cycle tick locking as the SQL write model becomes incremental.
-3. Keep focused Core files small as repository operations are introduced.
-4. Add the first visibility/fog-of-war filtering now that player identity exists.
-5. Update `docs/project-state.md` after verification.
+1. answer Q013-Q022 and build the player-facing diplomacy lifecycle;
+2. answer Q035-Q046 and define doctrine/research modifiers;
+3. answer Q094-Q101 and add queued narrative generation with a provider/failure contract;
+4. answer the production auth/deployment questions and harden the private-alpha operational boundary; or
+5. gather repeated-tick colonisation/combat evidence and tune the named balance constants without expanding the model.
 
-This produces a better foundation for the relational persistence work that follows.
+Whichever gate is selected, continue live SQL Server migration/tick verification and keep the main status documents current in the same slice.
