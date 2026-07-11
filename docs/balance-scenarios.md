@@ -7,12 +7,22 @@ The balance scenario is a deterministic engineering diagnostic for exercising th
 Run it through the CLI:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed]
+dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed] [balanced|military|expansion|cautious]
+dotnet run --project src/Cycles.Cli -- balance compare [tickCount] [systemCount] [empireCount] [seed]
 ```
 
-The default is 48 ticks, 24 systems, four empires, and seed `71421`. The runner keeps each home fleet in place, launches deterministic 30-ship expedition waves when a home fleet reaches 60 ships, colonises eligible systems, and routes expeditions towards a shared central system. Co-located hostile expeditions attack. The same inputs produce the same report.
+The default is 48 ticks, 24 systems, four empires, seed `71421`, and the balanced strategy. The runner keeps each home fleet in place, launches deterministic 30-ship expedition waves when a home fleet reaches 60 ships, and routes expeditions towards a shared central system. The same inputs produce the same report.
 
-The policy deliberately creates sustained conflict so that construction, attrition, Chronicle selection, and state growth are observable. It does not model diplomacy, cautious play, player-specific priorities, target selection, or an optimal strategy.
+The four diagnostic strategies apply one policy to every empire in a run:
+
+| Strategy | Priorities: Industry / Research / Military / Expansion | Colonises | Attacks local hostiles | Avoids hostile destinations |
+| --- | --- | --- | --- | --- |
+| Balanced | 30 / 25 / 30 / 15 | Yes | Yes | No |
+| Military | 10 / 10 / 70 / 10 | No | Yes | No |
+| Expansion | 10 / 10 / 10 / 70 | Yes | Yes | No |
+| Cautious | 20 / 20 / 20 / 40 | Yes | No | Yes |
+
+These policies create repeatable contrasts; they are not player AI or claims about optimal play. The homogeneous runs isolate policy effects before a future mixed-strategy scenario puts different policies in direct competition.
 
 ## Baseline Evidence
 
@@ -27,11 +37,25 @@ Seed `71421`, 24 systems, four empires:
 
 The full 2,160-tick run now completes without deleting or archiving historical records. On the local 2026-07-11 verification run, order planning took 3.16 seconds, Core tick processing took 5.37 seconds, and total CLI wall time including build and startup was 18.39 seconds. The fix replaced full-history entity cloning with a focused transactional working copy and replaced per-fleet planner rescans with per-tick indexes and a precomputed route map.
 
+## Strategy Comparison Evidence
+
+Seed `71421`, 96 ticks, 24 systems, four empires:
+
+| Strategy | Orders | Battles | Colonies | Ships completed | Map-control gap | Active-ship range | Industry range |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Balanced | 256 | 107 | 12 | 1,102 | 3.68 | 52-76 | 122.02-314.12 |
+| Military | 236 | 96 | 0 | 1,113 | 4.17 | 39-234 | 10.80-87.94 |
+| Expansion | 228 | 100 | 12 | 982 | 8.33 | 37-95 | 456.21-1,576.59 |
+| Cautious | 54 | 0 | 8 | 1,334 | 0.00 | 358-446 | 419.00-508.00 |
+
+The military policy completed more ships than the expansion policy and left little industry unspent. The expansion policy produced the widest final map-control gap. The cautious policy avoided combat, retained far larger fleets, and completed the most ships despite its lower Military weight because it did not lose ships and continued accumulating industry. Movement and engagement policy therefore changes the outcome as much as the priority split.
+
 ## Current Interpretation
 
 - Military construction and sustained combat broadly offset each other through the first 96 ticks, although one empire can still accumulate a large surviving fleet over longer runs.
 - Research and population stockpiles grow continuously after the one research unlock and the available colonisation targets are exhausted. This is expected from the currently implemented sinks, but the quantities become very large long before the configured 90-day Cycle ends.
 - Map control remains fairly compressed in this artificial convergence policy. The scenario does not justify changing the colonisation cost, outpost presence, ship cost, build delay, research threshold, or Chronicle threshold in isolation.
-- Full-Cycle local simulation capacity is now proven for this deliberately busy scenario. The next evidence-led balance step should compare deliberate priority strategies and less aggressive movement policies.
+- Full-Cycle local simulation capacity is proven for the deliberately busy balanced scenario.
+- Deliberate priority and engagement policies now produce distinct, repeatable outcomes. A future mixed-strategy scenario can test direct competition, but the current evidence does not justify changing one balance constant in isolation.
 
 No balance constant was changed from this first baseline. The accepted product direction permits uncapped within-Cycle growth, and changing a single number would hide the missing long-term resource sinks rather than establish better balance.

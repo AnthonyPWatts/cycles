@@ -310,17 +310,37 @@ static int RunCycleCommand(string[] args)
 
 static int RunBalanceScenario(string[] args)
 {
+    var compare = string.Equals(args.ElementAtOrDefault(1), "compare", StringComparison.OrdinalIgnoreCase);
+    var offset = compare ? 1 : 0;
     var options = new BalanceScenarioOptions(
-        TickCount: ParseOptionalInt(args, 1, 48),
-        SystemCount: ParseOptionalInt(args, 2, 24),
-        EmpireCount: ParseOptionalInt(args, 3, 4),
-        Seed: ParseOptionalInt(args, 4, 71421));
+        TickCount: ParseOptionalInt(args, 1 + offset, 48),
+        SystemCount: ParseOptionalInt(args, 2 + offset, 24),
+        EmpireCount: ParseOptionalInt(args, 3 + offset, 4),
+        Seed: ParseOptionalInt(args, 4 + offset, 71421),
+        Strategy: compare ? BalanceScenarioStrategy.Balanced : ParseBalanceStrategy(args.ElementAtOrDefault(5)));
+
+    if (compare)
+    {
+        var comparison = BalanceScenarioRunner.Compare(options);
+        Console.WriteLine($"Balance comparison | seed {options.Seed} | {options.TickCount} ticks | {options.SystemCount} systems | {options.EmpireCount} empires");
+        Console.WriteLine("Strategy | Orders | Battles | Colonies | Ships built | Map gap | Active ships | Industry");
+        foreach (var comparisonResult in comparison)
+        {
+            Console.WriteLine(
+                $"{comparisonResult.Options.Strategy} | {comparisonResult.OrdersProcessed:N0} | {comparisonResult.Battles:N0} | {comparisonResult.ColonialOutposts:N0} | "
+                + $"{comparisonResult.CompletedShips:N0} | {comparisonResult.MapControlGap:0.##} | {FormatRange(comparisonResult.Empires.Select(empire => (decimal)empire.ActiveShips))} | "
+                + FormatRange(comparisonResult.Empires.Select(empire => empire.Industry)));
+        }
+
+        return 0;
+    }
+
     var result = BalanceScenarioRunner.Run(options);
 
-    Console.WriteLine($"Balance scenario | seed {options.Seed} | {options.TickCount} ticks | {options.SystemCount} systems | {options.EmpireCount} empires");
+    Console.WriteLine($"Balance scenario | {options.Strategy} | seed {options.Seed} | {options.TickCount} ticks | {options.SystemCount} systems | {options.EmpireCount} empires");
     Console.WriteLine($"Rendezvous: {result.RendezvousSystem}");
     Console.WriteLine($"Orders: {result.OrdersProcessed}; battles: {result.Battles}; colonies: {result.ColonialOutposts}; Chronicle entries: {result.ChronicleEntries}");
-    Console.WriteLine($"Completed ship construction: {result.CompletedShipConstructions}; doctrine unlocks: {result.DoctrineUnlocks}; map-control gap: {result.MapControlGap:0.##} points");
+    Console.WriteLine($"Completed ship construction: {result.CompletedShipConstructions} batches / {result.CompletedShips} ships; doctrine unlocks: {result.DoctrineUnlocks}; map-control gap: {result.MapControlGap:0.##} points");
     Console.WriteLine($"Retained records: {result.RetainedRecords:N0}");
     Console.WriteLine($"Timing: order planning {result.OrderPlanningMilliseconds:0.00} ms; tick processing {result.TickProcessingMilliseconds:0.00} ms");
     if (result.StopReason is not null)
@@ -335,6 +355,22 @@ static int RunBalanceScenario(string[] args)
     }
 
     return 0;
+}
+
+static BalanceScenarioStrategy ParseBalanceStrategy(string? value) =>
+    value?.ToLowerInvariant() switch
+    {
+        null or "balanced" => BalanceScenarioStrategy.Balanced,
+        "military" => BalanceScenarioStrategy.Military,
+        "expansion" => BalanceScenarioStrategy.Expansion,
+        "cautious" => BalanceScenarioStrategy.Cautious,
+        _ => throw new ArgumentException("Balance strategy must be balanced, military, expansion, or cautious.")
+    };
+
+static string FormatRange(IEnumerable<decimal> values)
+{
+    var materialised = values.ToArray();
+    return $"{materialised.Min():0.##}-{materialised.Max():0.##}";
 }
 
 static int RunRecoveryCommand(string[] args)
@@ -615,7 +651,8 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- diagnostics [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed] [balanced|military|expansion|cautious]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance compare [tickCount] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next [statePath] [completedCycleId] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");

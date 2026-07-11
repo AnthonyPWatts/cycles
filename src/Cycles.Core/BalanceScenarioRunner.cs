@@ -4,12 +4,21 @@ using System.Text;
 
 namespace Cycles.Core;
 
+public enum BalanceScenarioStrategy
+{
+    Balanced,
+    Military,
+    Expansion,
+    Cautious
+}
+
 public sealed record BalanceScenarioOptions(
     int TickCount = 48,
     int SystemCount = 24,
     int EmpireCount = 4,
     int Seed = 71421,
-    int RetainedRecordLimit = 150_000);
+    int RetainedRecordLimit = 150_000,
+    BalanceScenarioStrategy Strategy = BalanceScenarioStrategy.Balanced);
 
 public sealed record BalanceEmpireResult(
     string EmpireName,
@@ -33,6 +42,7 @@ public sealed record BalanceScenarioResult(
     int ChronicleEntries,
     int ColonialOutposts,
     int CompletedShipConstructions,
+    int CompletedShips,
     int DoctrineUnlocks,
     decimal MapControlGap,
     int RetainedRecords,
@@ -46,6 +56,11 @@ public static class BalanceScenarioRunner
     private const int ExpeditionShipCount = 30;
     private const int MinimumHomeShipsToLaunch = 60;
     private static readonly DateTimeOffset ScenarioStart = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    public static IReadOnlyList<BalanceScenarioResult> Compare(BalanceScenarioOptions options) =>
+        Enum.GetValues<BalanceScenarioStrategy>()
+            .Select(strategy => Run(options with { Strategy = strategy }))
+            .ToArray();
 
     public static BalanceScenarioResult Run(BalanceScenarioOptions options)
     {
@@ -63,6 +78,8 @@ public static class BalanceScenarioRunner
             options.Seed,
             ScenarioStart);
         var cycle = state.GetActiveCycle()!;
+        var strategy = GetStrategy(options.Strategy);
+        ApplyStrategy(state, cycle.CycleId, strategy);
         CreateExpeditionFleets(state, cycle.CycleId, options.Seed);
         var rendezvous = SelectRendezvousSystem(state, cycle.CycleId);
         var initialShips = state.Empires.ToDictionary(
@@ -86,7 +103,7 @@ public static class BalanceScenarioRunner
             var now = ScenarioStart.AddMinutes(cycle.TickLengthMinutes * tick);
             var orderPlanningStarted = Stopwatch.GetTimestamp();
             LaunchAvailableExpeditions(state, cycle.CycleId, options.Seed, now);
-            SubmitScenarioOrders(state, cycle.CycleId, rendezvous.SystemId, now);
+            SubmitScenarioOrders(state, cycle.CycleId, rendezvous.SystemId, strategy, now);
             orderPlanningTime += Stopwatch.GetElapsedTime(orderPlanningStarted);
             var tickProcessingStarted = Stopwatch.GetTimestamp();
             var tickResult = engine.RunTick(state, cycle.CycleId, now);
@@ -120,6 +137,10 @@ public static class BalanceScenarioRunner
             state.ColonialOutposts.Count(outpost => outpost.CycleId == cycle.CycleId),
             state.ShipConstructions.Count(construction => construction.CycleId == cycle.CycleId
                                                         && construction.Status == ShipConstructionStatus.Completed),
+            state.ShipConstructions
+                .Where(construction => construction.CycleId == cycle.CycleId
+                                       && construction.Status == ShipConstructionStatus.Completed)
+                .Sum(construction => construction.ShipCount),
             state.Events.Count(item => item.CycleId == cycle.CycleId && item.EventType == EventType.DoctrineUnlocked),
             mapControlValues.Max() - mapControlValues.Min(),
             GameStateRecordCounter.CountCycleRecords(state, cycle.CycleId),
@@ -129,7 +150,12 @@ public static class BalanceScenarioRunner
             empireResults);
     }
 
-    private static void SubmitScenarioOrders(GameState state, Guid cycleId, Guid rendezvousSystemId, DateTimeOffset now)
+    private static void SubmitScenarioOrders(
+        GameState state,
+        Guid cycleId,
+        Guid rendezvousSystemId,
+        BalanceStrategy strategy,
+        DateTimeOffset now)
     {
         var empiresById = state.Empires
             .Where(empire => empire.CycleId == cycleId)
@@ -180,10 +206,15 @@ public static class BalanceScenarioRunner
                 .DistinctBy(empire => empire.EmpireId)
                 .OrderBy(empire => empire.EmpireName)
                 .FirstOrDefault();
-            if (hostileEmpire is not null)
+            if (hostileEmpire is not null && strategy.AttackHostiles)
             {
                 OrderService.SubmitAttackOrder(state, fleet.FleetId, hostileEmpire.EmpireId, now);
                 pendingFleetIds.Add(fleet.FleetId);
+                continue;
+            }
+
+            if (hostileEmpire is not null)
+            {
                 continue;
             }
 
@@ -199,7 +230,8 @@ public static class BalanceScenarioRunner
                                      && localPresence
                                          .Where(item => item.Key != fleet.EmpireId)
                                          .All(item => empirePresence > item.Value);
-            var canColonise = fleet.CurrentSystemId != empire.HomeSystemId
+            var canColonise = strategy.Colonise
+                              && fleet.CurrentSystemId != empire.HomeSystemId
                               && resources.Population >= OrderService.ColonisationPopulationCost
                               && !establishedOutposts.Contains((fleet.EmpireId, fleet.CurrentSystemId))
                               && !pendingColonisations.Contains((fleet.EmpireId, fleet.CurrentSystemId))
@@ -218,10 +250,52 @@ public static class BalanceScenarioRunner
             }
 
             var nextSystemId = nextHops[fleet.CurrentSystemId];
+            if (strategy.AvoidHostileDestinations
+                && activeFleetsBySystem[nextSystemId].Any(other => other.EmpireId != fleet.EmpireId))
+            {
+                continue;
+            }
+
             OrderService.SubmitMoveOrder(state, fleet.FleetId, nextSystemId, now);
             pendingFleetIds.Add(fleet.FleetId);
         }
     }
+
+    private static void ApplyStrategy(GameState state, Guid cycleId, BalanceStrategy strategy)
+    {
+        var empireIds = state.Empires
+            .Where(empire => empire.CycleId == cycleId)
+            .Select(empire => empire.EmpireId)
+            .ToHashSet();
+
+        foreach (var priority in state.EmpirePriorities.Where(priority => empireIds.Contains(priority.EmpireId)))
+        {
+            priority.IndustryWeight = strategy.IndustryWeight;
+            priority.ResearchWeight = strategy.ResearchWeight;
+            priority.MilitaryWeight = strategy.MilitaryWeight;
+            priority.ExpansionWeight = strategy.ExpansionWeight;
+            priority.UpdatedAt = ScenarioStart;
+        }
+    }
+
+    private static BalanceStrategy GetStrategy(BalanceScenarioStrategy strategy) =>
+        strategy switch
+        {
+            BalanceScenarioStrategy.Balanced => new BalanceStrategy(30, 25, 30, 15, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Military => new BalanceStrategy(10, 10, 70, 10, AttackHostiles: true, Colonise: false, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Expansion => new BalanceStrategy(10, 10, 10, 70, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Cautious => new BalanceStrategy(20, 20, 20, 40, AttackHostiles: false, Colonise: true, AvoidHostileDestinations: true),
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unknown balance scenario strategy.")
+        };
+
+    private sealed record BalanceStrategy(
+        int IndustryWeight,
+        int ResearchWeight,
+        int MilitaryWeight,
+        int ExpansionWeight,
+        bool AttackHostiles,
+        bool Colonise,
+        bool AvoidHostileDestinations);
 
     private static void CreateExpeditionFleets(GameState state, Guid cycleId, int seed)
     {

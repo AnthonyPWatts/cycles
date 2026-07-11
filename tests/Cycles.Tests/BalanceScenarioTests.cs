@@ -40,6 +40,28 @@ public sealed class BalanceScenarioTests
     }
 
     [Fact]
+    public void ComparisonExercisesDistinctStrategicPolicies()
+    {
+        var results = BalanceScenarioRunner.Compare(new BalanceScenarioOptions(
+            TickCount: 48,
+            SystemCount: 12,
+            EmpireCount: 3,
+            Seed: 71421));
+
+        Assert.Equal(Enum.GetValues<BalanceScenarioStrategy>(), results.Select(result => result.Options.Strategy));
+        Assert.All(results, result => Assert.Equal(48, result.CompletedTicks));
+
+        var military = results.Single(result => result.Options.Strategy == BalanceScenarioStrategy.Military);
+        var expansion = results.Single(result => result.Options.Strategy == BalanceScenarioStrategy.Expansion);
+        var cautious = results.Single(result => result.Options.Strategy == BalanceScenarioStrategy.Cautious);
+
+        Assert.True(military.CompletedShips > expansion.CompletedShips);
+        Assert.Equal(0, military.ColonialOutposts);
+        Assert.True(expansion.ColonialOutposts > military.ColonialOutposts);
+        Assert.Equal(0, cautious.Battles);
+    }
+
+    [Fact]
     public void ScenarioRejectsInvalidDimensions()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => BalanceScenarioRunner.Run(
@@ -71,6 +93,7 @@ public sealed class BalanceScenarioTests
         result.ChronicleEntries,
         result.ColonialOutposts,
         result.CompletedShipConstructions,
+        result.CompletedShips,
         result.DoctrineUnlocks,
         result.MapControlGap,
         result.RetainedRecords,
@@ -95,6 +118,7 @@ public sealed class BalanceScenarioTests
         int ChronicleEntries,
         int ColonialOutposts,
         int CompletedShipConstructions,
+        int CompletedShips,
         int DoctrineUnlocks,
         decimal MapControlGap,
         int RetainedRecords,
@@ -110,6 +134,7 @@ public sealed class BalanceScenarioTests
             && ChronicleEntries == other.ChronicleEntries
             && ColonialOutposts == other.ColonialOutposts
             && CompletedShipConstructions == other.CompletedShipConstructions
+            && CompletedShips == other.CompletedShips
             && DoctrineUnlocks == other.DoctrineUnlocks
             && MapControlGap == other.MapControlGap
             && RetainedRecords == other.RetainedRecords
@@ -126,6 +151,7 @@ public sealed class BalanceScenarioTests
             hash.Add(ChronicleEntries);
             hash.Add(ColonialOutposts);
             hash.Add(CompletedShipConstructions);
+            hash.Add(CompletedShips);
             hash.Add(DoctrineUnlocks);
             hash.Add(RetainedRecords);
             hash.Add(StopReason);

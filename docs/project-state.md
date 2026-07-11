@@ -112,7 +112,7 @@ The prototype dashboard is still compact, but the command map, Cycle status, and
 - Completing a Cycle records `SystemHistoricalSignals` for affected systems, including battle count, total losses, largest local battle, and historical-significance increase.
 - Completing a Cycle preserves the top 10% of battles by total losses, with a minimum of one battle, in `CycleMajorEvents`.
 - The CLI can generate a successor Cycle with `cycle next`, using completed-Cycle rankings to preserve player continuity and selected historical system facts to carry famous system names/significance into the new galaxy.
-- The CLI can run a deterministic repeated-tick balance scenario that drives existing orders and reports economy, colonisation, combat, map-control, and retained-history evidence without changing production state.
+- The CLI can run deterministic repeated-tick balance scenarios for balanced, military, expansion, and cautious policies, or compare all four, without changing production state.
 
 ### Orders
 

@@ -90,6 +90,8 @@ dotnet run --project src/Cycles.Cli -- diagnostics data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle end data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- cycle next data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- balance 48 24 4 71421
+dotnet run --project src/Cycles.Cli -- balance 48 24 4 71421 military
+dotnet run --project src/Cycles.Cli -- balance compare 96 24 4 71421
 dotnet run --project src/Cycles.Cli -- recovery data/cycles-state.json
 dotnet run --project src/Cycles.Cli -- recovery details data/cycles-state.json
 ```
