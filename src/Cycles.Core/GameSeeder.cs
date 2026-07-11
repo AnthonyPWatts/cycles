@@ -7,6 +7,8 @@ namespace Cycles.Core;
 
 public static class GameSeeder
 {
+    public const string CuratedColdStartScenarioKey = "development-cold-start-v1";
+
     private static readonly string[] SystemNames =
     [
         "Pseudopolis",
@@ -65,6 +67,17 @@ public static class GameSeeder
         DateTimeOffset? createdAt = null)
     {
         return Create(systemCount, empireCount, seed, createdAt, Guid.NewGuid);
+    }
+
+    public static GameState CreateCuratedColdStart(DateTimeOffset? createdAt = null)
+    {
+        const int seed = 71421;
+        var now = createdAt ?? DateTimeOffset.UtcNow;
+        var identitySequence = new DeterministicIdentitySequence(seed);
+        var state = Create(24, 4, seed, now, identitySequence.Next);
+
+        ApplyCuratedColdStart(state, now, identitySequence.Next);
+        return state;
     }
 
     internal static GameState CreateDeterministicScenario(
@@ -310,6 +323,113 @@ public static class GameSeeder
                 CreatedAt = now
             });
         }
+    }
+
+    private static void ApplyCuratedColdStart(
+        GameState state,
+        DateTimeOffset now,
+        Func<Guid> nextId)
+    {
+        var cycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("The curated cold start requires an active Cycle.");
+        var aurelian = state.Empires.Single(empire => empire.CycleId == cycle.CycleId && empire.EmpireName == "Aurelian Compact");
+        var khepri = state.Empires.Single(empire => empire.CycleId == cycle.CycleId && empire.EmpireName == "Khepri Mandate");
+        var asterVale = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Aster Vale");
+        var nadirCrossing = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Nadir Crossing");
+        var paleHarbour = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Pale Harbour");
+        var treatyGate = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Treaty Gate");
+
+        if (aurelian.HomeSystemId != asterVale.SystemId)
+        {
+            throw new InvalidOperationException("The curated cold start no longer maps the Aurelian Compact to Aster Vale.");
+        }
+
+        treatyGate.HistoricalSignificance = 4;
+
+        var aurelianVanguard = state.Fleets.Single(fleet => fleet.EmpireId == aurelian.EmpireId);
+        aurelianVanguard.FleetName = "Treaty Gate Vanguard";
+        aurelianVanguard.CurrentSystemId = treatyGate.SystemId;
+        aurelianVanguard.ShipCount = 18;
+
+        var homeGuard = new Fleet
+        {
+            FleetId = nextId(),
+            CycleId = cycle.CycleId,
+            EmpireId = aurelian.EmpireId,
+            FleetName = "Aurelian Home Guard",
+            CurrentSystemId = asterVale.SystemId,
+            ShipCount = 30,
+            Status = FleetStatus.Active,
+            CreatedAt = now
+        };
+        state.Fleets.Add(homeGuard);
+
+        var surveyFleet = new Fleet
+        {
+            FleetId = nextId(),
+            CycleId = cycle.CycleId,
+            EmpireId = aurelian.EmpireId,
+            FleetName = "Pale Harbour Survey",
+            CurrentSystemId = paleHarbour.SystemId,
+            ShipCount = 12,
+            Status = FleetStatus.Active,
+            CreatedAt = now
+        };
+        state.Fleets.Add(surveyFleet);
+
+        var khepriRaiders = state.Fleets.Single(fleet => fleet.EmpireId == khepri.EmpireId);
+        khepriRaiders.FleetName = "Khepri Gate Raiders";
+        khepriRaiders.CurrentSystemId = treatyGate.SystemId;
+        khepriRaiders.ShipCount = 20;
+
+        state.Fleets.Add(new Fleet
+        {
+            FleetId = nextId(),
+            CycleId = cycle.CycleId,
+            EmpireId = khepri.EmpireId,
+            FleetName = "Khepri Home Fleet",
+            CurrentSystemId = khepri.HomeSystemId,
+            ShipCount = 40,
+            Status = FleetStatus.Active,
+            CreatedAt = now
+        });
+
+        state.Events.Add(new EventRecord
+        {
+            EventId = nextId(),
+            CycleId = cycle.CycleId,
+            TickNumber = 0,
+            EventType = EventType.OpeningBriefingIssued,
+            SystemId = treatyGate.SystemId,
+            EmpireId = aurelian.EmpireId,
+            Severity = EventSeverity.High,
+            DisplayText = "Day 1 briefing: Khepri raiders contest Treaty Gate. Pale Harbour is ready for an outpost, while Nadir Crossing offers immediate expansion.",
+            FactJson = JsonSerializer.Serialize(new
+            {
+                scenarioKey = CuratedColdStartScenarioKey,
+                focusSystemId = treatyGate.SystemId,
+                objectives = new
+                {
+                    move = new
+                    {
+                        fleetId = homeGuard.FleetId,
+                        targetSystemId = nadirCrossing.SystemId
+                    },
+                    colonise = new
+                    {
+                        fleetId = surveyFleet.FleetId,
+                        systemId = paleHarbour.SystemId
+                    },
+                    attack = new
+                    {
+                        fleetId = aurelianVanguard.FleetId,
+                        systemId = treatyGate.SystemId,
+                        targetEmpireId = khepri.EmpireId
+                    }
+                }
+            }, GameStateJson.Options),
+            CreatedAt = now
+        });
     }
 
     private static List<GalaxySystem> SelectHomeSystems(IEnumerable<GalaxySystem> systems, int count)

@@ -10,8 +10,11 @@ var configuredStatePath = builder.Configuration["Cycles:StatePath"]
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
+Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
+    ? () => GameSeeder.CreateCuratedColdStart()
+    : null;
 
-builder.Services.AddSingleton(GameStateStoreFactory.Create(configuredStatePath, configuredSqlConnectionString));
+builder.Services.AddSingleton(GameStateStoreFactory.Create(configuredStatePath, configuredSqlConnectionString, developmentSeedFactory));
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));

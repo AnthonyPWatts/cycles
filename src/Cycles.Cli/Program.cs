@@ -26,7 +26,7 @@ try
     }
 
     var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
-    var store = GameStateStoreFactory.Create(statePath);
+    var store = GameStateStoreFactory.Create(statePath, seedFactory: () => GameSeeder.CreateCuratedColdStart());
 
     switch (command)
     {
@@ -66,13 +66,17 @@ return 0;
 
 static void Seed(string[] args, IGameStateStore store)
 {
-    var systemCount = ParseOptionalInt(args, 2, 24);
-    var empireCount = ParseOptionalInt(args, 3, 4);
-    var seed = ParseOptionalInt(args, 4, 71421);
-    var state = GameSeeder.CreateDefault(systemCount, empireCount, seed);
+    var useCuratedColdStart = args.Length <= 2;
+    var state = useCuratedColdStart
+        ? GameSeeder.CreateCuratedColdStart()
+        : GameSeeder.CreateDefault(
+            ParseOptionalInt(args, 2, 24),
+            ParseOptionalInt(args, 3, 4),
+            ParseOptionalInt(args, 4, 71421));
 
     store.Replace(state);
     Console.WriteLine($"Seeded {store.Description}");
+    Console.WriteLine($"Scenario: {(useCuratedColdStart ? GameSeeder.CuratedColdStartScenarioKey : "custom")}");
     Console.WriteLine($"Cycle: {state.GetActiveCycle()?.Name}");
     Console.WriteLine($"Systems: {state.Systems.Count}; empires: {state.Empires.Count}; fleets: {state.Fleets.Count}");
 }

@@ -847,6 +847,7 @@ public enum TickLogStatus
 public enum EventType
 {
     CycleSeeded,
+    OpeningBriefingIssued,
     ResourcesGenerated,
     ShipConstructionQueued,
     ShipConstructionCompleted,
