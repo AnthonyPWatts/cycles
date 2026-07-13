@@ -18,7 +18,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. | Generic API/admin SQL mutations still use the whole-state bridge. |
-| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and Chronicle views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
+| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
 
 ## Implemented Rules
 
@@ -76,7 +76,8 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Players can see the full map structure, but exact presence, local fleets, events, last-tick facts, and Chronicle entries are limited by active-fleet visibility. Development admins can inspect all state.
 - In Development, every authenticated player receives an **Advance turn** capability that invokes the same authoritative store operation used by the Worker and CLI. This does not change the player's role, visibility, or empire authority.
 - Ordinary production players cannot execute ticks; a trusted admin can still use the protected operational endpoint.
-- The dashboard uses persistent hash-addressable views: **Command** for resources, priorities, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for fleet detail, order entry, and progressively loaded order history; and **Chronicle** for recorded history beside the recent factual event stream.
+- The dashboard uses persistent hash-addressable views: **Command** for resources, priorities, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records.
+- Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
 
 ### Persistence
@@ -96,7 +97,7 @@ Latest local verification on 2026-07-13:
 .\eng\test.ps1
 ```
 
-Result: **135 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
+Result: **138 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 

@@ -684,3 +684,22 @@ Consequences:
 - **Fleets** groups selection, detail, order entry, and resolved order history. Resolved history renders 20 records at a time.
 - **Chronicle** gives narrative history the main reading area and keeps recent factual events alongside it.
 - View state is hash-addressable, persists locally, supports browser navigation and Alt+1 through Alt+4, and the guide switches views before highlighting a target.
+
+## 2026-07-13: Make History And Fleet Command Contextual
+
+Decision: refine the task-focused dashboard so **History** contains separate Chronicle and Events tabs, while the selected fleet becomes the single context for compact Move, Attack, and Colonise controls. Put resolved intentions in a dedicated Fleet tab rather than beside every command.
+
+Reasoning:
+
+- Chronicle prose and the factual event audit serve different reading tasks and need independent search, filters, and ordering.
+- A bare Chronicle importance number is ambiguous; players need the source tick and a labelled importance score at the point of entry.
+- Repeating a fleet selector inside each action wastes space and permits the command controls to drift away from the fleet being inspected.
+- Resolved intentions are useful reference material, but they should not compete with current fleet decisions for permanent screen space.
+
+Consequences:
+
+- Alt+4 and `#history` open the History parent view. The old `#chronicle` hash remains a compatibility alias.
+- Chronicle entries label source tick and importance, place the authoritative factual summary first, and retain the longer narrative beneath it.
+- Chronicle and Event tabs have independent search, domain-appropriate filters, sorting, and result counts.
+- Fleet selection drives all three action forms. The command dock only asks for a destination or target where one is needed, and the full fleet detail uses the remaining workspace below it.
+- **Resolved orders** supports selected/all-fleet scope, outcome filtering, chronological sorting, and bounded incremental rendering.

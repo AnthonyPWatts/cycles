@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 11 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 13 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -40,9 +40,9 @@ The guide takes you through this sequence:
 1. Read the resource cards and what each stockpile pays for.
 2. Review the four priorities and select **Save priorities**. You may keep the opening allocation or choose another valid total of 100.
 3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
-4. In **Move**, choose **Aurelian Home Guard** and **Nadir Crossing**, then select **Queue move**.
-5. In **Colonise**, choose **Pale Harbour Survey**, then select **Queue outpost**.
-6. In **Attack**, choose **Treaty Gate Vanguard** and the **Khepri Mandate**, then select **Queue attack**.
+4. In **Fleets**, select **Aurelian Home Guard**, open **Move**, choose **Nadir Crossing**, then select **Queue move**.
+5. Select **Pale Harbour Survey**, open **Colonise**, then select **Queue outpost**.
+6. Select **Treaty Gate Vanguard**, open **Attack**, choose the **Khepri Mandate**, then select **Queue attack**.
 7. Check that the order queue contains the three commitments.
 8. Select **Advance turn**.
 9. Read the factual results in **Events**, then open the **Chronicle** account of Treaty Gate.
@@ -61,8 +61,8 @@ The dashboard keeps four views available at all times. Browser back and forward 
 
 - **Command** shows the information needed before the next tick: resources, priorities, pending orders, and a short status pulse.
 - **Galaxy** gives the map the full workspace and keeps the selected system's details beside it.
-- **Fleets** groups the fleet roster, selected-fleet detail, order controls, and resolved order history. History loads 20 entries at a time rather than rendering the whole retained list.
-- **Chronicle** gives recorded history the main reading area and keeps recent factual events alongside it.
+- **Fleets** uses the roster selection as the context for Move, Attack, and Colonise. **Fleet command** keeps those actions close to the selected fleet's detail; **Resolved orders** provides scoped outcome filters and loads 20 matches at a time.
+- **History** separates the narrative **Chronicle** from the factual **Events** record. Both tabs support search, filtering, and sorting.
 
 The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
 
@@ -92,7 +92,7 @@ Research still matters even though its priority weight has no direct effect. At 
 
 For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Industry or Research reduces those two active effects, but does not yet create another direct benefit.
 
-The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move into the progressively loaded history in **Fleets**. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
+The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
@@ -171,11 +171,11 @@ The Core simulation supports Hold orders, but the current dashboard has no Hold 
 
 ## Events, admirals, and the Chronicle
 
-**Recent events** in the **Chronicle** view show the latest visible facts in reverse order. Use them to understand what the last tick changed.
+**History** > **Events** shows the latest visible facts. Search the descriptions, filter by severity, or change the ordering to understand what a tick changed.
 
 The selected-fleet detail in **Fleets** names an assigned admiral and shows reputation and status. Battle results create an admiral history. A destroyed commanded fleet can kill its admiral.
 
-The **Chronicle** records battles that cross the current historical-importance threshold. Battle size, strategic value, existing history, an underdog result, and notable admirals can raise the score. Most events do not become Chronicle entries.
+**History** > **Chronicle** records battles that cross the current historical-importance threshold. Each entry labels its source tick and importance, then presents the factual summary before the longer report. Battle size, strategic value, existing history, an underdog result, and notable admirals can raise the score. Most events do not become Chronicle entries.
 
 Chronicle reports use deterministic templates in this build. They are not generated by an AI service.
 
@@ -207,9 +207,9 @@ Read the rejection reason in **Order Queue**. Common causes include:
 - your empire lost the strict influence lead;
 - your Population fell below 100 before colonisation resolved.
 
-### I cannot select a colonising fleet
+### I cannot select Colonise for a fleet
 
-The list contains active fleets outside their home system. Move a fleet to another system and wait for it to arrive.
+Select an active fleet in the roster first. **Colonise** remains unavailable while that fleet is at its home system; move it to another system and wait for it to arrive.
 
 ### The map shows a system but no local details
 

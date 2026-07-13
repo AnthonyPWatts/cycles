@@ -221,11 +221,17 @@ app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+        var eventTicksById = state.Events
+            .Where(item => item.CycleId == cycle.CycleId)
+            .ToDictionary(item => item.EventId, item => item.TickNumber);
+        var battleTicksById = state.BattleRecords
+            .Where(item => item.CycleId == cycle.CycleId)
+            .ToDictionary(item => item.BattleId, item => item.TickNumber);
         return state.ChronicleEntries
             .Where(entry => entry.CycleId == cycle.CycleId)
             .Where(entry => ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds))
             .OrderByDescending(entry => entry.ImportanceScore)
-            .Select(ToChronicleEntryResponse)
+            .Select(entry => ToChronicleEntryResponse(entry, eventTicksById, battleTicksById))
             .ToArray();
     }));
 
@@ -581,7 +587,10 @@ static BattleResponse ToBattleResponse(BattleRecord item) =>
         item.FactJson,
         item.CreatedAt);
 
-static ChronicleEntryResponse ToChronicleEntryResponse(ChronicleEntry item) =>
+static ChronicleEntryResponse ToChronicleEntryResponse(
+    ChronicleEntry item,
+    IReadOnlyDictionary<Guid, int> eventTicksById,
+    IReadOnlyDictionary<Guid, int> battleTicksById) =>
     new(
         item.ChronicleEntryId,
         item.SourceEventId,
@@ -589,6 +598,11 @@ static ChronicleEntryResponse ToChronicleEntryResponse(ChronicleEntry item) =>
         item.CycleId,
         item.SystemId,
         item.Title,
+        item.SourceBattleId is Guid battleId && battleTicksById.TryGetValue(battleId, out var battleTick)
+            ? battleTick
+            : item.SourceEventId is Guid eventId && eventTicksById.TryGetValue(eventId, out var eventTick)
+                ? eventTick
+                : null,
         item.EntryType,
         item.ImportanceScore,
         item.FactualSummary,
@@ -771,6 +785,8 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(
 
     var eventIds = events.Select(item => item.EventId).ToHashSet();
     var battleIds = battles.Select(item => item.BattleId).ToHashSet();
+    var eventTicksById = events.ToDictionary(item => item.EventId, item => item.TickNumber);
+    var battleTicksById = battles.ToDictionary(item => item.BattleId, item => item.TickNumber);
     var chronicleEntries = state.ChronicleEntries
         .Where(entry => entry.CycleId == cycle.CycleId
                         && ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds)
@@ -791,7 +807,7 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(
         chronicleEntries.Length,
         events.Select(ToEventResponse).ToArray(),
         battles.Select(ToBattleResponse).ToArray(),
-        chronicleEntries.Select(ToChronicleEntryResponse).ToArray());
+        chronicleEntries.Select(entry => ToChronicleEntryResponse(entry, eventTicksById, battleTicksById)).ToArray());
 }
 
 public sealed record LoginRequest(string Username, string? EmpireName, bool IsAdmin = false);
@@ -1028,6 +1044,7 @@ public sealed record ChronicleEntryResponse(
     Guid CycleId,
     Guid? SystemId,
     string Title,
+    int? TickNumber,
     ChronicleEntryType EntryType,
     int ImportanceScore,
     string FactualSummary,

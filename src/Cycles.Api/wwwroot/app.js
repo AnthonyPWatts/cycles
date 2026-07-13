@@ -13,15 +13,27 @@ const state = {
     events: [],
     chronicle: [],
     activeView: "command",
-    orderHistoryLimit: 20
+    fleetTab: "command",
+    fleetAction: "move",
+    historyTab: "chronicle",
+    orderHistoryLimit: 20,
+    orderHistoryScope: "selected",
+    orderHistoryStatus: "all",
+    orderHistorySort: "newest",
+    chronicleQuery: "",
+    chronicleMinImportance: 0,
+    chronicleSort: "newest",
+    eventQuery: "",
+    eventSeverity: "all",
+    eventSort: "newest"
 };
 
-const viewIds = ["command", "galaxy", "fleets", "chronicle"];
+const viewIds = ["command", "galaxy", "fleets", "history"];
 const viewShortcuts = new Map([
     ["1", "command"],
     ["2", "galaxy"],
     ["3", "fleets"],
-    ["4", "chronicle"]
+    ["4", "history"]
 ]);
 
 const tutorial = {
@@ -56,7 +68,7 @@ const elements = {
     commandViewBadge: document.querySelector("#commandViewBadge"),
     galaxyViewBadge: document.querySelector("#galaxyViewBadge"),
     fleetsViewBadge: document.querySelector("#fleetsViewBadge"),
-    chronicleViewBadge: document.querySelector("#chronicleViewBadge"),
+    historyViewBadge: document.querySelector("#historyViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
     resources: document.querySelector("#resources"),
@@ -71,11 +83,18 @@ const elements = {
     priorityMessage: document.querySelector("#priorityMessage"),
     fleets: document.querySelector("#fleetList"),
     fleetDetails: document.querySelector("#fleetDetails"),
-    fleetSelect: document.querySelector("#fleetSelect"),
+    fleetTabs: document.querySelector("#fleetTabs"),
+    fleetTabButtons: [...document.querySelectorAll("[data-fleet-tab]")],
+    fleetTabPanels: [...document.querySelectorAll(".fleet-tab-panel")],
+    fleetActionTabs: document.querySelector("#fleetActionTabs"),
+    fleetActionButtons: [...document.querySelectorAll("[data-fleet-action]")],
+    fleetActionPanels: [...document.querySelectorAll("[data-fleet-action-panel]")],
+    selectedFleetActionName: document.querySelector("#selectedFleetActionName"),
     destinationSelect: document.querySelector("#destinationSelect"),
-    attackFleetSelect: document.querySelector("#attackFleetSelect"),
     targetEmpireSelect: document.querySelector("#targetEmpireSelect"),
-    coloniseFleetSelect: document.querySelector("#coloniseFleetSelect"),
+    moveActionHint: document.querySelector("#moveActionHint"),
+    attackActionHint: document.querySelector("#attackActionHint"),
+    coloniseActionHint: document.querySelector("#coloniseActionHint"),
     moveForm: document.querySelector("#moveForm"),
     attackForm: document.querySelector("#attackForm"),
     coloniseForm: document.querySelector("#coloniseForm"),
@@ -83,8 +102,22 @@ const elements = {
     orders: document.querySelector("#orders"),
     orderHistory: document.querySelector("#orderHistory"),
     orderHistoryCount: document.querySelector("#orderHistoryCount"),
+    orderHistoryScope: document.querySelector("#orderHistoryScope"),
+    orderHistoryStatus: document.querySelector("#orderHistoryStatus"),
+    orderHistorySort: document.querySelector("#orderHistorySort"),
     events: document.querySelector("#events"),
+    eventResultCount: document.querySelector("#eventResultCount"),
+    eventSearch: document.querySelector("#eventSearch"),
+    eventSeverity: document.querySelector("#eventSeverity"),
+    eventSort: document.querySelector("#eventSort"),
     chronicle: document.querySelector("#chronicleEntries"),
+    chronicleResultCount: document.querySelector("#chronicleResultCount"),
+    chronicleSearch: document.querySelector("#chronicleSearch"),
+    chronicleImportance: document.querySelector("#chronicleImportance"),
+    chronicleSort: document.querySelector("#chronicleSort"),
+    historyTabs: document.querySelector("#historyTabs"),
+    historyTabButtons: [...document.querySelectorAll("[data-history-tab]")],
+    historyTabPanels: [...document.querySelectorAll(".history-tab-panel")],
     galaxyMap: document.querySelector("#galaxyMap"),
     mapStats: document.querySelector("#mapStats"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
@@ -209,6 +242,65 @@ elements.fleets.addEventListener("keydown", event => {
     selectFleet(item.dataset.fleetId);
 });
 
+bindTabList(elements.fleetTabs, elements.fleetTabButtons, "fleetTab", activateFleetTab);
+bindTabList(elements.fleetActionTabs, elements.fleetActionButtons, "fleetAction", activateFleetAction);
+bindTabList(elements.historyTabs, elements.historyTabButtons, "historyTab", activateHistoryTab);
+
+elements.commandPulse.addEventListener("click", event => {
+    const link = event.target.closest("[data-history-tab-target]");
+    if (link) {
+        activateHistoryTab(link.dataset.historyTabTarget);
+    }
+});
+
+elements.orderHistoryScope.addEventListener("change", () => {
+    state.orderHistoryScope = elements.orderHistoryScope.value;
+    state.orderHistoryLimit = 20;
+    renderOrderHistory();
+});
+
+elements.orderHistoryStatus.addEventListener("change", () => {
+    state.orderHistoryStatus = elements.orderHistoryStatus.value;
+    state.orderHistoryLimit = 20;
+    renderOrderHistory();
+});
+
+elements.orderHistorySort.addEventListener("change", () => {
+    state.orderHistorySort = elements.orderHistorySort.value;
+    state.orderHistoryLimit = 20;
+    renderOrderHistory();
+});
+
+elements.chronicleSearch.addEventListener("input", () => {
+    state.chronicleQuery = elements.chronicleSearch.value.trim().toLowerCase();
+    renderChronicle(state.chronicle);
+});
+
+elements.chronicleImportance.addEventListener("change", () => {
+    state.chronicleMinImportance = Number(elements.chronicleImportance.value);
+    renderChronicle(state.chronicle);
+});
+
+elements.chronicleSort.addEventListener("change", () => {
+    state.chronicleSort = elements.chronicleSort.value;
+    renderChronicle(state.chronicle);
+});
+
+elements.eventSearch.addEventListener("input", () => {
+    state.eventQuery = elements.eventSearch.value.trim().toLowerCase();
+    renderEvents(state.events);
+});
+
+elements.eventSeverity.addEventListener("change", () => {
+    state.eventSeverity = elements.eventSeverity.value;
+    renderEvents(state.events);
+});
+
+elements.eventSort.addEventListener("change", () => {
+    state.eventSort = elements.eventSort.value;
+    renderEvents(state.events);
+});
+
 elements.priorityForm.addEventListener("input", updatePriorityTotal);
 
 elements.priorityForm.addEventListener("submit", async event => {
@@ -242,10 +334,10 @@ elements.priorityForm.addEventListener("submit", async event => {
 
 elements.moveForm.addEventListener("submit", async event => {
     event.preventDefault();
-    const fleetId = elements.fleetSelect.value;
+    const fleetId = state.selectedFleetId;
     const targetSystemId = elements.destinationSelect.value;
     if (!fleetId || !targetSystemId) {
-        setMessage("Select a fleet and linked destination.");
+        setMessage("Select an active fleet with a linked destination.");
         return;
     }
 
@@ -260,10 +352,10 @@ elements.moveForm.addEventListener("submit", async event => {
 
 elements.attackForm.addEventListener("submit", async event => {
     event.preventDefault();
-    const fleetId = elements.attackFleetSelect.value;
+    const fleetId = state.selectedFleetId;
     const targetEmpireId = elements.targetEmpireSelect.value || null;
     if (!fleetId) {
-        setMessage("Select an attacking fleet.");
+        setMessage("Select an active fleet before attacking.");
         return;
     }
 
@@ -278,9 +370,9 @@ elements.attackForm.addEventListener("submit", async event => {
 
 elements.coloniseForm.addEventListener("submit", async event => {
     event.preventDefault();
-    const fleetId = elements.coloniseFleetSelect.value;
+    const fleetId = state.selectedFleetId;
     if (!fleetId) {
-        setMessage("Select a fleet outside its home system.");
+        setMessage("Select an active fleet outside its home system.");
         return;
     }
 
@@ -309,7 +401,7 @@ elements.orderHistory.addEventListener("click", event => {
     }
 
     state.orderHistoryLimit += 20;
-    renderOrderQueue(state.orders);
+    renderOrderHistory();
 });
 
 async function boot() {
@@ -386,6 +478,9 @@ function applySession(login) {
     elements.sessionSummary.hidden = false;
     elements.appShell.hidden = false;
     activateView(resolveInitialView(), { updateLocation: true });
+    activateFleetTab(state.fleetTab);
+    activateFleetAction(state.fleetAction);
+    activateHistoryTab(state.historyTab);
 }
 
 function showLogin(message) {
@@ -452,6 +547,10 @@ async function refresh() {
 
 function viewFromHash() {
     const value = window.location.hash.slice(1).toLowerCase();
+    if (value === "chronicle") {
+        return "history";
+    }
+
     return viewIds.includes(value) ? value : null;
 }
 
@@ -461,7 +560,8 @@ function resolveInitialView() {
         return requestedView;
     }
 
-    const storedView = readStoredValue("cycles.activeView");
+    const storedValue = readStoredValue("cycles.activeView");
+    const storedView = storedValue === "chronicle" ? "history" : storedValue;
     return viewIds.includes(storedView) ? storedView : "command";
 }
 
@@ -489,6 +589,69 @@ function activateView(viewId, { updateLocation = false, focusHeading = false } =
     if (focusHeading) {
         const heading = document.querySelector(`[data-view="${selectedView}"] h1`);
         requestAnimationFrame(() => heading?.focus({ preventScroll: true }));
+    }
+}
+
+function bindTabList(container, buttons, dataKey, activate) {
+    container.addEventListener("click", event => {
+        const button = event.target.closest("[role=tab]");
+        if (button) {
+            activate(button.dataset[dataKey]);
+        }
+    });
+
+    container.addEventListener("keydown", event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+            return;
+        }
+
+        event.preventDefault();
+        const currentIndex = Math.max(0, buttons.indexOf(document.activeElement));
+        const nextIndex = event.key === "Home"
+            ? 0
+            : event.key === "End"
+                ? buttons.length - 1
+                : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+        activate(buttons[nextIndex].dataset[dataKey], { focusTab: true });
+    });
+}
+
+function activateFleetTab(tabId, { focusTab = false } = {}) {
+    const selected = ["command", "history"].includes(tabId) ? tabId : "command";
+    state.fleetTab = selected;
+    syncTabSet(elements.fleetTabButtons, elements.fleetTabPanels, "fleetTab", selected);
+    if (focusTab) {
+        elements.fleetTabButtons.find(button => button.dataset.fleetTab === selected)?.focus();
+    }
+}
+
+function activateFleetAction(actionId, { focusTab = false } = {}) {
+    const selected = ["move", "attack", "colonise"].includes(actionId) ? actionId : "move";
+    state.fleetAction = selected;
+    syncTabSet(elements.fleetActionButtons, elements.fleetActionPanels, "fleetAction", selected);
+    if (focusTab) {
+        elements.fleetActionButtons.find(button => button.dataset.fleetAction === selected)?.focus();
+    }
+}
+
+function activateHistoryTab(tabId, { focusTab = false } = {}) {
+    const selected = ["chronicle", "events"].includes(tabId) ? tabId : "chronicle";
+    state.historyTab = selected;
+    syncTabSet(elements.historyTabButtons, elements.historyTabPanels, "historyTab", selected);
+    if (focusTab) {
+        elements.historyTabButtons.find(button => button.dataset.historyTab === selected)?.focus();
+    }
+}
+
+function syncTabSet(buttons, panels, dataKey, selected) {
+    for (const button of buttons) {
+        const active = button.dataset[dataKey] === selected;
+        button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
+    }
+
+    for (const panel of panels) {
+        panel.hidden = panel.dataset[`${dataKey}Panel`] !== selected;
     }
 }
 
@@ -524,19 +687,20 @@ function renderCommandSummary() {
     elements.commandPulse.innerHTML = `
         ${commandPulseLink("Pending orders", pendingOrders, "fleets", pendingOrders === 0 ? "Issue an order" : "Review commitments")}
         ${commandPulseLink("Active fleets", activeFleets, "fleets", "Open fleet command")}
-        ${commandPulseLink("Recent events", visibleEvents, "chronicle", "Read the audit trail")}
-        ${commandPulseLink("Chronicle entries", chronicleEntries, "chronicle", "Read recorded history")}
+        ${commandPulseLink("Recent events", visibleEvents, "history", "Read the audit trail", "events")}
+        ${commandPulseLink("Chronicle entries", chronicleEntries, "history", "Read recorded history", "chronicle")}
     `;
 
     setViewBadge(elements.commandViewBadge, pendingOrders, `${formatCount(pendingOrders, "pending order")}`);
     setViewBadge(elements.galaxyViewBadge, state.galaxy?.systems.length ?? 0, `${formatCount(state.galaxy?.systems.length ?? 0, "system")}`);
     setViewBadge(elements.fleetsViewBadge, activeFleets, `${formatCount(activeFleets, "active fleet")}`);
-    setViewBadge(elements.chronicleViewBadge, chronicleEntries, `${formatCount(chronicleEntries, "Chronicle entry", "Chronicle entries")}`);
+    setViewBadge(elements.historyViewBadge, visibleEvents + chronicleEntries, `${formatCount(visibleEvents + chronicleEntries, "historical record")}`);
 }
 
-function commandPulseLink(label, value, viewId, action) {
+function commandPulseLink(label, value, viewId, action, historyTab = null) {
+    const historyTarget = historyTab ? ` data-history-tab-target="${historyTab}"` : "";
     return `
-        <a class="pulse-card" href="#${viewId}">
+        <a class="pulse-card" href="#${viewId}"${historyTarget}>
             <span>${escapeHtml(label)}</span>
             <strong>${formatNumber(value)}</strong>
             <small>${escapeHtml(action)}</small>
@@ -620,12 +784,14 @@ function renderFleetDetails() {
             <dt>Admiral</dt><dd>Unassigned</dd>
         `;
 
-    const orders = detail.orders.length === 0
-        ? `<span>No orders recorded for this fleet.</span>`
-        : detail.orders.map(order => {
+    const pendingOrders = detail.orders.filter(order => order.status === "pending");
+    const resolvedOrderCount = detail.orders.length - pendingOrders.length;
+    const orders = pendingOrders.length === 0
+        ? `<span>No pending intention. This fleet is ready for a command.</span>`
+        : pendingOrders.map(order => {
             const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
             const timing = formatOrderTiming(order);
-            return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(order.status)} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
+            return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
         }).join("");
 
     elements.fleetDetails.innerHTML = `
@@ -653,32 +819,48 @@ function renderFleetDetails() {
             ${nearbyFleets}
         </div>
         <div class="detail-block">
-            <strong>Orders</strong>
+            <strong>Current intention</strong>
             ${orders}
         </div>
+        <p class="fleet-history-summary">${formatCount(resolvedOrderCount, "resolved order")} recorded for this fleet.</p>
     `;
 }
 
 function renderOrders() {
     const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0);
-    fillSelect(elements.fleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
-    fillSelect(elements.attackFleetSelect, activeFleets, item => item.fleet.fleetId, fleetSelectLabel);
-    const colonisingFleets = activeFleets.filter(item => item.fleet.currentSystemId !== state.empire.homeSystem.systemId);
-    fillSelect(elements.coloniseFleetSelect, colonisingFleets, item => item.fleet.fleetId, fleetSelectLabel);
+    const selectedFleet = activeFleets.find(item => item.fleet.fleetId === state.selectedFleetId) ?? null;
+    elements.selectedFleetActionName.textContent = selectedFleet?.fleet.fleetName ?? "selected fleet";
 
-    const selectedFleet = activeFleets.find(item => item.fleet.fleetId === elements.fleetSelect.value) ?? activeFleets[0];
     const destinations = selectedFleet ? linkedSystems(selectedFleet.fleet.currentSystemId) : [];
     fillSelect(elements.destinationSelect, destinations, item => item.systemId, item => item.systemName);
+    if (destinations.length === 0) {
+        elements.destinationSelect.innerHTML = `<option value="">No linked destinations</option>`;
+    }
 
-    const selectedAttackFleet = activeFleets.find(item => item.fleet.fleetId === elements.attackFleetSelect.value) ?? activeFleets[0];
-    const targetEmpires = collectTargetEmpires(selectedAttackFleet);
+    const targetEmpires = collectTargetEmpires(selectedFleet);
     fillSelect(elements.targetEmpireSelect, targetEmpires, item => item.empireId, item => item.empireName, true);
 
-    elements.fleetSelect.onchange = renderOrders;
-    elements.attackFleetSelect.onchange = async () => {
-        await selectFleet(elements.attackFleetSelect.value);
-        renderOrders();
-    };
+    const fleetReady = Boolean(selectedFleet);
+    const awayFromHome = fleetReady && selectedFleet.fleet.currentSystemId !== state.empire.homeSystem.systemId;
+    elements.moveForm.querySelector("button[type=submit]").disabled = !fleetReady || destinations.length === 0;
+    elements.attackForm.querySelector("button[type=submit]").disabled = !fleetReady;
+    elements.coloniseForm.querySelector("button[type=submit]").disabled = !awayFromHome;
+
+    elements.moveActionHint.textContent = !fleetReady
+        ? "Select an active fleet to see available routes."
+        : destinations.length === 0
+            ? "This fleet has no linked destination available."
+            : `${formatCount(destinations.length, "adjacent destination")} available from ${selectedFleet.currentSystemName}.`;
+    elements.attackActionHint.textContent = !fleetReady
+        ? "Select an active fleet to prepare an attack."
+        : targetEmpires.length === 0
+            ? "No visible local rival; the order will target the nearest hostile empire."
+            : `${formatCount(targetEmpires.length, "visible local rival")} available, or choose nearest hostile.`;
+    elements.coloniseActionHint.textContent = !fleetReady
+        ? "Select an active fleet to assess colonisation."
+        : !awayFromHome
+            ? "Move this fleet beyond its home system before establishing an outpost."
+            : "Costs 100 population and resolves next tick.";
 }
 
 function renderSystemDetails() {
@@ -733,22 +915,35 @@ function renderOrderQueue(orders) {
         ? `<article class="item empty-state"><strong>No pending orders</strong><span>Issue an order when you are ready to commit the next turn.</span></article>`
         : pendingOrders.map(order => orderCard(order, true)).join("");
 
-    const resolvedOrders = orders
-        .filter(order => order.status !== "pending")
-        .slice()
-        .reverse();
-    const visibleOrders = resolvedOrders.slice(0, state.orderHistoryLimit);
-    const remaining = resolvedOrders.length - visibleOrders.length;
+    renderOrderHistory();
+}
+
+function renderOrderHistory() {
+    const allResolvedOrders = state.orders.filter(order => order.status !== "pending");
+    const filteredOrders = allResolvedOrders
+        .filter(order => state.orderHistoryScope === "all" || order.fleetId === state.selectedFleetId)
+        .filter(order => state.orderHistoryStatus === "all" || order.status.toLowerCase() === state.orderHistoryStatus)
+        .sort((left, right) => {
+            const direction = state.orderHistorySort === "oldest" ? 1 : -1;
+            return direction * (orderHistoryTick(left) - orderHistoryTick(right))
+                || direction * left.fleetOrderId.localeCompare(right.fleetOrderId);
+        });
+    const visibleOrders = filteredOrders.slice(0, state.orderHistoryLimit);
+    const remaining = filteredOrders.length - visibleOrders.length;
     const loadMore = remaining > 0
         ? `<button type="button" class="history-load-more" data-load-more-orders>Show ${formatCount(Math.min(20, remaining), "more order")}</button>`
         : "";
 
-    elements.orderHistoryCount.textContent = resolvedOrders.length === 0
+    elements.orderHistoryCount.textContent = allResolvedOrders.length === 0
         ? "No resolved orders"
-        : `Showing ${formatNumber(visibleOrders.length)} of ${formatNumber(resolvedOrders.length)}`;
-    elements.orderHistory.innerHTML = resolvedOrders.length === 0
-        ? `<article class="item empty-state"><span>Resolved and cancelled orders will appear here.</span></article>`
+        : `Showing ${formatNumber(visibleOrders.length)} of ${formatNumber(filteredOrders.length)} matches`;
+    elements.orderHistory.innerHTML = filteredOrders.length === 0
+        ? `<article class="item empty-state"><strong>No matching orders</strong><span>Adjust the scope or outcome filter to widen the history.</span></article>`
         : `${visibleOrders.map(order => orderCard(order, false)).join("")}${loadMore}`;
+}
+
+function orderHistoryTick(order) {
+    return Number(order.processedTick ?? order.executeAfterTick ?? 0);
 }
 
 function orderCard(order, allowCancel) {
@@ -933,6 +1128,15 @@ function renderTutorial({ focusHeading }) {
     if (step.view) {
         activateView(step.view, { updateLocation: true });
     }
+    if (step.fleetTab) {
+        activateFleetTab(step.fleetTab);
+    }
+    if (step.fleetAction) {
+        activateFleetAction(step.fleetAction);
+    }
+    if (step.historyTab) {
+        activateHistoryTab(step.historyTab);
+    }
 
     clearTutorialTarget();
     elements.tutorialPanel.hidden = false;
@@ -1099,6 +1303,7 @@ function tutorialSteps() {
         {
             id: "fleet",
             view: "fleets",
+            fleetTab: "command",
             title: curated ? "Inspect the Vanguard" : "Inspect your fleet",
             body: curated
                 ? `Select ${tutorialFleetName(focusFleetId)}. Fleet detail shows its ships, commander, current system, local rivals, and recorded orders.`
@@ -1111,10 +1316,12 @@ function tutorialSteps() {
         {
             id: "move",
             view: "fleets",
+            fleetTab: "command",
+            fleetAction: "move",
             title: curated ? "Secure Nadir Crossing" : "Commit a movement order",
             body: curated
-                ? `In Move, choose ${tutorialFleetName(moveFleetId)} and ${tutorialSystemName(moveTargetId)}. Orders are intentions: the server validates them again when the turn resolves.`
-                : `Choose ${tutorialFleetName(moveFleetId)} and ${tutorialSystemName(moveTargetId)}. The order will resolve on the next authoritative turn.`,
+                ? `Select ${tutorialFleetName(moveFleetId)} in the roster, then choose ${tutorialSystemName(moveTargetId)} in Move. Orders are intentions: the server validates them again when the turn resolves.`
+                : `Select ${tutorialFleetName(moveFleetId)} in the roster, then choose ${tutorialSystemName(moveTargetId)}. The order will resolve on the next authoritative turn.`,
             target: () => document.querySelector("#moveForm"),
             required: true,
             requirement: "Queue the highlighted movement objective.",
@@ -1127,8 +1334,10 @@ function tutorialSteps() {
             {
                 id: "colonise",
                 view: "fleets",
+                fleetTab: "command",
+                fleetAction: "colonise",
                 title: "Establish the Pale Harbour outpost",
-                body: `Choose ${tutorialFleetName(colonise.fleetId)}. Colonisation costs 100 population and succeeds because that fleet has the leading local influence.`,
+                body: `Select ${tutorialFleetName(colonise.fleetId)} in the roster. Colonisation costs 100 population and succeeds because that fleet has the leading local influence.`,
                 target: () => document.querySelector("#coloniseForm"),
                 required: true,
                 requirement: "Queue the Pale Harbour outpost.",
@@ -1137,8 +1346,10 @@ function tutorialSteps() {
             {
                 id: "attack",
                 view: "fleets",
+                fleetTab: "command",
+                fleetAction: "attack",
                 title: "Answer the Khepri challenge",
-                body: `Choose ${tutorialFleetName(attack.fleetId)} and the local Khepri force. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
+                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster, then choose the local Khepri force. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
                 target: () => document.querySelector("#attackForm"),
                 required: true,
                 requirement: "Queue the Treaty Gate attack.",
@@ -1171,7 +1382,8 @@ function tutorialSteps() {
         },
         {
             id: "events",
-            view: "chronicle",
+            view: "history",
+            historyTab: "events",
             title: "Read what actually happened",
             body: "Events are the factual audit trail. Check which orders processed, what resources changed, and whether anything was rejected when the world moved underneath an intention.",
             target: () => document.querySelector("#eventsSection"),
@@ -1182,7 +1394,8 @@ function tutorialSteps() {
     if (curated) {
         steps.push({
             id: "chronicle",
-            view: "chronicle",
+            view: "history",
+            historyTab: "chronicle",
             title: "See what became history",
             body: "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history.",
             target: () => document.querySelector("#chronicleSection"),
@@ -1340,32 +1553,93 @@ function collectTargetEmpires(selectedFleet) {
 }
 
 function renderEvents(events) {
-    elements.events.innerHTML = events.length === 0
-        ? `<article class="item"><span>No events yet.</span></article>`
-        : events.slice().reverse().map(event => `
-            <article class="item">
-                <strong>T${event.tickNumber}</strong>
-                <span>${escapeHtml(event.displayText)}</span>
+    const filteredEvents = events
+        .filter(event => state.eventSeverity === "all" || event.severity.toLowerCase() === state.eventSeverity)
+        .filter(event => {
+            if (!state.eventQuery) {
+                return true;
+            }
+
+            return [event.displayText, event.eventType, event.severity]
+                .some(value => String(value ?? "").toLowerCase().includes(state.eventQuery));
+        })
+        .sort((left, right) => {
+            if (state.eventSort === "severity-desc") {
+                return eventSeverityRank(right.severity) - eventSeverityRank(left.severity)
+                    || right.tickNumber - left.tickNumber;
+            }
+
+            const direction = state.eventSort === "oldest" ? 1 : -1;
+            return direction * (left.tickNumber - right.tickNumber)
+                || direction * String(left.createdAt).localeCompare(String(right.createdAt));
+        });
+
+    elements.eventResultCount.textContent = `${formatNumber(filteredEvents.length)} of ${formatCount(events.length, "event")}`;
+    elements.events.innerHTML = filteredEvents.length === 0
+        ? events.length === 0
+            ? `<article class="item empty-state"><strong>No events yet</strong><span>Events will appear after the galaxy advances.</span></article>`
+            : `<article class="item empty-state"><strong>No matching events</strong><span>Adjust the search, severity, or sort controls.</span></article>`
+        : filteredEvents.map(event => `
+            <article class="item event-entry">
+                <header class="history-entry-header">
+                    <span class="history-tick">T${event.tickNumber}</span>
+                    <strong>${escapeHtml(formatStatus(event.eventType))}</strong>
+                    <span class="status-chip status-${statusClass(event.severity)}">${escapeHtml(formatStatus(event.severity))}</span>
+                </header>
+                <p>${escapeHtml(event.displayText)}</p>
             </article>
         `).join("");
 }
 
 function renderChronicle(entries) {
-    elements.chronicle.innerHTML = entries.length === 0
-        ? `<article class="item"><span>No entries yet.</span></article>`
-        : entries.map(entry => {
-            const narrative = entry.narrativeText || entry.factualSummary;
-            const factual = entry.factualSummary && entry.factualSummary !== narrative
-                ? `<span class="chronicle-facts">${escapeHtml(entry.factualSummary)}</span>`
+    const filteredEntries = entries
+        .filter(entry => Number(entry.importanceScore) >= state.chronicleMinImportance)
+        .filter(entry => {
+            if (!state.chronicleQuery) {
+                return true;
+            }
+
+            return [entry.title, entry.factualSummary, entry.narrativeText, entry.entryType]
+                .some(value => String(value ?? "").toLowerCase().includes(state.chronicleQuery));
+        })
+        .sort((left, right) => {
+            if (state.chronicleSort === "importance-desc" || state.chronicleSort === "importance-asc") {
+                const direction = state.chronicleSort === "importance-asc" ? 1 : -1;
+                return direction * (left.importanceScore - right.importanceScore)
+                    || (right.tickNumber ?? 0) - (left.tickNumber ?? 0);
+            }
+
+            const direction = state.chronicleSort === "oldest" ? 1 : -1;
+            return direction * ((left.tickNumber ?? 0) - (right.tickNumber ?? 0))
+                || direction * String(left.createdAt).localeCompare(String(right.createdAt));
+        });
+
+    elements.chronicleResultCount.textContent = `${formatNumber(filteredEntries.length)} of ${formatCount(entries.length, "entry", "entries")}`;
+    elements.chronicle.innerHTML = filteredEntries.length === 0
+        ? entries.length === 0
+            ? `<article class="item empty-state"><strong>No Chronicle entries yet</strong><span>Exceptional events will be preserved here when they cross the importance threshold.</span></article>`
+            : `<article class="item empty-state"><strong>No matching Chronicle entries</strong><span>Adjust the search, importance, or sort controls.</span></article>`
+        : filteredEntries.map(entry => {
+            const narrative = entry.narrativeText || "";
+            const narrativeMarkup = narrative && narrative !== entry.factualSummary
+                ? `<p class="chronicle-narrative">${escapeHtml(narrative)}</p>`
                 : "";
             return `
             <article class="item chronicle-entry">
-                <strong>${escapeHtml(entry.title)} (${entry.importanceScore})</strong>
-                <span>${escapeHtml(narrative)}</span>
-                ${factual}
+                <header class="history-entry-header chronicle-entry-title">
+                    <span class="history-tick">T${entry.tickNumber ?? "?"}</span>
+                    <strong>${escapeHtml(entry.title)}</strong>
+                    <span class="importance-chip">Importance ${formatNumber(entry.importanceScore)}</span>
+                </header>
+                <p class="chronicle-summary">${escapeHtml(entry.factualSummary)}</p>
+                ${narrativeMarkup}
             </article>
         `;
         }).join("");
+}
+
+function eventSeverityRank(value) {
+    return ({ low: 1, normal: 2, high: 3, historic: 4 })[String(value).toLowerCase()] ?? 0;
 }
 
 function renderGalaxy(galaxy, empire) {
@@ -1420,6 +1694,8 @@ async function selectFleet(fleetId) {
         state.fleetDetail = await getJson(`/fleets/${fleetId}`);
         renderFleets(state.fleets);
         renderFleetDetails();
+        renderOrders();
+        renderOrderHistory();
         syncTutorialDisplay();
     } catch (error) {
         setMessage(error.message);
@@ -1467,12 +1743,6 @@ function formatOrderTiming(order) {
     }
 
     return order.processedTick === null ? "processed" : `processed T${order.processedTick}`;
-}
-
-function fleetSelectLabel(item) {
-    return item.admiral
-        ? `${item.fleet.fleetName} - ${item.admiral.admiralName}`
-        : item.fleet.fleetName;
 }
 
 function formatAdmiral(admiral) {

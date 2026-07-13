@@ -49,6 +49,15 @@ public sealed class ApiResponseContractTests
         Assert.Empty(leaks);
     }
 
+    [Fact]
+    public void Chronicle_entries_expose_the_source_tick_as_an_optional_value()
+    {
+        var property = typeof(ChronicleEntryResponse).GetProperty(nameof(ChronicleEntryResponse.TickNumber));
+
+        Assert.NotNull(property);
+        Assert.Equal(typeof(int?), property.PropertyType);
+    }
+
     private static IEnumerable<Type> FlattenType(Type type)
     {
         yield return type;

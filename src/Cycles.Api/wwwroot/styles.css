@@ -65,12 +65,25 @@ button:hover {
     transform: translateY(-1px);
 }
 
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    transform: none;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
+}
+
+.view-heading h1:focus-visible,
+.panel-heading h1:focus-visible {
+    outline-color: rgba(223, 186, 104, 0.72);
+    outline-offset: 5px;
+    border-radius: 3px;
 }
 
 input,
@@ -184,7 +197,10 @@ select {
 .login-form[hidden],
 .session-summary[hidden],
 .app-shell[hidden],
-.app-view[hidden] {
+.app-view[hidden],
+.fleet-tab-panel[hidden],
+.fleet-action-panel[hidden],
+.history-tab-panel[hidden] {
     display: none;
 }
 
@@ -800,9 +816,9 @@ select {
     border-radius: 0;
 }
 
-.fleets-grid {
+.fleets-workspace {
     display: grid;
-    grid-template-columns: minmax(250px, 0.72fr) minmax(340px, 1fr) minmax(330px, 0.88fr);
+    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
     gap: 16px;
     align-items: start;
     max-width: 1600px;
@@ -810,15 +826,110 @@ select {
     padding: 18px;
 }
 
-.fleet-roster,
-.fleet-inspector,
-.orders-workbench {
+.fleet-roster {
+    position: sticky;
+    top: 18px;
+    min-height: 300px;
+    max-height: calc(100dvh - 260px);
+    overflow: auto;
+}
+
+.fleet-workspace-main,
+.fleet-command-panel {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.subview-tabs {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-width: min(100%, 360px);
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #0c100e;
+}
+
+.subview-tabs button,
+.action-tabs button {
+    flex: 1 1 auto;
+    min-height: 38px;
+    padding: 8px 14px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    box-shadow: none;
+}
+
+.subview-tabs button:hover,
+.action-tabs button:hover {
+    border-color: var(--line);
+    background: rgba(143, 209, 189, 0.06);
+    color: var(--text);
+    transform: none;
+}
+
+.subview-tabs button[aria-selected="true"],
+.action-tabs button[aria-selected="true"] {
+    border-color: rgba(143, 209, 189, 0.52);
+    background: rgba(82, 182, 154, 0.14);
+    color: var(--accent);
+}
+
+.fleet-inspector {
     min-height: 300px;
 }
 
+.fleet-order-dock {
+    display: grid;
+    gap: 12px;
+}
+
+.fleet-order-dock .section-heading {
+    margin-bottom: 0;
+}
+
+.action-tabs {
+    display: flex;
+    gap: 6px;
+    width: min(100%, 430px);
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.fleet-action-panels {
+    min-width: 0;
+}
+
+.fleet-action-panel {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(240px, 1fr) auto;
+    align-items: end;
+    margin: 0;
+    padding: 14px;
+}
+
+.fleet-action-panel button {
+    min-width: 150px;
+}
+
+.fleet-action-panel .form-hint {
+    align-self: center;
+}
+
+#coloniseForm {
+    grid-template-columns: minmax(240px, 1fr) auto;
+}
+
+.fleet-history-summary {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
 .order-history {
-    max-width: calc(1600px - 36px);
-    margin: 0 auto 18px;
+    min-height: 420px;
 }
 
 .order-history .list {
@@ -835,14 +946,39 @@ select {
     background: rgba(255, 255, 255, 0.012);
 }
 
-.history-grid {
+.history-view > .subview-tabs {
+    margin: 18px max(18px, calc((100% - 1240px) / 2)) 0;
+}
+
+.history-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr);
-    gap: 16px;
-    align-items: start;
-    max-width: 1500px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: 18px;
+}
+
+.filter-toolbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(150px, 0.6fr));
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.filter-toolbar label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.order-history-filters {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
 }
 
 .chronicle-reading .list {
@@ -854,21 +990,90 @@ select {
     border-left: 3px solid var(--gold);
 }
 
-.chronicle-reading .chronicle-entry strong {
-    margin-bottom: 10px;
+.history-entry-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.history-entry-header strong {
+    margin: 0;
+}
+
+.chronicle-reading .chronicle-entry .history-entry-header strong {
     color: var(--system);
     font-size: 1.08rem;
 }
 
-.chronicle-reading .chronicle-entry > span {
-    display: block;
+.history-tick,
+.importance-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.76rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.history-tick {
+    border-color: rgba(143, 209, 189, 0.5);
+    color: var(--accent);
+}
+
+.importance-chip {
+    border-color: rgba(223, 186, 104, 0.5);
+    color: var(--gold);
+}
+
+.chronicle-summary,
+.chronicle-narrative,
+.event-entry p {
+    margin: 12px 0 0;
     color: var(--text);
-    font-size: 1rem;
+    line-height: 1.55;
+}
+
+.chronicle-summary {
+    font-size: 0.98rem;
+    font-weight: 700;
+}
+
+.chronicle-narrative {
+    padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+    color: var(--muted);
+    font-size: 0.94rem;
     line-height: 1.65;
 }
 
-.event-stream .item strong {
+.event-stream .history-entry-header strong {
     color: var(--accent);
+}
+
+.status-historic {
+    border-color: rgba(223, 186, 104, 0.52);
+    background: rgba(223, 186, 104, 0.13);
+    color: var(--gold);
+}
+
+.status-high {
+    border-color: rgba(211, 101, 86, 0.52);
+    background: rgba(211, 101, 86, 0.13);
+    color: #f0a096;
+}
+
+.status-normal {
+    color: var(--text);
+}
+
+.status-low {
+    color: var(--muted);
 }
 
 dl {
@@ -1187,7 +1392,13 @@ dd {
 
 .fleet-details {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+}
+
+.fleet-details > .item,
+.fleet-details > .fleet-history-summary {
+    grid-column: 1 / -1;
 }
 
 .detail-list {
@@ -1304,12 +1515,13 @@ dd {
         width: 100%;
     }
 
-    .fleets-grid {
-        grid-template-columns: minmax(250px, 0.72fr) minmax(360px, 1.28fr);
+    .fleet-action-panel {
+        grid-template-columns: minmax(200px, 0.85fr) minmax(220px, 1fr);
     }
 
-    .orders-workbench {
+    .fleet-action-panel button {
         grid-column: 1 / -1;
+        justify-self: end;
     }
 
     .order-history .list {
@@ -1345,23 +1557,29 @@ dd {
     }
 
     .command-grid,
-    .fleets-grid,
-    .history-grid {
+    .fleets-workspace {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .order-history {
-        margin-right: 18px;
-        margin-left: 18px;
+    .fleet-roster {
+        position: static;
+        max-height: none;
     }
 
     .order-history .list {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .command-queue,
-    .orders-workbench {
+    .command-queue {
         grid-column: auto;
+    }
+
+    .filter-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filter-search {
+        grid-column: 1 / -1;
     }
 
     .galaxy-view {
@@ -1523,16 +1741,14 @@ dd {
     }
 
     .command-grid,
-    .fleets-grid,
-    .history-grid {
+    .fleets-workspace,
+    .history-workspace {
         gap: 12px;
         padding: 12px;
     }
 
-    .order-history {
-        margin-right: 12px;
-        margin-bottom: 12px;
-        margin-left: 12px;
+    .history-view > .subview-tabs {
+        margin: 12px 12px 0;
     }
 
     .view-card {
@@ -1549,6 +1765,30 @@ dd {
 
     .priority-form {
         grid-template-columns: 1fr;
+    }
+
+    .fleet-details,
+    .fleet-action-panel,
+    #coloniseForm,
+    .filter-toolbar,
+    .order-history-filters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fleet-action-panel button,
+    #coloniseForm button {
+        grid-column: auto;
+        justify-self: stretch;
+    }
+
+    .history-entry-header {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .history-entry-header .importance-chip,
+    .history-entry-header .status-chip {
+        grid-column: 2;
+        justify-self: start;
     }
 
     #resources {

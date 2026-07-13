@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260713-command-views-3">
+    <link rel="stylesheet" href="styles.css?v=20260713-history-fleet-refinement-1">
 </head>
 <body>
     <header class="topbar">
@@ -53,10 +53,10 @@
                 <small>Issue orders</small>
                 <strong id="fleetsViewBadge" class="view-badge" aria-label="0 active fleets">0</strong>
             </a>
-            <a href="#chronicle" data-view-link="chronicle" aria-controls="chronicleView" aria-keyshortcuts="Alt+4">
-                <span class="view-nav-label">Chronicle</span>
-                <small>Review history</small>
-                <strong id="chronicleViewBadge" class="view-badge" aria-label="0 Chronicle entries">0</strong>
+            <a href="#history" data-view-link="history" aria-controls="historyView" aria-keyshortcuts="Alt+4">
+                <span class="view-nav-label">History</span>
+                <small>Review the record</small>
+                <strong id="historyViewBadge" class="view-badge" aria-label="0 historical records">0</strong>
             </a>
         </nav>
 
@@ -172,7 +172,7 @@
                     </div>
                 </header>
 
-                <div class="fleets-grid">
+                <div class="fleets-workspace">
                     <section id="fleetsSection" class="view-card fleet-roster">
                         <div class="section-heading">
                             <div>
@@ -183,98 +183,183 @@
                         <div id="fleetList" class="list"></div>
                     </section>
 
-                    <section id="fleetSection" class="view-card fleet-inspector">
-                        <div class="section-heading">
-                            <div>
-                                <span class="section-kicker">Selected force</span>
-                                <h2>Fleet detail</h2>
-                            </div>
+                    <div class="fleet-workspace-main">
+                        <div id="fleetTabs" class="subview-tabs" role="tablist" aria-label="Fleet workspace">
+                            <button id="fleetCommandTab" type="button" role="tab" aria-selected="true" aria-controls="fleetCommandPanel" data-fleet-tab="command">Fleet command</button>
+                            <button id="fleetHistoryTab" type="button" role="tab" aria-selected="false" aria-controls="fleetHistoryPanel" data-fleet-tab="history" tabindex="-1">Resolved orders</button>
                         </div>
-                        <div id="fleetDetails" class="fleet-details"></div>
-                    </section>
 
-                    <section id="ordersSection" class="view-card orders-workbench">
-                        <div class="section-heading">
-                            <div>
-                                <span class="section-kicker">Next tick</span>
-                                <h2>Issue orders</h2>
-                            </div>
-                        </div>
-                        <form id="moveForm" class="order-form" aria-labelledby="moveOrderHeading">
-                            <h3 id="moveOrderHeading" class="order-form-title">Move</h3>
-                            <label>
-                                Fleet
-                                <select id="fleetSelect"></select>
-                            </label>
-                            <label>
-                                Destination
-                                <select id="destinationSelect"></select>
-                            </label>
-                            <button type="submit">Queue move</button>
-                        </form>
-                        <form id="attackForm" class="order-form" aria-labelledby="attackOrderHeading">
-                            <h3 id="attackOrderHeading" class="order-form-title">Attack</h3>
-                            <label>
-                                Attacker
-                                <select id="attackFleetSelect"></select>
-                            </label>
-                            <label>
-                                Target
-                                <select id="targetEmpireSelect"></select>
-                            </label>
-                            <button type="submit">Queue attack</button>
-                        </form>
-                        <form id="coloniseForm" class="order-form" aria-labelledby="coloniseOrderHeading">
-                            <h3 id="coloniseOrderHeading" class="order-form-title">Colonise</h3>
-                            <label>
-                                Colonising fleet
-                                <select id="coloniseFleetSelect"></select>
-                            </label>
-                            <span class="form-hint">Costs 100 population and resolves next tick.</span>
-                            <button type="submit">Queue outpost</button>
-                        </form>
-                        <p id="orderMessage" class="message" role="status"></p>
-                    </section>
-                </div>
+                        <section id="fleetCommandPanel" class="fleet-tab-panel fleet-command-panel" role="tabpanel" aria-labelledby="fleetCommandTab" data-fleet-tab-panel="command">
+                            <section id="ordersSection" class="view-card fleet-order-dock">
+                                <div class="section-heading">
+                                    <div>
+                                        <span class="section-kicker">Next tick</span>
+                                        <h2>Command <span id="selectedFleetActionName">selected fleet</span></h2>
+                                    </div>
+                                </div>
+                                <div id="fleetActionTabs" class="action-tabs" role="tablist" aria-label="Fleet action">
+                                    <button id="moveActionTab" type="button" role="tab" aria-selected="true" aria-controls="moveForm" data-fleet-action="move">Move</button>
+                                    <button id="attackActionTab" type="button" role="tab" aria-selected="false" aria-controls="attackForm" data-fleet-action="attack" tabindex="-1">Attack</button>
+                                    <button id="coloniseActionTab" type="button" role="tab" aria-selected="false" aria-controls="coloniseForm" data-fleet-action="colonise" tabindex="-1">Colonise</button>
+                                </div>
+                                <div class="fleet-action-panels">
+                                    <form id="moveForm" class="order-form fleet-action-panel" role="tabpanel" aria-labelledby="moveActionTab" data-fleet-action-panel="move">
+                                        <label>
+                                            Destination
+                                            <select id="destinationSelect"></select>
+                                        </label>
+                                        <span id="moveActionHint" class="form-hint">Choose an adjacent system.</span>
+                                        <button type="submit">Queue move</button>
+                                    </form>
+                                    <form id="attackForm" class="order-form fleet-action-panel" role="tabpanel" aria-labelledby="attackActionTab" data-fleet-action-panel="attack" hidden>
+                                        <label>
+                                            Target
+                                            <select id="targetEmpireSelect"></select>
+                                        </label>
+                                        <span id="attackActionHint" class="form-hint">Attack the nearest hostile empire.</span>
+                                        <button type="submit">Queue attack</button>
+                                    </form>
+                                    <form id="coloniseForm" class="order-form fleet-action-panel" role="tabpanel" aria-labelledby="coloniseActionTab" data-fleet-action-panel="colonise" hidden>
+                                        <span id="coloniseActionHint" class="form-hint">Costs 100 population and resolves next tick.</span>
+                                        <button type="submit">Queue outpost</button>
+                                    </form>
+                                </div>
+                                <p id="orderMessage" class="message" role="status"></p>
+                            </section>
 
-                <section id="orderHistorySection" class="view-card order-history">
-                    <div class="section-heading">
-                        <div>
-                            <span class="section-kicker">Resolved intentions</span>
-                            <h2>Order history</h2>
-                        </div>
-                        <span id="orderHistoryCount" class="section-note"></span>
+                            <section id="fleetSection" class="view-card fleet-inspector">
+                                <div class="section-heading">
+                                    <div>
+                                        <span class="section-kicker">Selected force</span>
+                                        <h2>Fleet detail</h2>
+                                    </div>
+                                </div>
+                                <div id="fleetDetails" class="fleet-details"></div>
+                            </section>
+                        </section>
+
+                        <section id="fleetHistoryPanel" class="fleet-tab-panel" role="tabpanel" aria-labelledby="fleetHistoryTab" data-fleet-tab-panel="history" hidden>
+                            <section id="orderHistorySection" class="view-card order-history">
+                                <div class="section-heading">
+                                    <div>
+                                        <span class="section-kicker">Resolved intentions</span>
+                                        <h2>Order history</h2>
+                                    </div>
+                                    <span id="orderHistoryCount" class="section-note"></span>
+                                </div>
+                                <div class="filter-toolbar order-history-filters" aria-label="Order history filters">
+                                    <label>
+                                        Scope
+                                        <select id="orderHistoryScope">
+                                            <option value="selected">Selected fleet</option>
+                                            <option value="all">All fleets</option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Status
+                                        <select id="orderHistoryStatus">
+                                            <option value="all">All outcomes</option>
+                                            <option value="processed">Processed</option>
+                                            <option value="rejected">Rejected</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Sort
+                                        <select id="orderHistorySort">
+                                            <option value="newest">Newest first</option>
+                                            <option value="oldest">Oldest first</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div id="orderHistory" class="list compact"></div>
+                            </section>
+                        </section>
                     </div>
-                    <div id="orderHistory" class="list compact"></div>
-                </section>
+                </div>
             </section>
 
-            <section id="chronicleView" class="app-view chronicle-view" data-view="chronicle" aria-labelledby="chronicleViewTitle" hidden>
+            <section id="historyView" class="app-view history-view" data-view="history" aria-labelledby="historyViewTitle" hidden>
                 <header class="view-heading history-heading">
                     <div>
                         <span class="view-kicker">Consequences and legacy</span>
-                        <h1 id="chronicleViewTitle" tabindex="-1">Chronicle</h1>
-                        <p>The Chronicle preserves exceptional history. Events remain the factual audit trail.</p>
+                        <h1 id="historyViewTitle" tabindex="-1">History</h1>
+                        <p>Read the stories that endured, or inspect the factual record behind them.</p>
                     </div>
                 </header>
 
-                <div class="history-grid">
-                    <section id="chronicleSection" class="view-card chronicle-reading">
+                <div id="historyTabs" class="subview-tabs" role="tablist" aria-label="History records">
+                    <button id="chronicleTab" type="button" role="tab" aria-selected="true" aria-controls="chronicleSection" data-history-tab="chronicle">Chronicle</button>
+                    <button id="eventsTab" type="button" role="tab" aria-selected="false" aria-controls="eventsSection" data-history-tab="events" tabindex="-1">Events</button>
+                </div>
+
+                <div class="history-workspace">
+                    <section id="chronicleSection" class="view-card chronicle-reading history-tab-panel" role="tabpanel" aria-labelledby="chronicleTab" data-history-tab-panel="chronicle">
                         <div class="section-heading">
                             <div>
                                 <span class="section-kicker">What endured</span>
                                 <h2>Recorded history</h2>
                             </div>
+                            <span id="chronicleResultCount" class="section-note"></span>
+                        </div>
+                        <div class="filter-toolbar history-filters" aria-label="Chronicle filters">
+                            <label class="filter-search">
+                                Search
+                                <input id="chronicleSearch" type="search" placeholder="Title, system, or summary">
+                            </label>
+                            <label>
+                                Importance
+                                <select id="chronicleImportance">
+                                    <option value="0">All entries</option>
+                                    <option value="50">50 and above</option>
+                                    <option value="75">75 and above</option>
+                                    <option value="100">100 and above</option>
+                                </select>
+                            </label>
+                            <label>
+                                Sort
+                                <select id="chronicleSort">
+                                    <option value="newest">Newest first</option>
+                                    <option value="oldest">Oldest first</option>
+                                    <option value="importance-desc">Most important</option>
+                                    <option value="importance-asc">Least important</option>
+                                </select>
+                            </label>
                         </div>
                         <div id="chronicleEntries" class="list compact"></div>
                     </section>
 
-                    <section id="eventsSection" class="view-card event-stream">
+                    <section id="eventsSection" class="view-card event-stream history-tab-panel" role="tabpanel" aria-labelledby="eventsTab" data-history-tab-panel="events" hidden>
                         <div class="section-heading">
                             <div>
                                 <span class="section-kicker">What happened</span>
-                                <h2>Recent events</h2>
+                                <h2>Event record</h2>
                             </div>
+                            <span id="eventResultCount" class="section-note"></span>
+                        </div>
+                        <div class="filter-toolbar history-filters" aria-label="Event filters">
+                            <label class="filter-search">
+                                Search
+                                <input id="eventSearch" type="search" placeholder="Type, system, or description">
+                            </label>
+                            <label>
+                                Severity
+                                <select id="eventSeverity">
+                                    <option value="all">All severities</option>
+                                    <option value="low">Low</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="high">High</option>
+                                    <option value="historic">Historic</option>
+                                </select>
+                            </label>
+                            <label>
+                                Sort
+                                <select id="eventSort">
+                                    <option value="newest">Newest first</option>
+                                    <option value="oldest">Oldest first</option>
+                                    <option value="severity-desc">Highest severity</option>
+                                </select>
+                            </label>
                         </div>
                         <div id="events" class="list compact"></div>
                     </section>
@@ -302,6 +387,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260713-command-views-3"></script>
+    <script src="app.js?v=20260713-history-fleet-refinement-1"></script>
 </body>
 </html>
