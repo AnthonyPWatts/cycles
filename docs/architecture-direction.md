@@ -100,7 +100,7 @@ The in-memory path uses a focused transactional working copy and rolls back appe
 
 ## Persistence Position
 
-SQL Server is the primary relational proof path. JSON remains useful for zero-service development and for the cost-capped trusted playground, while the accepted long-term product direction is to demote it to import/export support. The hosted use is a bounded Development exception, not a production persistence decision. The timing and compatibility details remain open in Q119.
+SQL Server is the primary relational proof path. JSON remains useful for zero-service development while Q119 settles its full local lifecycle, but Q116 now requires the cost-capped trusted playground to migrate its current state to managed SQL before further tester invitations and prove restoration from database-native backup. The concrete hosted SQL path remains open in Q117. The accepted long-term product direction remains to demote JSON to import/export support.
 
 Current SQL paths:
 

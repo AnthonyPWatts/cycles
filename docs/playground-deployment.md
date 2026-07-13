@@ -16,6 +16,12 @@ App Service F1 enforces CPU, memory, bandwidth, and filesystem quotas. If a CPU 
 
 JSON is a deliberate playground exception, not a reversal of the SQL-backed runtime direction. It removes database and inter-region transfer cost exposure while keeping the trusted manual-turn test loop persistent across App Service restarts and deployments.
 
+## Accepted Managed-SQL Cutover
+
+The JSON exception describes the currently deployed state, but it is no longer the accepted destination for further tester invitations. Q116 requires the playground to move its existing game to managed SQL, retain at least seven days of database-native point-in-time recovery, and prove one isolated restore. [GitHub issue #125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the cutover.
+
+The cutover must intentionally revise the cost guardrails below rather than bypass them. Q117 selects the concrete SQL path. Until that choice is implemented and verified, the current SQL-resource deny policy remains enforced and the JSON-backed deployment remains the truthful runtime description.
+
 ## Deployment
 
 The `Deploy playground` workflow runs after a successful `CI` push build on `main`. It can also be invoked manually.
@@ -50,6 +56,7 @@ This shared-code gate is a trusted-playground exception, not production identity
 - Keep the `cycles-f1-read-only` resource lock on the App Service plan. Remove it only for an intentional, reviewed plan change or teardown.
 - Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It denies SQL, Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
 - Keep access restricted at the edge. This environment uses development authentication and is not suitable for untrusted public access.
+- Do not invite further testers until the accepted managed-SQL cutover, backup retention, and restore rehearsal are complete.
 - Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
 
 ## Verification

@@ -862,3 +862,23 @@ Consequences:
 - Authentication callbacks, sign-out callbacks, and safe error routes remain reachable as required by the selected provider.
 - The trusted playground may continue protecting both the landing page and dashboard with its shared access code before normal route handling. This remains a temporary perimeter rather than identity proof.
 - Implementation is tracked by GitHub issue #124 and depends on the external OIDC and invited-player work in issue #122.
+
+## 2026-07-14: Move The Deployed Playground To Managed SQL Before Further Invitations
+
+Decision: before further tester invitations, migrate the deployed playground's current state to managed SQL, enable at least seven days of database-native point-in-time recovery, document restoration, and prove one isolated restore. Do not build a separate production-style backup system around the hosted JSON file.
+
+Reasoning:
+
+- Tester decisions, orders, events, and history are no longer credibly disposable once repeated play sessions matter.
+- The repository already has a SQL Server store, ordered migrations, transaction locking, recovery state, and focused tick persistence; backup work should reinforce that intended runtime rather than extend the JSON exception.
+- A database service's backup claim is incomplete operational evidence until the project has restored and validated representative state.
+- Moving the deployed test instance now exercises the same persistence boundary required by later private-alpha operation.
+
+Consequences:
+
+- The final JSON state is captured consistently while the playground is stopped or quiescent, retained off-host as migration evidence, imported through the authoritative SQL store, and validated before access reopens.
+- The application does not dual-write. Before reopening, rollback may return to the frozen JSON snapshot; after new SQL-backed gameplay, recovery uses SQL backup/restore instead of stale JSON.
+- The selected managed service must provide at least seven days of point-in-time recovery and remain inside an explicitly reviewed cost boundary.
+- One backup is restored to an isolated target and checked for Cycle/tick, player, empire, fleet, order, event, Chronicle, and recovery-state continuity.
+- Q117 still chooses the concrete SQL Server/provider path. Q119 still determines JSON's remaining local-development and import/export lifecycle.
+- Implementation is tracked by GitHub issue #125.
