@@ -787,3 +787,19 @@ Consequences:
 - The threshold classifies and reports suspicious state only; it does not fail, retry, repair, or cancel a tick.
 - The atomic JSON store does not persist its intermediate `Running` log, so the hosted playground instead needs end-to-end tick duration, state-file-size evidence, and a representative whole-file retained-state benchmark.
 - Implementation is tracked by GitHub issue #120. Q112 remains responsible for the operator response to an abandoned running tick.
+
+## 2026-07-14: Require Inspection Before Abandoning A Running Tick
+
+Decision: accept the Q112 conservative recovery default. A persisted `Running` tick continues to block until an admin inspects it and explicitly marks a confirmed abandoned attempt failed with an operator and reason.
+
+Reasoning:
+
+- Age indicates suspicion but cannot prove that a process or transaction is no longer active.
+- Automatically failing or retrying an active tick risks concurrent or duplicate simulation outcomes.
+- An explicit operator identity and reason preserve the recovery audit trail and force diagnosis before simulation resumes.
+
+Consequences:
+
+- Existing duplicate-tick and recovery-clear guards remain in force.
+- No elapsed-time threshold may automatically change a tick attempt's state.
+- A bounded operator command must provide the missing audited `Running`-to-`Failed` transition, leave the Cycle in `RecoveryRequired`, and defer resumption to normal repair and recovery clear/retry. Implementation is tracked by GitHub issue #121.

@@ -27,6 +27,7 @@ Do not treat this list as permission for speculative refactors. `Cycles.Applicat
 - [ ] Define hosting, database provider, migration ownership, and environment configuration.
 - [ ] Add production Worker health, singleton leadership, multi-Cycle scheduling policy, and operational monitoring.
 - [ ] [Add running-tick and JSON-store performance diagnostics](https://github.com/AnthonyPWatts/cycles/issues/120), including the accepted configurable five-minute suspicion default, end-to-end tick duration, state-file size, and representative retained-state evidence.
+- [ ] [Add audited abandoned-tick resolution](https://github.com/AnthonyPWatts/cycles/issues/121) so an inspected persisted `Running` attempt can be explicitly marked failed with an operator and reason before normal repair and recovery.
 - [ ] Define secret handling plus database backup, restore, and recovery-administration boundaries.
 
 Blocked: production and JSON-lifecycle work must follow the relevant product decisions. Development auth and the local/private Worker are not production substitutes.
@@ -99,12 +100,14 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 | JSON lifecycle | Q119 | Timing and compatibility of the import/export-only direction. |
-| Production access and operations | Q112-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107-Q111 are settled. |
+| Production access and operations | Q113-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107-Q112 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
 Q111 selects a new diagnostic default rather than confirming existing behaviour. Issue [#120](https://github.com/AnthonyPWatts/cycles/issues/120) tracks the bounded implementation without authorising automatic recovery.
+
+Q112 confirms the existing conservative block but requires a missing audited abandonment operation. Issue [#121](https://github.com/AnthonyPWatts/cycles/issues/121) tracks that operation without authorising automatic failure or recovery.
 
 Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
 
