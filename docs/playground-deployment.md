@@ -23,9 +23,12 @@ Required GitHub environment variables on the `playground` environment:
 - `AZURE_CLIENT_ID`;
 - `AZURE_TENANT_ID`;
 - `AZURE_SUBSCRIPTION_ID`;
-- `AZURE_WEBAPP_NAME`.
+- `AZURE_WEBAPP_NAME`;
+- `AZURE_WEBAPP_DEPLOY_ENABLED`, set to `true` only while the access-restricted playground is intended to be online.
 
 The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connect, deploys the published output, and verifies `/health`.
+
+Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 
 ## Cost Guardrails
 
@@ -50,10 +53,9 @@ az webapp config appsettings list `
   --name cycles-play-b366b760 `
   --query "[?name=='CYCLES_STATE_PATH' || name=='WEBSITES_ENABLE_APP_SERVICE_STORAGE'].{name:name,value:value}"
 
-az lock show `
+az lock list `
   --resource-group rg-cycles-playground-uks `
-  --resource-type Microsoft.Web/serverfarms `
-  --name cycles-f1-read-only
+  --query "[?name=='cycles-f1-read-only'].{name:name,level:level}"
 
 az policy assignment show `
   --resource-group rg-cycles-playground-uks `
