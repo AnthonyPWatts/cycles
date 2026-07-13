@@ -68,6 +68,12 @@ jobs:
           app-name: ${{ vars.AZURE_WEBAPP_NAME }}
           package: publish
 
+      - name: Start API
+        run: >-
+          az webapp start
+          --resource-group rg-cycles-playground-uks
+          --name "${{ vars.AZURE_WEBAPP_NAME }}"
+
       - name: Verify health
         shell: bash
         run: |

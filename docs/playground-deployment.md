@@ -29,7 +29,7 @@ Required GitHub environment variables on the `playground` environment:
 
 `AZURE_WEBAPP_DEPLOY_ENABLED` is a repository variable, set to `true` only while the access-restricted playground is intended to be online. It cannot be environment-scoped because GitHub evaluates the job-level deployment condition before attaching the `playground` environment and its variables.
 
-The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connect, deploys the published output, and verifies `/health`.
+The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connect, deploys the published output, explicitly starts a stopped app, and verifies `/health`.
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 
