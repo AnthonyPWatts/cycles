@@ -18,6 +18,8 @@ Q108 was answered on 2026-07-14 by accepting the already-implemented Cycle-confi
 
 Q109 was answered on 2026-07-14 by accepting the already-implemented environment-specific manual tick boundary.
 
+Q111 was answered on 2026-07-14 by selecting a configurable persisted-running suspicion threshold with a five-minute default.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -61,6 +63,12 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q110](https://github.com/AnthonyPWatts/cycles/issues/98) | Accept the current lifecycle-control default. **Advance turn** remains the only ordinary-player Development exception. Shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed. | The current Development capability is confirmed without broadening player roles or exposing recovery, Cycle end, successor creation, pause, or diagnostics controls. Production operations remain gated by the unanswered auth, hosting, Worker, recovery, and audit decisions. |
 | [Q120](https://github.com/AnthonyPWatts/cycles/issues/108) | All player-facing API endpoints use explicit response DTOs before online testing. | The implemented DTO-only boundary and its regression coverage are accepted product contracts. Future player-facing endpoints must follow the same boundary. |
 | [Q121](https://github.com/AnthonyPWatts/cycles/issues/109) | Raw domain entities remain internal and are not returned to the dashboard. | Dashboard contracts may expose purpose-built representations, but must not leak `Cycles.Core` entities. |
+
+## Accepted Q111 Answer
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q111](https://github.com/AnthonyPWatts/cycles/issues/99) | Treat a persisted `Running` tick as suspicious after a configurable threshold that defaults to five minutes. | The threshold is diagnostic only and must not fail, retry, repair, or cancel a tick. The atomic JSON store does not persist its intermediate `Running` state, so its relevant evidence is total tick duration, state-file size, and representative retained-state benchmarks. Implementation is tracked by [issue #120](https://github.com/AnthonyPWatts/cycles/issues/120). |
 
 ## Established Product Contracts
 
@@ -158,7 +166,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q111-Q118 | Identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107's sequencing choice, Q108's cadence, Q109's manual tick boundary, and Q110's lifecycle boundary are settled. |
+| Production access and operations | Q112-Q118 | Abandoned-tick handling, identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107-Q111 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults

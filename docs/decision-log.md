@@ -771,3 +771,19 @@ Consequences:
 - The trusted playground may continue using the Development exception without promoting players or broadening their visibility or empire authority.
 - Ordinary Production players cannot execute ticks.
 - Production identity, admin provisioning, and audit implementation remain required before the admin capability is suitable for shared use.
+
+## 2026-07-14: Flag Persisted Running Ticks After Five Minutes
+
+Decision: accept the Q111 diagnostic default. A persisted `Running` tick becomes suspicious after a configurable threshold that defaults to five minutes.
+
+Reasoning:
+
+- Normal tick execution is expected to complete far faster than five minutes, while the threshold leaves ample room for constrained infrastructure and retained state.
+- A Cycle's scheduling cadence is unrelated to execution duration, so waiting a full tick length would delay fault detection unnecessarily.
+- A warning must remain separate from recovery because elapsed time alone does not prove that a tick is abandoned.
+
+Consequences:
+
+- The threshold classifies and reports suspicious state only; it does not fail, retry, repair, or cancel a tick.
+- The atomic JSON store does not persist its intermediate `Running` log, so the hosted playground instead needs end-to-end tick duration, state-file-size evidence, and a representative whole-file retained-state benchmark.
+- Implementation is tracked by GitHub issue #120. Q112 remains responsible for the operator response to an abandoned running tick.
