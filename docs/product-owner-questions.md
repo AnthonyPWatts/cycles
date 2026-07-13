@@ -118,6 +118,20 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Online testing follows authentication hardening and a coherent operational boundary.
 - Hosting form, production database, backup/restore expectations, and vendor choices remain open.
 
+## Implemented Defaults Awaiting Product Confirmation
+
+The following open questions now have reversible engineering defaults in the Development build or trusted playground. These implementations provide something concrete to test; they are not accepted product answers and do not close the linked issues.
+
+| Open questions | Current implemented default |
+| --- | --- |
+| [Q107](https://github.com/AnthonyPWatts/cycles/issues/95), [Q108](https://github.com/AnthonyPWatts/cycles/issues/96), and [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | The Worker exists, reads each Cycle's cadence, and runs at most one due tick per check. Authenticated Development players can use the narrower accepted **Advance turn** exception; Production players cannot. |
+| [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | The trusted playground puts both the public landing page and dashboard behind an application access code, leaves `/health` public, and keeps the Development login inside that gate. This does not settle the future production boundary. |
+| [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) and [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The cost-capped playground persists JSON on its free App Service instance. This is an explicit hosted-test exception and does not select the production provider or reverse the accepted import/export-only direction. |
+| [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Normal History views show purpose-built event and Chronicle text rather than exposing raw `FactJson`. |
+| [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | The dashboard is tuned for the current small seeded galaxy and bounded lists; larger-scale rendering remains conditional work. |
+| [Q126](https://github.com/AnthonyPWatts/cycles/issues/114) | The dashboard prioritises desktop command use while retaining basic responsive behaviour for narrower screens. |
+| [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | A resumable Day One guide explains resources, priorities, fog of war, fleet orders, factual Events, and the narrative Chronicle through the real controls. |
+
 ## Current Gates
 
 Do not expand these areas until the referenced questions have accepted answers:

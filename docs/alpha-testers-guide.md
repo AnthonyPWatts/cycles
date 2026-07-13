@@ -23,11 +23,15 @@ dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
 
 Stop the API before replacing a state file that it is using, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening. Explicit dimensions and seed values create a generic galaxy instead.
 
-For an organised hosted test, use the username and tick schedule supplied by the organiser. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
+For an organised hosted test, use the access code and username supplied by the organiser. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
 
 ## Curated Day One
 
 The Day One guide opens automatically for `player-1` when the curated Cycle is at tick 0 with no submitted orders. It is a click-along walkthrough, not a slideshow: required steps unlock only after the real server action succeeds.
+
+![Command view with the Day One guide open](images/cycles-dashboard-command-guide.png)
+
+*The Command view opens with the resumable Day One guide and the next-turn information kept together.*
 
 Your Aurelian command begins with three live problems:
 
@@ -38,11 +42,11 @@ Your Aurelian command begins with three live problems:
 The guide takes you through this sequence:
 
 1. Read the resource cards and what each stockpile pays for.
-2. Review the four priorities and select **Save priorities**. You may keep the opening allocation or choose another valid total of 100.
+2. Drag any priority slider. The other three rebalance automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
 3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
-4. In **Fleets**, select **Aurelian Home Guard**, open **Move**, choose **Nadir Crossing**, then select **Queue move**.
-5. Select **Pale Harbour Survey**, open **Colonise**, then select **Queue outpost**.
-6. Select **Treaty Gate Vanguard**, open **Attack**, choose the **Khepri Mandate**, then select **Queue attack**.
+4. In **Fleets**, select **Aurelian Home Guard**. The guide opens **Move**; choose **Nadir Crossing**, then select **Queue move**.
+5. Select **Pale Harbour Survey**. The guide opens **Colonise**; select **Queue outpost**.
+6. Select **Treaty Gate Vanguard**. The guide opens **Attack**; choose the **Khepri Mandate**, then select **Queue attack**.
 7. Check that the order queue contains the three commitments.
 8. Select **Advance turn**.
 9. Read the factual results in **Events**, then open the **Chronicle** account of Treaty Gate.
@@ -67,6 +71,10 @@ The dashboard keeps four views available at all times. Browser back and forward 
 The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
 
 In **Galaxy**, the map shows every system and route. Select a system to inspect its resource output, strategic value, historical significance, visible influence, and colonial outposts.
+
+![Galaxy view with a selected system and map legend](images/cycles-dashboard-map.png)
+
+*The Galaxy view gives the map most of the workspace and keeps the selected system's details beside it.*
 
 The map legend marks:
 
@@ -96,7 +104,7 @@ The order appears as **Pending** in the **Command** view's order queue and says 
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
-After the tick, select **Refresh** and check:
+After **Advance turn**, the dashboard refreshes automatically. Use **Refresh** if another host advanced the Cycle or if you want to reload the current state, then check:
 
 - the tick number beside the Cycle name;
 - your fleet's location or arrival tick;

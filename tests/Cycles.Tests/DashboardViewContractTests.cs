@@ -83,6 +83,19 @@ public sealed class DashboardViewContractTests
         Assert.Contains("const fleetId = state.selectedFleetId;", script);
     }
 
+    [Fact]
+    public void Day_one_guide_points_to_the_required_fleet_before_its_action_form()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("state.selectedFleetId === moveFleetId", script);
+        Assert.Contains("state.selectedFleetId === colonise.fleetId", script);
+        Assert.Contains("state.selectedFleetId === attack.fleetId", script);
+        Assert.Contains("document.querySelector(`[data-fleet-id=\"${moveFleetId}\"]`)", script);
+        Assert.Contains("document.querySelector(`[data-fleet-id=\"${colonise.fleetId}\"]`)", script);
+        Assert.Contains("document.querySelector(`[data-fleet-id=\"${attack.fleetId}\"]`)", script);
+    }
+
     private static string ReadDashboardAsset(string fileName) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dashboard", fileName));
 }

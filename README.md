@@ -4,7 +4,7 @@
 
 Cycles is a server-authoritative, tick-based strategy prototype about influence, history, and legacy across recurring galactic Cycles.
 
-The current pre-alpha development build supports a complete local gameplay loop:
+The current pre-alpha development build supports a complete gameplay loop locally and through an access-restricted trusted playground:
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
 - generate a connected galaxy with empires, fleets, resources, and priorities;
@@ -17,11 +17,12 @@ The current pre-alpha development build supports a complete local gameplay loop:
 - learn the first-turn loop through a resumable click-along guide in the dashboard;
 - run against a local JSON store or SQL Server.
 
-This is a working development MVP, not an alpha release or production game service. Authentication, the dashboard, combat balance, deployment, and several future systems remain deliberately provisional.
+This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.
 
 ## Start Here
 
 - [Gameplay Guide](docs/alpha-testers-guide.md) explains the curated opening and current gameplay loop.
+- [Trusted Playground Deployment](docs/playground-deployment.md) records the hosted test boundary and cost guardrails.
 - [Project State](docs/project-state.md) records implemented behaviour, verification, and known limits.
 - [Documentation Index](docs/README.md) defines the purpose and ownership of every maintained document.
 - [Backlog](docs/backlog.md) is the sole implementation queue.

@@ -44,4 +44,4 @@ These Word files preserve source intent and historical product prompts. The Mark
 - Put unresolved product choices and accepted product answers only in `product-owner-questions.md`.
 - Add a decision-log entry when a choice would otherwise be rediscovered.
 - Keep commands in the root README, Operations, or the SQL Server runbook according to audience.
-- Do not use screenshots as current-state evidence while the dashboard is changing quickly. Add maintained tutorial images later when the interface stabilises.
+- Keep screenshots in player-facing tutorials rather than using them as behavioural proof. Regenerate the maintained captures in the Gameplay Guide when a UI change makes their controls or layout misleading.

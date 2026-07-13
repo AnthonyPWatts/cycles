@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 Cycles is server-authoritative and simulation-first. Clients submit intentions and read permitted state. A tick host decides outcomes, persistence stores authoritative facts, and narrative systems interpret those facts only after the simulation has resolved them.
 
@@ -100,7 +100,7 @@ The in-memory path uses a focused transactional working copy and rolls back appe
 
 ## Persistence Position
 
-SQL Server is the primary relational proof path. JSON remains useful for zero-service development, while the accepted long-term product direction is to demote it to import/export support. The timing and compatibility details remain open in Q119.
+SQL Server is the primary relational proof path. JSON remains useful for zero-service development and for the cost-capped trusted playground, while the accepted long-term product direction is to demote it to import/export support. The hosted use is a bounded Development exception, not a production persistence decision. The timing and compatibility details remain open in Q119.
 
 Current SQL paths:
 
@@ -120,7 +120,7 @@ Development-auth players see the full galaxy topology but exact local presence, 
 
 ## Deployment Gate
 
-No production deployment path is defined. Before an untrusted online test, decide and implement:
+No production deployment path is defined. A cost-capped trusted playground now hosts the Development build behind restricted access, uses persistent JSON state, and relies on manual Development turns. It is an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, decide and implement:
 
 - production authentication and admin provisioning;
 - hosting and database provider;
@@ -129,4 +129,4 @@ No production deployment path is defined. Before an untrusted online test, decid
 - secrets, logging, monitoring, and incident diagnostics;
 - database backup, restore, and recovery administration.
 
-Until those decisions exist, keep the runnable target local and treat it as a pre-alpha development build.
+Until those decisions exist, treat both local execution and the trusted playground as pre-alpha Development targets and make no production-readiness claim from the hosted deployment.

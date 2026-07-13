@@ -103,6 +103,8 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 
 Q110, Q120, and Q121 confirm behaviour already implemented and covered by tests: the narrow Development-only player turn control, DTO-only player responses, and internal-only domain entities. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
+Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
+
 ## Completed Foundations
 
 The following are established and should not remain as open roadmap stages:

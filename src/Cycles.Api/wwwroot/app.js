@@ -1309,7 +1309,7 @@ function tutorialSteps() {
             id: "priorities",
             view: "command",
             title: "Choose what this turn emphasises",
-            body: "Move any priority control and the others rebalance to keep 100 points allocated. Military converts industry into ship construction; Expansion strengthens your projected influence.",
+            body: "Drag any priority slider and the other three rebalance to keep 100 points allocated. Military converts industry into ship construction; Expansion strengthens your projected influence. Save the new allocation when it is ready.",
             target: () => document.querySelector("#prioritySection"),
             required: true,
             requirement: "Save the priority allocation to continue.",
@@ -1347,9 +1347,11 @@ function tutorialSteps() {
             fleetAction: "move",
             title: curated ? "Secure Nadir Crossing" : "Commit a movement order",
             body: curated
-                ? `Select ${tutorialFleetName(moveFleetId)} in the roster, then choose ${tutorialSystemName(moveTargetId)} in Move. Orders are intentions: the server validates them again when the turn resolves.`
-                : `Select ${tutorialFleetName(moveFleetId)} in the roster, then choose ${tutorialSystemName(moveTargetId)}. The order will resolve on the next authoritative turn.`,
-            target: () => document.querySelector("#moveForm"),
+                ? `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order. The server validates the intention again when the turn resolves.`
+                : `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order for the next authoritative turn.`,
+            target: () => state.selectedFleetId === moveFleetId
+                ? document.querySelector("#moveForm")
+                : document.querySelector(`[data-fleet-id="${moveFleetId}"]`),
             required: true,
             requirement: "Queue the highlighted movement objective.",
             isSatisfied: () => tutorialOrderExists("moveFleet", moveFleetId, "targetSystemId", moveTargetId)
@@ -1364,8 +1366,10 @@ function tutorialSteps() {
                 fleetTab: "command",
                 fleetAction: "colonise",
                 title: "Establish the Pale Harbour outpost",
-                body: `Select ${tutorialFleetName(colonise.fleetId)} in the roster. Colonisation costs 100 population and succeeds because that fleet has the leading local influence.`,
-                target: () => document.querySelector("#coloniseForm"),
+                body: `Select ${tutorialFleetName(colonise.fleetId)} in the roster. This guide opens Colonise; queue the outpost from that fleet. It costs 100 population and succeeds because the fleet has the leading local influence.`,
+                target: () => state.selectedFleetId === colonise.fleetId
+                    ? document.querySelector("#coloniseForm")
+                    : document.querySelector(`[data-fleet-id="${colonise.fleetId}"]`),
                 required: true,
                 requirement: "Queue the Pale Harbour outpost.",
                 isSatisfied: () => tutorialOrderExists("colonise", colonise.fleetId)
@@ -1376,8 +1380,10 @@ function tutorialSteps() {
                 fleetTab: "command",
                 fleetAction: "attack",
                 title: "Answer the Khepri challenge",
-                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster, then choose the local Khepri force. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
-                target: () => document.querySelector("#attackForm"),
+                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster. This guide opens Attack; choose the local Khepri force, then queue the order. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
+                target: () => state.selectedFleetId === attack.fleetId
+                    ? document.querySelector("#attackForm")
+                    : document.querySelector(`[data-fleet-id="${attack.fleetId}"]`),
                 required: true,
                 requirement: "Queue the Treaty Gate attack.",
                 isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetEmpireId", attack.targetEmpireId)
@@ -1400,6 +1406,7 @@ function tutorialSteps() {
         },
         {
             id: "advance",
+            view: "command",
             title: "Resolve the turn",
             body: "Advance turn runs the same authoritative simulation boundary as the Worker and CLI. It resolves the whole development galaxy, not only your empire.",
             target: () => elements.advanceTurnButton,
