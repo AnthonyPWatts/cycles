@@ -785,8 +785,8 @@ Reasoning:
 Consequences:
 
 - The threshold classifies and reports suspicious state only; it does not fail, retry, repair, or cancel a tick.
-- The atomic JSON store does not persist its intermediate `Running` log, so the hosted playground instead needs end-to-end tick duration, state-file-size evidence, and a representative whole-file retained-state benchmark.
-- Implementation is tracked by GitHub issue #120. Q112 remains responsible for the operator response to an abandoned running tick.
+- At the time of this decision, the atomic JSON store did not persist its intermediate `Running` log, so the hosted path called for end-to-end duration and retained-state evidence. Q119 later retired JSON as a runtime path.
+- GitHub issue #120 now tracks persisted SQL attempt diagnostics only; representative JSON import/export validation belongs to issue #126. Q112 remains responsible for the operator response to an abandoned running tick.
 
 ## 2026-07-14: Require Inspection Before Abandoning A Running Tick
 
@@ -880,7 +880,7 @@ Consequences:
 - The application does not dual-write. Before reopening, rollback may return to the frozen JSON snapshot; after new SQL-backed gameplay, recovery uses SQL backup/restore instead of stale JSON.
 - The selected managed service must provide at least seven days of point-in-time recovery and remain inside an explicitly reviewed cost boundary.
 - One backup is restored to an isolated target and checked for Cycle/tick, player, empire, fleet, order, event, Chronicle, and recovery-state continuity.
-- Q117 selects the existing SQL Server provider on managed Azure SQL. Q119 still determines JSON's remaining local-development and import/export lifecycle.
+- Q117 selects the existing SQL Server provider on managed Azure SQL. Q119 subsequently confirms JSON's remaining import/export-only lifecycle and mandatory SQL runtime direction.
 - Implementation is tracked by GitHub issue #125.
 
 ## 2026-07-14: Use The Existing SQL Server Provider For The First Online Test
@@ -919,3 +919,23 @@ Consequences:
 - Material portability implications are documented when introduced; a hypothetical future provider does not require an unused abstraction today.
 - Convenience-only provider coupling and leakage into domain or public application contracts remain out of bounds.
 - This confirms the implemented architectural default and creates no separate implementation issue.
+
+## 2026-07-14: Demote JSON To Explicit Import And Export Now
+
+Decision: demote JSON now to explicit import/export, validation, offline inspection, fixtures, and migration evidence. After the deployed cutover is safely configured and verified, API and Worker runtime hosts require explicit SQL configuration and normal local development uses the documented SQL Server container.
+
+Reasoning:
+
+- Q116 and Q117 already require the deployed playground and first online test to use the existing SQL Server provider on Azure SQL.
+- Keeping a silent file fallback after that cutover would preserve two runtime behaviours, weaken configuration failure signals, and continue exercising the path the project has decided to retire.
+- A deliberate, versioned transfer format remains useful for migration, support, reproducible fixtures, and offline inspection without acting as the authoritative live store.
+- The deployed game needs the importer before the runtime fallback can disappear, so sequencing is part of the decision rather than an implementation detail to improvise later.
+
+Consequences:
+
+- Issue #126 adds versioned, validated SQL-to-JSON export and JSON-to-SQL import before changing runtime defaults.
+- Issue #125 consumes the verified importer, migrates and validates the deployed game, and switches App Service to Azure SQL.
+- Only after the deployed SQL configuration is live and verified do API and Worker remove `CYCLES_STATE_PATH` and implicit `FileGameStateStore` selection.
+- Local development uses the SQL Server container and migrations. JSON may remain in bounded tooling and test-fixture paths, but not as a supported runtime host store.
+- The application does not dual-write JSON and SQL, and JSON exports do not replace database-native backup or restore.
+- Issue #120 no longer includes transient hosted-JSON file-size or whole-file runtime diagnostics; it remains focused on persisted SQL attempts.

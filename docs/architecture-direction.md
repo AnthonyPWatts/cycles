@@ -100,7 +100,7 @@ The in-memory path uses a focused transactional working copy and rolls back appe
 
 ## Persistence Position
 
-SQL Server is the primary relational proof path. JSON remains useful for zero-service development while Q119 settles its full local lifecycle, but Q116 now requires the cost-capped trusted playground to migrate its current state before further tester invitations and prove restoration from database-native backup. Q117 selects the existing SQL Server provider on managed Azure SQL for that cutover and first online test rather than delaying for provider portability. The accepted long-term product direction remains to demote JSON to import/export support.
+SQL Server is the selected runtime path. Q116 requires the cost-capped trusted playground to migrate its current state before further tester invitations and prove restoration from database-native backup; Q117 selects the existing SQL Server provider on managed Azure SQL for that cutover and first online test. Q119 demotes JSON now to explicit, versioned import/export, validation, offline inspection, fixtures, and migration evidence. After the safe cutover sequence in issues #126 and #125, API, Worker, and normal local-development runtime hosts require SQL rather than silently selecting a file store.
 
 SQL Server-specific features are not categorically forbidden. They may be used inside `Cycles.Infrastructure.SqlServer` and SQL migrations when Azure SQL supports them and they materially improve correctness, consistency, measured performance, or operations. `Cycles.Core` and `IGameStateStore` remain provider-neutral, and material portability implications must be documented. The existing transaction-scoped `sp_getapplock` is the accepted model: a concrete concurrency guarantee kept behind the provider boundary.
 
@@ -122,13 +122,12 @@ Development-auth players see the full galaxy topology but exact local presence, 
 
 ## Deployment Gate
 
-No production deployment path is defined. A cost-capped trusted playground now hosts the Development build behind restricted access, uses persistent JSON state, and relies on manual Development turns. It is an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, decide and implement:
+No production deployment path is complete. A cost-capped trusted playground currently hosts the Development build behind restricted access, uses persistent JSON state, and relies on manual Development turns. It is an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, implement the accepted boundaries and remaining operational gates:
 
-- production authentication and admin provisioning;
-- hosting and database provider;
-- migration execution and rollback;
+- external OIDC, invited-player admission, protected dashboard routing, and audited admin provisioning;
+- versioned JSON import/export, the managed Azure SQL cutover, migration rollback, database-native backup, and a proved restore;
 - Worker health, leadership, and multi-Cycle behaviour;
 - secrets, logging, monitoring, and incident diagnostics;
-- database backup, restore, and recovery administration.
+- explicit recovery administration.
 
-Until those decisions exist, treat both local execution and the trusted playground as pre-alpha Development targets and make no production-readiness claim from the hosted deployment.
+Until those implementations exist, treat both local execution and the trusted playground as pre-alpha Development targets and make no production-readiness claim from the hosted deployment.

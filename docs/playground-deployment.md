@@ -18,7 +18,7 @@ JSON is a deliberate playground exception, not a reversal of the SQL-backed runt
 
 ## Accepted Managed-SQL Cutover
 
-The JSON exception describes the currently deployed state, but it is no longer the accepted destination for further tester invitations. Q116 requires the playground to move its existing game to managed SQL, retain at least seven days of database-native point-in-time recovery, and prove one isolated restore. [GitHub issue #125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the cutover.
+The JSON exception describes the currently deployed state, but it is no longer the accepted destination for further tester invitations. Q119 demotes JSON to explicit import/export, and [GitHub issue #126](https://github.com/AnthonyPWatts/cycles/issues/126) must provide the validated importer before Q116 moves the existing game to managed SQL. [GitHub issue #125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the cutover, at least seven days of database-native point-in-time recovery, and one proved isolated restore.
 
 The cutover must intentionally revise the cost guardrails below rather than bypass them. Q117 selects the existing SQL Server provider on managed Azure SQL, subject to a compatibility smoke test. Until that choice is implemented and verified, the current SQL-resource deny policy remains enforced and the JSON-backed deployment remains the truthful runtime description.
 

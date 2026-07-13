@@ -15,7 +15,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - resolve deterministic combat and persist factual events, admirals, and Chronicle reports;
 - record map-control metrics, complete a Cycle, preserve major history, and generate a successor Cycle;
 - learn the first-turn loop through a resumable click-along guide in the dashboard;
-- run against a local JSON store or SQL Server.
+- currently run against a local JSON store or SQL Server, with the accepted runtime direction requiring SQL after the safe JSON import/export and deployed-cutover work completes.
 
 This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.
 
@@ -66,6 +66,8 @@ dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
 
 With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide. Supplying explicit values, for example `seed data/cycles-state.json 24 4 71421`, creates the generic deterministic galaxy instead.
 
+This remains the transitional local-development path. Q119 demotes JSON to explicit import/export; issue [#126](https://github.com/AnthonyPWatts/cycles/issues/126) adds the safe tooling and removes the implicit API/Worker file fallback only after the deployed Azure SQL cutover is configured and verified.
+
 Run the API and dashboard:
 
 ```powershell
@@ -114,6 +116,6 @@ The image creates `CyclesDb`, applies ordered migrations, and seeds a smoke-test
 
 Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Advance turn** without receiving admin visibility or cross-empire authority. Production players cannot use that capability.
 
-SQL Server is the primary relational proof path. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. JSON remains the zero-service development store; the accepted long-term direction is import/export support rather than production runtime persistence.
+SQL Server is the selected runtime path. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. JSON remains the currently implemented zero-service fallback only until issues [#126](https://github.com/AnthonyPWatts/cycles/issues/126) and [#125](https://github.com/AnthonyPWatts/cycles/issues/125) provide versioned import/export, migrate the deployed game, and make SQL configuration mandatory for API, Worker, and normal local-development runtime hosts.
 
 Events and battle records remain authoritative facts. Chronicle prose is deterministic template output stored separately from those facts, leaving future narrative generation non-authoritative.
