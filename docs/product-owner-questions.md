@@ -12,6 +12,8 @@ Implementation status belongs in [Project State](project-state.md), work sequenc
 
 Q110, Q120, and Q121 were answered on 2026-07-12 by accepting their documented defaults. They are recorded below and no longer form active product gates.
 
+Q107 was answered on 2026-07-13 by accepting the already-implemented Worker sequencing default.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -39,6 +41,12 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 | Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
 
 The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013-Q022 still gate player-facing diplomacy.
+
+## Accepted Q107 Answer
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q107](https://github.com/AnthonyPWatts/cycles/issues/95) | Create `Cycles.Worker` before the next gameplay system. | The existing scheduled tick host is confirmed as the correct sequencing choice. This does not settle production hosting, authentication, backup, or Worker deployment topology. |
 
 ## Accepted Q110, Q120, And Q121 Answers
 
@@ -124,7 +132,7 @@ The following open questions now have reversible engineering defaults in the Dev
 
 | Open questions | Current implemented default |
 | --- | --- |
-| [Q107](https://github.com/AnthonyPWatts/cycles/issues/95), [Q108](https://github.com/AnthonyPWatts/cycles/issues/96), and [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | The Worker exists, reads each Cycle's cadence, and runs at most one due tick per check. Authenticated Development players can use the narrower accepted **Advance turn** exception; Production players cannot. |
+| [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) and [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | The Worker reads each Cycle's cadence and runs at most one due tick per check. Authenticated Development players can use the narrower accepted **Advance turn** exception; Production players cannot. |
 | [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | The trusted playground puts both the public landing page and dashboard behind an application access code, leaves `/health` public, and keeps the Development login inside that gate. This does not settle the future production boundary. |
 | [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) and [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The cost-capped playground persists JSON on its free App Service instance. This is an explicit hosted-test exception and does not select the production provider or reverse the accepted import/export-only direction. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Normal History views show purpose-built event and Chronicle text rather than exposing raw `FactJson`. |
@@ -145,7 +153,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q107-Q109 and Q111-Q118 | Identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q110's lifecycle boundary is settled. |
+| Production access and operations | Q108-Q109 and Q111-Q118 | Tick cadence, identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107's sequencing choice and Q110's lifecycle boundary are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults

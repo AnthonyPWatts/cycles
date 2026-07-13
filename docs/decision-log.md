@@ -724,3 +724,18 @@ Consequences:
 - Cloudflare Zero Trust is not used because its checkout path required a payment card and offered usage-overage authorisation. Per-email sign-in does not justify weakening the hard-spend boundary for this temporary environment.
 - The shared code and seven-day secure cookie are trusted-playground exceptions, not production identity or authorisation.
 - Production identity, hosting, Worker scheduling, persistence lifecycle, monitoring, recovery administration, and backup decisions remain open.
+
+## 2026-07-13: Create The Worker Before Further Gameplay Expansion
+
+Decision: accept the Q107 sequencing default and create `Cycles.Worker` before adding the next gameplay system.
+
+Reasoning:
+
+- Repeated testing needs an authoritative scheduled host rather than continued dependence on manual CLI ticks.
+- Keeping scheduled execution outside the API preserves the server-authoritative boundary and gives operational concerns a clear owner.
+- The Worker implementation and scheduling tests already provide concrete evidence for the default.
+
+Consequences:
+
+- The existing `Cycles.Worker` project is the accepted scheduled tick host and does not need replacement merely to revisit the sequencing question.
+- Production Worker health, leadership, deployment topology, authentication, backup, and recovery policy remain separate open decisions.
