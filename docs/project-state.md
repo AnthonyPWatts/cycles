@@ -76,7 +76,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Players can see the full map structure, but exact presence, local fleets, events, last-tick facts, and Chronicle entries are limited by active-fleet visibility. Development admins can inspect all state.
 - In Development, every authenticated player receives an **Advance turn** capability that invokes the same authoritative store operation used by the Worker and CLI. This does not change the player's role, visibility, or empire authority.
 - Ordinary production players cannot execute ticks; a trusted admin can still use the protected operational endpoint.
-- The dashboard uses persistent hash-addressable views: **Command** for resources, priorities, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records.
+- The dashboard uses persistent hash-addressable views: **Command** for resources, linked 100-point priority drafting, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records. The Command view keeps saved priority positions visible while a new allocation is being drafted and persists changes only through an explicit save.
 - Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
 
@@ -97,7 +97,7 @@ Latest local verification on 2026-07-13:
 .\eng\test.ps1
 ```
 
-Result: **138 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
+Result: **139 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 

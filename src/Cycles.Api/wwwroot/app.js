@@ -25,10 +25,13 @@ const state = {
     chronicleSort: "newest",
     eventQuery: "",
     eventSeverity: "all",
-    eventSort: "newest"
+    eventSort: "newest",
+    priorityDraft: null,
+    prioritySaving: false
 };
 
 const viewIds = ["command", "galaxy", "fleets", "history"];
+const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
 const viewShortcuts = new Map([
     ["1", "command"],
     ["2", "galaxy"],
@@ -51,6 +54,7 @@ const tutorial = {
 };
 
 const tutorialSessionStore = new Map();
+let priorityActivityTimeout = null;
 
 const elements = {
     loginForm: document.querySelector("#loginForm"),
@@ -72,15 +76,16 @@ const elements = {
     historyViewBadge: document.querySelector("#historyViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
+    homeSystemName: document.querySelector("#homeSystemName"),
     resources: document.querySelector("#resources"),
     systemDetails: document.querySelector("#systemDetails"),
+    prioritySection: document.querySelector("#prioritySection"),
     priorityForm: document.querySelector("#priorityForm"),
-    industryWeight: document.querySelector("#industryWeight"),
-    researchWeight: document.querySelector("#researchWeight"),
-    militaryWeight: document.querySelector("#militaryWeight"),
-    expansionWeight: document.querySelector("#expansionWeight"),
+    priorityInputs: [...document.querySelectorAll("[data-priority-key]")],
+    priorityDraftStatus: document.querySelector("#priorityDraftStatus"),
     priorityTotal: document.querySelector("#priorityTotal"),
-    priorityBars: document.querySelector("#priorityBars"),
+    priorityResetButton: document.querySelector("#priorityResetButton"),
+    prioritySaveButton: document.querySelector("#prioritySaveButton"),
     priorityMessage: document.querySelector("#priorityMessage"),
     fleets: document.querySelector("#fleetList"),
     fleetDetails: document.querySelector("#fleetDetails"),
@@ -302,34 +307,59 @@ elements.eventSort.addEventListener("change", () => {
     renderEvents(state.events);
 });
 
-elements.priorityForm.addEventListener("input", updatePriorityTotal);
+elements.priorityForm.addEventListener("input", event => {
+    const input = event.target.closest("[data-priority-key]");
+    if (!input || !state.priorityDraft) {
+        return;
+    }
+
+    rebalancePriorityDraft(input.dataset.priorityKey, parseWeight(input.value));
+    renderPriorityControls();
+    setPriorityMessage("");
+    pulsePriorityConsole();
+});
+
+elements.priorityResetButton.addEventListener("click", () => {
+    if (!state.empire) {
+        return;
+    }
+
+    renderPriorities(state.empire.priorities);
+    setPriorityMessage("Allocation reset to the saved values.");
+});
 
 elements.priorityForm.addEventListener("submit", async event => {
     event.preventDefault();
+    setPriorityMessage("");
     if (!state.empire) {
         setPriorityMessage("Login before updating priorities.");
         return;
     }
 
-    const payload = {
-        industryWeight: parseWeight(elements.industryWeight.value),
-        researchWeight: parseWeight(elements.researchWeight.value),
-        militaryWeight: parseWeight(elements.militaryWeight.value),
-        expansionWeight: parseWeight(elements.expansionWeight.value)
-    };
+    const payload = { ...state.priorityDraft };
+    const isDirty = priorityKeys.some(key => payload[key] !== parseWeight(state.empire.priorities[key]));
 
     if (Object.values(payload).reduce((total, value) => total + value, 0) !== 100) {
         setPriorityMessage("Priorities must total 100.");
         return;
     }
 
+    if (!isDirty) {
+        return;
+    }
+
+    state.prioritySaving = true;
+    renderPriorityControls();
     try {
         await postJson("/orders/priorities", payload);
-        setPriorityMessage("Priorities saved.");
         await refresh();
+        setPriorityMessage("Priorities saved for the next tick.");
         completeTutorialAction("prioritiesSaved");
     } catch (error) {
         setPriorityMessage(error.message);
+    } finally {
+        state.prioritySaving = false;
+        renderPriorityControls();
     }
 });
 
@@ -668,16 +698,13 @@ function renderCycle(cycle) {
 
 function renderEmpire(empire) {
     elements.empireName.textContent = empire.empireName;
+    elements.homeSystemName.textContent = empire.homeSystem.systemName;
     const resources = empire.resources;
     const maxResource = Math.max(1, Number(resources.industry), Number(resources.research), Number(resources.population));
     elements.resources.innerHTML = `
         ${resourceCard("Industry", resources.industry, maxResource, resources.lastGeneratedIndustry, resources.lastSpentIndustry)}
         ${resourceCard("Research", resources.research, maxResource, resources.lastGeneratedResearch, resources.lastSpentResearch)}
         ${resourceCard("Population", resources.population, maxResource, resources.lastGeneratedPopulation, resources.lastSpentPopulation)}
-        <div class="resource-card resource-home">
-            <dt>Home</dt>
-            <dd>${escapeHtml(empire.homeSystem.systemName)}</dd>
-        </div>
     `;
 }
 
@@ -717,11 +744,8 @@ function setViewBadge(element, value, label) {
 }
 
 function renderPriorities(priorities) {
-    elements.industryWeight.value = priorities.industryWeight;
-    elements.researchWeight.value = priorities.researchWeight;
-    elements.militaryWeight.value = priorities.militaryWeight;
-    elements.expansionWeight.value = priorities.expansionWeight;
-    updatePriorityTotal();
+    state.priorityDraft = Object.fromEntries(priorityKeys.map(key => [key, parseWeight(priorities[key])]));
+    renderPriorityControls();
 }
 
 function renderFleets(fleets) {
@@ -1285,10 +1309,10 @@ function tutorialSteps() {
             id: "priorities",
             view: "command",
             title: "Choose what this turn emphasises",
-            body: "Priorities must total 100. Military converts industry into ship construction; Expansion strengthens your projected influence. Adjust them or keep the opening allocation, then save.",
+            body: "Move any priority control and the others rebalance to keep 100 points allocated. Military converts industry into ship construction; Expansion strengthens your projected influence.",
             target: () => document.querySelector("#prioritySection"),
             required: true,
-            requirement: "Save a valid priority allocation to continue.",
+            requirement: "Save the priority allocation to continue.",
             isSatisfied: () => tutorial.completedActions.has("prioritiesSaved")
         },
         {
@@ -1787,27 +1811,77 @@ function setTurnMessage(message) {
     elements.turnMessage.textContent = message;
 }
 
-function updatePriorityTotal() {
-    const priorities = [
-        ["Industry", parseWeight(elements.industryWeight.value)],
-        ["Research", parseWeight(elements.researchWeight.value)],
-        ["Military", parseWeight(elements.militaryWeight.value)],
-        ["Expansion", parseWeight(elements.expansionWeight.value)]
-    ];
-    const total = priorities.reduce((sum, [, value]) => sum + value, 0);
+function rebalancePriorityDraft(activeKey, requestedValue) {
+    if (!priorityKeys.includes(activeKey)) {
+        return;
+    }
 
+    const activeValue = Math.max(0, Math.min(100, requestedValue));
+    const otherKeys = priorityKeys.filter(key => key !== activeKey);
+    const remaining = 100 - activeValue;
+    const currentOtherTotal = otherKeys.reduce((total, key) => total + state.priorityDraft[key], 0);
+    const weightTotal = currentOtherTotal > 0 ? currentOtherTotal : otherKeys.length;
+    const allocations = otherKeys.map((key, index) => {
+        const weight = currentOtherTotal > 0 ? state.priorityDraft[key] : 1;
+        const exactValue = remaining * weight / weightTotal;
+        const value = Math.floor(exactValue);
+        return { key, index, value, remainder: exactValue - value };
+    });
+    let pointsLeft = remaining - allocations.reduce((total, allocation) => total + allocation.value, 0);
+
+    allocations
+        .slice()
+        .sort((left, right) => right.remainder - left.remainder || left.index - right.index)
+        .forEach(allocation => {
+            if (pointsLeft > 0) {
+                allocation.value += 1;
+                pointsLeft -= 1;
+            }
+        });
+
+    state.priorityDraft[activeKey] = activeValue;
+    allocations.forEach(allocation => {
+        state.priorityDraft[allocation.key] = allocation.value;
+    });
+}
+
+function renderPriorityControls() {
+    const total = priorityKeys.reduce((sum, key) => sum + state.priorityDraft[key], 0);
+    const isDirty = Boolean(state.empire) && priorityKeys.some(key => state.priorityDraft[key] !== parseWeight(state.empire.priorities[key]));
+
+    elements.priorityInputs.forEach(input => {
+        const key = input.dataset.priorityKey;
+        const value = state.priorityDraft[key];
+        const savedValue = state.empire ? parseWeight(state.empire.priorities[key]) : value;
+        const isChanged = value !== savedValue;
+        const sliderShell = input.closest(".priority-slider-shell");
+        input.value = value;
+        input.disabled = state.prioritySaving;
+        input.setAttribute("aria-valuetext", `${value} points; linked total 100`);
+        sliderShell.style.setProperty("--priority-percent", `${value}%`);
+        sliderShell.style.setProperty("--saved-percent", `${savedValue}%`);
+        sliderShell.classList.toggle("has-saved-marker", isChanged);
+        document.querySelector(`#${key}Value`).textContent = value.toLocaleString();
+        const savedLabel = document.querySelector(`#${key}Saved`);
+        savedLabel.textContent = `Saved ${savedValue.toLocaleString()}`;
+        savedLabel.classList.toggle("is-visible", isChanged);
+    });
+
+    elements.priorityDraftStatus.textContent = state.prioritySaving ? "Saving" : isDirty ? "Unsaved" : "Saved";
+    elements.prioritySection.classList.toggle("has-unsaved-changes", Boolean(isDirty));
+    elements.priorityForm.setAttribute("aria-busy", state.prioritySaving.toString());
     elements.priorityTotal.textContent = total.toLocaleString();
-    elements.priorityTotal.closest(".priority-total").classList.toggle("invalid", total !== 100);
-    elements.priorityBars.innerHTML = priorities.map(([label, value]) => {
-        const share = total === 0 ? 0 : Math.round(value / total * 100);
-        return `
-            <div class="priority-bar">
-                <span>${escapeHtml(label)}</span>
-                <strong>${value}</strong>
-                <i style="width: ${share}%"></i>
-            </div>
-        `;
-    }).join("");
+    elements.prioritySaveButton.textContent = state.prioritySaving ? "Saving…" : "Save priorities";
+    elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;
+    elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;
+}
+
+function pulsePriorityConsole() {
+    elements.prioritySection.classList.add("is-adjusting");
+    window.clearTimeout(priorityActivityTimeout);
+    priorityActivityTimeout = window.setTimeout(() => {
+        elements.prioritySection.classList.remove("is-adjusting");
+    }, 650);
 }
 
 function parseWeight(value) {

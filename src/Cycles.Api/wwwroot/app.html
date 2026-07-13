@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260713-density-2">
+    <link rel="stylesheet" href="styles.css?v=20260713-command-overview-3">
 </head>
 <body>
     <header class="topbar">
@@ -16,6 +16,7 @@
             <div class="command-identity">
                 <span class="toolbar-kicker">Command Nexus</span>
                 <strong id="empireName">Empire</strong>
+                <span class="command-home">Home <span id="homeSystemName">Unknown</span></span>
             </div>
             <div class="toolbar-actions">
                 <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
@@ -72,7 +73,7 @@
                 </header>
 
                 <div class="command-grid">
-                    <section id="resourcesSection" class="view-card summary">
+                    <section id="resourcesSection" class="view-card summary command-resources">
                         <div class="section-heading">
                             <div>
                                 <span class="section-kicker">Capacity</span>
@@ -82,35 +83,57 @@
                         <dl id="resources"></dl>
                     </section>
 
-                    <section id="prioritySection" class="view-card">
-                        <div class="section-heading">
+                    <section id="prioritySection" class="view-card priority-console" aria-labelledby="prioritySectionTitle">
+                        <div class="section-heading priority-heading">
                             <div>
                                 <span class="section-kicker">Next tick</span>
-                                <h2>Priorities</h2>
+                                <h2 id="prioritySectionTitle">Priority allocation</h2>
                             </div>
-                            <span class="section-note">Must total 100</span>
+                            <div class="priority-total" role="status" aria-live="polite">
+                                <span><i aria-hidden="true"></i> <span id="priorityDraftStatus">Saved</span></span>
+                                <strong><output id="priorityTotal">100</output> / 100</strong>
+                            </div>
                         </div>
                         <form id="priorityForm" class="priority-form">
-                            <label>
-                                Industry
-                                <input id="industryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                            </label>
-                            <label>
-                                Research
-                                <input id="researchWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                            </label>
-                            <label>
-                                Military
-                                <input id="militaryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                            </label>
-                            <label>
-                                Expansion
-                                <input id="expansionWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                            </label>
-                            <div class="priority-total">Total <strong id="priorityTotal">0</strong></div>
-                            <div id="priorityBars" class="priority-bars" aria-label="Priority allocation"></div>
-                            <button type="submit">Save priorities</button>
-                            <p id="priorityMessage" class="message" role="status"></p>
+                            <div class="priority-channels">
+                                <label class="priority-channel" for="industryWeight">
+                                    <span class="priority-channel-name">Industry <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-slider-shell">
+                                        <span class="priority-saved-marker" aria-hidden="true"></span>
+                                        <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0">
+                                    </span>
+                                    <output id="industryWeightValue" for="industryWeight">0</output>
+                                </label>
+                                <label class="priority-channel" for="researchWeight">
+                                    <span class="priority-channel-name">Research <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-slider-shell">
+                                        <span class="priority-saved-marker" aria-hidden="true"></span>
+                                        <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0">
+                                    </span>
+                                    <output id="researchWeightValue" for="researchWeight">0</output>
+                                </label>
+                                <label class="priority-channel" for="militaryWeight">
+                                    <span class="priority-channel-name">Military <small id="militaryWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-slider-shell">
+                                        <span class="priority-saved-marker" aria-hidden="true"></span>
+                                        <input id="militaryWeight" data-priority-key="militaryWeight" type="range" min="0" max="100" step="1" value="0">
+                                    </span>
+                                    <output id="militaryWeightValue" for="militaryWeight">0</output>
+                                </label>
+                                <label class="priority-channel" for="expansionWeight">
+                                    <span class="priority-channel-name">Expansion <small id="expansionWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-slider-shell">
+                                        <span class="priority-saved-marker" aria-hidden="true"></span>
+                                        <input id="expansionWeight" data-priority-key="expansionWeight" type="range" min="0" max="100" step="1" value="0">
+                                    </span>
+                                    <output id="expansionWeightValue" for="expansionWeight">0</output>
+                                </label>
+                            </div>
+                            <div class="priority-actions">
+                                <button id="priorityResetButton" class="secondary-action" type="button">Reset</button>
+                                <button id="prioritySaveButton" type="submit">Save priorities</button>
+                            </div>
+                            <p id="priorityMessage" class="message priority-message" role="status"></p>
                         </form>
                     </section>
 
@@ -387,6 +410,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260713-density-2"></script>
+    <script src="app.js?v=20260713-command-overview-3"></script>
 </body>
 </html>
