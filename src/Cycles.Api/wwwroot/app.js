@@ -58,6 +58,7 @@ const elements = {
     loginButton: document.querySelector("#loginButton"),
     loginMessage: document.querySelector("#loginMessage"),
     sessionSummary: document.querySelector("#sessionSummary"),
+    appHeaderControls: document.querySelector("#appHeaderControls"),
     sessionUsername: document.querySelector("#sessionUsername"),
     signOutButton: document.querySelector("#signOutButton"),
     appShell: document.querySelector("#appShell"),
@@ -476,6 +477,7 @@ function applySession(login) {
     elements.sessionUsername.textContent = login.username;
     elements.loginForm.hidden = true;
     elements.sessionSummary.hidden = false;
+    elements.appHeaderControls.hidden = false;
     elements.appShell.hidden = false;
     activateView(resolveInitialView(), { updateLocation: true });
     activateFleetTab(state.fleetTab);
@@ -495,6 +497,7 @@ function showLogin(message) {
     elements.loginMessage.textContent = message;
     elements.loginForm.hidden = false;
     elements.sessionSummary.hidden = true;
+    elements.appHeaderControls.hidden = true;
     elements.appShell.hidden = true;
 }
 

@@ -4,13 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260713-history-fleet-refinement-1">
+    <link rel="stylesheet" href="styles.css?v=20260713-density-2">
 </head>
 <body>
     <header class="topbar">
-        <div>
+        <div class="site-context">
             <a class="brand-link" href="/">Cycles</a>
             <p id="cycleStatus">Loading...</p>
+        </div>
+        <div id="appHeaderControls" class="app-header-controls" hidden>
+            <div class="command-identity">
+                <span class="toolbar-kicker">Command Nexus</span>
+                <strong id="empireName">Empire</strong>
+            </div>
+            <div class="toolbar-actions">
+                <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
+                <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
+                <button id="refreshButton" type="button">Refresh</button>
+            </div>
         </div>
         <form id="loginForm" class="login-form">
             <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username" required>
@@ -24,17 +35,6 @@
     </header>
 
     <main id="appShell" class="app-shell" hidden>
-        <div class="toolbar">
-            <div class="command-identity">
-                <span class="toolbar-kicker">Command Nexus</span>
-                <strong id="empireName">Empire</strong>
-            </div>
-            <div class="toolbar-actions">
-                <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
-                <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
-                <button id="refreshButton" type="button">Refresh</button>
-            </div>
-        </div>
         <p id="turnMessage" class="turn-message" role="status"></p>
 
         <nav id="viewNav" class="view-nav" aria-label="Command views">
@@ -190,6 +190,16 @@
                         </div>
 
                         <section id="fleetCommandPanel" class="fleet-tab-panel fleet-command-panel" role="tabpanel" aria-labelledby="fleetCommandTab" data-fleet-tab-panel="command">
+                            <section id="fleetSection" class="view-card fleet-inspector">
+                                <div class="section-heading">
+                                    <div>
+                                        <span class="section-kicker">Selected force</span>
+                                        <h2>Fleet detail</h2>
+                                    </div>
+                                </div>
+                                <div id="fleetDetails" class="fleet-details"></div>
+                            </section>
+
                             <section id="ordersSection" class="view-card fleet-order-dock">
                                 <div class="section-heading">
                                     <div>
@@ -225,16 +235,6 @@
                                     </form>
                                 </div>
                                 <p id="orderMessage" class="message" role="status"></p>
-                            </section>
-
-                            <section id="fleetSection" class="view-card fleet-inspector">
-                                <div class="section-heading">
-                                    <div>
-                                        <span class="section-kicker">Selected force</span>
-                                        <h2>Fleet detail</h2>
-                                    </div>
-                                </div>
-                                <div id="fleetDetails" class="fleet-details"></div>
                             </section>
                         </section>
 
@@ -387,6 +387,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260713-history-fleet-refinement-1"></script>
+    <script src="app.js?v=20260713-density-2"></script>
 </body>
 </html>

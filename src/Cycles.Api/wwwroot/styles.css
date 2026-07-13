@@ -101,14 +101,20 @@ select {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    min-height: 76px;
-    padding: 14px 18px;
+    gap: 16px;
+    min-height: 64px;
+    padding: 8px 18px;
     border-bottom: 1px solid var(--line);
     background: rgba(10, 13, 12, 0.92);
     backdrop-filter: blur(16px);
     box-shadow: 0 16px 36px var(--shadow);
+}
+
+.site-context {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
 }
 
 .brand-link {
@@ -136,9 +142,9 @@ select {
     flex-wrap: wrap;
     align-items: center;
     gap: 7px;
-    margin: 6px 0 0;
+    margin: 0;
     color: var(--muted);
-    font-size: 0.95rem;
+    font-size: 0.86rem;
 }
 
 .cycle-name {
@@ -196,6 +202,7 @@ select {
 
 .login-form[hidden],
 .session-summary[hidden],
+.app-header-controls[hidden],
 .app-shell[hidden],
 .app-view[hidden],
 .fleet-tab-panel[hidden],
@@ -213,11 +220,13 @@ select {
 }
 
 .session-summary {
+    flex: 0 0 auto;
     margin: 0;
     color: var(--muted);
     display: flex;
     align-items: center;
     gap: 10px;
+    white-space: nowrap;
 }
 
 .session-summary strong {
@@ -225,7 +234,7 @@ select {
 }
 
 .session-summary button {
-    min-height: 44px;
+    min-height: 38px;
     padding: 7px 11px;
     font-size: 0.78rem;
 }
@@ -233,7 +242,7 @@ select {
 .app-shell {
     flex: 1 1 auto;
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
     min-height: 0;
     background: var(--surface);
 }
@@ -247,21 +256,21 @@ select {
     background: var(--surface);
 }
 
-.toolbar {
+.app-header-controls {
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    min-height: 56px;
-    padding: 10px 16px;
-    background: rgba(23, 26, 24, 0.92);
-    border-bottom: 1px solid var(--line);
+    gap: 16px;
+    min-width: 0;
 }
 
-.toolbar .command-identity {
+.app-header-controls .command-identity {
     display: grid;
-    gap: 3px;
+    flex: 0 1 260px;
+    gap: 1px;
     min-width: 0;
+    padding-left: 16px;
+    border-left: 1px solid var(--line);
 }
 
 .toolbar-kicker {
@@ -274,7 +283,8 @@ select {
 .command-identity strong {
     min-width: 0;
     color: var(--accent);
-    font-size: 1.18rem;
+    font-size: 1rem;
+    line-height: 1.15;
     overflow-wrap: anywhere;
 }
 
@@ -290,13 +300,14 @@ select {
 }
 
 .toolbar-actions button {
-    min-height: 44px;
-    padding-inline: 14px;
+    min-height: 38px;
+    padding-inline: 12px;
 }
 
-.toolbar .toolbar-actions {
+.app-header-controls .toolbar-actions {
     display: flex;
     flex-wrap: wrap;
+    margin-left: auto;
     justify-content: flex-end;
     gap: 8px;
 }
@@ -410,10 +421,11 @@ select {
 .view-heading,
 .panel-heading {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    padding: 24px;
+    gap: 18px;
+    min-height: 52px;
+    padding: 8px 18px;
     border-bottom: 1px solid var(--line-soft);
     background:
         linear-gradient(110deg, rgba(143, 209, 189, 0.07), transparent 48%),
@@ -422,39 +434,27 @@ select {
 
 .view-heading > div,
 .panel-heading > div {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
     min-width: 0;
 }
 
 .view-heading h1,
 .panel-heading h1 {
-    margin: 4px 0 0;
+    margin: 0;
     color: var(--text);
-    font-size: clamp(1.45rem, 2.5vw, 2.2rem);
-    line-height: 1.05;
+    font-size: 1.08rem;
+    line-height: 1.2;
 }
 
 .view-heading p,
 .panel-heading p {
-    max-width: 680px;
-    margin: 7px 0 0;
-    color: var(--muted);
-    line-height: 1.45;
+    display: none;
 }
 
 .panel-heading {
-    align-items: center;
-    min-height: 76px;
-    padding: 14px 18px;
-}
-
-.panel-heading h1 {
-    font-size: 1.45rem;
-}
-
-.panel-heading p {
-    margin: 0;
-    font-size: 0.86rem;
-    text-align: right;
+    min-height: 52px;
 }
 
 .view-kicker,
@@ -667,28 +667,29 @@ select {
 }
 
 .command-heading {
-    align-items: stretch;
+    min-height: 64px;
 }
 
 .command-heading > div:first-child {
-    align-self: center;
-    max-width: 510px;
+    flex: 0 1 auto;
 }
 
 .command-pulse {
     display: grid;
-    grid-template-columns: repeat(4, minmax(128px, 1fr));
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
     gap: 8px;
-    width: min(650px, 56vw);
+    width: min(700px, 58vw);
 }
 
 .pulse-card {
     display: grid;
-    align-content: center;
-    gap: 2px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 0 8px;
     min-width: 0;
-    min-height: 76px;
-    padding: 10px 12px;
+    min-height: 46px;
+    padding: 6px 10px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: rgba(10, 15, 12, 0.72);
@@ -717,8 +718,10 @@ select {
 }
 
 .pulse-card strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
     color: var(--text);
-    font-size: 1.25rem;
+    font-size: 1.12rem;
     font-variant-numeric: tabular-nums;
 }
 
@@ -821,7 +824,7 @@ select {
     grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
     gap: 16px;
     align-items: start;
-    max-width: 1600px;
+    max-width: 1800px;
     margin: 0 auto;
     padding: 18px;
 }
@@ -830,7 +833,7 @@ select {
     position: sticky;
     top: 18px;
     min-height: 300px;
-    max-height: calc(100dvh - 260px);
+    max-height: calc(100dvh - 218px);
     overflow: auto;
 }
 
@@ -839,6 +842,11 @@ select {
     display: grid;
     gap: 16px;
     min-width: 0;
+}
+
+.fleet-command-panel {
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 380px);
+    align-items: start;
 }
 
 .subview-tabs {
@@ -885,6 +893,7 @@ select {
 .fleet-order-dock {
     display: grid;
     gap: 12px;
+    align-content: start;
 }
 
 .fleet-order-dock .section-heading {
@@ -894,7 +903,7 @@ select {
 .action-tabs {
     display: flex;
     gap: 6px;
-    width: min(100%, 430px);
+    width: 100%;
     border-bottom: 1px solid var(--line-soft);
 }
 
@@ -903,22 +912,23 @@ select {
 }
 
 .fleet-action-panel {
-    grid-template-columns: minmax(220px, 0.8fr) minmax(240px, 1fr) auto;
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
     margin: 0;
-    padding: 14px;
+    padding: 12px;
 }
 
 .fleet-action-panel button {
-    min-width: 150px;
+    width: 100%;
 }
 
 .fleet-action-panel .form-hint {
-    align-self: center;
+    min-height: 2.6em;
 }
 
 #coloniseForm {
-    grid-template-columns: minmax(240px, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .fleet-history-summary {
@@ -1501,27 +1511,12 @@ dd {
 }
 
 @media (max-width: 1180px) {
-    .command-heading,
-    .view-heading {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .command-heading > div:first-child {
-        max-width: 720px;
-    }
-
     .command-pulse {
-        width: 100%;
+        width: min(650px, 66vw);
     }
 
-    .fleet-action-panel {
-        grid-template-columns: minmax(200px, 0.85fr) minmax(220px, 1fr);
-    }
-
-    .fleet-action-panel button {
-        grid-column: 1 / -1;
-        justify-self: end;
+    .fleet-command-panel {
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
     }
 
     .order-history .list {
@@ -1538,6 +1533,15 @@ dd {
 
     .login-form {
         grid-template-columns: minmax(0, 1fr) 86px;
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+    }
+
+    .app-header-controls {
+        order: 3;
+        flex-basis: 100%;
     }
 
     .app-shell {
@@ -1559,6 +1563,19 @@ dd {
     .command-grid,
     .fleets-workspace {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fleet-command-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .command-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .command-pulse {
+        width: 100%;
     }
 
     .fleet-roster {
@@ -1594,16 +1611,6 @@ dd {
     .map-panel {
         border-right: 0;
         border-bottom: 1px solid var(--line);
-    }
-
-    .panel-heading {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .panel-heading p {
-        text-align: left;
     }
 
     #galaxyMap {
@@ -1654,14 +1661,19 @@ dd {
 
 @media (max-width: 560px) {
     .topbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 8px 12px;
         min-height: 0;
         padding: 10px 12px;
     }
 
-    .topbar > div:first-child {
+    .site-context {
+        flex: 1 1 auto;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
         min-width: 0;
     }
 
@@ -1672,7 +1684,6 @@ dd {
     }
 
     .session-summary {
-        grid-column: 2;
         gap: 8px;
     }
 
@@ -1681,19 +1692,24 @@ dd {
     }
 
     .login-form {
-        grid-column: 1 / -1;
+        flex: 1 0 100%;
     }
 
-    .toolbar {
-        align-items: stretch;
-        flex-direction: column;
+    .app-header-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 8px;
-        padding: 8px 12px;
     }
 
-    .toolbar .toolbar-actions {
+    .app-header-controls .command-identity {
+        padding-left: 0;
+        border-left: 0;
+    }
+
+    .app-header-controls .toolbar-actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-left: 0;
     }
 
     .toolbar-actions button {
@@ -1737,7 +1753,8 @@ dd {
 
     .view-heading,
     .panel-heading {
-        padding: 18px 14px;
+        min-height: 48px;
+        padding: 8px 12px;
     }
 
     .command-grid,

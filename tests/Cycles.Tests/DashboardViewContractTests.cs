@@ -17,6 +17,8 @@ public sealed class DashboardViewContractTests
         Assert.Contains("href=\"#fleets\"", html);
         Assert.Contains("href=\"#history\"", html);
         Assert.DoesNotContain("class=\"side-panel\"", html);
+        Assert.Contains("id=\"appHeaderControls\" class=\"app-header-controls\"", html);
+        Assert.DoesNotContain("class=\"toolbar\"", html);
 
         Assert.Contains("window.addEventListener(\"hashchange\"", script);
         Assert.Contains("window.history.replaceState(null, \"\", `#${selectedView}`);", script);
@@ -72,6 +74,9 @@ public sealed class DashboardViewContractTests
         Assert.Contains("data-fleet-action=\"move\"", html);
         Assert.Contains("data-fleet-action=\"attack\"", html);
         Assert.Contains("data-fleet-action=\"colonise\"", html);
+        Assert.True(
+            html.IndexOf("id=\"fleetSection\"", StringComparison.Ordinal) <
+            html.IndexOf("id=\"ordersSection\"", StringComparison.Ordinal));
         Assert.DoesNotContain("id=\"fleetSelect\"", html);
         Assert.DoesNotContain("id=\"attackFleetSelect\"", html);
         Assert.DoesNotContain("id=\"coloniseFleetSelect\"", html);
