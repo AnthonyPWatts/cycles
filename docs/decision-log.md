@@ -822,4 +822,24 @@ Consequences:
 - The first private alpha may restrict admission to invited identities before local player provisioning.
 - Development username login remains an explicit Development-only convenience. The trusted playground's shared access code remains a temporary perimeter and is not promoted into production authentication.
 - Full ASP.NET Core Identity password management is not required unless a later product need justifies owning local credentials.
-- Implementation is tracked by GitHub issue #122. Admin provisioning remains gated by Q114.
+- OIDC implementation is tracked by GitHub issue #122; the accepted audited admin-provisioning implementation is tracked separately by issue #123.
+
+## 2026-07-14: Provision Admins Explicitly And Audit Role Changes
+
+Decision: keep admin authority in Cycles-owned player data. Bootstrap the first named admins through explicit operator configuration tied to stable external identities, then require an authenticated admin, target player, and non-empty reason for every routine grant or revocation. Keep emergency operator access separate from player-admin accounts.
+
+Reasoning:
+
+- Authentication proves an external identity but should not silently grant game-wide authority through provider groups, email addresses, display names, invitation state, or login input.
+- The first admin needs an explicit bootstrap path because no in-application administrator exists yet.
+- Admins can inspect and act for every empire, so grants and revocations need a durable accountability record.
+- Separate break-glass operation avoids leaving a hidden permanent superuser in the ordinary player model.
+
+Consequences:
+
+- The Development `isAdmin` login switch remains local scaffolding and must be refused outside Development.
+- Bootstrap application records the target identity, configuration source or deployment revision, reason, and timestamp.
+- Routine grants and revocations record immutable actor, target, action, reason, and timestamp data.
+- Routine operations cannot remove the final active admin; a documented operator recovery path handles exceptional lockout or compromise.
+- A general account-management UI and granular administrator permissions remain out of scope.
+- Implementation is tracked by GitHub issue #123 and composes with the OIDC identity work in issue #122.

@@ -24,7 +24,7 @@ Do not treat this list as permission for speculative refactors. `Cycles.Applicat
   - Q119 still needs to settle timing, compatibility, and whether development runtime support remains during the transition.
 - [ ] Add JSON import/export tooling when the lifecycle above is ready.
 - [ ] [Add external OIDC authentication and invited-player mapping](https://github.com/AnthonyPWatts/cycles/issues/122), preserving Cycles-owned empire and admin authorisation while keeping Development username login Development-only.
-- [ ] Define production admin provisioning after Q114 is settled.
+- [ ] [Add audited admin provisioning and revocation](https://github.com/AnthonyPWatts/cycles/issues/123), including explicit initial bootstrap, immutable role-change records, final-admin protection, and a separate break-glass operator procedure.
 - [ ] Define hosting, database provider, migration ownership, and environment configuration.
 - [ ] Add production Worker health, singleton leadership, multi-Cycle scheduling policy, and operational monitoring.
 - [ ] [Add running-tick and JSON-store performance diagnostics](https://github.com/AnthonyPWatts/cycles/issues/120), including the accepted configurable five-minute suspicion default, end-to-end tick duration, state-file size, and representative retained-state evidence.
@@ -101,7 +101,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 | JSON lifecycle | Q119 | Timing and compatibility of the import/export-only direction. |
-| Production access and operations | Q114-Q118 | Admin provisioning, untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107-Q113 are settled. |
+| Production access and operations | Q115-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107-Q114 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
@@ -110,7 +110,9 @@ Q111 selects a new diagnostic default rather than confirming existing behaviour.
 
 Q112 confirms the existing conservative block but requires a missing audited abandonment operation. Issue [#121](https://github.com/AnthonyPWatts/cycles/issues/121) tracks that operation without authorising automatic failure or recovery.
 
-Q113 selects external OIDC authentication with local player correlation and Cycles-owned authorisation. Issue [#122](https://github.com/AnthonyPWatts/cycles/issues/122) tracks implementation; Q114 still gates production admin provisioning.
+Q113 selects external OIDC authentication with local player correlation and Cycles-owned authorisation. Issue [#122](https://github.com/AnthonyPWatts/cycles/issues/122) tracks implementation.
+
+Q114 selects explicit local admin bootstrap plus audited grants and revocations. Issue [#123](https://github.com/AnthonyPWatts/cycles/issues/123) tracks implementation without promoting the Development `isAdmin` switch into shared environments.
 
 Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
 

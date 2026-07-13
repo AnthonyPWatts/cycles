@@ -16,7 +16,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers, declarations, alliance effects, or shared visibility. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
-| Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC with local player and role mapping is selected for private-alpha and Production but is not implemented. |
+| Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC plus audited local admin provisioning is selected for private-alpha and Production but is not implemented. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground persists its single-process Development state as JSON on App Service storage. | Generic API/admin SQL mutations still use the whole-state bridge. The hosted JSON path is a cost-capped playground exception, not the production direction. |
 | Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
 
@@ -122,6 +122,6 @@ The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_
 
 ## Current Boundaries
 
-The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception and DTO-only player API boundary are now accepted product contracts. Before calling the build an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
+The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception and DTO-only player API boundary are now accepted product contracts. Before calling the build an alpha or inviting untrusted online players, the project still needs implementation of the selected production identity and admin-provisioning boundaries, plus decisions and implementation for hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). The [Backlog](backlog.md) separates work that engineering can continue now from work blocked on those calls.
