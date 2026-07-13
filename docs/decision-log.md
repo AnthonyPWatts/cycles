@@ -739,3 +739,19 @@ Consequences:
 
 - The existing `Cycles.Worker` project is the accepted scheduled tick host and does not need replacement merely to revisit the sequencing question.
 - Production Worker health, leadership, deployment topology, authentication, backup, and recovery policy remain separate open decisions.
+
+## 2026-07-14: Use Each Cycle's Configured Tick Cadence
+
+Decision: accept the Q108 scheduling default. The active Cycle's `TickLengthMinutes` controls scheduled cadence rather than using a fixed hourly schedule or a separate scheduled flag.
+
+Reasoning:
+
+- Cadence is already part of the authoritative Cycle state and can vary without changing Worker configuration.
+- Scheduling from the last completed tick avoids an immediate catch-up storm after downtime.
+- Active status and recovery state already express whether a Cycle may advance safely.
+
+Consequences:
+
+- The first tick is due at Cycle start; later ticks are due one configured cadence after the last completed tick.
+- The Worker runs at most one due tick per check and does not process a backlog of missed ticks.
+- Recovery-required and non-active Cycles are not scheduled.

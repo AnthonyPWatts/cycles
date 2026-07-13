@@ -98,10 +98,10 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 | JSON lifecycle | Q119 | Timing and compatibility of the import/export-only direction. |
-| Production access and operations | Q108-Q109 and Q111-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107's sequencing choice and Q110's lifecycle boundary are settled. |
+| Production access and operations | Q109 and Q111-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q107's sequencing choice, Q108's cadence, and Q110's lifecycle boundary are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
-Q107, Q110, Q120, and Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, player turn control remains a narrow Development-only exception, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
+Q107, Q108, Q110, Q120, and Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, player turn control remains a narrow Development-only exception, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
 Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
 
