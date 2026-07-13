@@ -30,6 +30,8 @@ Q115 was answered on 2026-07-14 by keeping the landing page public while protect
 
 Q116 was answered on 2026-07-14 by requiring the deployed playground to move to managed SQL with database-native backups and a proved restore before further tester invitations.
 
+Q117 was answered on 2026-07-14 by selecting the existing SQL Server provider on managed Azure SQL for the playground and first online test rather than delaying for provider portability.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -81,14 +83,15 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q111](https://github.com/AnthonyPWatts/cycles/issues/99) | Treat a persisted `Running` tick as suspicious after a configurable threshold that defaults to five minutes. | The threshold is diagnostic only and must not fail, retry, repair, or cancel a tick. The atomic JSON store does not persist its intermediate `Running` state, so its relevant evidence is total tick duration, state-file size, and representative retained-state benchmarks. Implementation is tracked by [issue #120](https://github.com/AnthonyPWatts/cycles/issues/120). |
 | [Q112](https://github.com/AnthonyPWatts/cycles/issues/100) | Never auto-fail a `Running` tick based only on age. Require admin inspection, continue blocking, and allow an audited admin to mark a confirmed abandoned attempt failed with an operator and reason. | Existing blocking remains the safe default. The missing explicit `Running`-to-`Failed` operator action is tracked by [issue #121](https://github.com/AnthonyPWatts/cycles/issues/121); normal repair and recovery clear/retry remain separate deliberate steps. |
 
-## Accepted Q113-Q116 Answers
+## Accepted Q113-Q117 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
 | [Q113](https://github.com/AnthonyPWatts/cycles/issues/101) | Use ASP.NET Core cookie authentication backed by an external OpenID Connect provider for private-alpha and Production environments. Correlate the provider's stable issuer and subject to a local player, and keep empire ownership, admin role, and operational permissions in Cycles-owned data. | Invitations or an allowlist govern admission but are not identity proof. The concrete provider remains environment-configurable, Development username login remains Development-only, and implementation is tracked by [issue #122](https://github.com/AnthonyPWatts/cycles/issues/122). Full ASP.NET Core Identity password management is not required for this boundary. |
 | [Q114](https://github.com/AnthonyPWatts/cycles/issues/102) | Store admin roles in Cycles-owned player data. Bootstrap named external identities through explicit operator configuration, then require an authenticated admin, target, and reason for every routine grant or revocation. Keep emergency operator access separate. | The Development `isAdmin` login switch remains Development-only and is not accepted for shared environments. Every bootstrap, grant, and revocation must produce an immutable audit record, and routine operations cannot remove the final active admin. Implementation is tracked by [issue #123](https://github.com/AnthonyPWatts/cycles/issues/123). |
 | [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | Keep `/` public and require private-alpha or Production authentication plus invited-player admission before serving `/app.html`. Keep `/health` public and continue protecting every game API independently. | A deployment may temporarily put an explicit whole-site perimeter in front of both pages when it is not ready for public discovery. The trusted playground's access-code gate remains such an override, not the permanent identity or route contract. Implementation is tracked by [issue #124](https://github.com/AnthonyPWatts/cycles/issues/124). |
-| [Q116](https://github.com/AnthonyPWatts/cycles/issues/104) | Before further tester invitations, migrate the deployed playground to managed SQL, enable at least seven days of database-native point-in-time recovery, document restoration, and prove one isolated restore. | Do not build a production-style backup system around the hosted JSON file. Preserve one application-consistent pre-cutover JSON snapshot as migration evidence, avoid dual writes, and use SQL backup/restore after the cutover accepts new gameplay. Implementation is tracked by [issue #125](https://github.com/AnthonyPWatts/cycles/issues/125); Q117 still selects the concrete SQL path and Q119 settles JSON's remaining local lifecycle. |
+| [Q116](https://github.com/AnthonyPWatts/cycles/issues/104) | Before further tester invitations, migrate the deployed playground to managed SQL, enable at least seven days of database-native point-in-time recovery, document restoration, and prove one isolated restore. | Do not build a production-style backup system around the hosted JSON file. Preserve one application-consistent pre-cutover JSON snapshot as migration evidence, avoid dual writes, and use SQL backup/restore after the cutover accepts new gameplay. Implementation is tracked by [issue #125](https://github.com/AnthonyPWatts/cycles/issues/125); Q117 selects Azure SQL and Q119 settles JSON's remaining local lifecycle. |
+| [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) | Use the existing SQL Server provider on managed Azure SQL for the deployed playground and first online test. Do not delay that deployment to build PostgreSQL or MySQL portability. | Run an Azure SQL compatibility smoke test, keep provider-specific code contained in `Cycles.Infrastructure.SqlServer`, and revisit portability when measured cost, licensing, or hosting evidence justifies it. The playground cutover and restore proof remain tracked by [issue #125](https://github.com/AnthonyPWatts/cycles/issues/125). |
 
 ## Established Product Contracts
 
@@ -159,10 +162,10 @@ These earlier answers remain in force unless a later accepted question explicitl
 
 - SQL Server is the current relational implementation; do not add SQLite merely for parity.
 - The deployed playground must move to managed SQL before further tester invitations and prove an isolated restore from database-native backup with at least seven days of point-in-time retention.
-- A future production deployment may choose PostgreSQL or MySQL to avoid SQL Server licensing.
+- The playground and first online test use the existing SQL Server provider on managed Azure SQL. Provider portability is deferred until measured cost, licensing, or hosting evidence justifies it.
 - JSON's accepted long-term role is import/export rather than production runtime persistence. Q119 must still settle transition timing and development compatibility.
 - Online testing follows authentication hardening and a coherent operational boundary.
-- Hosting form, production database, backup/restore expectations, and vendor choices remain open.
+- Longer-term production hosting, database, and vendor choices remain open beyond the accepted Azure SQL playground and first-online-test boundary.
 
 ## Implemented Defaults Awaiting Product Confirmation
 
@@ -170,7 +173,7 @@ The following open questions now have reversible engineering defaults in the Dev
 
 | Open questions | Current implemented default |
 | --- | --- |
-| [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) and [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The cost-capped playground persists JSON on its free App Service instance. This is an explicit hosted-test exception and does not select the production provider or reverse the accepted import/export-only direction. |
+| [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The playground still persists JSON on its free App Service instance until the accepted Azure SQL cutover is implemented. This is current deployed state, not the accepted destination or a reversal of the import/export-only direction. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Normal History views show purpose-built event and Chronicle text rather than exposing raw `FactJson`. |
 | [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | The dashboard is tuned for the current small seeded galaxy and bounded lists; larger-scale rendering remains conditional work. |
 | [Q126](https://github.com/AnthonyPWatts/cycles/issues/114) | The dashboard prioritises desktop command use while retaining basic responsive behaviour for narrower screens. |
@@ -189,7 +192,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q117-Q118 | SQL provider direction, hosting, Worker topology, secrets, and test boundary. Q107-Q116 are settled. |
+| Production access and operations | Q118 | Future SQL Server-specific feature policy, hosting, Worker topology, secrets, and test boundary. Q107-Q117 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults

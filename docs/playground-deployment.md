@@ -20,7 +20,7 @@ JSON is a deliberate playground exception, not a reversal of the SQL-backed runt
 
 The JSON exception describes the currently deployed state, but it is no longer the accepted destination for further tester invitations. Q116 requires the playground to move its existing game to managed SQL, retain at least seven days of database-native point-in-time recovery, and prove one isolated restore. [GitHub issue #125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the cutover.
 
-The cutover must intentionally revise the cost guardrails below rather than bypass them. Q117 selects the concrete SQL path. Until that choice is implemented and verified, the current SQL-resource deny policy remains enforced and the JSON-backed deployment remains the truthful runtime description.
+The cutover must intentionally revise the cost guardrails below rather than bypass them. Q117 selects the existing SQL Server provider on managed Azure SQL, subject to a compatibility smoke test. Until that choice is implemented and verified, the current SQL-resource deny policy remains enforced and the JSON-backed deployment remains the truthful runtime description.
 
 ## Deployment
 

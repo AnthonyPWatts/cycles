@@ -17,7 +17,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers, declarations, alliance effects, or shared visibility. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC plus audited local admin provisioning is selected for private-alpha and Production but is not implemented. |
-| Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground still persists its single-process Development state as JSON on App Service storage. | A managed-SQL playground cutover with database-native backup and proved restore is accepted but not implemented. Generic API/admin SQL mutations still use the whole-state bridge. |
+| Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground still persists its single-process Development state as JSON on App Service storage. | An Azure SQL playground cutover using the existing SQL Server provider, database-native backup, and proved restore is accepted but not implemented. Generic API/admin SQL mutations still use the whole-state bridge. |
 | Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | The authenticated-dashboard/private-alpha route boundary is selected but not implemented; the prototype interface is not a finished game client. |
 
 ## Implemented Rules
@@ -99,7 +99,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - `cycles.anthonypwatts.co.uk` is routed through a binding-free Cloudflare Worker on the Free plan. The direct Azure origin and the custom domain share an application-level access-code gate; only `/health` is public.
 - The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
 - The whole-site access-code gate is an explicit deployment override. The accepted private-alpha and Production route contract instead keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
-- Before further tester invitations, the playground must migrate its current state to managed SQL, enable at least seven days of point-in-time recovery, and prove an isolated restore. The concrete SQL path remains gated by Q117.
+- Before further tester invitations, the playground must migrate its current state through the existing SQL Server provider to managed Azure SQL, enable at least seven days of point-in-time recovery, and prove an isolated restore.
 
 ## Verification
 

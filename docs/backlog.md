@@ -27,7 +27,7 @@ Do not treat this list as permission for speculative refactors. `Cycles.Applicat
 - [ ] [Add audited admin provisioning and revocation](https://github.com/AnthonyPWatts/cycles/issues/123), including explicit initial bootstrap, immutable role-change records, final-admin protection, and a separate break-glass operator procedure.
 - [ ] [Protect the private dashboard while keeping landing and health public](https://github.com/AnthonyPWatts/cycles/issues/124), while retaining the trusted playground's whole-site access-code gate as an explicit deployment override.
 - [ ] [Migrate the deployed playground to managed SQL and prove restore](https://github.com/AnthonyPWatts/cycles/issues/125), including JSON-state import, cutover validation, at least seven days of point-in-time recovery, one isolated restore, and deliberate cost-policy changes.
-- [ ] Define hosting, database provider, migration ownership, and environment configuration.
+- [ ] Define the remaining hosting, migration ownership, and environment configuration after the accepted Azure SQL playground choice.
 - [ ] Add production Worker health, singleton leadership, multi-Cycle scheduling policy, and operational monitoring.
 - [ ] [Add running-tick and JSON-store performance diagnostics](https://github.com/AnthonyPWatts/cycles/issues/120), including the accepted configurable five-minute suspicion default, end-to-end tick duration, state-file size, and representative retained-state evidence.
 - [ ] [Add audited abandoned-tick resolution](https://github.com/AnthonyPWatts/cycles/issues/121) so an inspected persisted `Running` attempt can be explicitly marked failed with an operator and reason before normal repair and recovery.
@@ -103,7 +103,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 | JSON lifecycle | Q119 | Timing and compatibility of the import/export-only direction. |
-| Production access and operations | Q117-Q118 | SQL provider direction, untrusted online testing, production hosting, Worker operation, secrets, and remaining recovery policy. Q107-Q116 are settled. |
+| Production access and operations | Q118 | Future SQL Server-specific feature policy, untrusted online testing, production hosting, Worker operation, secrets, and remaining recovery policy. Q107-Q117 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
@@ -118,7 +118,9 @@ Q114 selects explicit local admin bootstrap plus audited grants and revocations.
 
 Q115 selects a public landing page and health endpoint with an authenticated, admitted dashboard. Issue [#124](https://github.com/AnthonyPWatts/cycles/issues/124) tracks the route boundary while preserving the current whole-site access-code gate as a trusted-playground override.
 
-Q116 requires a managed-SQL cutover for the deployed playground plus database-native backup retention and a proved restore. Issue [#125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the migration and recovery evidence; Q117 still selects the concrete SQL path and Q119 settles JSON's remaining local lifecycle.
+Q116 requires a managed-SQL cutover for the deployed playground plus database-native backup retention and a proved restore. Issue [#125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the migration and recovery evidence; Q119 still settles JSON's remaining local lifecycle.
+
+Q117 selects the existing SQL Server provider on managed Azure SQL for that cutover and first online test. Provider portability does not block issue #125 and remains conditional on measured cost, licensing, or hosting evidence.
 
 Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
 

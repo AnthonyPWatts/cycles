@@ -880,5 +880,23 @@ Consequences:
 - The application does not dual-write. Before reopening, rollback may return to the frozen JSON snapshot; after new SQL-backed gameplay, recovery uses SQL backup/restore instead of stale JSON.
 - The selected managed service must provide at least seven days of point-in-time recovery and remain inside an explicitly reviewed cost boundary.
 - One backup is restored to an isolated target and checked for Cycle/tick, player, empire, fleet, order, event, Chronicle, and recovery-state continuity.
-- Q117 still chooses the concrete SQL Server/provider path. Q119 still determines JSON's remaining local-development and import/export lifecycle.
+- Q117 selects the existing SQL Server provider on managed Azure SQL. Q119 still determines JSON's remaining local-development and import/export lifecycle.
 - Implementation is tracked by GitHub issue #125.
+
+## 2026-07-14: Use The Existing SQL Server Provider For The First Online Test
+
+Decision: use the existing SQL Server provider on managed Azure SQL for the deployed playground and first online test. Do not delay that deployment to build PostgreSQL or MySQL portability.
+
+Reasoning:
+
+- The repository already has ordered SQL Server migrations, a working store, transaction and application locks, recovery support, focused tick persistence, and live integration coverage.
+- Exercising the implemented relational path now provides more useful operational evidence than adding an abstraction for an unselected second provider.
+- Managed Azure SQL aligns with the current Azure-hosted API and supplies the database-native backup boundary required by Q116.
+- Possible future licensing or hosting cost matters, but no measured constraint currently justifies paying the delivery and testing cost of provider portability first.
+
+Consequences:
+
+- Issue #125 targets managed Azure SQL and must run a compatibility smoke test before cutover.
+- SQL Server-specific implementation remains contained in `Cycles.Infrastructure.SqlServer` and its migration layer rather than leaking into `Cycles.Core`.
+- PostgreSQL or MySQL support remains a future option, triggered by measured cost, licensing, hosting, or operational evidence.
+- This decision does not grant permission for gratuitous new SQL Server-specific dependencies or features; Q118 owns that narrower policy.
