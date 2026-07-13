@@ -102,6 +102,8 @@ The in-memory path uses a focused transactional working copy and rolls back appe
 
 SQL Server is the primary relational proof path. JSON remains useful for zero-service development while Q119 settles its full local lifecycle, but Q116 now requires the cost-capped trusted playground to migrate its current state before further tester invitations and prove restoration from database-native backup. Q117 selects the existing SQL Server provider on managed Azure SQL for that cutover and first online test rather than delaying for provider portability. The accepted long-term product direction remains to demote JSON to import/export support.
 
+SQL Server-specific features are not categorically forbidden. They may be used inside `Cycles.Infrastructure.SqlServer` and SQL migrations when Azure SQL supports them and they materially improve correctness, consistency, measured performance, or operations. `Cycles.Core` and `IGameStateStore` remain provider-neutral, and material portability implications must be documented. The existing transaction-scoped `sp_getapplock` is the accepted model: a concrete concurrency guarantee kept behind the provider boundary.
+
 Current SQL paths:
 
 - generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;

@@ -32,6 +32,8 @@ Q116 was answered on 2026-07-14 by requiring the deployed playground to move to 
 
 Q117 was answered on 2026-07-14 by selecting the existing SQL Server provider on managed Azure SQL for the playground and first online test rather than delaying for provider portability.
 
+Q118 was answered on 2026-07-14 by allowing justified Azure-SQL-compatible provider features inside the SQL Server adapter while keeping core contracts provider-neutral.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -83,7 +85,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q111](https://github.com/AnthonyPWatts/cycles/issues/99) | Treat a persisted `Running` tick as suspicious after a configurable threshold that defaults to five minutes. | The threshold is diagnostic only and must not fail, retry, repair, or cancel a tick. The atomic JSON store does not persist its intermediate `Running` state, so its relevant evidence is total tick duration, state-file size, and representative retained-state benchmarks. Implementation is tracked by [issue #120](https://github.com/AnthonyPWatts/cycles/issues/120). |
 | [Q112](https://github.com/AnthonyPWatts/cycles/issues/100) | Never auto-fail a `Running` tick based only on age. Require admin inspection, continue blocking, and allow an audited admin to mark a confirmed abandoned attempt failed with an operator and reason. | Existing blocking remains the safe default. The missing explicit `Running`-to-`Failed` operator action is tracked by [issue #121](https://github.com/AnthonyPWatts/cycles/issues/121); normal repair and recovery clear/retry remain separate deliberate steps. |
 
-## Accepted Q113-Q117 Answers
+## Accepted Q113-Q118 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -92,6 +94,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | Keep `/` public and require private-alpha or Production authentication plus invited-player admission before serving `/app.html`. Keep `/health` public and continue protecting every game API independently. | A deployment may temporarily put an explicit whole-site perimeter in front of both pages when it is not ready for public discovery. The trusted playground's access-code gate remains such an override, not the permanent identity or route contract. Implementation is tracked by [issue #124](https://github.com/AnthonyPWatts/cycles/issues/124). |
 | [Q116](https://github.com/AnthonyPWatts/cycles/issues/104) | Before further tester invitations, migrate the deployed playground to managed SQL, enable at least seven days of database-native point-in-time recovery, document restoration, and prove one isolated restore. | Do not build a production-style backup system around the hosted JSON file. Preserve one application-consistent pre-cutover JSON snapshot as migration evidence, avoid dual writes, and use SQL backup/restore after the cutover accepts new gameplay. Implementation is tracked by [issue #125](https://github.com/AnthonyPWatts/cycles/issues/125); Q117 selects Azure SQL and Q119 settles JSON's remaining local lifecycle. |
 | [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) | Use the existing SQL Server provider on managed Azure SQL for the deployed playground and first online test. Do not delay that deployment to build PostgreSQL or MySQL portability. | Run an Azure SQL compatibility smoke test, keep provider-specific code contained in `Cycles.Infrastructure.SqlServer`, and revisit portability when measured cost, licensing, or hosting evidence justifies it. The playground cutover and restore proof remain tracked by [issue #125](https://github.com/AnthonyPWatts/cycles/issues/125). |
+| [Q118](https://github.com/AnthonyPWatts/cycles/issues/106) | Do not ban SQL Server-specific features. Permit Azure-SQL-compatible features inside `Cycles.Infrastructure.SqlServer` and SQL migrations when they materially improve correctness, consistency, measured performance, or operations. | Keep `Cycles.Core` and the store contract provider-neutral, document material portability implications, and reject provider-specific features added merely for convenience. The existing `sp_getapplock` transaction boundary is an accepted example. |
 
 ## Established Product Contracts
 
@@ -163,6 +166,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - SQL Server is the current relational implementation; do not add SQLite merely for parity.
 - The deployed playground must move to managed SQL before further tester invitations and prove an isolated restore from database-native backup with at least seven days of point-in-time retention.
 - The playground and first online test use the existing SQL Server provider on managed Azure SQL. Provider portability is deferred until measured cost, licensing, or hosting evidence justifies it.
+- Azure-SQL-compatible provider features are allowed when they solve a material need and remain inside the SQL Server adapter or migrations; the core domain and store contract remain provider-neutral.
 - JSON's accepted long-term role is import/export rather than production runtime persistence. Q119 must still settle transition timing and development compatibility.
 - Online testing follows authentication hardening and a coherent operational boundary.
 - Longer-term production hosting, database, and vendor choices remain open beyond the accepted Azure SQL playground and first-online-test boundary.
@@ -192,7 +196,6 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q118 | Future SQL Server-specific feature policy, hosting, Worker topology, secrets, and test boundary. Q107-Q117 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults

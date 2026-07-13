@@ -899,4 +899,23 @@ Consequences:
 - Issue #125 targets managed Azure SQL and must run a compatibility smoke test before cutover.
 - SQL Server-specific implementation remains contained in `Cycles.Infrastructure.SqlServer` and its migration layer rather than leaking into `Cycles.Core`.
 - PostgreSQL or MySQL support remains a future option, triggered by measured cost, licensing, hosting, or operational evidence.
-- This decision does not grant permission for gratuitous new SQL Server-specific dependencies or features; Q118 owns that narrower policy.
+- This decision does not grant permission for gratuitous new SQL Server-specific dependencies or features; Q118 separately defines that narrower policy.
+
+## 2026-07-14: Allow Justified Provider Features Behind The SQL Server Boundary
+
+Decision: do not ban SQL Server-specific features. Permit features supported by Azure SQL inside `Cycles.Infrastructure.SqlServer` and SQL migrations when they materially improve correctness, consistency, measured performance, or operations. Keep `Cycles.Core` and the store contract provider-neutral.
+
+Reasoning:
+
+- A lowest-common-denominator rule would discard useful database guarantees before another provider has been selected or implemented.
+- Provider-specific behaviour is cheaper to replace later when it remains behind an explicit adapter and migration boundary.
+- Every provider feature still creates migration cost, so it needs a concrete benefit rather than speculative convenience.
+- The existing transaction-scoped `sp_getapplock` prevents concurrent authoritative ticks and is already an appropriate example of this trade-off.
+
+Consequences:
+
+- `sp_getapplock` remains part of the accepted SQL Server tick and broad-update concurrency boundary.
+- New provider-specific behaviour must remain outside `Cycles.Core`, be compatible with the selected Azure SQL target, and carry focused integration coverage.
+- Material portability implications are documented when introduced; a hypothetical future provider does not require an unused abstraction today.
+- Convenience-only provider coupling and leakage into domain or public application contracts remain out of bounds.
+- This confirms the implemented architectural default and creates no separate implementation issue.

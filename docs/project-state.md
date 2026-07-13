@@ -88,6 +88,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Migration `012_add_diplomatic_relationships` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
 - SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history.
+- SQL Server-specific locking and persistence details remain contained in `Cycles.Infrastructure.SqlServer`; `Cycles.Core` and `IGameStateStore` remain independent of database packages.
 
 ### Trusted Hosted Playground
 
