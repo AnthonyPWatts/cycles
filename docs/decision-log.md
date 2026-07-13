@@ -803,3 +803,23 @@ Consequences:
 - Existing duplicate-tick and recovery-clear guards remain in force.
 - No elapsed-time threshold may automatically change a tick attempt's state.
 - A bounded operator command must provide the missing audited `Running`-to-`Failed` transition, leave the Cycle in `RecoveryRequired`, and defer resumption to normal repair and recovery clear/retry. Implementation is tracked by GitHub issue #121.
+
+## 2026-07-14: Use External OIDC With Cycles-Owned Authorisation
+
+Decision: use ASP.NET Core cookie authentication backed by an external OpenID Connect provider for private-alpha and Production identity. Map the provider's stable issuer and subject to a local player, while keeping empire ownership, admin role, and operational permissions in Cycles-owned data.
+
+Reasoning:
+
+- External identity avoids making Cycles responsible for storing passwords, password resets, and credential hardening.
+- The existing player and empire model already owns game authority, so authentication can change without moving authorisation into provider-specific claims.
+- Invitations and allowlists are useful private-alpha admission controls, but they do not prove who is signing in.
+- A provider-configurable OIDC boundary keeps the product contract independent of the first deployment's vendor.
+
+Consequences:
+
+- The application will use the confidential authorisation-code flow with PKCE and a secure application cookie.
+- Provider issuer and subject, not mutable email or display name, will correlate an identity with a local player.
+- The first private alpha may restrict admission to invited identities before local player provisioning.
+- Development username login remains an explicit Development-only convenience. The trusted playground's shared access code remains a temporary perimeter and is not promoted into production authentication.
+- Full ASP.NET Core Identity password management is not required unless a later product need justifies owning local credentials.
+- Implementation is tracked by GitHub issue #122. Admin provisioning remains gated by Q114.

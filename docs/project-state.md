@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
@@ -16,7 +16,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers, declarations, alliance effects, or shared visibility. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
-| Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
+| Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC with local player and role mapping is selected for private-alpha and Production but is not implemented. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground persists its single-process Development state as JSON on App Service storage. | Generic API/admin SQL mutations still use the whole-state bridge. The hosted JSON path is a cost-capped playground exception, not the production direction. |
 | Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
 

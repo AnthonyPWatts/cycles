@@ -1,6 +1,6 @@
 # Product Owner Questions
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
 
@@ -21,6 +21,8 @@ Q109 was answered on 2026-07-14 by accepting the already-implemented environment
 Q111 was answered on 2026-07-14 by selecting a configurable persisted-running suspicion threshold with a five-minute default.
 
 Q112 was answered on 2026-07-14 by accepting conservative blocking plus explicit audited abandonment.
+
+Q113 was answered on 2026-07-14 by selecting external OpenID Connect authentication with Cycles-owned authorisation and invited-player admission.
 
 When an answer is accepted:
 
@@ -73,6 +75,12 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q111](https://github.com/AnthonyPWatts/cycles/issues/99) | Treat a persisted `Running` tick as suspicious after a configurable threshold that defaults to five minutes. | The threshold is diagnostic only and must not fail, retry, repair, or cancel a tick. The atomic JSON store does not persist its intermediate `Running` state, so its relevant evidence is total tick duration, state-file size, and representative retained-state benchmarks. Implementation is tracked by [issue #120](https://github.com/AnthonyPWatts/cycles/issues/120). |
 | [Q112](https://github.com/AnthonyPWatts/cycles/issues/100) | Never auto-fail a `Running` tick based only on age. Require admin inspection, continue blocking, and allow an audited admin to mark a confirmed abandoned attempt failed with an operator and reason. | Existing blocking remains the safe default. The missing explicit `Running`-to-`Failed` operator action is tracked by [issue #121](https://github.com/AnthonyPWatts/cycles/issues/121); normal repair and recovery clear/retry remain separate deliberate steps. |
 
+## Accepted Q113 Answer
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q113](https://github.com/AnthonyPWatts/cycles/issues/101) | Use ASP.NET Core cookie authentication backed by an external OpenID Connect provider for private-alpha and Production environments. Correlate the provider's stable issuer and subject to a local player, and keep empire ownership, admin role, and operational permissions in Cycles-owned data. | Invitations or an allowlist govern admission but are not identity proof. The concrete provider remains environment-configurable, Development username login remains Development-only, and implementation is tracked by [issue #122](https://github.com/AnthonyPWatts/cycles/issues/122). Full ASP.NET Core Identity password management is not required for this boundary. |
+
 ## Established Product Contracts
 
 These earlier answers remain in force unless a later accepted question explicitly supersedes them.
@@ -91,8 +99,9 @@ These earlier answers remain in force unless a later accepted question explicitl
 
 ### Identity, Authority, And Visibility
 
-- Development authentication is acceptable for trusted private testing.
-- Production identity should use a deliberate ASP.NET Core authentication boundary, likely OAuth/OpenID Connect or Identity; the provider is not selected.
+- Development username authentication is acceptable only for trusted Development testing.
+- Private-alpha and Production identity use an external OpenID Connect provider through ASP.NET Core cookie authentication. Stable issuer and subject identify the local player; the concrete provider remains environment-configurable.
+- Invitations or an allowlist may control admission, but empire ownership, admin role, and operational permissions remain Cycles-owned authorisation data.
 - One player controls one empire.
 - Admins may inspect all empires and act for support or repair.
 - Team/shared control is parked.
@@ -169,7 +178,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q113-Q118 | Identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107-Q112 are settled. |
+| Production access and operations | Q114-Q118 | Admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107-Q113 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults
