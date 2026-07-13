@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- Typed fact schemas, event-detail UX, frozen API conventions, dashboard scale, help content, and saved-game exports remain governed by Q122-Q130 rather than being inferred from this decision.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122 now settles the fact-contract trigger; Q123-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -939,3 +939,21 @@ Consequences:
 - Local development uses the SQL Server container and migrations. JSON may remain in bounded tooling and test-fixture paths, but not as a supported runtime host store.
 - The application does not dual-write JSON and SQL, and JSON exports do not replace database-native backup or restore.
 - Issue #120 no longer includes transient hosted-JSON file-size or whole-file runtime diagnostics; it remains focused on persisted SQL attempts.
+
+## 2026-07-14: Keep Fact Storage Flexible Until A Consumer Needs A Contract
+
+Decision: keep `FactJson` as flexible internal storage for another stage. Introduce a typed or validated contract when a fact becomes mechanically consumed, queried, migrated, or publicly exposed, rather than typing every payload merely because it can be displayed.
+
+Reasoning:
+
+- Event, battle, Chronicle, diplomacy, and doctrine fact shapes are still evolving, so a broad schema migration would create churn without improving a current product boundary.
+- Flexible internal storage remains useful for factual details that are written and rendered but do not yet drive mechanics or integration contracts.
+- Mechanical consumers need stable field meaning, validation, and compatibility handling; allowing clients to understand storage JSON directly moves that responsibility to the wrong boundary.
+- The Day One guide already reads stable objective identifiers from `OpeningBriefingIssued`, making that payload the current candidate for a purpose-built contract.
+
+Consequences:
+
+- Existing fact rows remain stored as JSON strings; this decision does not create a generic typed-fact framework or broad migration issue.
+- New code that mechanically consumes, queries, migrates, or publicly exposes fact fields must introduce a named typed or validated reader, model, or response contract at that boundary.
+- Display-only facts may remain flexible while their shapes stabilise, provided normal UI does not expose raw storage JSON.
+- Q123 decides the public exposure boundary and the purpose-built replacement for the dashboard's direct opening-briefing parsing.

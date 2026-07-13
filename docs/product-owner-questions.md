@@ -36,6 +36,8 @@ Q118 was answered on 2026-07-14 by allowing justified Azure-SQL-compatible provi
 
 Q119 was answered on 2026-07-14 by demoting JSON now to explicit import/export, inspection, fixture, and migration use rather than API or Worker runtime persistence.
 
+Q122 was answered on 2026-07-14 by retaining flexible internal fact storage while requiring a typed or validated contract at the first mechanical consumer, query, migration, or public exposure boundary.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -72,13 +74,14 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110, Q120, And Q121 Answers
+## Accepted Q110 And Q120-Q122 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
 | [Q110](https://github.com/AnthonyPWatts/cycles/issues/98) | Accept the current lifecycle-control default. **Advance turn** remains the only ordinary-player Development exception. Shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed. | The current Development capability is confirmed without broadening player roles or exposing recovery, Cycle end, successor creation, pause, or diagnostics controls. Production operations remain gated by the unanswered auth, hosting, Worker, recovery, and audit decisions. |
 | [Q120](https://github.com/AnthonyPWatts/cycles/issues/108) | All player-facing API endpoints use explicit response DTOs before online testing. | The implemented DTO-only boundary and its regression coverage are accepted product contracts. Future player-facing endpoints must follow the same boundary. |
 | [Q121](https://github.com/AnthonyPWatts/cycles/issues/109) | Raw domain entities remain internal and are not returned to the dashboard. | Dashboard contracts may expose purpose-built representations, but must not leak `Cycles.Core` entities. |
+| [Q122](https://github.com/AnthonyPWatts/cycles/issues/110) | Keep `FactJson` as flexible internal storage for another stage. Introduce a typed or validated fact contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed, rather than merely because it is displayed. | Do not begin a broad typed-fact migration before diplomacy and narrative shapes stabilise. The opening briefing is the current contract candidate because the dashboard consumes its fields; Q123 settles the public API exposure boundary. |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -143,6 +146,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - All player-facing endpoints use explicit response DTOs before online testing.
 - Raw domain entities remain internal and must not be returned to the dashboard.
 - Purpose-built response contracts remain protected by regression coverage against `Cycles.Core` entity leakage.
+- `FactJson` may remain flexible internal storage while fact shapes evolve, but a mechanically consumed, queried, migrated, or publicly exposed payload requires a typed or validated boundary.
 
 ### Cycle End And History
 
@@ -197,7 +201,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
+| API and dashboard follow-ons | Q123-Q130 | Event-detail UX, public fact exposure, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q122's DTO and fact-contract boundaries are settled. |
 
 ## Engineering Defaults
 
