@@ -666,3 +666,21 @@ Consequences:
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
 - Typed fact schemas, event-detail UX, frozen API conventions, dashboard scale, help content, and saved-game exports remain governed by Q122-Q130 rather than being inferred from this decision.
+
+## 2026-07-13: Organise The Dashboard Around Player Tasks
+
+Decision: replace the permanent map-and-scrolling-rail layout with persistent Command, Galaxy, Fleets, and Chronicle views while keeping the Day One guide as the only overlay.
+
+Reasoning:
+
+- The map is valuable when a player is exploring space, but it consumed most of the viewport while the player was setting priorities, issuing orders, or reading history.
+- A single rail mixed current decisions, contextual detail, controls, audit history, and Chronicle prose, making important sections depend on retained-list length.
+- Stable views make location and purpose obvious without changing API contracts or gameplay rules.
+
+Consequences:
+
+- **Command** opens as the default task surface for resources, priorities, pending commitments, and a concise status pulse.
+- **Galaxy** preserves the large interactive map and places selected-system detail beside it.
+- **Fleets** groups selection, detail, order entry, and resolved order history. Resolved history renders 20 records at a time.
+- **Chronicle** gives narrative history the main reading area and keeps recent factual events alongside it.
+- View state is hash-addressable, persists locally, supports browser navigation and Alt+1 through Alt+4, and the guide switches views before highlighting a target.

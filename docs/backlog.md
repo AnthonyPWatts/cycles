@@ -111,6 +111,7 @@ The following are established and should not remain as open roadmap stages:
 - development auth, actor-derived empire authority, active-fleet visibility, the accepted explicit-DTO/internal-domain API boundary, and order cancellation;
 - scheduled Worker ticks, the accepted narrow Development-player turn exception, diagnostics, and running-API smoke coverage;
 - the curated Day One opening, structured objective briefing, and resumable click-along dashboard guide;
+- the task-focused Command, Galaxy, Fleets, and Chronicle dashboard views with bounded order-history rendering;
 - Cycle-end rankings, major-battle preservation, historical signals, and successor-Cycle generation;
 - deterministic Chronicle reports, admirals, and the diplomacy storage/aggression foundation.
 

@@ -57,7 +57,16 @@ If the curated briefing is unavailable, **Guide** presents a shorter generic ver
 
 ## Read the dashboard
 
-The map shows every system and route. Select a system to inspect its resource output, strategic value, historical significance, visible influence, and colonial outposts.
+The dashboard keeps four views available at all times. Browser back and forward also move between them.
+
+- **Command** shows the information needed before the next tick: resources, priorities, pending orders, and a short status pulse.
+- **Galaxy** gives the map the full workspace and keeps the selected system's details beside it.
+- **Fleets** groups the fleet roster, selected-fleet detail, order controls, and resolved order history. History loads 20 entries at a time rather than rendering the whole retained list.
+- **Chronicle** gives recorded history the main reading area and keeps recent factual events alongside it.
+
+The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
+
+In **Galaxy**, the map shows every system and route. Select a system to inspect its resource output, strategic value, historical significance, visible influence, and colonial outposts.
 
 The map legend marks:
 
@@ -83,9 +92,9 @@ Research still matters even though its priority weight has no direct effect. At 
 
 For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Industry or Research reduces those two active effects, but does not yet create another direct benefit.
 
-The order appears as **Pending** in the order queue and says which tick can process it. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
+The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move into the progressively loaded history in **Fleets**. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
 
-You can select the fleet in the **Fleets** panel to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
+Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
 After the tick, select **Refresh** and check:
 
@@ -162,9 +171,9 @@ The Core simulation supports Hold orders, but the current dashboard has no Hold 
 
 ## Events, admirals, and the Chronicle
 
-The **Events** panel shows the latest visible facts in reverse order. Use it to understand what the last tick changed.
+**Recent events** in the **Chronicle** view show the latest visible facts in reverse order. Use them to understand what the last tick changed.
 
-The **Fleet** panel names an assigned admiral and shows reputation and status. Battle results create an admiral history. A destroyed commanded fleet can kill its admiral.
+The selected-fleet detail in **Fleets** names an assigned admiral and shows reputation and status. Battle results create an admiral history. A destroyed commanded fleet can kill its admiral.
 
 The **Chronicle** records battles that cross the current historical-importance threshold. Battle size, strategic value, existing history, an underdog result, and notable admirals can raise the score. Most events do not become Chronicle entries.
 

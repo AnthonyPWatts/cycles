@@ -11,8 +11,18 @@ const state = {
     fleets: [],
     orders: [],
     events: [],
-    chronicle: []
+    chronicle: [],
+    activeView: "command",
+    orderHistoryLimit: 20
 };
+
+const viewIds = ["command", "galaxy", "fleets", "chronicle"];
+const viewShortcuts = new Map([
+    ["1", "command"],
+    ["2", "galaxy"],
+    ["3", "fleets"],
+    ["4", "chronicle"]
+]);
 
 const tutorial = {
     version: "v1",
@@ -39,6 +49,14 @@ const elements = {
     sessionUsername: document.querySelector("#sessionUsername"),
     signOutButton: document.querySelector("#signOutButton"),
     appShell: document.querySelector("#appShell"),
+    viewNav: document.querySelector("#viewNav"),
+    views: [...document.querySelectorAll("[data-view]")],
+    viewLinks: [...document.querySelectorAll("[data-view-link]")],
+    commandPulse: document.querySelector("#commandPulse"),
+    commandViewBadge: document.querySelector("#commandViewBadge"),
+    galaxyViewBadge: document.querySelector("#galaxyViewBadge"),
+    fleetsViewBadge: document.querySelector("#fleetsViewBadge"),
+    chronicleViewBadge: document.querySelector("#chronicleViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
     empireName: document.querySelector("#empireName"),
     resources: document.querySelector("#resources"),
@@ -51,7 +69,7 @@ const elements = {
     priorityTotal: document.querySelector("#priorityTotal"),
     priorityBars: document.querySelector("#priorityBars"),
     priorityMessage: document.querySelector("#priorityMessage"),
-    fleets: document.querySelector("#fleets"),
+    fleets: document.querySelector("#fleetList"),
     fleetDetails: document.querySelector("#fleetDetails"),
     fleetSelect: document.querySelector("#fleetSelect"),
     destinationSelect: document.querySelector("#destinationSelect"),
@@ -63,8 +81,10 @@ const elements = {
     coloniseForm: document.querySelector("#coloniseForm"),
     orderMessage: document.querySelector("#orderMessage"),
     orders: document.querySelector("#orders"),
+    orderHistory: document.querySelector("#orderHistory"),
+    orderHistoryCount: document.querySelector("#orderHistoryCount"),
     events: document.querySelector("#events"),
-    chronicle: document.querySelector("#chronicle"),
+    chronicle: document.querySelector("#chronicleEntries"),
     galaxyMap: document.querySelector("#galaxyMap"),
     mapStats: document.querySelector("#mapStats"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
@@ -98,10 +118,27 @@ elements.tutorialBackButton.addEventListener("click", previousTutorialStep);
 elements.tutorialNextButton.addEventListener("click", nextTutorialStep);
 
 document.addEventListener("keydown", event => {
+    const shortcutView = event.altKey && !event.ctrlKey && !event.metaKey
+        ? viewShortcuts.get(event.key)
+        : null;
+    if (shortcutView && !elements.appShell.hidden) {
+        event.preventDefault();
+        activateView(shortcutView, { updateLocation: true, focusHeading: true });
+        return;
+    }
+
     if (event.key === "Escape" && tutorial.active) {
         event.preventDefault();
         pauseTutorial();
     }
+});
+
+window.addEventListener("hashchange", () => {
+    const requestedView = viewFromHash();
+    activateView(requestedView ?? "command", {
+        updateLocation: requestedView === null,
+        focusHeading: true
+    });
 });
 
 elements.advanceTurnButton.addEventListener("click", async () => {
@@ -117,7 +154,7 @@ elements.advanceTurnButton.addEventListener("click", async () => {
     elements.advanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
-        setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry")}.`);
+        setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}.`);
         await refresh();
     } catch (error) {
         setTurnMessage(error.message);
@@ -265,6 +302,16 @@ elements.orders.addEventListener("click", async event => {
     await cancelOrder(button.dataset.cancelOrderId);
 });
 
+elements.orderHistory.addEventListener("click", event => {
+    const button = event.target.closest("[data-load-more-orders]");
+    if (!button) {
+        return;
+    }
+
+    state.orderHistoryLimit += 20;
+    renderOrderQueue(state.orders);
+});
+
 async function boot() {
     elements.username.value = readStoredValue("cycles.username") || elements.username.value;
     try {
@@ -321,8 +368,12 @@ async function signOut() {
 }
 
 function applySession(login) {
-    if (state.playerId && state.playerId !== login.playerId) {
+    const playerChanged = state.playerId !== login.playerId;
+    if (state.playerId && playerChanged) {
         resetTutorialContext();
+    }
+    if (playerChanged) {
+        state.orderHistoryLimit = 20;
     }
 
     state.playerId = login.playerId;
@@ -334,6 +385,7 @@ function applySession(login) {
     elements.loginForm.hidden = true;
     elements.sessionSummary.hidden = false;
     elements.appShell.hidden = false;
+    activateView(resolveInitialView(), { updateLocation: true });
 }
 
 function showLogin(message) {
@@ -371,7 +423,8 @@ async function refresh() {
     state.chronicle = chronicle;
 
     if (!state.selectedFleetId || !fleets.some(item => item.fleet.fleetId === state.selectedFleetId)) {
-        state.selectedFleetId = fleets[0]?.fleet.fleetId ?? null;
+        const defaultFleet = fleets.find(item => item.fleet.status === "active" && item.fleet.shipCount > 0) ?? fleets[0];
+        state.selectedFleetId = defaultFleet?.fleet.fleetId ?? null;
     }
 
     state.fleetDetail = state.selectedFleetId
@@ -393,7 +446,50 @@ async function refresh() {
     renderEvents(events);
     renderChronicle(chronicle);
     renderGalaxy(galaxy, empire);
+    renderCommandSummary();
     syncTutorialAfterRefresh();
+}
+
+function viewFromHash() {
+    const value = window.location.hash.slice(1).toLowerCase();
+    return viewIds.includes(value) ? value : null;
+}
+
+function resolveInitialView() {
+    const requestedView = viewFromHash();
+    if (requestedView) {
+        return requestedView;
+    }
+
+    const storedView = readStoredValue("cycles.activeView");
+    return viewIds.includes(storedView) ? storedView : "command";
+}
+
+function activateView(viewId, { updateLocation = false, focusHeading = false } = {}) {
+    const selectedView = viewIds.includes(viewId) ? viewId : "command";
+    state.activeView = selectedView;
+
+    for (const view of elements.views) {
+        view.hidden = view.dataset.view !== selectedView;
+    }
+
+    for (const link of elements.viewLinks) {
+        if (link.dataset.viewLink === selectedView) {
+            link.setAttribute("aria-current", "page");
+        } else {
+            link.removeAttribute("aria-current");
+        }
+    }
+
+    writeStoredValue("cycles.activeView", selectedView);
+    if (updateLocation && window.location.hash !== `#${selectedView}`) {
+        window.history.replaceState(null, "", `#${selectedView}`);
+    }
+
+    if (focusHeading) {
+        const heading = document.querySelector(`[data-view="${selectedView}"] h1`);
+        requestAnimationFrame(() => heading?.focus({ preventScroll: true }));
+    }
 }
 
 function renderCycle(cycle) {
@@ -419,6 +515,40 @@ function renderEmpire(empire) {
     `;
 }
 
+function renderCommandSummary() {
+    const pendingOrders = state.orders.filter(order => order.status === "pending").length;
+    const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0).length;
+    const visibleEvents = state.events.length;
+    const chronicleEntries = state.chronicle.length;
+
+    elements.commandPulse.innerHTML = `
+        ${commandPulseLink("Pending orders", pendingOrders, "fleets", pendingOrders === 0 ? "Issue an order" : "Review commitments")}
+        ${commandPulseLink("Active fleets", activeFleets, "fleets", "Open fleet command")}
+        ${commandPulseLink("Recent events", visibleEvents, "chronicle", "Read the audit trail")}
+        ${commandPulseLink("Chronicle entries", chronicleEntries, "chronicle", "Read recorded history")}
+    `;
+
+    setViewBadge(elements.commandViewBadge, pendingOrders, `${formatCount(pendingOrders, "pending order")}`);
+    setViewBadge(elements.galaxyViewBadge, state.galaxy?.systems.length ?? 0, `${formatCount(state.galaxy?.systems.length ?? 0, "system")}`);
+    setViewBadge(elements.fleetsViewBadge, activeFleets, `${formatCount(activeFleets, "active fleet")}`);
+    setViewBadge(elements.chronicleViewBadge, chronicleEntries, `${formatCount(chronicleEntries, "Chronicle entry", "Chronicle entries")}`);
+}
+
+function commandPulseLink(label, value, viewId, action) {
+    return `
+        <a class="pulse-card" href="#${viewId}">
+            <span>${escapeHtml(label)}</span>
+            <strong>${formatNumber(value)}</strong>
+            <small>${escapeHtml(action)}</small>
+        </a>
+    `;
+}
+
+function setViewBadge(element, value, label) {
+    element.textContent = formatNumber(value);
+    element.setAttribute("aria-label", label);
+}
+
 function renderPriorities(priorities) {
     elements.industryWeight.value = priorities.industryWeight;
     elements.researchWeight.value = priorities.researchWeight;
@@ -430,7 +560,12 @@ function renderPriorities(priorities) {
 function renderFleets(fleets) {
     elements.fleets.innerHTML = fleets.length === 0
         ? `<article class="item"><span>No fleets yet.</span></article>`
-        : fleets.map(item => {
+        : fleets.slice().sort((left, right) => {
+            const leftActive = left.fleet.status === "active" && left.fleet.shipCount > 0;
+            const rightActive = right.fleet.status === "active" && right.fleet.shipCount > 0;
+            return Number(rightActive) - Number(leftActive)
+                || left.fleet.fleetName.localeCompare(right.fleet.fleetName);
+        }).map(item => {
         const fleet = item.fleet;
         const destination = item.destinationSystemName ? ` -> ${item.destinationSystemName}` : "";
         const selectedClass = fleet.fleetId === state.selectedFleetId ? " selected" : "";
@@ -593,27 +728,47 @@ function renderSystemDetails() {
 }
 
 function renderOrderQueue(orders) {
-    elements.orders.innerHTML = orders.length === 0
-        ? `<article class="item"><span>No fleet orders yet.</span></article>`
-        : orders.map(order => {
-            const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
-            const timing = formatOrderTiming(order);
-            const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
-            const cancelButton = order.status === "pending"
-                ? `<button type="button" class="inline-action" data-cancel-order-id="${order.fleetOrderId}">Cancel</button>`
-                : "";
-            return `
-                <article class="item order-${statusClass(order.status)}">
-                    <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
-                    <span class="item-meta">
-                        ${statusChip(order.status)}
-                        <span>${escapeHtml(target)}</span>
-                        <span>${escapeHtml(timing)}${escapeHtml(rejection)}</span>
-                    </span>
-                    ${cancelButton}
-                </article>
-            `;
-        }).join("");
+    const pendingOrders = orders.filter(order => order.status === "pending");
+    elements.orders.innerHTML = pendingOrders.length === 0
+        ? `<article class="item empty-state"><strong>No pending orders</strong><span>Issue an order when you are ready to commit the next turn.</span></article>`
+        : pendingOrders.map(order => orderCard(order, true)).join("");
+
+    const resolvedOrders = orders
+        .filter(order => order.status !== "pending")
+        .slice()
+        .reverse();
+    const visibleOrders = resolvedOrders.slice(0, state.orderHistoryLimit);
+    const remaining = resolvedOrders.length - visibleOrders.length;
+    const loadMore = remaining > 0
+        ? `<button type="button" class="history-load-more" data-load-more-orders>Show ${formatCount(Math.min(20, remaining), "more order")}</button>`
+        : "";
+
+    elements.orderHistoryCount.textContent = resolvedOrders.length === 0
+        ? "No resolved orders"
+        : `Showing ${formatNumber(visibleOrders.length)} of ${formatNumber(resolvedOrders.length)}`;
+    elements.orderHistory.innerHTML = resolvedOrders.length === 0
+        ? `<article class="item empty-state"><span>Resolved and cancelled orders will appear here.</span></article>`
+        : `${visibleOrders.map(order => orderCard(order, false)).join("")}${loadMore}`;
+}
+
+function orderCard(order, allowCancel) {
+    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    const timing = formatOrderTiming(order);
+    const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
+    const cancelButton = allowCancel
+        ? `<button type="button" class="inline-action" data-cancel-order-id="${order.fleetOrderId}">Cancel</button>`
+        : "";
+    return `
+        <article class="item order-${statusClass(order.status)}">
+            <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
+            <span class="item-meta">
+                ${statusChip(order.status)}
+                <span>${escapeHtml(target)}</span>
+                <span>${escapeHtml(timing)}${escapeHtml(rejection)}</span>
+            </span>
+            ${cancelButton}
+        </article>
+    `;
 }
 
 async function cancelOrder(fleetOrderId) {
@@ -775,6 +930,10 @@ function renderTutorial({ focusHeading }) {
     const step = steps[tutorial.stepIndex];
     const satisfied = !step.required || step.isSatisfied();
 
+    if (step.view) {
+        activateView(step.view, { updateLocation: true });
+    }
+
     clearTutorialTarget();
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
@@ -900,6 +1059,7 @@ function tutorialSteps() {
     const steps = [
         {
             id: "welcome",
+            view: "command",
             title: curated ? "Three fronts need orders" : "Command your first turn",
             body: curated
                 ? "Treaty Gate is contested, Pale Harbour can support an outpost, and Nadir Crossing is open. This guide will help you issue all three orders, advance the turn, and read the consequences."
@@ -908,6 +1068,7 @@ function tutorialSteps() {
         },
         {
             id: "resources",
+            view: "command",
             title: "Know what you can spend",
             body: "Industry funds ships through Military priority. Research accumulates towards Survey Projection. Population pays for outposts. The small figures show what the previous turn generated and spent.",
             target: () => document.querySelector("#resourcesSection"),
@@ -915,6 +1076,7 @@ function tutorialSteps() {
         },
         {
             id: "priorities",
+            view: "command",
             title: "Choose what this turn emphasises",
             body: "Priorities must total 100. Military converts industry into ship construction; Expansion strengthens your projected influence. Adjust them or keep the opening allocation, then save.",
             target: () => document.querySelector("#prioritySection"),
@@ -924,6 +1086,7 @@ function tutorialSteps() {
         },
         {
             id: "map",
+            view: "galaxy",
             title: curated ? "Find the flashpoint" : "Read the galaxy",
             body: curated
                 ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`
@@ -935,6 +1098,7 @@ function tutorialSteps() {
         },
         {
             id: "fleet",
+            view: "fleets",
             title: curated ? "Inspect the Vanguard" : "Inspect your fleet",
             body: curated
                 ? `Select ${tutorialFleetName(focusFleetId)}. Fleet detail shows its ships, commander, current system, local rivals, and recorded orders.`
@@ -946,6 +1110,7 @@ function tutorialSteps() {
         },
         {
             id: "move",
+            view: "fleets",
             title: curated ? "Secure Nadir Crossing" : "Commit a movement order",
             body: curated
                 ? `In Move, choose ${tutorialFleetName(moveFleetId)} and ${tutorialSystemName(moveTargetId)}. Orders are intentions: the server validates them again when the turn resolves.`
@@ -961,6 +1126,7 @@ function tutorialSteps() {
         steps.push(
             {
                 id: "colonise",
+                view: "fleets",
                 title: "Establish the Pale Harbour outpost",
                 body: `Choose ${tutorialFleetName(colonise.fleetId)}. Colonisation costs 100 population and succeeds because that fleet has the leading local influence.`,
                 target: () => document.querySelector("#coloniseForm"),
@@ -970,6 +1136,7 @@ function tutorialSteps() {
             },
             {
                 id: "attack",
+                view: "fleets",
                 title: "Answer the Khepri challenge",
                 body: `Choose ${tutorialFleetName(attack.fleetId)} and the local Khepri force. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
                 target: () => document.querySelector("#attackForm"),
@@ -983,6 +1150,7 @@ function tutorialSteps() {
     steps.push(
         {
             id: "queue",
+            view: "command",
             title: "Review your commitments",
             body: curated
                 ? "The queue should now hold three pending orders. You can cancel any pending intention before the turn resolves."
@@ -1003,6 +1171,7 @@ function tutorialSteps() {
         },
         {
             id: "events",
+            view: "chronicle",
             title: "Read what actually happened",
             body: "Events are the factual audit trail. Check which orders processed, what resources changed, and whether anything was rejected when the world moved underneath an intention.",
             target: () => document.querySelector("#eventsSection"),
@@ -1013,6 +1182,7 @@ function tutorialSteps() {
     if (curated) {
         steps.push({
             id: "chronicle",
+            view: "chronicle",
             title: "See what became history",
             body: "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history.",
             target: () => document.querySelector("#chronicleSection"),
@@ -1022,6 +1192,7 @@ function tutorialSteps() {
 
     steps.push({
         id: "next",
+        view: "command",
         title: "That is the Cycles loop",
         body: "Inspect, prioritise, commit orders, resolve the turn, then read the consequences. From here, reinforce pressure, build ships, found outposts, or seek another battle worth remembering.",
         required: false
@@ -1375,8 +1546,8 @@ function formatNumber(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-function formatCount(value, singular) {
-    return `${formatNumber(value)} ${singular}${Number(value) === 1 ? "" : "s"}`;
+function formatCount(value, singular, plural = `${singular}s`) {
+    return `${formatNumber(value)} ${Number(value) === 1 ? singular : plural}`;
 }
 
 function resourceCard(label, value, maxResource, generated, spent) {

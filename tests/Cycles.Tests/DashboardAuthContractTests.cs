@@ -13,7 +13,7 @@ public sealed class DashboardAuthContractTests
         Assert.Contains("id=\"loginMessage\"", html);
         Assert.Contains("id=\"sessionSummary\"", html);
         Assert.Contains("id=\"signOutButton\"", html);
-        Assert.Contains("id=\"appShell\" class=\"shell\" hidden", html);
+        Assert.Contains("id=\"appShell\" class=\"app-shell\" hidden", html);
         Assert.Contains("elements.loginForm.hidden = true;", script);
         Assert.Contains("elements.sessionSummary.hidden = false;", script);
         Assert.Contains("elements.appShell.hidden = false;", script);

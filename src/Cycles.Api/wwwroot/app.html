@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260711-order-headings-1">
+    <link rel="stylesheet" href="styles.css?v=20260713-command-views-3">
 </head>
 <body>
     <header class="topbar">
@@ -18,139 +18,269 @@
             <p id="loginMessage" class="login-message" role="status">Enter your player name to continue.</p>
         </form>
         <div id="sessionSummary" class="session-summary" hidden>
-            <span>Signed in as <strong id="sessionUsername"></strong></span>
+            <span><span class="session-label">Signed in as </span><strong id="sessionUsername"></strong></span>
             <button id="signOutButton" type="button">Sign out</button>
         </div>
     </header>
 
-    <main id="appShell" class="shell" hidden>
-        <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
-            <div class="toolbar">
-                <div>
-                    <span class="toolbar-kicker">Command Nexus</span>
-                    <strong id="empireName">Empire</strong>
-                </div>
-                <div class="toolbar-actions">
-                    <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
-                    <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
-                    <button id="refreshButton" type="button">Refresh</button>
-                </div>
+    <main id="appShell" class="app-shell" hidden>
+        <div class="toolbar">
+            <div class="command-identity">
+                <span class="toolbar-kicker">Command Nexus</span>
+                <strong id="empireName">Empire</strong>
             </div>
-            <p id="turnMessage" class="turn-message" role="status"></p>
-            <div class="map-stage">
-                <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
-                <div class="map-readout" aria-label="Galaxy summary">
-                    <div id="mapStats" class="map-stats"></div>
-                    <div class="map-legend" aria-label="Map legend">
-                        <span><i class="legend-dot legend-home"></i>Home</span>
-                        <span><i class="legend-dot legend-historic"></i>Historic</span>
-                        <span><i class="legend-ring"></i>Presence</span>
-                        <span><i class="legend-dot legend-contested"></i>Contested</span>
+            <div class="toolbar-actions">
+                <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
+                <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
+                <button id="refreshButton" type="button">Refresh</button>
+            </div>
+        </div>
+        <p id="turnMessage" class="turn-message" role="status"></p>
+
+        <nav id="viewNav" class="view-nav" aria-label="Command views">
+            <a href="#command" data-view-link="command" aria-controls="commandView" aria-keyshortcuts="Alt+1">
+                <span class="view-nav-label">Command</span>
+                <small>Decide the turn</small>
+                <strong id="commandViewBadge" class="view-badge" aria-label="0 pending orders">0</strong>
+            </a>
+            <a href="#galaxy" data-view-link="galaxy" aria-controls="galaxyView" aria-keyshortcuts="Alt+2">
+                <span class="view-nav-label">Galaxy</span>
+                <small>Explore systems</small>
+                <strong id="galaxyViewBadge" class="view-badge" aria-label="0 systems">0</strong>
+            </a>
+            <a href="#fleets" data-view-link="fleets" aria-controls="fleetsView" aria-keyshortcuts="Alt+3">
+                <span class="view-nav-label">Fleets</span>
+                <small>Issue orders</small>
+                <strong id="fleetsViewBadge" class="view-badge" aria-label="0 active fleets">0</strong>
+            </a>
+            <a href="#chronicle" data-view-link="chronicle" aria-controls="chronicleView" aria-keyshortcuts="Alt+4">
+                <span class="view-nav-label">Chronicle</span>
+                <small>Review history</small>
+                <strong id="chronicleViewBadge" class="view-badge" aria-label="0 Chronicle entries">0</strong>
+            </a>
+        </nav>
+
+        <div class="view-stack">
+            <section id="commandView" class="app-view command-view" data-view="command" aria-labelledby="commandViewTitle">
+                <header class="view-heading command-heading">
+                    <div>
+                        <span class="view-kicker">Turn command</span>
+                        <h1 id="commandViewTitle" tabindex="-1">Choose what happens next</h1>
+                        <p>Check capacity, set priorities, and review commitments before the galaxy advances.</p>
                     </div>
+                    <div id="commandPulse" class="command-pulse" aria-label="Current command summary"></div>
+                </header>
+
+                <div class="command-grid">
+                    <section id="resourcesSection" class="view-card summary">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Capacity</span>
+                                <h2>Resources</h2>
+                            </div>
+                        </div>
+                        <dl id="resources"></dl>
+                    </section>
+
+                    <section id="prioritySection" class="view-card">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Next tick</span>
+                                <h2>Priorities</h2>
+                            </div>
+                            <span class="section-note">Must total 100</span>
+                        </div>
+                        <form id="priorityForm" class="priority-form">
+                            <label>
+                                Industry
+                                <input id="industryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                            </label>
+                            <label>
+                                Research
+                                <input id="researchWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                            </label>
+                            <label>
+                                Military
+                                <input id="militaryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                            </label>
+                            <label>
+                                Expansion
+                                <input id="expansionWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
+                            </label>
+                            <div class="priority-total">Total <strong id="priorityTotal">0</strong></div>
+                            <div id="priorityBars" class="priority-bars" aria-label="Priority allocation"></div>
+                            <button type="submit">Save priorities</button>
+                            <p id="priorityMessage" class="message" role="status"></p>
+                        </form>
+                    </section>
+
+                    <section id="orderQueueSection" class="view-card command-queue">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Pending intentions</span>
+                                <h2>Order Queue</h2>
+                            </div>
+                            <a class="section-link" href="#fleets">Issue orders</a>
+                        </div>
+                        <div id="orders" class="list compact"></div>
+                    </section>
                 </div>
-            </div>
-        </section>
-
-        <aside class="side-panel">
-            <section id="resourcesSection" class="summary">
-                <h2>Resources</h2>
-                <dl id="resources"></dl>
             </section>
 
-            <section id="systemSection">
-                <h2>System</h2>
-                <div id="systemDetails" class="system-details"></div>
+            <section id="galaxyView" class="app-view galaxy-view" data-view="galaxy" aria-labelledby="galaxyViewTitle" hidden>
+                <div class="galaxy-layout">
+                    <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
+                        <header class="panel-heading">
+                            <div>
+                                <span class="view-kicker">Strategic space</span>
+                                <h1 id="galaxyViewTitle" tabindex="-1">Galaxy</h1>
+                            </div>
+                            <p>Select a system to inspect resources, presence, and outposts.</p>
+                        </header>
+                        <div class="map-stage">
+                            <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+                            <div class="map-readout" aria-label="Galaxy summary">
+                                <div id="mapStats" class="map-stats"></div>
+                                <div class="map-legend" aria-label="Map legend">
+                                    <span><i class="legend-dot legend-home"></i>Home</span>
+                                    <span><i class="legend-dot legend-historic"></i>Historic</span>
+                                    <span><i class="legend-ring"></i>Presence</span>
+                                    <span><i class="legend-dot legend-contested"></i>Contested</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside id="systemSection" class="view-card system-inspector" aria-labelledby="systemHeading">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Selected position</span>
+                                <h2 id="systemHeading">System</h2>
+                            </div>
+                        </div>
+                        <div id="systemDetails" class="system-details"></div>
+                    </aside>
+                </div>
             </section>
 
-            <section id="prioritySection">
-                <h2>Priorities</h2>
-                <form id="priorityForm" class="priority-form">
-                    <label>
-                        Industry
-                        <input id="industryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                    </label>
-                    <label>
-                        Research
-                        <input id="researchWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                    </label>
-                    <label>
-                        Military
-                        <input id="militaryWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                    </label>
-                    <label>
-                        Expansion
-                        <input id="expansionWeight" type="number" min="0" max="100" step="5" inputmode="numeric">
-                    </label>
-                    <div class="priority-total">Total <strong id="priorityTotal">0</strong></div>
-                    <div id="priorityBars" class="priority-bars" aria-label="Priority allocation"></div>
-                    <button type="submit">Save priorities</button>
-                    <p id="priorityMessage" class="message" role="status"></p>
-                </form>
+            <section id="fleetsView" class="app-view fleets-view" data-view="fleets" aria-labelledby="fleetsViewTitle" hidden>
+                <header class="view-heading">
+                    <div>
+                        <span class="view-kicker">Operational command</span>
+                        <h1 id="fleetsViewTitle" tabindex="-1">Fleets and orders</h1>
+                        <p>Select a fleet, understand its local situation, then commit an intention.</p>
+                    </div>
+                </header>
+
+                <div class="fleets-grid">
+                    <section id="fleetsSection" class="view-card fleet-roster">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Your forces</span>
+                                <h2>Fleets</h2>
+                            </div>
+                        </div>
+                        <div id="fleetList" class="list"></div>
+                    </section>
+
+                    <section id="fleetSection" class="view-card fleet-inspector">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Selected force</span>
+                                <h2>Fleet detail</h2>
+                            </div>
+                        </div>
+                        <div id="fleetDetails" class="fleet-details"></div>
+                    </section>
+
+                    <section id="ordersSection" class="view-card orders-workbench">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">Next tick</span>
+                                <h2>Issue orders</h2>
+                            </div>
+                        </div>
+                        <form id="moveForm" class="order-form" aria-labelledby="moveOrderHeading">
+                            <h3 id="moveOrderHeading" class="order-form-title">Move</h3>
+                            <label>
+                                Fleet
+                                <select id="fleetSelect"></select>
+                            </label>
+                            <label>
+                                Destination
+                                <select id="destinationSelect"></select>
+                            </label>
+                            <button type="submit">Queue move</button>
+                        </form>
+                        <form id="attackForm" class="order-form" aria-labelledby="attackOrderHeading">
+                            <h3 id="attackOrderHeading" class="order-form-title">Attack</h3>
+                            <label>
+                                Attacker
+                                <select id="attackFleetSelect"></select>
+                            </label>
+                            <label>
+                                Target
+                                <select id="targetEmpireSelect"></select>
+                            </label>
+                            <button type="submit">Queue attack</button>
+                        </form>
+                        <form id="coloniseForm" class="order-form" aria-labelledby="coloniseOrderHeading">
+                            <h3 id="coloniseOrderHeading" class="order-form-title">Colonise</h3>
+                            <label>
+                                Colonising fleet
+                                <select id="coloniseFleetSelect"></select>
+                            </label>
+                            <span class="form-hint">Costs 100 population and resolves next tick.</span>
+                            <button type="submit">Queue outpost</button>
+                        </form>
+                        <p id="orderMessage" class="message" role="status"></p>
+                    </section>
+                </div>
+
+                <section id="orderHistorySection" class="view-card order-history">
+                    <div class="section-heading">
+                        <div>
+                            <span class="section-kicker">Resolved intentions</span>
+                            <h2>Order history</h2>
+                        </div>
+                        <span id="orderHistoryCount" class="section-note"></span>
+                    </div>
+                    <div id="orderHistory" class="list compact"></div>
+                </section>
             </section>
 
-            <section id="fleetsSection">
-                <h2>Fleets</h2>
-                <div id="fleets" class="list"></div>
-            </section>
+            <section id="chronicleView" class="app-view chronicle-view" data-view="chronicle" aria-labelledby="chronicleViewTitle" hidden>
+                <header class="view-heading history-heading">
+                    <div>
+                        <span class="view-kicker">Consequences and legacy</span>
+                        <h1 id="chronicleViewTitle" tabindex="-1">Chronicle</h1>
+                        <p>The Chronicle preserves exceptional history. Events remain the factual audit trail.</p>
+                    </div>
+                </header>
 
-            <section id="fleetSection">
-                <h2>Fleet</h2>
-                <div id="fleetDetails" class="fleet-details"></div>
-            </section>
+                <div class="history-grid">
+                    <section id="chronicleSection" class="view-card chronicle-reading">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">What endured</span>
+                                <h2>Recorded history</h2>
+                            </div>
+                        </div>
+                        <div id="chronicleEntries" class="list compact"></div>
+                    </section>
 
-            <section id="ordersSection">
-                <h2>Orders</h2>
-                <form id="moveForm" class="order-form" aria-labelledby="moveOrderHeading">
-                    <h3 id="moveOrderHeading" class="order-form-title">Move</h3>
-                    <label>
-                        Fleet
-                        <select id="fleetSelect"></select>
-                    </label>
-                    <label>
-                        Destination
-                        <select id="destinationSelect"></select>
-                    </label>
-                    <button type="submit">Queue move</button>
-                </form>
-                <form id="attackForm" class="order-form" aria-labelledby="attackOrderHeading">
-                    <h3 id="attackOrderHeading" class="order-form-title">Attack</h3>
-                    <label>
-                        Attacker
-                        <select id="attackFleetSelect"></select>
-                    </label>
-                    <label>
-                        Target
-                        <select id="targetEmpireSelect"></select>
-                    </label>
-                    <button type="submit">Queue attack</button>
-                </form>
-                <form id="coloniseForm" class="order-form" aria-labelledby="coloniseOrderHeading">
-                    <h3 id="coloniseOrderHeading" class="order-form-title">Colonise</h3>
-                    <label>
-                        Colonising fleet
-                        <select id="coloniseFleetSelect"></select>
-                    </label>
-                    <span class="form-hint">Costs 100 population and resolves next tick.</span>
-                    <button type="submit">Queue outpost</button>
-                </form>
-                <p id="orderMessage" class="message" role="status"></p>
+                    <section id="eventsSection" class="view-card event-stream">
+                        <div class="section-heading">
+                            <div>
+                                <span class="section-kicker">What happened</span>
+                                <h2>Recent events</h2>
+                            </div>
+                        </div>
+                        <div id="events" class="list compact"></div>
+                    </section>
+                </div>
             </section>
-
-            <section id="orderQueueSection">
-                <h2>Order Queue</h2>
-                <div id="orders" class="list compact"></div>
-            </section>
-
-            <section id="eventsSection">
-                <h2>Events</h2>
-                <div id="events" class="list compact"></div>
-            </section>
-
-            <section id="chronicleSection">
-                <h2>Chronicle</h2>
-                <div id="chronicle" class="list compact"></div>
-            </section>
-        </aside>
+        </div>
     </main>
 
     <aside id="tutorialPanel" class="tutorial-panel" role="region" aria-live="polite" aria-labelledby="tutorialTitle" aria-describedby="tutorialBody tutorialRequirement" hidden>
@@ -172,6 +302,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260711-login-state-2"></script>
+    <script src="app.js?v=20260713-command-views-3"></script>
 </body>
 </html>
