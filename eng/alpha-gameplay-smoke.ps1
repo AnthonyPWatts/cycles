@@ -79,7 +79,7 @@ if ($NoBuild) {
     $runArguments += "--no-build"
 }
 $apiProject = Join-Path $repoRoot "src/Cycles.Api/Cycles.Api.csproj"
-$apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net8.0/Cycles.Api.dll"
+$apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net10.0/Cycles.Api.dll"
 
 $apiProcess = $null
 $playerClient = $null
