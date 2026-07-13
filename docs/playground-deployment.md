@@ -25,8 +25,9 @@ Required GitHub environment variables on the `playground` environment:
 - `AZURE_CLIENT_ID`;
 - `AZURE_TENANT_ID`;
 - `AZURE_SUBSCRIPTION_ID`;
-- `AZURE_WEBAPP_NAME`;
-- `AZURE_WEBAPP_DEPLOY_ENABLED`, set to `true` only while the access-restricted playground is intended to be online.
+- `AZURE_WEBAPP_NAME`.
+
+`AZURE_WEBAPP_DEPLOY_ENABLED` is a repository variable, set to `true` only while the access-restricted playground is intended to be online. It cannot be environment-scoped because GitHub evaluates the job-level deployment condition before attaching the `playground` environment and its variables.
 
 The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connect, deploys the published output, and verifies `/health`.
 
