@@ -30,6 +30,8 @@ Do not treat this list as permission for speculative refactors. `Cycles.Applicat
 
 Blocked: production and JSON-lifecycle work must follow the relevant product decisions. Development auth and the local/private Worker are not production substitutes.
 
+The cost-capped hosted playground is also not a production substitute. Its F1 App Service, persistent JSON file, manual Development turns, and restricted edge access exist only to gather trusted play evidence without opening a paid runtime path.
+
 ## Gameplay And Product Systems
 
 ### Diplomacy
@@ -111,6 +113,7 @@ The following are established and should not remain as open roadmap stages:
 - development auth, actor-derived empire authority, active-fleet visibility, the accepted explicit-DTO/internal-domain API boundary, and order cancellation;
 - scheduled Worker ticks, the accepted narrow Development-player turn exception, diagnostics, and running-API smoke coverage;
 - the curated Day One opening, structured objective briefing, and resumable click-along dashboard guide;
+- the F1 Free trusted playground deployment path, GitHub Actions workload identity, and Azure-side paid-resource guardrails;
 - the task-focused Command, Galaxy, Fleets, and History dashboard views, contextual fleet actions, filterable Chronicle/Event records, and bounded resolved-order rendering;
 - Cycle-end rankings, major-battle preservation, historical signals, and successor-Cycle generation;
 - deterministic Chronicle reports, admirals, and the diplomacy storage/aggression foundation.

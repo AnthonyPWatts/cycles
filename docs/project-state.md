@@ -17,7 +17,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers, declarations, alliance effects, or shared visibility. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | Not a production authentication or multiplayer security boundary. |
-| Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. | Generic API/admin SQL mutations still use the whole-state bridge. |
+| Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground persists its single-process Development state as JSON on App Service storage. | Generic API/admin SQL mutations still use the whole-state bridge. The hosted JSON path is a cost-capped playground exception, not the production direction. |
 | Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
 
 ## Implemented Rules
@@ -89,6 +89,15 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
 - SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history.
 
+### Trusted Hosted Playground
+
+- `Cycles.Api` targets .NET 10 LTS and is deployed to an Azure App Service F1 Free plan for invited Development play-testing.
+- GitHub Actions publishes a successful `main` build through workload identity federation; no long-lived Azure credential is stored in the repository or GitHub environment.
+- The hosted process stores state at `/home/data/cycles-state.json`. The App Service persistent filesystem keeps the curated Development game across restarts and deployments.
+- No Worker or database is deployed. Invited players use the accepted Development-only **Advance turn** capability.
+- The hosting scope is protected by a read-only plan lock and an Azure Policy deny list for the known paid resource classes. F1 compute and storage quotas are the enforced spend boundary; budget notifications are not treated as a hard cap.
+- This environment remains unsuitable for untrusted public access until the separate edge-access restriction is verified.
+
 ## Verification
 
 Latest local verification on 2026-07-13:
@@ -112,6 +121,6 @@ The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_
 
 ## Current Boundaries
 
-The development build is suitable for trusted local play-testing. The local **Advance turn** exception and DTO-only player API boundary are now accepted product contracts. Before calling the build an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
+The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception and DTO-only player API boundary are now accepted product contracts. Before calling the build an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). The [Backlog](backlog.md) separates work that engineering can continue now from work blocked on those calls.

@@ -703,3 +703,22 @@ Consequences:
 - Chronicle and Event tabs have independent search, domain-appropriate filters, sorting, and result counts.
 - Fleet selection drives all three action forms. The command dock only asks for a destination or target where one is needed, and the full fleet detail uses the remaining workspace below it.
 - **Resolved orders** supports selected/all-fleet scope, outcome filtering, chronological sorting, and bounded incremental rendering.
+
+## 2026-07-13: Use A Cost-Capped Trusted Playground
+
+Decision: host the invited Development playground as a single `Cycles.Api` process on Azure App Service F1, persist its curated game as JSON on App Service storage, and use manual Development turns rather than deploying the Worker. Treat this as a bounded play-testing exception, not the production runtime design.
+
+Reasoning:
+
+- Azure subscription budgets notify but do not prevent overspend, so an advisory budget is not an adequate safety boundary.
+- App Service F1 enforces compute, bandwidth, and filesystem quotas without automatically moving the application onto paid compute.
+- A database or continuously running Worker would add cost exposure that is unnecessary for the trusted, manual-turn play loop.
+- GitHub workload identity can deploy the application without a long-lived Azure secret.
+
+Consequences:
+
+- The playground targets .NET 10 LTS and uses `/home/data/cycles-state.json`, one API process, no Worker, and no database. SQL Server remains the intended relational runtime direction outside this exception.
+- The App Service plan is locked against changes, and the playground resource group denies the known Azure database, Container Apps, registry, private telemetry, and log-workspace resource types that could introduce paid runtime spend.
+- A successful `main` CI run deploys the same revision and verifies `/health`.
+- Development authentication still requires a separately verified edge-access restriction before the URL is suitable for invited testers.
+- Production identity, hosting, Worker scheduling, persistence lifecycle, monitoring, recovery administration, and backup decisions remain open.

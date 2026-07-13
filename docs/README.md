@@ -21,6 +21,7 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 | --- | --- |
 | [Simulation Reference](simulation-reference.md) | Determinism, final ranking, and repeatable balance-scenario contracts. |
 | [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
+| [Trusted Playground Deployment](playground-deployment.md) | Free-tier hosted play-testing, CI deployment, and enforced cost guardrails. |
 | [SQL Server Runbook](../database/sqldockerdeploykit/README.md) | Local database image, connection, migration, integration-test, and cleanup instructions. |
 
 These references support the core documents but are not separate roadmaps or status reports.

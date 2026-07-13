@@ -1,0 +1,80 @@
+name: Deploy playground
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: playground-deployment
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy trusted playground
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: playground
+
+    steps:
+      - name: Resolve revision
+        id: revision
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.revision.outputs.sha }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore API
+        run: dotnet restore src/Cycles.Api/Cycles.Api.csproj --configfile NuGet.Config
+
+      - name: Publish API
+        run: dotnet publish src/Cycles.Api/Cycles.Api.csproj --configuration Release --no-restore --output publish
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: publish
+
+      - name: Verify health
+        shell: bash
+        run: |
+          health_url="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error "$health_url"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
