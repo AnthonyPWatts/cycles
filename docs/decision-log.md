@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -633,3 +633,36 @@ Consequences:
 - The dashboard guide is stored per player and seeded Cycle instance, re-queries rendered targets, gates progress on the exact live objective orders, and supports pause, skip, resume, and restart.
 - The session response advertises whether the actor can advance a turn. Development players receive that capability without role promotion; ordinary Production players do not.
 - This exception is deliberately temporary and must be revisited with production authentication, admin provisioning, and scheduled-host policy before alpha.
+
+## 2026-07-13: Keep Lifecycle Controls Narrow By Environment
+
+Decision: accept the Q110 lifecycle-control default. **Advance turn** remains the only ordinary-player Development exception; shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed.
+
+Reasoning:
+
+- The current Development control makes the complete local gameplay loop practical without promoting players to admin or granting cross-empire visibility.
+- Recovery, Cycle transitions, pause, and diagnostics have wider operational or data-safety consequences than advancing one trusted local turn.
+- Shared testing needs an auditable operational boundary rather than the permissive convenience used by a local Development host.
+
+Consequences:
+
+- The existing Development-player capability is now an accepted product default, not merely an unapproved engineering assumption.
+- Ordinary Production players cannot execute ticks, and shared/private-alpha operation should use scheduled Worker timing with audited admin intervention where needed.
+- Recovery clear/retry, Cycle end, successor creation, and diagnostics remain CLI/operator actions. Pause remains unimplemented.
+- Production identity, admin provisioning, Worker health and leadership, recovery policy, hosting, monitoring, and backup decisions remain open.
+
+## 2026-07-13: Keep Player-Facing APIs DTO-Only
+
+Decision: accept the Q120-Q121 boundary that every player-facing endpoint uses an explicit response DTO and raw domain entities remain internal rather than being returned to the dashboard.
+
+Reasoning:
+
+- Purpose-built contracts prevent internal domain shape changes from silently becoming public client changes.
+- The dashboard needs filtered, actor-appropriate representations rather than unrestricted domain graphs.
+- The existing response-contract regression test already enforces this boundary across the current API surface.
+
+Consequences:
+
+- New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
+- The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
+- Typed fact schemas, event-detail UX, frozen API conventions, dashboard scale, help content, and saved-game exports remain governed by Q122-Q130 rather than being inferred from this decision.

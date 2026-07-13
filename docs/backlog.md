@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 This is the repository's implementation queue. It records unfinished work and blockers, not a second project-state history. Completed behaviour belongs in [Project State](project-state.md), while durable rationale belongs in the [Decision Log](decision-log.md).
 
@@ -96,7 +96,10 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 | JSON lifecycle | Q119 | Timing and compatibility of the import/export-only direction. |
-| Production access and operations | Deployment/auth questions in the queue | Untrusted online testing and production hosting. |
+| Production access and operations | Q107-Q109 and Q111-Q118 | Untrusted online testing, production hosting, Worker operation, recovery policy, secrets, and backups. Q110's lifecycle boundary is settled. |
+| API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
+
+Q110, Q120, and Q121 confirm behaviour already implemented and covered by tests: the narrow Development-only player turn control, DTO-only player responses, and internal-only domain entities. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
 ## Completed Foundations
 
@@ -105,8 +108,8 @@ The following are established and should not remain as open roadmap stages:
 - deterministic simulation, order lifecycle, combat facts, and explicit tick recovery;
 - JSON and SQL Server stores, ordered migrations, focused SQL tick loading/writes, and per-Cycle locking;
 - strategic priorities, ship construction, expansion projection, Survey Projection, and colonisation;
-- development auth, actor-derived empire authority, active-fleet visibility, explicit API DTOs, and order cancellation;
-- scheduled Worker ticks, temporary development-player turn advancement, diagnostics, and running-API smoke coverage;
+- development auth, actor-derived empire authority, active-fleet visibility, the accepted explicit-DTO/internal-domain API boundary, and order cancellation;
+- scheduled Worker ticks, the accepted narrow Development-player turn exception, diagnostics, and running-API smoke coverage;
 - the curated Day One opening, structured objective briefing, and resumable click-along dashboard guide;
 - Cycle-end rankings, major-battle preservation, historical signals, and successor-Cycle generation;
 - deterministic Chronicle reports, admirals, and the diplomacy storage/aggression foundation.

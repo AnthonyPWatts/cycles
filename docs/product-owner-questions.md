@@ -1,6 +1,6 @@
 # Product Owner Questions
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
 
@@ -9,6 +9,8 @@ Implementation status belongs in [Project State](project-state.md), work sequenc
 ## Active Decision Queue
 
 [GitHub issue #119](https://github.com/AnthonyPWatts/cycles/issues/119) indexes Q013-Q130 by priority and functional area. As of 2026-07-11, all 118 questions are filed as individual issues and assigned to `wsay`.
+
+Q110, Q120, and Q121 were answered on 2026-07-12 by accepting their documented defaults. They are recorded below and no longer form active product gates.
 
 When an answer is accepted:
 
@@ -37,6 +39,14 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 | Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
 
 The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013-Q022 still gate player-facing diplomacy.
+
+## Accepted Q110, Q120, And Q121 Answers
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q110](https://github.com/AnthonyPWatts/cycles/issues/98) | Accept the current lifecycle-control default. **Advance turn** remains the only ordinary-player Development exception. Shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed. | The current Development capability is confirmed without broadening player roles or exposing recovery, Cycle end, successor creation, pause, or diagnostics controls. Production operations remain gated by the unanswered auth, hosting, Worker, recovery, and audit decisions. |
+| [Q120](https://github.com/AnthonyPWatts/cycles/issues/108) | All player-facing API endpoints use explicit response DTOs before online testing. | The implemented DTO-only boundary and its regression coverage are accepted product contracts. Future player-facing endpoints must follow the same boundary. |
+| [Q121](https://github.com/AnthonyPWatts/cycles/issues/109) | Raw domain entities remain internal and are not returned to the dashboard. | Dashboard contracts may expose purpose-built representations, but must not leak `Cycles.Core` entities. |
 
 ## Established Product Contracts
 
@@ -70,8 +80,15 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Pending orders may be cancelled before their execution tick by the owning empire or an admin.
 - Processed, rejected, and cancelled order history remains durable.
 - Cancellation records an event.
-- Ordinary player actions must not execute ticks.
-- Scheduled ticks belong to a Worker; development admins may trigger the same authoritative operation manually.
+- Scheduled ticks belong to a Worker; ordinary production player actions must not execute ticks.
+- **Advance turn** is the only ordinary-player Development exception and invokes the same authoritative store operation without changing the player's role, visibility, or empire authority.
+- Shared/private-alpha manual lifecycle actions are limited to audited admins. Recovery and Cycle transitions remain operator-only until their audit and confirmation UX is designed.
+
+### API And Dashboard Contracts
+
+- All player-facing endpoints use explicit response DTOs before online testing.
+- Raw domain entities remain internal and must not be returned to the dashboard.
+- Purpose-built response contracts remain protected by regression coverage against `Cycles.Core` entity leakage.
 
 ### Cycle End And History
 
@@ -114,7 +131,8 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access | Deployment/auth question groups | Identity provider, admin provisioning, hosting, Worker topology, secrets, backups, and test boundary. |
+| Production access and operations | Q107-Q109 and Q111-Q118 | Identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q110's lifecycle boundary is settled. |
+| API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults
 
@@ -125,5 +143,6 @@ No further product call is needed to:
 - fix correctness, data-safety, recovery, and concurrency defects without changing rules;
 - keep SQL Server as the present relational proof path;
 - keep ordinary tick execution outside player endpoints;
+- keep player-facing API responses DTO-only and raw domain entities internal;
 - keep factual records authoritative and generated prose non-authoritative;
 - extract a new architecture layer only when measured orchestration complexity justifies it.

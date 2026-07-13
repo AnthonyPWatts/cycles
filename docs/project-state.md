@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
@@ -9,7 +9,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
 | Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated development opening. | The dashboard assumes a small galaxy. |
-| Tick execution | CLI tick runner, scheduled Worker, temporary authenticated-development-player trigger, duplicate-running-tick guards, and explicit recovery state. | Production health, leader election, multi-Cycle scheduling, and deployment policy are undefined. |
+| Tick execution | CLI tick runner, scheduled Worker, accepted authenticated-development-player trigger, duplicate-running-tick guards, and explicit recovery state. | Production health, leader election, multi-Cycle scheduling, and deployment policy are undefined. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point priorities, military ship construction, expansion projection, and one research unlock. | Industry and research priorities have no separate direct spending effects; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
@@ -71,6 +71,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### API And Dashboard
 
 - Ordinary player endpoints expose filtered state and accept intentions through explicit response DTOs.
+- Raw domain entities remain internal and are not returned to the dashboard.
 - Player mutations derive empire authority from the authenticated development session rather than caller-supplied empire IDs.
 - Players can see the full map structure, but exact presence, local fleets, events, last-tick facts, and Chronicle entries are limited by active-fleet visibility. Development admins can inspect all state.
 - In Development, every authenticated player receives an **Advance turn** capability that invokes the same authoritative store operation used by the Worker and CLI. This does not change the player's role, visibility, or empire authority.
@@ -109,6 +110,6 @@ The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_
 
 ## Current Boundaries
 
-The development build is suitable for trusted local play-testing. Before calling it an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
+The development build is suitable for trusted local play-testing. The local **Advance turn** exception and DTO-only player API boundary are now accepted product contracts. Before calling the build an alpha or inviting untrusted online players, the project still needs decisions and implementation for production identity, admin provisioning, hosting, Worker health and leadership, secrets, backup/restore, operational monitoring, and evidence that the opening teaches the intended choices.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). The [Backlog](backlog.md) separates work that engineering can continue now from work blocked on those calls.
