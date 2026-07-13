@@ -11,8 +11,9 @@ Follow `AGENTS.md` and the maintained documents under `docs/`.
 - Deploy trigger: a successful `CI` push run on `main`, or a manual workflow dispatch.
 - Deploy enable switch: GitHub environment variable `AZURE_WEBAPP_DEPLOY_ENABLED`; keep it `false` whenever the edge-access restriction is not verified.
 - Deploy status command: `gh run list --workflow deploy-playground.yml --limit 1`.
+- Public URL: `https://cycles.anthonypwatts.co.uk` through a Cloudflare Worker on the Free plan.
 - Current origin URL: `https://cycles-play-b366b760.azurewebsites.net`.
 - Post-deploy health check: `https://cycles-play-b366b760.azurewebsites.net/health`.
 - Pre-deploy verification: `.\eng\test.ps1`.
 
-The origin runs Development authentication and must not be handed to untrusted testers without the separately verified edge-access restriction. Preserve the F1 plan, resource lock, paid-resource policy deny list, persistent JSON path, and no-Worker shape documented in `docs/playground-deployment.md`.
+Both the public URL and direct origin require the application-level playground access code, except for `/health`. Preserve that gate, the Cloudflare Workers Free plan, the F1 plan, resource lock, paid-resource policy deny list, persistent JSON path, and no-simulation-Worker shape documented in `docs/playground-deployment.md`.

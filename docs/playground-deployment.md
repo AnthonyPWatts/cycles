@@ -9,8 +9,10 @@ The hosted playground is a deliberately constrained development environment for 
 - `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Advance turn** capability.
 - The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the curated Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
+- A Cloudflare Worker on the Free plan proxies `https://cycles.anthonypwatts.co.uk` to the App Service origin. The Worker has no bindings, storage, observability, or paid features.
+- Both the custom domain and the direct Azure origin are protected by the same application-level access code. `/health` remains unauthenticated for deployment verification.
 
-App Service F1 enforces CPU, memory, bandwidth, and filesystem quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. The 1 GB filesystem quota bounds the JSON store. This single-process playground does not deploy the Worker or share the file with another process.
+App Service F1 enforces CPU, memory, bandwidth, and filesystem quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. The 1 GB filesystem quota bounds the JSON store. This single-process playground does not deploy `Cycles.Worker` or share the file with another process.
 
 JSON is a deliberate playground exception, not a reversal of the SQL-backed runtime direction. It removes database and inter-region transfer cost exposure while keeping the trusted manual-turn test loop persistent across App Service restarts and deployments.
 
@@ -30,6 +32,14 @@ The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connec
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 
+The Cloudflare proxy is defined under `deploy/cloudflare`. It is deliberately separate from the normal application deployment because the proxy is stable and its deployment requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy with Wrangler, and delete the token immediately afterwards. Do not store a Cloudflare token in GitHub.
+
+## Invited Access
+
+`CYCLES_PLAYGROUND_ACCESS_CODE` enables the access gate. Keep the generated value only in the Azure App Service setting and a password manager; never commit it or add it to GitHub. Anthony and Will use the same code and receive separate seven-day, secure, HTTP-only browser cookies. Rotate the setting to revoke every existing playground cookie.
+
+This shared-code gate is a trusted-playground exception, not production identity. Cloudflare Zero Trust was considered but not activated because its checkout required a payment card and offered authorisation for usage over the free allowance. The hard-spend requirement takes precedence over per-email sign-in for this environment.
+
 ## Cost Guardrails
 
 - Keep the App Service plan on SKU `F1`.
@@ -39,6 +49,7 @@ Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-acce
 - Keep the `cycles-f1-read-only` resource lock on the App Service plan. Remove it only for an intentional, reviewed plan change or teardown.
 - Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It denies SQL, Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
 - Keep access restricted at the edge. This environment uses development authentication and is not suitable for untrusted public access.
+- Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
 
 ## Verification
 
@@ -53,6 +64,11 @@ az webapp config appsettings list `
   --name cycles-play-b366b760 `
   --query "[?name=='CYCLES_STATE_PATH' || name=='WEBSITES_ENABLE_APP_SERVICE_STORAGE'].{name:name,value:value}"
 
+az webapp config appsettings list `
+  --resource-group rg-cycles-playground-uks `
+  --name cycles-play-b366b760 `
+  --query "contains([].name, 'CYCLES_PLAYGROUND_ACCESS_CODE')"
+
 az lock list `
   --resource-group rg-cycles-playground-uks `
   --query "[?name=='cycles-f1-read-only'].{name:name,level:level}"
@@ -63,4 +79,4 @@ az policy assignment show `
   --query '{enforcementMode:enforcementMode,scope:scope}'
 ```
 
-The checks must continue to report `F1`, `Free`, `/home/data/cycles-state.json`, `true`, a `ReadOnly` lock, and an enforced policy assignment respectively.
+The checks must continue to report `F1`, `Free`, `/home/data/cycles-state.json`, `true`, an access-code setting without displaying its value, a `ReadOnly` lock, and an enforced policy assignment respectively. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.

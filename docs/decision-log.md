@@ -717,8 +717,10 @@ Reasoning:
 
 Consequences:
 
-- The playground targets .NET 10 LTS and uses `/home/data/cycles-state.json`, one API process, no Worker, and no database. SQL Server remains the intended relational runtime direction outside this exception.
+- The playground targets .NET 10 LTS and uses `/home/data/cycles-state.json`, one API process, no `Cycles.Worker` process, and no database. SQL Server remains the intended relational runtime direction outside this exception.
 - The App Service plan is locked against changes, and the playground resource group denies the known Azure database, Container Apps, registry, private telemetry, and log-workspace resource types that could introduce paid runtime spend.
 - A successful `main` CI run deploys the same revision and verifies `/health`.
-- Development authentication still requires a separately verified edge-access restriction before the URL is suitable for invited testers.
+- A binding-free Cloudflare Worker on the Free plan fronts `cycles.anthonypwatts.co.uk`; the application itself protects both that route and the direct Azure origin with a shared access code for Anthony and Will.
+- Cloudflare Zero Trust is not used because its checkout path required a payment card and offered usage-overage authorisation. Per-email sign-in does not justify weakening the hard-spend boundary for this temporary environment.
+- The shared code and seven-day secure cookie are trusted-playground exceptions, not production identity or authorisation.
 - Production identity, hosting, Worker scheduling, persistence lifecycle, monitoring, recovery administration, and backup decisions remain open.

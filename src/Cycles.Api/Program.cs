@@ -22,6 +22,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var app = builder.Build();
 
+app.UsePlaygroundAccess(
+    Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE")
+        ?? builder.Configuration["Cycles:PlaygroundAccessCode"]);
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

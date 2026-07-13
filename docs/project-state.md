@@ -94,9 +94,10 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - `Cycles.Api` targets .NET 10 LTS and is deployed to an Azure App Service F1 Free plan for invited Development play-testing.
 - GitHub Actions publishes a successful `main` build through workload identity federation; no long-lived Azure credential is stored in the repository or GitHub environment.
 - The hosted process stores state at `/home/data/cycles-state.json`. The App Service persistent filesystem keeps the curated Development game across restarts and deployments.
-- No Worker or database is deployed. Invited players use the accepted Development-only **Advance turn** capability.
+- No `Cycles.Worker` process or database is deployed. Invited players use the accepted Development-only **Advance turn** capability.
 - The hosting scope is protected by a read-only plan lock and an Azure Policy deny list for the known paid resource classes. F1 compute and storage quotas are the enforced spend boundary; budget notifications are not treated as a hard cap.
-- This environment remains unsuitable for untrusted public access until the separate edge-access restriction is verified.
+- `cycles.anthonypwatts.co.uk` is routed through a binding-free Cloudflare Worker on the Free plan. The direct Azure origin and the custom domain share an application-level access-code gate; only `/health` is public.
+- The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
 
 ## Verification
 
@@ -106,12 +107,12 @@ Latest local verification on 2026-07-13:
 .\eng\test.ps1
 ```
 
-Result: **139 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
+Result: **144 tests passed, 0 failed**. The latest GitHub Actions run also passed the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 
 - simulation, influence, economy, orders, movement, combat, admirals, diplomacy, colonisation, Chronicle, Cycle end, continuity, and determinism;
-- development auth, authorisation, visibility, API contracts, protected Development turn advancement, and Worker scheduling;
+- development auth, authorisation, visibility, API contracts, the hosted access-code gate, protected Development turn advancement, and Worker scheduling;
 - the curated opening contract and its complete move, colonise, battle, event, and Chronicle outcome;
 - tick rollback, recovery, duplicate-running-tick prevention, focused-working-copy equivalence, and a 2,160-tick retained-history scenario;
 - migration discovery/application and opt-in live SQL Server coverage for round trips, focused tick loading and writes, recovery attempts, Cycle locks, rankings, successor continuity, admirals, diplomacy, and colonisation;
