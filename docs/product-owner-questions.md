@@ -26,6 +26,8 @@ Q113 was answered on 2026-07-14 by selecting external OpenID Connect authenticat
 
 Q114 was answered on 2026-07-14 by selecting explicit Cycles-owned admin grants with audited provisioning and revocation.
 
+Q115 was answered on 2026-07-14 by keeping the landing page public while protecting the playable dashboard, with a whole-site perimeter retained as a deployment override.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -77,12 +79,13 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q111](https://github.com/AnthonyPWatts/cycles/issues/99) | Treat a persisted `Running` tick as suspicious after a configurable threshold that defaults to five minutes. | The threshold is diagnostic only and must not fail, retry, repair, or cancel a tick. The atomic JSON store does not persist its intermediate `Running` state, so its relevant evidence is total tick duration, state-file size, and representative retained-state benchmarks. Implementation is tracked by [issue #120](https://github.com/AnthonyPWatts/cycles/issues/120). |
 | [Q112](https://github.com/AnthonyPWatts/cycles/issues/100) | Never auto-fail a `Running` tick based only on age. Require admin inspection, continue blocking, and allow an audited admin to mark a confirmed abandoned attempt failed with an operator and reason. | Existing blocking remains the safe default. The missing explicit `Running`-to-`Failed` operator action is tracked by [issue #121](https://github.com/AnthonyPWatts/cycles/issues/121); normal repair and recovery clear/retry remain separate deliberate steps. |
 
-## Accepted Q113 And Q114 Answers
+## Accepted Q113-Q115 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
 | [Q113](https://github.com/AnthonyPWatts/cycles/issues/101) | Use ASP.NET Core cookie authentication backed by an external OpenID Connect provider for private-alpha and Production environments. Correlate the provider's stable issuer and subject to a local player, and keep empire ownership, admin role, and operational permissions in Cycles-owned data. | Invitations or an allowlist govern admission but are not identity proof. The concrete provider remains environment-configurable, Development username login remains Development-only, and implementation is tracked by [issue #122](https://github.com/AnthonyPWatts/cycles/issues/122). Full ASP.NET Core Identity password management is not required for this boundary. |
 | [Q114](https://github.com/AnthonyPWatts/cycles/issues/102) | Store admin roles in Cycles-owned player data. Bootstrap named external identities through explicit operator configuration, then require an authenticated admin, target, and reason for every routine grant or revocation. Keep emergency operator access separate. | The Development `isAdmin` login switch remains Development-only and is not accepted for shared environments. Every bootstrap, grant, and revocation must produce an immutable audit record, and routine operations cannot remove the final active admin. Implementation is tracked by [issue #123](https://github.com/AnthonyPWatts/cycles/issues/123). |
+| [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | Keep `/` public and require private-alpha or Production authentication plus invited-player admission before serving `/app.html`. Keep `/health` public and continue protecting every game API independently. | A deployment may temporarily put an explicit whole-site perimeter in front of both pages when it is not ready for public discovery. The trusted playground's access-code gate remains such an override, not the permanent identity or route contract. Implementation is tracked by [issue #124](https://github.com/AnthonyPWatts/cycles/issues/124). |
 
 ## Established Product Contracts
 
@@ -124,6 +127,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 
 ### API And Dashboard Contracts
 
+- The landing page is public in the normal private-alpha and Production route contract; the playable dashboard requires authentication and admission. `/health` remains public without exposing game state.
 - All player-facing endpoints use explicit response DTOs before online testing.
 - Raw domain entities remain internal and must not be returned to the dashboard.
 - Purpose-built response contracts remain protected by regression coverage against `Cycles.Core` entity leakage.
@@ -162,7 +166,6 @@ The following open questions now have reversible engineering defaults in the Dev
 
 | Open questions | Current implemented default |
 | --- | --- |
-| [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | The trusted playground puts both the public landing page and dashboard behind an application access code, leaves `/health` public, and keeps the Development login inside that gate. This does not settle the future production boundary. |
 | [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) and [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The cost-capped playground persists JSON on its free App Service instance. This is an explicit hosted-test exception and does not select the production provider or reverse the accepted import/export-only direction. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Normal History views show purpose-built event and Chronicle text rather than exposing raw `FactJson`. |
 | [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | The dashboard is tuned for the current small seeded galaxy and bounded lists; larger-scale rendering remains conditional work. |
@@ -182,7 +185,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q115-Q118 | Hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107-Q114 are settled. |
+| Production access and operations | Q116-Q118 | Hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107-Q115 are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults

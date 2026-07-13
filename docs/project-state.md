@@ -18,7 +18,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC plus audited local admin provisioning is selected for private-alpha and Production but is not implemented. |
 | Persistence | JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes. The trusted hosted playground persists its single-process Development state as JSON on App Service storage. | Generic API/admin SQL mutations still use the whole-state bridge. The hosted JSON path is a cost-capped playground exception, not the production direction. |
-| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | Prototype interface, not a finished game client. |
+| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views plus a resumable Day One guide. | The authenticated-dashboard/private-alpha route boundary is selected but not implemented; the prototype interface is not a finished game client. |
 
 ## Implemented Rules
 
@@ -98,6 +98,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - The hosting scope is protected by a read-only plan lock and an Azure Policy deny list for the known paid resource classes. F1 compute and storage quotas are the enforced spend boundary; budget notifications are not treated as a hard cap.
 - `cycles.anthonypwatts.co.uk` is routed through a binding-free Cloudflare Worker on the Free plan. The direct Azure origin and the custom domain share an application-level access-code gate; only `/health` is public.
 - The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
+- The whole-site access-code gate is an explicit deployment override. The accepted private-alpha and Production route contract instead keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
 
 ## Verification
 

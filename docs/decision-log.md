@@ -843,3 +843,22 @@ Consequences:
 - Routine operations cannot remove the final active admin; a documented operator recovery path handles exceptional lockout or compromise.
 - A general account-management UI and granular administrator permissions remain out of scope.
 - Implementation is tracked by GitHub issue #123 and composes with the OIDC identity work in issue #122.
+
+## 2026-07-14: Keep The Landing Page Public And Protect The Dashboard
+
+Decision: keep `/` public in the normal private-alpha and Production route contract. Require external authentication and invited-player admission before serving `/app.html`, keep `/health` public, and continue authenticating and authorising every game API independently. Allow an explicit whole-site perimeter as a deployment override.
+
+Reasoning:
+
+- The landing page can explain the project and provide a deliberate sign-in entry without exposing game state.
+- Challenging at the dashboard entry gives invited testers a clear authentication boundary before the playable shell loads.
+- Protecting a document is not API security, so every state and command endpoint must retain its own identity and authority checks.
+- Some pre-release deployments should remain undiscoverable; an environment-wide perimeter supports that need without redefining the permanent application routes.
+
+Consequences:
+
+- Anonymous requests may reach `/` and a non-sensitive `/health` endpoint in the normal private-alpha and Production configuration.
+- `/app.html` challenges anonymous users and refuses authenticated identities that have not passed invited-player admission.
+- Authentication callbacks, sign-out callbacks, and safe error routes remain reachable as required by the selected provider.
+- The trusted playground may continue protecting both the landing page and dashboard with its shared access code before normal route handling. This remains a temporary perimeter rather than identity proof.
+- Implementation is tracked by GitHub issue #124 and depends on the external OIDC and invited-player work in issue #122.
