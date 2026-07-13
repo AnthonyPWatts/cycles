@@ -755,3 +755,19 @@ Consequences:
 - The first tick is due at Cycle start; later ticks are due one configured cadence after the last completed tick.
 - The Worker runs at most one due tick per check and does not process a backlog of missed ticks.
 - Recovery-required and non-active Cycles are not scheduled.
+
+## 2026-07-14: Restrict Manual Tick Authority By Environment
+
+Decision: accept the Q109 manual tick boundary. Any authenticated player may use **Advance turn** in Development; shared private-alpha and Production environments use scheduled Worker timing normally and restrict manual tick execution to audited admins.
+
+Reasoning:
+
+- Trusted Development play needs a quick way to complete the gameplay loop without waiting for scheduled time.
+- Manual execution already uses the same authoritative store operation as the Worker and CLI.
+- Shared and Production environments need explicit identity and audit boundaries around an operation that advances the whole galaxy.
+
+Consequences:
+
+- The trusted playground may continue using the Development exception without promoting players or broadening their visibility or empire authority.
+- Ordinary Production players cannot execute ticks.
+- Production identity, admin provisioning, and audit implementation remain required before the admin capability is suitable for shared use.

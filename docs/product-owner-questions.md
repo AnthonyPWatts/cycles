@@ -16,6 +16,8 @@ Q107 was answered on 2026-07-13 by accepting the already-implemented Worker sequ
 
 Q108 was answered on 2026-07-14 by accepting the already-implemented Cycle-configured tick cadence.
 
+Q109 was answered on 2026-07-14 by accepting the already-implemented environment-specific manual tick boundary.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -44,12 +46,13 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 
 The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013-Q022 still gate player-facing diplomacy.
 
-## Accepted Q107 And Q108 Answers
+## Accepted Q107-Q109 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
 | [Q107](https://github.com/AnthonyPWatts/cycles/issues/95) | Create `Cycles.Worker` before the next gameplay system. | The existing scheduled tick host is confirmed as the correct sequencing choice. This does not settle production hosting, authentication, backup, or Worker deployment topology. |
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
+| [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
 ## Accepted Q110, Q120, And Q121 Answers
 
@@ -135,7 +138,6 @@ The following open questions now have reversible engineering defaults in the Dev
 
 | Open questions | Current implemented default |
 | --- | --- |
-| [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Authenticated Development players can use the narrower accepted **Advance turn** exception; Production players cannot. |
 | [Q115](https://github.com/AnthonyPWatts/cycles/issues/103) | The trusted playground puts both the public landing page and dashboard behind an application access code, leaves `/health` public, and keeps the Development login inside that gate. This does not settle the future production boundary. |
 | [Q117](https://github.com/AnthonyPWatts/cycles/issues/105) and [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | The cost-capped playground persists JSON on its free App Service instance. This is an explicit hosted-test exception and does not select the production provider or reverse the accepted import/export-only direction. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Normal History views show purpose-built event and Chronicle text rather than exposing raw `FactJson`. |
@@ -156,7 +158,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 | JSON lifecycle | Q119 | Transition timing and compatibility for the import/export-only direction. |
-| Production access and operations | Q109 and Q111-Q118 | Manual tick access, identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107's sequencing choice, Q108's cadence, and Q110's lifecycle boundary are settled. |
+| Production access and operations | Q111-Q118 | Identity provider, admin provisioning, hosting, Worker topology, recovery policy, secrets, backups, and test boundary. Q107's sequencing choice, Q108's cadence, Q109's manual tick boundary, and Q110's lifecycle boundary are settled. |
 | API and dashboard follow-ons | Q122-Q130 | Typed facts, event-detail UX, frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q121's DTO boundary is settled. |
 
 ## Engineering Defaults
