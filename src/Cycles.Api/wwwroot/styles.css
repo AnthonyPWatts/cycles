@@ -1535,54 +1535,34 @@ dd {
     box-shadow: 0 0 0 2px rgba(8, 11, 9, 0.86), 0 0 12px rgba(211, 101, 86, 0.9);
 }
 
-.priority-total {
+.priority-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    min-height: 36px;
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--panel-strong);
-    color: var(--muted);
+    justify-content: flex-end;
+    gap: 10px;
 }
 
-.priority-total > span,
-.priority-total strong {
+.priority-save-status {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+    margin-right: auto;
+    color: var(--gold);
+    font-weight: 700;
     white-space: nowrap;
 }
 
-.priority-total i {
+.priority-save-status::before {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--accent-strong);
-    box-shadow: 0 0 8px rgba(82, 182, 154, 0.72);
-}
-
-.priority-console.has-unsaved-changes .priority-total i {
     background: var(--gold);
     box-shadow: 0 0 8px rgba(223, 186, 104, 0.78);
+    content: "";
 }
 
-.priority-total strong {
-    color: var(--text);
-}
-
-.priority-total output {
-    min-width: 24px;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-}
-
-.priority-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+.priority-save-status[hidden] {
+    display: none;
 }
 
 .priority-actions button {
@@ -1993,6 +1973,10 @@ dd {
     .priority-actions {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .priority-save-status {
+        grid-column: 1 / -1;
     }
 
     .priority-actions button {

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260713-command-overview-3">
+    <link rel="stylesheet" href="styles.css?v=20260714-priority-status-1">
 </head>
 <body>
     <header class="topbar">
@@ -89,10 +89,6 @@
                                 <span class="section-kicker">Next tick</span>
                                 <h2 id="prioritySectionTitle">Priority allocation</h2>
                             </div>
-                            <div class="priority-total" role="status" aria-live="polite">
-                                <span><i aria-hidden="true"></i> <span id="priorityDraftStatus">Saved</span></span>
-                                <strong><output id="priorityTotal">100</output> / 100</strong>
-                            </div>
                         </div>
                         <form id="priorityForm" class="priority-form">
                             <div class="priority-channels">
@@ -130,6 +126,7 @@
                                 </label>
                             </div>
                             <div class="priority-actions">
+                                <span id="priorityDraftStatus" class="priority-save-status" role="status" aria-live="polite" hidden>Saved</span>
                                 <button id="priorityResetButton" class="secondary-action" type="button">Reset</button>
                                 <button id="prioritySaveButton" type="submit">Save priorities</button>
                             </div>
@@ -410,6 +407,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260713-guide-alignment-1"></script>
+    <script src="app.js?v=20260714-priority-status-1"></script>
 </body>
 </html>

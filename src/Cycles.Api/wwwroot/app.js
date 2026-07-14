@@ -84,7 +84,6 @@ const elements = {
     priorityForm: document.querySelector("#priorityForm"),
     priorityInputs: [...document.querySelectorAll("[data-priority-key]")],
     priorityDraftStatus: document.querySelector("#priorityDraftStatus"),
-    priorityTotal: document.querySelector("#priorityTotal"),
     priorityResetButton: document.querySelector("#priorityResetButton"),
     prioritySaveButton: document.querySelector("#prioritySaveButton"),
     priorityMessage: document.querySelector("#priorityMessage"),
@@ -1857,9 +1856,9 @@ function renderPriorityControls() {
     });
 
     elements.priorityDraftStatus.textContent = state.prioritySaving ? "Saving" : isDirty ? "Unsaved" : "Saved";
+    elements.priorityDraftStatus.hidden = !state.prioritySaving && !isDirty;
     elements.prioritySection.classList.toggle("has-unsaved-changes", Boolean(isDirty));
     elements.priorityForm.setAttribute("aria-busy", state.prioritySaving.toString());
-    elements.priorityTotal.textContent = total.toLocaleString();
     elements.prioritySaveButton.textContent = state.prioritySaving ? "Saving…" : "Save priorities";
     elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;
     elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;
