@@ -134,12 +134,11 @@ Players see the full galaxy topology but exact local presence, fleets, events, l
 
 ## Deployment Gate
 
-No production deployment path is complete. A cost-capped trusted playground currently hosts the Development build behind restricted access, uses persistent JSON state, and relies on manual Development turns. It is an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, implement the accepted boundaries and remaining operational gates:
+No production deployment path is complete. The cost-capped trusted playground hosts the Development build behind restricted access, stores authoritative state in managed Azure SQL, and relies on manual Development turns. Its managed-SQL cutover, seven-day point-in-time retention, isolated restore proof, and mandatory SQL host configuration are complete. It remains an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, complete the remaining operational gates:
 
 - a configured external provider/proxy path using the implemented OIDC, invited-player, dashboard, and audited-admin boundaries;
-- the managed Azure SQL cutover using the implemented versioned transfer, migration rollback, database-native backup, and a proved restore;
 - Worker health, leadership, and multi-Cycle behaviour;
 - secrets, logging, monitoring, and incident diagnostics;
-- explicit recovery administration.
+- deployed recovery administration and a tested incident process around Azure SQL restore.
 
-Until those implementations exist, treat both local execution and the trusted playground as pre-alpha Development targets and make no production-readiness claim from the hosted deployment.
+SQL is no longer a pending deployment gate, but it does not make the hosted Development exception production-ready. Treat both local execution and the trusted playground as pre-alpha Development targets until the remaining identity, Worker, monitoring, security, and recovery gates are closed.

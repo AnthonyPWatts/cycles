@@ -15,13 +15,13 @@ The hosted playground is a deliberately constrained development environment for 
 
 App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
 
-The final stopped `/home/data/cycles-state.json` file is retained off-host as sensitive migration evidence and emergency rollback material for the cutover checkpoint. It is not updated after the SQL-backed site reopened and must not be used for normal recovery. Database-native backup and point-in-time restore are authoritative after SQL-backed gameplay resumes.
+The final stopped `/home/data/cycles-state.json` file is retained off-host only as sensitive migration evidence for the cutover checkpoint. It is not updated after the SQL-backed site reopened, is not a rollback target, and must not be used for recovery. Database-native backup and point-in-time restore are authoritative after SQL-backed gameplay resumes.
 
 ## Managed-SQL Cutover
 
 The playground was stopped on 2026-07-14 and its final atomic JSON state was converted to transfer format version 1, validated, and imported through the operator CLI. The raw snapshot SHA-256 is `8945C5856BB547D61F15BAA8E7A97C1E983656063A0F6DB83CA1E76FA4E2D665`; the versioned transfer SHA-256 is `559215E1C012A56BDA566084372FF780043654187832A74FFD4934ECB0B30665`. The SQL round trip preserved all 23 persisted collection counts and 166 records. The agreed checkpoint retained 4 players, 4 empires, 7 fleets, 4 orders, 42 events, 1 Chronicle entry, 3 tick logs, an active Cycle at tick 3, and no unresolved recovery. The reopened API passed health, access-gate, Development login, Cycle, fleet, order, and Chronicle checks against SQL.
 
-Short-term backup retention is seven days. The restore point at `2026-07-14T16:58:31Z` was restored to isolated database `CyclesDbRestoreProof20260714`. Its schema was current with all 14 migrations, and the operator export reproduced all 23 collection counts, 166 records, active tick 3, and zero unresolved recovery. The paid restore target is temporary evidence only and must be deleted immediately after verification; the live free-offer database remains untouched.
+Short-term backup retention is seven days. The restore point at `2026-07-14T16:58:31Z` was restored to isolated database `CyclesDbRestoreProof20260714`. Its schema was current with all 14 migrations, and the operator export reproduced all 23 collection counts, 166 records, active tick 3, and zero unresolved recovery. The paid restore target was deleted after verification; the live free-offer database was not modified. The logical server now contains only the live `CyclesDb` user database plus `master`.
 
 Before the playground reopened, rollback could have returned to the frozen JSON checkpoint. SQL-backed login has now written newer state, so the frozen file is no longer a normal rollback target. Use Azure SQL point-in-time restore for recovery, investigate the isolated result, and deliberately decide whether to repair from it or replace the live database. Never silently switch back to stale JSON or dual-write both stores.
 
@@ -98,6 +98,7 @@ This shared-code gate is a trusted-playground exception, not production identity
 - Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It permits the approved Azure SQL resources but continues to deny Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
 - Keep access restricted at the edge. This environment uses development authentication and is not suitable for untrusted public access.
 - The database cutover and restore gate is complete; later tester scope remains governed by the guided-play, Worker-operation, and security gates in the project backlog.
+- Keep temporary restore-rehearsal databases isolated and delete them as soon as their recorded evidence is complete. No restore-proof database should remain during normal playground operation.
 - Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
 
 ## Verification
@@ -140,4 +141,4 @@ az policy assignment show `
   --query '{enforcementMode:enforcementMode,scope:scope}'
 ```
 
-The checks must continue to report `F1`/`Free`; an online `GP_S_Gen5` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; seven retention days; a `Cycles` connection-string name without displaying its value; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.
+The checks must continue to report `F1`/`Free`; an online or auto-paused `GP_S_Gen5` `CyclesDb` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; no leftover restore-proof user database; seven retention days; a single `Cycles` connection-string name without displaying its value; no obsolete state-path or SQL-activation setting; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.

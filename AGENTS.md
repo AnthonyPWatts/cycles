@@ -38,7 +38,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 - `Cycles.Api` exposes state and accepts player intentions; do not casually expose tick execution through public API endpoints.
 - Scheduled tick execution is Worker-owned. The CLI remains an operator convenience. As a temporary development-only exception, any authenticated player can invoke the same authoritative store boundary without gaining admin visibility or cross-empire authority; ordinary production players must not execute ticks.
 - SQL Server is the current primary relational path. Plain SQL migrations live under `database/migrations` and are applied through the small migration runner.
-- Normal local development uses SQL Server. JSON remains for explicit versioned import/export, offline inspection, deterministic fixtures, and migration evidence; the API/Worker fallback remains only until the deployed cutover in #125 is proved and #126 activates mandatory SQL runtime configuration.
+- Normal local development uses SQL Server. The API, Worker, and gameplay/operator CLI paths are SQL-only and no executable file-store fallback remains. JSON is limited to explicit versioned import/export, offline inspection, deterministic fixtures, legacy conversion, and migration evidence.
 - Recovery handling is explicit and audited; failed ticks should not silently auto-retry.
 
 ## Dashboard And UI

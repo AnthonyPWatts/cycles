@@ -4,15 +4,15 @@ Last updated: 2026-07-14
 
 This runbook covers local SQL development, external identity configuration, admin recovery, versioned state transfer, tick diagnostics, failed-tick recovery, and guarded profiling. It does not by itself establish production readiness.
 
-## Store Selection
+## Authoritative Store
 
-Normal API and Worker development uses SQL Server. CLI gameplay and operator commands accept a `sqlserver:` store specifier:
+API, Worker, and gameplay/operator CLI paths use SQL Server exclusively. CLI commands accept the documented `sqlserver:` store specifier; a raw SQL connection string is also accepted, while file paths are rejected:
 
 ```powershell
 dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=<local-password>;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
-Configure SQL Server for the API or Worker through `ConnectionStrings:Cycles` using the connection string without the `sqlserver:` prefix. Both hosts fail startup clearly if SQL configuration is missing:
+Configure SQL Server for the API or Worker through `ConnectionStrings:Cycles` using the connection string without the `sqlserver:` prefix. `Cycles:SqlConnectionString` and `CYCLES_SQL_CONNECTION_STRING` are equivalent configuration paths. Both hosts fail startup clearly if SQL configuration is missing:
 
 ```powershell
 $connectionString = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=<local-password>;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"

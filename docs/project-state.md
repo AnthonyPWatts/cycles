@@ -108,14 +108,14 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 - `Cycles.Api` targets .NET 10 LTS and is deployed to an Azure App Service F1 Free plan for invited Development play-testing.
 - GitHub Actions publishes a successful `main` build through workload identity federation; no long-lived Azure credential is stored in the repository or GitHub environment.
-- The hosted process reads and writes Azure SQL database `CyclesDb` in France Central through an App Service secret connection string, with mandatory SQL runtime configuration enabled. The final stopped JSON file is retained only as sensitive cutover evidence and rollback material for the frozen checkpoint.
+- The hosted process reads and writes Azure SQL database `CyclesDb` in France Central through the sole App Service connection string, `Cycles`. No state-path or SQL-activation setting remains. The final stopped JSON file is retained only as sensitive cutover evidence and is not a rollback or recovery path.
 - The database uses the Azure SQL free serverless offer with a 2-vCore maximum, 0.5-vCore minimum, 32 GB maximum, provider-default 60-minute auto-pause, local backup storage, seven-day point-in-time retention, and automatic pause rather than billing when the free allowance is exhausted.
 - No `Cycles.Worker` process is deployed. Invited players use the accepted Development-only **Advance turn** capability.
 - The hosting scope is protected by a read-only App Service plan lock and an Azure Policy deny list for unapproved platform resources. The policy deliberately permits the approved Azure SQL server/database; F1 quotas and SQL free-limit exhaustion behaviour are the enforced spend boundaries, while budget notifications are not treated as a hard cap.
 - `cycles.anthonypwatts.co.uk` is routed through a binding-free Cloudflare Worker on the Free plan. The direct Azure origin and the custom domain share an application-level access-code gate; only `/health` is public.
 - The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
 - The whole-site access-code gate is an explicit deployment override. The accepted private-alpha and Production route contract instead keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
-- The managed-SQL cutover preserved all 23 persisted collection counts and 166 records, and the reopened health plus authenticated gameplay smoke passed. Azure SQL retains seven days of point-in-time recovery; an isolated restore at the post-cutover checkpoint reproduced the current schema, all collection counts, active tick 3, and zero unresolved recovery.
+- The managed-SQL cutover preserved all 23 persisted collection counts and 166 records, and the reopened health plus authenticated gameplay smoke passed. Azure SQL retains seven days of point-in-time recovery; an isolated restore at the post-cutover checkpoint reproduced the current schema, all collection counts, active tick 3, and zero unresolved recovery, then the temporary paid restore database was deleted.
 
 ## Verification
 

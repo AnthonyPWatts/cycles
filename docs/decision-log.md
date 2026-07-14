@@ -8,6 +8,8 @@ This file records decisions that shape implementation. Entries are chronological
 
 Decision: start with a local .NET MVP using Core, CLI, API, dashboard, and a JSON state store.
 
+Status: fulfilled for the initial MVP and superseded for persistence on 2026-07-14 by the managed-SQL cutover and removal of the executable file store.
+
 Reasoning:
 
 - The first risk was whether the design could become an executable loop.
@@ -89,6 +91,8 @@ Consequences:
 
 Decision: add a Cycles-specific SQL Server container bootstrap under `database/sqldockerdeploykit` before moving the application off JSON persistence.
 
+Status: fulfilled. The container remains the normal local database path; application runtime is now SQL-only.
+
 Reasoning:
 
 - Database progress was explicitly prioritised, with SQLDockerDeployKit preferred where feasible.
@@ -106,6 +110,8 @@ Consequences:
 ## 2026-06-23: Add SQL Server As The First Application Persistence Bridge
 
 Decision: add `Cycles.Infrastructure.SqlServer` and let the CLI/API opt into SQL Server while JSON remains the default store.
+
+Status: superseded on 2026-07-14. SQL Server is now mandatory for API, Worker, and gameplay/operator CLI paths, and no executable file store remains.
 
 Reasoning:
 
@@ -139,6 +145,8 @@ Consequences:
 ## 2026-06-24: Continue SQL Server As The Relational Target
 
 Decision: keep SQL Server as the primary relational implementation for the next stage, do not add SQLite now, and treat JSON as future import/export or development support rather than the intended runtime store.
+
+Status: fulfilled and narrowed on 2026-07-14. SQL Server is the sole runtime store; JSON remains only in named transfer, validation, inspection, fixture, legacy-conversion, and migration-evidence paths.
 
 Reasoning:
 
@@ -708,6 +716,8 @@ Consequences:
 
 Decision: host the invited Development playground as a single `Cycles.Api` process on Azure App Service F1, persist its curated game as JSON on App Service storage, and use manual Development turns rather than deploying the Worker. Treat this as a bounded play-testing exception, not the production runtime design.
 
+Status: superseded for persistence on 2026-07-14 by the managed Azure SQL cutover. The F1 API, manual-turn, access-gate, and cost-cap shape remains current.
+
 Reasoning:
 
 - Azure subscription budgets notify but do not prevent overspend, so an advisory budget is not an adequate safety boundary.
@@ -867,6 +877,8 @@ Consequences:
 
 Decision: before further tester invitations, migrate the deployed playground's current state to managed SQL, enable at least seven days of database-native point-in-time recovery, document restoration, and prove one isolated restore. Do not build a separate production-style backup system around the hosted JSON file.
 
+Status: fulfilled on 2026-07-14. The cutover and isolated restore proof completed through issue #125, and the temporary restore database was deleted after verification.
+
 Reasoning:
 
 - Tester decisions, orders, events, and history are no longer credibly disposable once repeated play sessions matter.
@@ -923,6 +935,8 @@ Consequences:
 ## 2026-07-14: Demote JSON To Explicit Import And Export Now
 
 Decision: demote JSON now to explicit import/export, validation, offline inspection, fixtures, and migration evidence. After the deployed cutover is safely configured and verified, API and Worker runtime hosts require explicit SQL configuration and normal local development uses the documented SQL Server container.
+
+Status: fulfilled on 2026-07-14. Issue #126 removed runtime file persistence and implicit store selection after the managed-SQL cutover.
 
 Reasoning:
 
@@ -1200,6 +1214,8 @@ Consequences:
 ## 2026-07-14: Stage The SQL Runtime Cutover Behind An Explicit Activation Gate
 
 Decision: implement strict versioned JSON-to-SQL transfer and a `Cycles:RequireSqlRuntime` startup guard now, switch normal local instructions to SQL Server, but do not remove the hosted file fallback until issue #125 has imported and verified the deployed state and proved database restore.
+
+Status: fulfilled and superseded on 2026-07-14. The activation gate served the cutover; SQL configuration is now unconditional and the flag and file fallback have been removed.
 
 Reasoning:
 

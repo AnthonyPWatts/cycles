@@ -26,6 +26,8 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 
 These references support the core documents but are not separate roadmaps or status reports.
 
+SQL Server is the sole authoritative runtime and operator datastore. Versioned JSON is an explicit, validated, sensitive transfer and fixture format; it is not a live save file, fallback store, or database backup. Start with the root README for local SQL setup, use Operations for application and recovery workflows, and use the SQL Server Runbook for database lifecycle commands.
+
 ## Source Artefacts
 
 The original design material is retained under `source/`:

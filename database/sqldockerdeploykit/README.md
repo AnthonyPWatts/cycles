@@ -2,7 +2,7 @@
 
 This folder contains a Cycles-specific SQL Server container definition based on the SQLDockerDeployKit pattern: a SQL Server image that creates `CyclesDb`, applies the ordered SQL migrations from `database/migrations`, then executes ordered seed scripts from `SQLScripts`.
 
-Normal local API and Worker runs use this SQL Server database through the `Cycles.Infrastructure.SqlServer` store. Versioned JSON is retained for explicit operator import/export, fixtures, and migration evidence while the hosted cutover remains pending.
+Normal local API, Worker, and gameplay/operator CLI runs use SQL Server through `Cycles.Infrastructure.SqlServer`. No executable JSON datastore or file-store fallback remains. Versioned JSON is retained only for explicit operator import/export, validation, offline inspection, fixtures, legacy conversion, and migration evidence.
 
 ## Build
 
@@ -56,13 +56,13 @@ dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Da
 Run the API against SQL Server with `ConnectionStrings:Cycles`:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10" --Cycles:RequireSqlRuntime true
-dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10" --Cycles:RequireSqlRuntime true
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
-The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a focused tick workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store is still a practical bridge from JSON persistence to the final application-service/repository model.
+The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. Tick execution uses a focused SQL workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store remains a practical bridge from the prototype aggregate boundary to a future application-service/repository model if measured pressure justifies that extraction.
 
-Use the guarded state-transfer commands for migration or recovery rather than copying the old JSON store into place:
+Use the guarded state-transfer commands for migration, controlled debugging, or reproducible fixtures. A JSON document cannot be placed on disk and used as live game state:
 
 ```powershell
 dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v1.json

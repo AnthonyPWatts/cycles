@@ -16,4 +16,4 @@ Follow `AGENTS.md` and the maintained documents under `docs/`.
 - Post-deploy health check: `https://cycles-play-b366b760.azurewebsites.net/health`.
 - Pre-deploy verification: `.\eng\test.ps1`.
 
-Both the public URL and direct origin require the application-level playground access code, except for `/health`. Preserve that gate, the Cloudflare Workers Free plan, the F1 plan, resource lock, paid-resource policy deny list, persistent JSON path, and no-simulation-Worker shape documented in `docs/playground-deployment.md`.
+Both the public URL and direct origin require the application-level playground access code, except for `/health`. Preserve that gate, the Cloudflare Workers Free plan, the F1 plan, resource lock, paid-resource policy deny list, Azure SQL free-limit configuration and retention, and manually advanced single-process shape documented in `docs/playground-deployment.md`. The playground has no deployed Worker, live JSON datastore, or file-store fallback.
