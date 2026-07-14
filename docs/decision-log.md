@@ -572,7 +572,7 @@ Consequences:
 - `DiplomaticRelationships` now stores one canonical empire pair per Cycle, while absence still means Neutral.
 - Attack processing records aggression, cancels a pact or alliance to Neutral, and does not silently infer War from combat.
 - Migration `012_add_diplomatic_relationships` and the focused SQL tick path persist relationship changes and their factual events.
-- Q014 now settles mutual consent, while Q013 and Q015-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
+- Q014-Q015 now settle mutual consent, unilateral hostile or terminating actions, and the absence of a separate warning period, while Q013 and Q016-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
 
 ## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary
 
@@ -1122,4 +1122,22 @@ Consequences:
 - Alliance, peace, and Non-Aggression Pact transitions require acceptance by both affected empires.
 - Future trade or shared-visibility agreements use the same mutual-consent boundary, but neither feature is authorised by this decision.
 - War declarations, treaty termination, and withdrawal of an unaccepted offer require only the acting empire's authority.
-- Q013 still determines when diplomatic actions resolve, and Q015-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
+- Q013 still determines when diplomatic actions resolve, and Q016-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
+
+## 2026-07-14: Do Not Add A Separate Diplomatic Warning Period
+
+Decision: allow a player to declare War or terminate a treaty unilaterally, without a separate advance-notice or cooling-off period beyond the normal diplomatic resolution timing selected under Q013.
+
+Reasoning:
+
+- Q014 already establishes that hostile declarations and treaty termination do not require the other empire's consent.
+- A second mandatory warning phase would add another state and delay without evidence that it improves the first playable diplomacy loop.
+- Attacking through an Alliance or Non-Aggression Pact already cancels the relationship during authoritative attack resolution without advance warning, providing a consistent implemented precedent.
+- The affected player still needs a clear factual notification and durable event when the relationship changes; absence of advance notice must not mean a silent state transition.
+
+Consequences:
+
+- War declarations and voluntary treaty termination are unilateral actions with no additional notice timer or cooling-off state.
+- Q013 still decides whether the action itself is immediate or resolves as a durable order; Q015 adds no further delay.
+- When the transition becomes authoritative, both parties are notified and a high-severity factual event records the actor, prior state, new state, and effective tick.
+- The existing attack-driven treaty cancellation remains valid. Explicit declaration and voluntary-termination actions remain unimplemented and blocked with the wider lifecycle by Q013 and Q016-Q022.

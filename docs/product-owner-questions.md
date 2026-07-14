@@ -12,6 +12,8 @@ Implementation status belongs in [Project State](project-state.md), work sequenc
 
 Q014 was answered on 2026-07-14 by requiring mutual acceptance for positive bilateral agreements while keeping war declarations and treaty termination unilateral.
 
+Q015 was answered on 2026-07-14 by allowing unilateral war declarations and treaty termination without a separate advance-notice or cooling-off period.
+
 Q110, Q120, and Q121 were answered on 2026-07-12 by accepting their documented defaults. They are recorded below and no longer form active product gates.
 
 Q107 was answered on 2026-07-13 by accepting the already-implemented Worker sequencing default.
@@ -82,13 +84,14 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 | Q011 | An attack does not automatically create War. | Record aggression; the attacked empire controls escalation. |
 | Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
 
-The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013 and Q015-Q022 still gate player-facing diplomacy.
+The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013 and Q016-Q022 still gate player-facing diplomacy.
 
-## Accepted Q014 Answer
+## Accepted Q014-Q015 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
-| [Q014](https://github.com/AnthonyPWatts/cycles/issues/2) | Require mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. War declarations and treaty termination are unilateral, and a pending offer may be withdrawn unilaterally before acceptance. | Peace is a mutually accepted transition from War rather than a separate stored relationship state. Trade and shared visibility remain deferred; this answer establishes their future consent rule without adding them to the current vocabulary. Q013 and Q015-Q022 still block the complete player-facing diplomacy lifecycle, so no implementation issue is created yet. |
+| [Q014](https://github.com/AnthonyPWatts/cycles/issues/2) | Require mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. War declarations and treaty termination are unilateral, and a pending offer may be withdrawn unilaterally before acceptance. | Peace is a mutually accepted transition from War rather than a separate stored relationship state. Trade and shared visibility remain deferred; this answer establishes their future consent rule without adding them to the current vocabulary. |
+| [Q015](https://github.com/AnthonyPWatts/cycles/issues/3) | A player may unilaterally declare War or terminate a treaty. Do not add a separate advance-notice or cooling-off period beyond the normal resolution timing selected under Q013. | When the state change becomes authoritative, notify both parties and record a high-severity factual event. Attacks already cancel a breached treaty during attack resolution without advance warning; explicit declaration and voluntary-termination actions remain unimplemented. Q013 and Q016-Q022 still block the complete lifecycle, so no implementation issue is created yet. |
 
 ## Accepted Q107-Q109 Answers
 
@@ -232,7 +235,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 
 | Area | Questions | Decision required |
 | --- | --- | --- |
-| Diplomacy | Q013 and Q015-Q022 | Timing, declarations, alliance effects, ranking, visibility, Chronicle treatment, memory. Q014's mutual-acceptance rule is settled. |
+| Diplomacy | Q013 and Q016-Q022 | Timing, alliance effects, ranking, visibility, Chronicle treatment, memory. Q014-Q015 settle consent, unilateral declarations and treaty termination, and the absence of a separate warning period. |
 | Visibility and intelligence | Q023-Q034 | Sensors, stale or estimated contacts, alliance sharing, public Chronicle detail, live ranking visibility. |
 | Doctrine and technology | Q035-Q046 | Unlock choice, research spending, modifier scope, logistics, detection, cloaking, reset behaviour. |
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
