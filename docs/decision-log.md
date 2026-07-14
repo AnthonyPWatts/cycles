@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q125 now settle the fact, public-exposure, serialization, and next-test scale boundaries; Q126-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q126 now settle the fact, API, scale, and responsive boundaries; Q127-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -1013,3 +1013,21 @@ Consequences:
 - No 50- or 100-system dashboard implementation issue is created now.
 - Larger test scenarios remain valid for simulation or persistence evidence, but do not establish dashboard usability at that scale.
 - If a later test selects a larger galaxy, reassess navigation, clustering, filtering, API payloads, rendering cost, and system selection together.
+
+## 2026-07-14: Prioritise Desktop Commands While Preserving A Narrow-Screen Core
+
+Decision: prioritise desktop and laptop command usability. Narrow browser layouts must remain readable and support the core game loop, but equal mobile optimisation and a touch-first redesign are not requirements for the next player test.
+
+Reasoning:
+
+- The dashboard combines a galaxy map, dense command context, resource allocation, order history, and Chronicle detail; these interactions benefit from a desktop-sized workspace.
+- Existing responsive breakpoints already make the browser interface usable at narrower widths without defining a separate mobile product.
+- Requiring equal optimisation now would split design and verification effort before tester behaviour shows that mobile is an important play surface.
+- A functional floor prevents responsive regressions while keeping the primary interaction model coherent.
+
+Consequences:
+
+- Desktop and laptop browsers remain the reference surface for command efficiency and visual hierarchy.
+- Narrow layouts retain sign-in, status and History reading, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling.
+- Mobile parity, touch-first interaction, and native clients remain deferred until usage evidence changes the target.
+- The existing desktop-first responsive implementation satisfies this decision, so no separate implementation issue is created.

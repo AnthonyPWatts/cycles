@@ -58,6 +58,8 @@ Player API contracts use camelCase property names and camelCase string enums; nu
 
 The dashboard's next-test scale is the curated 24-system, four-empire galaxy. The current SVG map and bounded client-side lists do not promise support for 50 or 100 systems. If gameplay evidence selects a larger target, revisit navigation, clustering, filtering, payload shape, and rendering together rather than treating smaller nodes as sufficient scaling.
 
+Desktop and laptop browsers are the primary dashboard command surface. Responsive layouts must preserve a readable narrow-screen core loop for authentication, status and History, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling. Equal mobile optimisation, a touch-first interaction model, and native mobile clients remain deferred until usage evidence selects mobile as a primary surface.
+
 ### `Cycles.Worker`
 
 Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.
