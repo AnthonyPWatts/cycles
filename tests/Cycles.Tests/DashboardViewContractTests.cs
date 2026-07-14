@@ -19,6 +19,11 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain("class=\"side-panel\"", html);
         Assert.Contains("id=\"appHeaderControls\" class=\"app-header-controls\"", html);
         Assert.DoesNotContain("class=\"toolbar\"", html);
+        Assert.DoesNotContain("class=\"view-heading", html);
+        Assert.DoesNotContain("class=\"panel-heading\"", html);
+        Assert.DoesNotContain("id=\"commandPulse\"", html);
+        Assert.DoesNotContain("renderCommandSummary", script);
+        Assert.Equal(4, Regex.Matches(html, "class=\"visually-hidden\" tabindex=\"-1\"").Count);
 
         Assert.Contains("window.addEventListener(\"hashchange\"", script);
         Assert.Contains("window.history.replaceState(null, \"\", `#${selectedView}`);", script);

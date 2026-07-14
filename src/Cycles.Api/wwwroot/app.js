@@ -72,7 +72,6 @@ const elements = {
     viewNav: document.querySelector("#viewNav"),
     views: [...document.querySelectorAll("[data-view]")],
     viewLinks: [...document.querySelectorAll("[data-view-link]")],
-    commandPulse: document.querySelector("#commandPulse"),
     commandViewBadge: document.querySelector("#commandViewBadge"),
     galaxyViewBadge: document.querySelector("#galaxyViewBadge"),
     fleetsViewBadge: document.querySelector("#fleetsViewBadge"),
@@ -253,13 +252,6 @@ elements.fleets.addEventListener("keydown", event => {
 bindTabList(elements.fleetTabs, elements.fleetTabButtons, "fleetTab", activateFleetTab);
 bindTabList(elements.fleetActionTabs, elements.fleetActionButtons, "fleetAction", activateFleetAction);
 bindTabList(elements.historyTabs, elements.historyTabButtons, "historyTab", activateHistoryTab);
-
-elements.commandPulse.addEventListener("click", event => {
-    const link = event.target.closest("[data-history-tab-target]");
-    if (link) {
-        activateHistoryTab(link.dataset.historyTabTarget);
-    }
-});
 
 elements.orderHistoryScope.addEventListener("change", () => {
     state.orderHistoryScope = elements.orderHistoryScope.value;
@@ -569,7 +561,7 @@ async function refresh() {
     renderEvents(events);
     renderChronicle(chronicle);
     renderGalaxy(galaxy, empire);
-    renderCommandSummary();
+    renderViewBadges();
     syncTutorialAfterRefresh();
 }
 
@@ -703,34 +695,16 @@ function renderEmpire(empire) {
     `;
 }
 
-function renderCommandSummary() {
+function renderViewBadges() {
     const pendingOrders = state.orders.filter(order => order.status === "pending").length;
     const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0).length;
     const visibleEvents = state.events.length;
     const chronicleEntries = state.chronicle.length;
 
-    elements.commandPulse.innerHTML = `
-        ${commandPulseLink("Pending orders", pendingOrders, "fleets", pendingOrders === 0 ? "Issue an order" : "Review commitments")}
-        ${commandPulseLink("Active fleets", activeFleets, "fleets", "Open fleet command")}
-        ${commandPulseLink("Recent events", visibleEvents, "history", "Read the audit trail", "events")}
-        ${commandPulseLink("Chronicle entries", chronicleEntries, "history", "Read recorded history", "chronicle")}
-    `;
-
     setViewBadge(elements.commandViewBadge, pendingOrders, `${formatCount(pendingOrders, "pending order")}`);
     setViewBadge(elements.galaxyViewBadge, state.galaxy?.systems.length ?? 0, `${formatCount(state.galaxy?.systems.length ?? 0, "system")}`);
     setViewBadge(elements.fleetsViewBadge, activeFleets, `${formatCount(activeFleets, "active fleet")}`);
     setViewBadge(elements.historyViewBadge, visibleEvents + chronicleEntries, `${formatCount(visibleEvents + chronicleEntries, "historical record")}`);
-}
-
-function commandPulseLink(label, value, viewId, action, historyTab = null) {
-    const historyTarget = historyTab ? ` data-history-tab-target="${historyTab}"` : "";
-    return `
-        <a class="pulse-card" href="#${viewId}"${historyTarget}>
-            <span>${escapeHtml(label)}</span>
-            <strong>${formatNumber(value)}</strong>
-            <small>${escapeHtml(action)}</small>
-        </a>
-    `;
 }
 
 function setViewBadge(element, value, label) {

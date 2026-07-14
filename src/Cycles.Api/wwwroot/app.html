@@ -63,14 +63,7 @@
 
         <div class="view-stack">
             <section id="commandView" class="app-view command-view" data-view="command" aria-labelledby="commandViewTitle">
-                <header class="view-heading command-heading">
-                    <div>
-                        <span class="view-kicker">Turn command</span>
-                        <h1 id="commandViewTitle" tabindex="-1">Choose what happens next</h1>
-                        <p>Check capacity, set priorities, and review commitments before the galaxy advances.</p>
-                    </div>
-                    <div id="commandPulse" class="command-pulse" aria-label="Current command summary"></div>
-                </header>
+                <h1 id="commandViewTitle" class="visually-hidden" tabindex="-1">Command</h1>
 
                 <div class="command-grid">
                     <section id="resourcesSection" class="view-card summary command-resources">
@@ -163,15 +156,9 @@
             </section>
 
             <section id="galaxyView" class="app-view galaxy-view" data-view="galaxy" aria-labelledby="galaxyViewTitle" hidden>
+                <h1 id="galaxyViewTitle" class="visually-hidden" tabindex="-1">Galaxy</h1>
                 <div class="galaxy-layout">
                     <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
-                        <header class="panel-heading">
-                            <div>
-                                <span class="view-kicker">Strategic space</span>
-                                <h1 id="galaxyViewTitle" tabindex="-1">Galaxy</h1>
-                            </div>
-                            <p>Select a system to inspect resources, presence, and outposts.</p>
-                        </header>
                         <div class="map-stage">
                             <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
                             <div class="map-readout" aria-label="Galaxy summary">
@@ -199,13 +186,7 @@
             </section>
 
             <section id="fleetsView" class="app-view fleets-view" data-view="fleets" aria-labelledby="fleetsViewTitle" hidden>
-                <header class="view-heading">
-                    <div>
-                        <span class="view-kicker">Operational command</span>
-                        <h1 id="fleetsViewTitle" tabindex="-1">Fleets and orders</h1>
-                        <p>Select a fleet, understand its local situation, then commit an intention.</p>
-                    </div>
-                </header>
+                <h1 id="fleetsViewTitle" class="visually-hidden" tabindex="-1">Fleets and orders</h1>
 
                 <div class="fleets-workspace">
                     <section id="fleetsSection" class="view-card fleet-roster">
@@ -315,13 +296,7 @@
             </section>
 
             <section id="historyView" class="app-view history-view" data-view="history" aria-labelledby="historyViewTitle" hidden>
-                <header class="view-heading history-heading">
-                    <div>
-                        <span class="view-kicker">Consequences and legacy</span>
-                        <h1 id="historyViewTitle" tabindex="-1">History</h1>
-                        <p>Read the stories that endured, or inspect the factual record behind them.</p>
-                    </div>
-                </header>
+                <h1 id="historyViewTitle" class="visually-hidden" tabindex="-1">History</h1>
 
                 <div id="historyTabs" class="subview-tabs" role="tablist" aria-label="History records">
                     <button id="chronicleTab" type="button" role="tab" aria-selected="true" aria-controls="chronicleSection" data-history-tab="chronicle">Chronicle</button>

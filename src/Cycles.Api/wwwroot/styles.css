@@ -21,6 +21,18 @@
     box-sizing: border-box;
 }
 
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 html {
     height: 100%;
 }
@@ -77,13 +89,6 @@ select:focus-visible,
 a:focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
-}
-
-.view-heading h1:focus-visible,
-.panel-heading h1:focus-visible {
-    outline-color: rgba(223, 186, 104, 0.72);
-    outline-offset: 5px;
-    border-radius: 3px;
 }
 
 input,
@@ -484,46 +489,6 @@ select {
     background: var(--surface);
 }
 
-.view-heading,
-.panel-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    min-height: 52px;
-    padding: 8px 18px;
-    border-bottom: 1px solid var(--line-soft);
-    background:
-        linear-gradient(110deg, rgba(143, 209, 189, 0.07), transparent 48%),
-        rgba(17, 20, 18, 0.98);
-}
-
-.view-heading > div,
-.panel-heading > div {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    min-width: 0;
-}
-
-.view-heading h1,
-.panel-heading h1 {
-    margin: 0;
-    color: var(--text);
-    font-size: 1.08rem;
-    line-height: 1.2;
-}
-
-.view-heading p,
-.panel-heading p {
-    display: none;
-}
-
-.panel-heading {
-    min-height: 52px;
-}
-
-.view-kicker,
 .section-kicker {
     color: var(--gold);
     font-size: 0.7rem;
@@ -742,70 +707,6 @@ select {
 
 .legend-ring {
     border: 2px solid var(--danger);
-}
-
-.command-heading {
-    min-height: 64px;
-}
-
-.command-heading > div:first-child {
-    flex: 0 1 auto;
-}
-
-.command-pulse {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    gap: 8px;
-    width: min(700px, 58vw);
-}
-
-.pulse-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    align-items: center;
-    gap: 0 8px;
-    min-width: 0;
-    min-height: 46px;
-    padding: 6px 10px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: rgba(10, 15, 12, 0.72);
-    color: var(--muted);
-    text-decoration: none;
-    transition: border-color 150ms ease, background 150ms ease;
-}
-
-.pulse-card:hover {
-    border-color: rgba(143, 209, 189, 0.68);
-    background: rgba(143, 209, 189, 0.08);
-}
-
-.pulse-card span,
-.pulse-card small {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.pulse-card span {
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.pulse-card strong {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    color: var(--text);
-    font-size: 1.12rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.pulse-card small {
-    color: var(--accent);
-    font-size: 0.7rem;
 }
 
 .command-grid {
@@ -1839,10 +1740,6 @@ dd {
 }
 
 @media (max-width: 1180px) {
-    .command-pulse {
-        width: min(650px, 66vw);
-    }
-
     .fleet-command-panel {
         grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
     }
@@ -1895,15 +1792,6 @@ dd {
 
     .fleet-command-panel {
         grid-template-columns: minmax(0, 1fr);
-    }
-
-    .command-heading {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .command-pulse {
-        width: 100%;
     }
 
     .fleet-roster {
@@ -2075,16 +1963,6 @@ dd {
         display: none;
     }
 
-    .galaxy-view .panel-heading p {
-        display: none;
-    }
-
-    .view-heading,
-    .panel-heading {
-        min-height: 48px;
-        padding: 8px 12px;
-    }
-
     .command-grid,
     .fleets-workspace,
     .history-workspace {
@@ -2098,14 +1976,6 @@ dd {
 
     .view-card {
         padding: 14px;
-    }
-
-    .command-pulse {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .pulse-card {
-        min-height: 70px;
     }
 
     .priority-actions {
