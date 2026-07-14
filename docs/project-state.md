@@ -18,7 +18,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development cookie login/session/sign-out, one player per empire, admin exceptions, and active-fleet fog-of-war. | External OIDC plus audited local admin provisioning is selected for private-alpha and Production but is not implemented. |
 | Persistence | The transitional JSON development store, SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, and targeted tick writes are implemented. The trusted hosted playground still persists its single-process Development state as JSON on App Service storage. | JSON demotion, versioned import/export, mandatory runtime SQL configuration, and the Azure SQL playground cutover are accepted but not implemented. Generic API/admin SQL mutations still use the whole-state bridge. |
-| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views, a resumable Day One guide, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority. Narrow layouts preserve the core loop but are not an equal-polish mobile or native-client target; the authenticated-dashboard boundary is also not yet implemented. |
+| Client | Public landing page and playable static dashboard with focused Command, Galaxy, Fleets, and History views, a resumable Day One guide, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority. The guide still needs explicit visibility and Cycle-history teaching through issue #129; the authenticated-dashboard boundary is also not yet implemented. |
 
 ## Implemented Rules
 
@@ -82,6 +82,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Desktop and laptop browsers are the primary command surface. The responsive layout retains readable narrow-screen access to the core loop without promising equal mobile optimisation or a touch-first interaction model.
 - Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
+- The guide currently teaches resources, priorities, map inspection, movement, colonisation, attack, pending commitments, turn resolution, Events, and Chronicle through real actions. It does not yet explicitly teach the active-fleet visibility boundary or the operator-driven Cycle end/successor boundary; [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129) closes those training gaps and audits the copy against the current UI.
 
 ### Persistence
 

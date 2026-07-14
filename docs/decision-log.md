@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q126 now settle the fact, API, scale, and responsive boundaries; Q127-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q127 now settle the fact, API, scale, responsive, and training boundaries; Q128-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -1031,3 +1031,22 @@ Consequences:
 - Narrow layouts retain sign-in, status and History reading, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling.
 - Mobile parity, touch-first interaction, and native clients remain deferred until usage evidence changes the target.
 - The existing desktop-first responsive implementation satisfies this decision, so no separate implementation issue is created.
+
+## 2026-07-14: Use The Live Day One Guide As Primary Training
+
+Decision: keep the resumable Day One guide as the primary in-dashboard training path. It must explicitly teach priorities, visibility and fog-of-war, the order lifecycle, factual Events versus the selective Chronicle, and basic tick/Cycle history through the real controls. Retain concise contextual hints, but do not create a separate help centre now.
+
+Reasoning:
+
+- A click-along guide tied to successful server actions teaches the actual command loop more reliably than a detached slideshow or manual.
+- The existing guide already covers resources, priorities, map and fleet selection, movement, colonisation, attack, pending orders, turn resolution, Events, and Chronicle.
+- The live sequence does not yet explain why remote facts are absent or how tick results, Chronicle selection, Cycle end, ranking, and successor history relate.
+- Training copy drifts quickly when view names, tabs, and controls change, so the live guide and player-facing written guide need one reviewed source of product truth rather than another help surface.
+
+Consequences:
+
+- The guide remains resumable per player and seeded Cycle instance, with pause, skip, resume, and restart controls.
+- Add concise non-blocking visibility and Cycle-history teaching and audit every instruction and target against the current Command, Galaxy, Fleets, and History UI.
+- Bump the guide content version when the step sequence changes so stored progress cannot misalign with the new steps.
+- Keep `docs/alpha-testers-guide.md` aligned with the live wording and current controls.
+- Implementation and desktop/narrow smoke verification are tracked by GitHub issue #129; no Playwright dependency or separate help centre is authorised.

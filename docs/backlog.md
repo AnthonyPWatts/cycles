@@ -84,6 +84,7 @@ Blocked until the corresponding continuity and character questions are selected.
 
 - [ ] Complete [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127): remove raw `FactJson` from ordinary player responses and replace the guide's direct parsing with a typed opening-briefing contract. Keep internal storage flexible and do not launch a broad fact migration before diplomacy and narrative shapes stabilise.
 - [ ] Complete [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128): lock camelCase properties and string enums, reject numeric enum input, and replace the message-only API error with stable codes plus safe messages and optional diagnostic detail.
+- [ ] Complete [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129): add explicit visibility and Cycle-history teaching to the resumable Day One guide, audit every instruction against the current UI, and keep the player guide aligned without introducing a separate help system.
 - [ ] Revisit the generic whole-state SQL mutation bridge if profiling shows it on a high-frequency or scaling-critical path.
 - [ ] Revisit dashboard rendering when an agreed galaxy/player scale exceeds the current small-map assumption.
 - [ ] Add a production security review before any untrusted online test.
@@ -100,7 +101,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
-| API and dashboard follow-ons | Q127-Q130 | Help content, backlog ownership, and saved-game exports. Q120-Q126's API, fact, scale, and responsive boundaries are settled. |
+| API and dashboard follow-ons | Q128-Q130 | Backlog ownership and saved-game exports. Q120-Q127's API, scale, responsive, and training boundaries are settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
@@ -132,7 +133,7 @@ Q125 accepts the current 24-system, four-empire curated galaxy as the dashboard 
 
 Q126 makes desktop and laptop browsers the primary command surface while retaining a functional narrow-screen core loop. Equal mobile polish and touch-first redesign remain deferred unless tester usage makes mobile a primary play surface; the existing responsive implementation requires no separate issue now.
 
-Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
+Q127 accepts the existing resumable Day One guide as the primary in-dashboard training path. Issue [#129](https://github.com/AnthonyPWatts/cycles/issues/129) adds the missing explicit visibility and Cycle-history teaching, audits instructions and targets against the current four-view UI, and keeps `docs/alpha-testers-guide.md` aligned without creating a separate help centre.
 
 ## Completed Foundations
 

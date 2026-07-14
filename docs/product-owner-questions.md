@@ -46,6 +46,8 @@ Q125 was answered on 2026-07-14 by targeting the existing 24-system, four-empire
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
+Q127 was answered on 2026-07-14 by keeping the resumable Day One guide as the primary in-dashboard training path and requiring explicit visibility and Cycle-history teaching through the current UI.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -82,7 +84,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110 And Q120-Q126 Answers
+## Accepted Q110 And Q120-Q127 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -94,6 +96,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q124](https://github.com/AnthonyPWatts/cycles/issues/112) | Lock camelCase JSON property names and camelCase string enum values before external clients exist. Before freezing the error contract, extend the current `message` response with a stable machine-readable `code`, retaining optional structured validation detail and a trace identifier. | HTTP status remains authoritative for the broad failure class; clients may branch on stable codes but not message wording. Numeric enum values are not part of the public contract. Implementation is tracked by [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128). |
 | [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | Target the existing 24-system, four-empire curated galaxy for the next player test. Do not optimise for 50 or 100 systems without evidence that a larger galaxy improves the intended test. | The current map and bounded-list assumptions are accepted for the next test. When expansion is justified, reassess navigation, clustering, filtering, API payloads, and rendering rather than merely shrinking more nodes into the current layout. No implementation issue is required now. |
 | [Q126](https://github.com/AnthonyPWatts/cycles/issues/114) | Prioritise desktop and laptop command usability. Narrow browser layouts must remain readable and support the core loop, but equal mobile optimisation or a touch-first redesign is not required for the next test. | Preserve sign-in, status and History reading, priorities, fleet selection, and basic order submission/cancellation without page-level horizontal scrolling. Revisit mobile parity only if tester usage makes it a primary play surface. The current responsive default needs no implementation issue. |
+| [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | Keep the resumable Day One guide as the primary in-dashboard training. Teach priorities, visibility and fog-of-war, the order lifecycle, factual Events versus the selective Chronicle, and basic tick/Cycle history through the real controls. | The existing guide already covers the playable order loop but needs explicit visibility and Cycle-history steps plus a current-UI copy audit. Keep contextual hints concise and do not build a separate help centre. Implementation is tracked by [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129). |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -164,6 +167,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Handled player API errors retain the correct HTTP status and use a stable machine-readable code plus a safe human-readable message. Optional structured validation detail and trace correlation may be added without exposing internal exception data.
 - The next player test targets the curated 24-system, four-empire galaxy. Support for 50 or 100 systems is not an implied dashboard contract and requires gameplay evidence plus a fresh navigation and rendering assessment.
 - Desktop and laptop browsers are the primary command surface. Narrow layouts retain a readable core loop without page-level horizontal scrolling, but equal mobile optimisation and native mobile clients are not current requirements.
+- The resumable Day One guide is the primary in-dashboard training path. It teaches the real command loop and must explicitly explain the accepted visibility model, Events versus Chronicle, and the current tick/Cycle boundary without becoming a separate help system.
 
 ### Cycle End And History
 
@@ -195,14 +199,6 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Online testing follows authentication hardening and a coherent operational boundary.
 - Longer-term production hosting, database, and vendor choices remain open beyond the accepted Azure SQL playground and first-online-test boundary.
 
-## Implemented Defaults Awaiting Product Confirmation
-
-The following open questions now have reversible engineering defaults in the Development build or trusted playground. These implementations provide something concrete to test; they are not accepted product answers and do not close the linked issues.
-
-| Open questions | Current implemented default |
-| --- | --- |
-| [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | A resumable Day One guide explains resources, priorities, fog of war, fleet orders, factual Events, and the narrative Chronicle through the real controls. |
-
 ## Current Gates
 
 Do not expand these areas until the referenced questions have accepted answers:
@@ -215,7 +211,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q127-Q130 | Help content, backlog ownership, and saved-game exports. Q120-Q126's API, fact, scale, and responsive boundaries are settled. |
+| API and dashboard follow-ons | Q128-Q130 | Backlog ownership and saved-game exports. Q120-Q127's API, scale, responsive, and training boundaries are settled. |
 
 ## Engineering Defaults
 

@@ -60,6 +60,8 @@ The dashboard's next-test scale is the curated 24-system, four-empire galaxy. Th
 
 Desktop and laptop browsers are the primary dashboard command surface. Responsive layouts must preserve a readable narrow-screen core loop for authentication, status and History, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling. Equal mobile optimisation, a touch-first interaction model, and native mobile clients remain deferred until usage evidence selects mobile as a primary surface.
 
+The resumable Day One guide is the primary in-dashboard training path and uses real controls and authoritative outcomes. It must teach priorities, visibility, order lifecycle, Events versus Chronicle, and the current tick/Cycle boundary using the current Command, Galaxy, Fleets, and History views. Keep contextual hints local and concise; issue #129 completes the visibility and Cycle-history coverage rather than creating a parallel help application.
+
 ### `Cycles.Worker`
 
 Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.
