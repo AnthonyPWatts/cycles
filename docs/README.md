@@ -44,4 +44,5 @@ These Word files preserve source intent and historical product prompts. The Mark
 - Put unresolved product choices and accepted product answers only in `product-owner-questions.md`.
 - Add a decision-log entry when a choice would otherwise be rediscovered.
 - Keep commands in the root README, Operations, or the SQL Server runbook according to audience.
+- Keep maintained documentation aligned with current `main`. Do not fork docs per gameplay Cycle or ad hoc test build; record the deployed commit/build in test evidence and use Git tags, commits, or release notes when a historical snapshot is required.
 - Keep screenshots in player-facing tutorials rather than using them as behavioural proof. Regenerate the maintained captures in the Gameplay Guide when a UI change makes their controls or layout misleading.

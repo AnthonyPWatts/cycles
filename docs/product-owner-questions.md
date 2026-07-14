@@ -50,6 +50,8 @@ Q127 was answered on 2026-07-14 by keeping the resumable Day One guide as the pr
 
 Q128 was answered on 2026-07-14 by making GitHub issues authoritative for concrete actionable work while retaining Markdown as the curated roadmap, sequencing summary, and canonical repository record of decisions and implemented state.
 
+Q129 was answered on 2026-07-14 by keeping maintained documentation aligned with current `main` and using Git/build evidence for historical snapshots rather than copying docs per gameplay Cycle.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -86,7 +88,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110 And Q120-Q128 Answers
+## Accepted Q110 And Q120-Q129 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -100,6 +102,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q126](https://github.com/AnthonyPWatts/cycles/issues/114) | Prioritise desktop and laptop command usability. Narrow browser layouts must remain readable and support the core loop, but equal mobile optimisation or a touch-first redesign is not required for the next test. | Preserve sign-in, status and History reading, priorities, fleet selection, and basic order submission/cancellation without page-level horizontal scrolling. Revisit mobile parity only if tester usage makes it a primary play surface. The current responsive default needs no implementation issue. |
 | [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | Keep the resumable Day One guide as the primary in-dashboard training. Teach priorities, visibility and fog-of-war, the order lifecycle, factual Events versus the selective Chronicle, and basic tick/Cycle history through the real controls. | The existing guide already covers the playable order loop but needs explicit visibility and Cycle-history steps plus a current-UI copy audit. Keep contextual hints concise and do not build a separate help centre. Implementation is tracked by [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129). |
 | [Q128](https://github.com/AnthonyPWatts/cycles/issues/116) | Make GitHub issues authoritative for concrete actionable backlog work: scope, acceptance criteria, owner, status, dependencies, and completion. Keep `docs/backlog.md` as the curated roadmap, sequencing summary, decision-gate overview, and issue index. | Do not duplicate live ticket status or full acceptance criteria in Markdown, and do not file every parked idea prematurely. Accepted answers, implemented state, and durable rationale remain canonical repository documentation. Migration is tracked by [issue #130](https://github.com/AnthonyPWatts/cycles/issues/130); Markdown remains operative until it completes. |
+| [Q129](https://github.com/AnthonyPWatts/cycles/issues/117) | Maintained documentation describes current `main` behaviour. Do not create a documentation copy for each gameplay Cycle or ad hoc test build. | Record the deployed commit or build identifier in test evidence. Use Git tags, commits, and release notes when a historical documentation snapshot is genuinely needed. A gameplay Cycle is persisted game data, not a software documentation version. No implementation issue is required. |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -209,6 +212,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Accepted product answers remain in this document, implemented state in [Project State](project-state.md), and durable rationale in the [Decision Log](decision-log.md).
 - Parking-lot ideas and unresolved product choices do not require speculative implementation issues.
 - Until issue #130 completes the inventory and migration, the existing Markdown backlog remains the operative queue so no actionable item is orphaned.
+- Maintained docs describe current `main`; test evidence identifies the deployed commit/build, and Git or release artefacts provide any historical snapshot. Gameplay Cycles do not fork the documentation set.
 
 ## Current Gates
 
@@ -222,7 +226,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q129-Q130 | Saved-game exports. Q120-Q128's API, scale, training, and backlog-ownership boundaries are settled. |
+| API and dashboard follow-ons | Q130 | Saved-game exports. Q120-Q129's API, scale, training, and documentation-governance boundaries are settled. |
 
 ## Engineering Defaults
 

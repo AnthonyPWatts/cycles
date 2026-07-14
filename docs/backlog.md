@@ -101,7 +101,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
-| API and dashboard follow-ons | Q129-Q130 | Saved-game exports. Q120-Q128's API, scale, training, and backlog-ownership boundaries are settled. |
+| API and dashboard follow-ons | Q130 | Saved-game exports. Q120-Q129's API, scale, training, and documentation-governance boundaries are settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
@@ -136,6 +136,8 @@ Q126 makes desktop and laptop browsers the primary command surface while retaini
 Q127 accepts the existing resumable Day One guide as the primary in-dashboard training path. Issue [#129](https://github.com/AnthonyPWatts/cycles/issues/129) adds the missing explicit visibility and Cycle-history teaching, audits instructions and targets against the current four-view UI, and keeps `docs/alpha-testers-guide.md` aligned without creating a separate help centre.
 
 Q128 selects GitHub issues as the future authority for concrete actionable backlog work while keeping this document as a curated roadmap and sequencing summary. Issue [#130](https://github.com/AnthonyPWatts/cycles/issues/130) inventories every checkbox, creates or reuses only worthwhile concrete tickets, removes duplicate mutable status, and updates ownership guidance. This Markdown queue remains operative until that migration is complete.
+
+Q129 confirms that maintained documentation describes current `main` rather than being copied per gameplay Cycle or ad hoc test build. Historical test evidence records the deployed commit/build and relies on Git tags, commits, or release notes when an old documentation snapshot is required; no implementation issue is needed.
 
 ## Completed Foundations
 

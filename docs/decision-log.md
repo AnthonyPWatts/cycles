@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q128 now settle the fact, API, scale, training, and backlog-ownership boundaries; Q129-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q129 now settle the fact, API, scale, training, and documentation-governance boundaries; Q130 remains open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -1069,3 +1069,21 @@ Consequences:
 - Unshaped ideas may remain in roadmap or parking-lot prose until selected; unresolved decisions remain in the product-decision queue rather than becoming premature implementation tickets.
 - Issue #130 inventories the current Markdown checkboxes, reuses or creates worthwhile tickets, removes duplicated mutable detail, and updates repository guidance.
 - Until that migration completes, `docs/backlog.md` remains the operative implementation queue so no concrete work is orphaned during the transition.
+
+## 2026-07-14: Keep Maintained Documentation Aligned With Main
+
+Decision: maintained documentation describes current `main` behaviour. Do not create separate documentation copies for each gameplay Cycle or ad hoc test build. Record the deployed commit or build identifier in test evidence and use Git tags, commits, or release notes when a historical snapshot is genuinely required.
+
+Reasoning:
+
+- A gameplay Cycle is persisted game data and history, not a software documentation version.
+- Parallel documentation sets would duplicate manual maintenance and drift as UI, API, persistence, and operations change.
+- Git already preserves the documentation that accompanied every commit and can provide deliberate release snapshots when the project reaches that stage.
+- Test reproducibility needs the exact deployed code identity more than another copied folder whose relationship to the running build may be unclear.
+
+Consequences:
+
+- README, player guide, project state, runbooks, architecture, backlog summary, and accepted-answer docs stay aligned with current `main`.
+- Hosted or organised test evidence records the deployed commit SHA or build identifier and, where useful, the Cycle identifier as separate facts.
+- Git tags or releases may preserve named historical documentation snapshots when genuine external compatibility or support needs appear.
+- Gameplay Cycle creation does not copy or version the documentation tree, and no implementation issue is required for this accepted existing default.
