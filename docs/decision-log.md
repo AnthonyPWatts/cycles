@@ -572,7 +572,7 @@ Consequences:
 - `DiplomaticRelationships` now stores one canonical empire pair per Cycle, while absence still means Neutral.
 - Attack processing records aggression, cancels a pact or alliance to Neutral, and does not silently infer War from combat.
 - Migration `012_add_diplomatic_relationships` and the focused SQL tick path persist relationship changes and their factual events.
-- Q014-Q017 now settle mutual consent, unilateral hostile or terminating actions, the absence of a separate warning period, first-version Alliance mechanics, and separate empire rankings, while Q013 and Q018-Q022 remain the implementation gate for complete diplomacy orders, visibility, and Chronicle behaviour.
+- Q014-Q018 now settle mutual consent, unilateral hostile or terminating actions, the absence of a separate warning period, first-version Alliance mechanics, separate empire rankings, and allied influence coexistence, while Q013 and Q019-Q022 remain the implementation gate for complete diplomacy orders, visibility, and Chronicle behaviour.
 
 ## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary
 
@@ -1122,7 +1122,7 @@ Consequences:
 - Alliance, peace, and Non-Aggression Pact transitions require acceptance by both affected empires.
 - Future trade or shared-visibility agreements use the same mutual-consent boundary, but neither feature is authorised by this decision.
 - War declarations, treaty termination, and withdrawal of an unaccepted offer require only the acting empire's authority.
-- Q013 still determines when diplomatic actions resolve, and Q018-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
+- Q013 still determines when diplomatic actions resolve, and Q019-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
 
 ## 2026-07-14: Do Not Add A Separate Diplomatic Warning Period
 
@@ -1140,7 +1140,7 @@ Consequences:
 - War declarations and voluntary treaty termination are unilateral actions with no additional notice timer or cooling-off state.
 - Q013 still decides whether the action itself is immediate or resolves as a durable order; Q015 adds no further delay.
 - When the transition becomes authoritative, both parties are notified and a high-severity factual event records the actor, prior state, new state, and effective tick.
-- The existing attack-driven treaty cancellation remains valid. Explicit declaration and voluntary-termination actions remain unimplemented and blocked with the wider lifecycle by Q013 and Q018-Q022.
+- The existing attack-driven treaty cancellation remains valid. Explicit declaration and voluntary-termination actions remain unimplemented and blocked with the wider lifecycle by Q013 and Q019-Q022.
 
 ## 2026-07-14: Keep First-Version Alliances Mechanically Narrow
 
@@ -1159,7 +1159,7 @@ Consequences:
 - Alliance creation, termination, and any valid betrayal edge case produce factual Events/history.
 - Existing Q012 treaty-breach cancellation remains as a defensive boundary for already-pending or exceptional conflicts; normal deliberate betrayal requires terminating the Alliance first.
 - Alliance does not pool influence, resources, rankings, fleets, or attack control, and it grants no special movement rule.
-- Q025 remains authoritative for allied visibility. Q013 and Q018-Q022 still block the complete player-facing diplomacy lifecycle, so no implementation issue is ready yet.
+- Q025 remains authoritative for allied visibility. Q013 and Q019-Q022 still block the complete player-facing diplomacy lifecycle, so no implementation issue is ready yet.
 
 ## 2026-07-14: Keep Alliance Members Separately Ranked
 
@@ -1177,4 +1177,22 @@ Consequences:
 - `EmpireMetricCalculator`, `CycleEndService`, and `CycleRankings` remain diplomacy-independent and require no implementation change.
 - Every active empire retains its own score and rank, and exactly one empire is the Cycle winner under the existing tie-break rules.
 - Chronicle or Cycle-end prose may mention the winner's allies, but such acknowledgement is non-mechanical.
-- No implementation issue is required. Q013 and Q018-Q022 still gate the remaining player-facing diplomacy lifecycle.
+- No implementation issue is required. Q013 and Q019-Q022 still gate the remaining player-facing diplomacy lifecycle.
+
+## 2026-07-14: Keep Allied Influence And Rewards Independent
+
+Decision: allow allied empires to maintain influence in the same system while continuing to calculate each empire's effective presence, resource share, and map-control contribution independently.
+
+Reasoning:
+
+- The influence model represents proportional presence rather than binary ownership, so coexistence already supports multiple empires in one system.
+- Q016 excludes pooled influence and resources from the first Alliance contract, and Q017 keeps rankings separate.
+- Removing competition between allied presence would indirectly pool economic and scoring benefits even if the stored values remained nominally separate.
+- Friendly presentation can distinguish allied coexistence from hostile contest without changing the authoritative calculation.
+
+Consequences:
+
+- Alliance prevents hostile action but does not merge presence, resource entitlement, expansion pressure, or map control.
+- Existing relationship-independent influence, economy, and ranking calculations remain valid and require no mechanical implementation change.
+- Dashboard wording may describe allied empires as coexisting, but displayed shares remain separate and must not imply common ownership.
+- No implementation issue is required. Q013 and Q019-Q022 still gate the remaining player-facing diplomacy lifecycle.
