@@ -331,11 +331,51 @@ select {
     gap: 2px 10px;
     min-width: 0;
     min-height: 62px;
+    overflow: hidden;
     padding: 9px 16px;
     border-right: 1px solid var(--line-soft);
     color: var(--muted);
+    isolation: isolate;
     text-decoration: none;
     transition: background 150ms ease, color 150ms ease;
+}
+
+.view-nav a::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image:
+        linear-gradient(90deg, rgba(10, 13, 12, 0.84) 0%, rgba(10, 13, 12, 0.38) 55%, rgba(10, 13, 12, 0.76) 100%),
+        var(--view-background);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    content: "";
+    filter: grayscale(1) saturate(0) contrast(0.86) brightness(0.8);
+    opacity: 0.48;
+    pointer-events: none;
+    transition: filter 180ms ease, opacity 150ms ease;
+}
+
+.view-nav a[data-view-link="command"] {
+    --view-background: url("media/navigation-backgrounds/letterbox/command.png");
+}
+
+.view-nav a[data-view-link="galaxy"] {
+    --view-background: url("media/navigation-backgrounds/letterbox/galaxy.png");
+}
+
+.view-nav a[data-view-link="fleets"] {
+    --view-background: url("media/navigation-backgrounds/letterbox/fleets.png");
+}
+
+.view-nav a[data-view-link="history"] {
+    --view-background: url("media/navigation-backgrounds/letterbox/history.png");
+}
+
+.view-nav a > * {
+    position: relative;
+    z-index: 1;
 }
 
 .view-nav a:last-child {
@@ -347,9 +387,19 @@ select {
     color: var(--text);
 }
 
+.view-nav a:hover::before {
+    filter: grayscale(0.68) saturate(0.42) contrast(0.9) brightness(0.86);
+    opacity: 0.56;
+}
+
 .view-nav a[aria-current="page"] {
     background: rgba(143, 209, 189, 0.1);
     color: var(--text);
+}
+
+.view-nav a[aria-current="page"]::before {
+    filter: grayscale(0) saturate(1) contrast(0.96) brightness(0.96);
+    opacity: 0.7;
 }
 
 .view-nav a[aria-current="page"]::after {
@@ -358,6 +408,7 @@ select {
     right: 14px;
     bottom: -1px;
     left: 14px;
+    z-index: 2;
     height: 3px;
     border-radius: 3px 3px 0 0;
     background: var(--accent);
