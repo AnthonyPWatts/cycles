@@ -54,6 +54,8 @@ Owns HTTP contracts, development authentication and authorisation, visibility fi
 
 Ordinary order endpoints must not run ticks. The protected tick endpoint invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API. It is available to admins in every environment and, temporarily, to any authenticated player in Development. That capability does not promote the actor or bypass normal visibility and empire ownership.
 
+Player API contracts use camelCase property names and camelCase string enums; numeric enum values are not part of the public contract. Handled failures retain meaningful HTTP status and expose stable machine-readable codes alongside safe human-readable messages, with optional validation detail and trace correlation. Clients must not branch on message wording. Issue #128 replaces the current message-only response and locks these conventions before external clients exist.
+
 ### `Cycles.Worker`
 
 Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.

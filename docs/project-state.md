@@ -71,6 +71,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### API And Dashboard
 
 - Ordinary player endpoints expose filtered state and accept intentions through explicit response DTOs.
+- JSON responses use camelCase property names and camelCase string enums. Handled errors still return only `{ "message": "..." }`; [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128) adds stable machine-readable codes, rejects numeric enum input, and locks the accepted compatibility boundary.
 - Raw domain entities remain internal and are not returned to the dashboard.
 - Event and battle DTOs still carry flexible `FactJson`, and the Day One guide parses the `OpeningBriefingIssued` payload. This now conflicts with the accepted ordinary-player boundary; [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127) removes the raw response fields and supplies a typed opening briefing without changing internal fact storage.
 - Player mutations derive empire authority from the authenticated development session rather than caller-supplied empire IDs.

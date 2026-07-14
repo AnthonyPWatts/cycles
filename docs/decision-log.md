@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q123 now settle the fact-contract and public-exposure boundaries; Q124-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q124 now settle the fact, public-exposure, and serialization boundaries; Q125-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -976,3 +976,22 @@ Consequences:
 - The opening briefing becomes a purpose-built, visibility-checked response consumed by the guide rather than raw event JSON.
 - Any future raw fact viewer must be an explicit authorised operator diagnostic, not a field retained in ordinary responses.
 - Implementation is tracked by GitHub issue #127; no general typed-fact framework or storage migration is authorised.
+
+## 2026-07-14: Lock API Serialization Before External Clients
+
+Decision: lock camelCase JSON property names and camelCase string enum values before external clients exist. Do not freeze the current message-only error response unchanged; add a stable machine-readable error code while retaining a safe human-readable message, meaningful HTTP status, and optional structured validation detail and trace correlation.
+
+Reasoning:
+
+- Property casing and enum wire values are already consistent across the API and dashboard, so changing them later would create avoidable client churn.
+- Numeric enum values weaken the public vocabulary by allowing unnamed or version-sensitive values and are not needed by the current client.
+- A human-readable exception message is useful to display but is not a durable identifier for client behaviour, tests, telemetry, or support.
+- The contract can be stabilised before external clients exist without adding URL versioning or a general error-handling framework.
+
+Consequences:
+
+- Player API fields remain camelCase and enums remain camelCase strings; numeric enum input is rejected at the public JSON boundary.
+- Handled errors carry a stable `code` and safe `message`; optional `details` supports structured validation and optional `traceId` supports correlation without exposing stack traces or secrets.
+- HTTP status remains authoritative for the broad failure class, while clients may branch on documented codes and must not parse message wording.
+- Additive optional fields and new error codes are compatible. Renaming or removing fields, changing existing enum wire values or code meanings, or making optional fields required needs an explicit compatibility decision.
+- Implementation and contract tests are tracked by GitHub issue #128. API URL versioning and message localisation remain out of scope.

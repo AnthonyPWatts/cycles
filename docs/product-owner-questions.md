@@ -40,6 +40,8 @@ Q122 was answered on 2026-07-14 by retaining flexible internal fact storage whil
 
 Q123 was answered on 2026-07-14 by keeping raw fact storage out of the normal dashboard and ordinary player API, using display text by default, and requiring purpose-built typed contracts for useful player detail.
 
+Q124 was answered on 2026-07-14 by locking camelCase properties and camelCase string enums, while requiring a stable machine-readable error code before freezing the current message-only envelope.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -76,7 +78,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110 And Q120-Q123 Answers
+## Accepted Q110 And Q120-Q124 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -85,6 +87,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q121](https://github.com/AnthonyPWatts/cycles/issues/109) | Raw domain entities remain internal and are not returned to the dashboard. | Dashboard contracts may expose purpose-built representations, but must not leak `Cycles.Core` entities. |
 | [Q122](https://github.com/AnthonyPWatts/cycles/issues/110) | Keep `FactJson` as flexible internal storage for another stage. Introduce a typed or validated fact contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed, rather than merely because it is displayed. | Do not begin a broad typed-fact migration before diplomacy and narrative shapes stabilise. The opening briefing is the current contract candidate because the dashboard consumes its fields; Q123 subsequently settles its public API boundary. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Keep raw `FactJson` out of the normal dashboard and ordinary player API. Use display text by default and add purpose-built typed detail contracts only where they provide player value. | Event and battle storage may remain flexible internally. The Day One guide must receive a typed opening briefing rather than parse storage JSON, while any raw operator view remains an explicit authorised diagnostic. Implementation is tracked by [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127). |
+| [Q124](https://github.com/AnthonyPWatts/cycles/issues/112) | Lock camelCase JSON property names and camelCase string enum values before external clients exist. Before freezing the error contract, extend the current `message` response with a stable machine-readable `code`, retaining optional structured validation detail and a trace identifier. | HTTP status remains authoritative for the broad failure class; clients may branch on stable codes but not message wording. Numeric enum values are not part of the public contract. Implementation is tracked by [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128). |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -151,6 +154,8 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Purpose-built response contracts remain protected by regression coverage against `Cycles.Core` entity leakage.
 - `FactJson` may remain flexible internal storage while fact shapes evolve, but a mechanically consumed, queried, migrated, or publicly exposed payload requires a typed or validated boundary.
 - Ordinary player responses and the normal dashboard do not expose raw fact storage. Display text is the default presentation; useful structured detail uses a purpose-built typed contract, while raw inspection is limited to an explicit authorised operator surface.
+- Player API property names use camelCase and enum wire values use camelCase strings; numeric enum values are not accepted as part of the public contract.
+- Handled player API errors retain the correct HTTP status and use a stable machine-readable code plus a safe human-readable message. Optional structured validation detail and trace correlation may be added without exposing internal exception data.
 
 ### Cycle End And History
 
@@ -204,7 +209,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q124-Q130 | Frozen API conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q123's DTO, fact-contract, and public-exposure boundaries are settled. |
+| API and dashboard follow-ons | Q125-Q130 | Scale target, help content, backlog ownership, and saved-game exports. Q120-Q124's DTO, fact, and serialization boundaries are settled. |
 
 ## Engineering Defaults
 
