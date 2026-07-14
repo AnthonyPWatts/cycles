@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260714-priority-status-1">
+    <link rel="stylesheet" href="styles.css?v=20260714-priority-model-1">
 </head>
 <body>
     <header class="topbar">
@@ -91,36 +91,51 @@
                             </div>
                         </div>
                         <form id="priorityForm" class="priority-form">
+                            <p id="priorityModelNote" class="priority-model-note">
+                                <strong>Current build:</strong> Military and Expansion affect the next tick. Development and Innovation remain visible for the planned programmes but currently provide no direct benefit.
+                            </p>
                             <div class="priority-channels">
                                 <label class="priority-channel" for="industryWeight">
-                                    <span class="priority-channel-name">Industry <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-channel-name">
+                                        <span>Development <small class="priority-effect-status priority-effect-status--inactive">Inactive</small></span>
+                                        <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small>
+                                    </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0">
+                                        <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
                                     </span>
                                     <output id="industryWeightValue" for="industryWeight">0</output>
                                 </label>
                                 <label class="priority-channel" for="researchWeight">
-                                    <span class="priority-channel-name">Research <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-channel-name">
+                                        <span>Innovation <small class="priority-effect-status priority-effect-status--inactive">Inactive</small></span>
+                                        <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small>
+                                    </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0">
+                                        <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
                                     </span>
                                     <output id="researchWeightValue" for="researchWeight">0</output>
                                 </label>
                                 <label class="priority-channel" for="militaryWeight">
-                                    <span class="priority-channel-name">Military <small id="militaryWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-channel-name">
+                                        <span>Military <small class="priority-effect-status priority-effect-status--active">Active</small></span>
+                                        <small id="militaryWeightSaved" class="priority-saved-value">Saved 0</small>
+                                    </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="militaryWeight" data-priority-key="militaryWeight" type="range" min="0" max="100" step="1" value="0">
+                                        <input id="militaryWeight" data-priority-key="militaryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
                                     </span>
                                     <output id="militaryWeightValue" for="militaryWeight">0</output>
                                 </label>
                                 <label class="priority-channel" for="expansionWeight">
-                                    <span class="priority-channel-name">Expansion <small id="expansionWeightSaved" class="priority-saved-value">Saved 0</small></span>
+                                    <span class="priority-channel-name">
+                                        <span>Expansion <small class="priority-effect-status priority-effect-status--active">Active</small></span>
+                                        <small id="expansionWeightSaved" class="priority-saved-value">Saved 0</small>
+                                    </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="expansionWeight" data-priority-key="expansionWeight" type="range" min="0" max="100" step="1" value="0">
+                                        <input id="expansionWeight" data-priority-key="expansionWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
                                     </span>
                                     <output id="expansionWeightValue" for="expansionWeight">0</output>
                                 </label>
@@ -407,6 +422,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260714-priority-status-1"></script>
+    <script src="app.js?v=20260714-priority-model-1"></script>
 </body>
 </html>

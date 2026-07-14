@@ -15,6 +15,11 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("data-priority-key=\"researchWeight\" type=\"range\"", html);
         Assert.Contains("data-priority-key=\"militaryWeight\" type=\"range\"", html);
         Assert.Contains("data-priority-key=\"expansionWeight\" type=\"range\"", html);
+        Assert.Contains("id=\"priorityModelNote\" class=\"priority-model-note\"", html);
+        Assert.Contains("Development <small class=\"priority-effect-status priority-effect-status--inactive\">Inactive</small>", html);
+        Assert.Contains("Innovation <small class=\"priority-effect-status priority-effect-status--inactive\">Inactive</small>", html);
+        Assert.Contains("Military <small class=\"priority-effect-status priority-effect-status--active\">Active</small>", html);
+        Assert.Contains("Expansion <small class=\"priority-effect-status priority-effect-status--active\">Active</small>", html);
         Assert.Contains("id=\"priorityResetButton\"", html);
         Assert.Contains("id=\"prioritySaveButton\"", html);
         Assert.Contains("id=\"priorityDraftStatus\"", html);
@@ -32,6 +37,7 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
         Assert.Contains("target: () => document.querySelector(\"#prioritySection\")", script);
+        Assert.Contains("The 100 points represent strategic effort, not the three resource stockpiles.", script);
     }
 
     [Fact]

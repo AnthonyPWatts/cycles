@@ -10,7 +10,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | --- | --- | --- |
 | Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated 24-system, four-empire development opening. | That scale is accepted for the next player test; 50- and 100-system dashboard behaviour is unverified and deliberately deferred. |
 | Tick execution | CLI tick runner, scheduled Worker, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, singleton leadership, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
-| Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point priorities, military ship construction, expansion projection, and one research unlock. | Industry and research priorities have no separate direct spending effects; long-run resource sinks are incomplete. |
+| Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation remain visibly inactive until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
@@ -46,7 +46,8 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - A founding empire has minimum home-system presence of 10.
 - Each system divides Industry, Research, and Population output in proportion to effective presence.
 - Resources are non-negative stockpiles, with last-generated and last-spent values recorded separately.
-- Priority weights must total 100.
+- Priority weights must total 100 and allocate strategic effort across Development, Innovation, Military, and Expansion rather than mapping one-to-one to the three resource stockpiles.
+- The persisted Industry and Research weights remain compatibility names for Development and Innovation. Neither has a direct effect in the current build, and the dashboard labels that state explicitly.
 - Military priority spends available industry on ships costing 25 industry each. Construction takes three ticks and completes into the home fleet.
 - Expansion priority increases effective presence by its percentage.
 - At 200 stockpiled research, Survey Projection unlocks once and adds a further 10% effective-presence bonus.
@@ -84,7 +85,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Ordinary production players cannot execute ticks; a trusted admin can still use the protected operational endpoint.
 - Every game-state endpoint derives an authenticated local actor. Outside Development, anonymous `/app.html` requests start OIDC, authenticated identities must be explicitly admitted, and `/` plus `/health` remain public unless the trusted-playground perimeter override is configured.
 - External identities map by exact issuer and subject. Provider email, display name, groups, roles, and invitation state do not grant local admin authority. Explicit configured bootstrap and authenticated grant/revoke operations append high-severity audit records; routine revocation cannot remove the final active admin.
-- The dashboard uses persistent hash-addressable views: **Command** for resources, linked 100-point priority drafting, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records. The Command view keeps saved priority positions visible while a new allocation is being drafted and persists changes only through an explicit save.
+- The dashboard uses persistent hash-addressable views: **Command** for resources, linked 100-point priority drafting, and pending commitments; **Galaxy** for the full map and selected-system inspection; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records. The Command view keeps saved priority positions visible while a new allocation is being drafted, marks Development and Innovation inactive while Military and Expansion are active, and persists changes only through an explicit save.
 - Desktop and laptop browsers are the primary command surface. The responsive layout retains readable narrow-screen access to the core loop without promising equal mobile optimisation or a touch-first interaction model.
 - Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
@@ -117,14 +118,13 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ## Verification
 
-Latest local verification on 2026-07-14 used the migrated local SQL Server container:
+Latest local verification on 2026-07-14 used the normal repository test helper:
 
 ```powershell
-$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 .\eng\test.ps1
 ```
 
-Result: **180 tests passed, 0 failed**. The repository CI runs the Linux build/test job and the migrated SQL Server integration job; these working-tree changes have not been pushed and therefore have not run in GitHub Actions.
+Result: **182 tests passed, 0 failed**. This priority-model slice does not change SQL persistence, so the opt-in local SQL Server integration run was not repeated. The repository CI independently runs the Linux build/test job and the migrated SQL Server integration job.
 
 The automated coverage includes:
 

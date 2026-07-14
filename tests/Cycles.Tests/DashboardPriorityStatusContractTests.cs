@@ -14,6 +14,9 @@ public sealed class DashboardPriorityStatusContractTests
         Assert.Contains("elements.priorityDraftStatus.hidden = !state.prioritySaving && !isDirty;", script);
         Assert.DoesNotContain("priorityTotal: document.querySelector", script);
         Assert.Contains(".priority-save-status", styles);
+        Assert.Contains(".priority-model-note", styles);
+        Assert.Contains(".priority-effect-status--active", styles);
+        Assert.Contains(".priority-effect-status--inactive", styles);
         Assert.DoesNotContain(".priority-total {", styles);
     }
 

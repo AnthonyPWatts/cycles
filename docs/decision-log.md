@@ -1230,3 +1230,24 @@ Consequences:
 - Decision-gated gameplay and narrative themes stay linked to the product question queue until their rules settle.
 - Concrete friction in a conditional risk creates one bounded evidence-backed issue when it occurs; it does not restore a permanent Markdown checklist.
 - Contributor and agent guidance must not duplicate live ticket status in repository documentation.
+
+## 2026-07-14: Treat Priorities As Strategic Programmes, Not Resource Mirrors
+
+Decision: keep three resource stockpiles and four 100-point strategic programmes. Present the persisted Industry and Research weights as Development and Innovation compatibility fields, keep them visibly inactive until their programmes exist, retain Military and Expansion as the two active effects, and keep Population as a directly consumed resource without adding a fifth priority.
+
+Reasoning:
+
+- Four priorities and three resources are compatible when priorities represent empire-level strategic effort rather than one control per stockpile.
+- The former labels mixed resource names with strategic outcomes and made four equal sliders look equally functional even though only Military and Expansion affect simulation.
+- Hiding or disabling the stored Industry and Research weights would conceal or lock points that still participate in the required total of 100.
+- Flat Industry, Research, Population, or infrastructure output multipliers would add compounding growth and weaken the established influence-share economy before balance evidence supports that change.
+- Location-specific colonisation remains a deliberate order, so Population should not be spent automatically through a global priority.
+
+Consequences:
+
+- The dashboard labels Industry as Development and Research as Innovation, marks both inactive, marks Military and Expansion active, and explains the current limitation before a player edits the allocation.
+- Survey Projection remains a universal, non-consuming introductory unlock. Future doctrines use a hybrid model in which the player selects a project and Research is consumed on completion.
+- Development's accepted future direction is a bounded civilian-development or construction-capacity programme, not a flat resource multiplier or another ship class.
+- Raw system Industry, Research, and Population output remains strictly divided by effective presence for the first version.
+- The existing persistence and API field names remain unchanged for compatibility. Any mechanical activation or public-contract rename requires a separate bounded implementation and should begin at a deliberate Cycle or reseed boundary.
+- Expansion retains its current effect for compatibility; narrowing or rebalancing its broad presence effect requires guided play and mixed-strategy evidence through issue #131.

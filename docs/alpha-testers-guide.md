@@ -89,18 +89,18 @@ The **Held** count means systems where your empire has positive presence. It doe
 
 You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 
-The four priority weights must total 100. Change the values, check the displayed total, then select **Save priorities**. The new allocation affects the next tick.
+The four priority weights must total 100 and represent strategic effort rather than matching the three resource stockpiles. Change the values, then select **Save priorities**. Military and Expansion affect the next tick; Development and Innovation remain visible but inactive until their planned programmes are implemented.
 
 | Priority | Effect in the current build |
 | --- | --- |
-| Industry | Stored as part of your allocation, but has no separate spending effect yet. Industry income comes from influence. |
-| Research | Stored as part of your allocation, but has no separate spending effect yet. Research income comes from influence. |
+| Development | Stored through the existing Industry weight for compatibility, but has no direct effect yet. The accepted programme will eventually commit Industry to bounded civilian development or construction capacity rather than multiply raw income. |
+| Innovation | Stored through the existing Research weight for compatibility, but has no direct effect yet. Research income and the current Survey Projection threshold remain independent of this weight. |
 | Military | Spends that percentage of your industry stockpile on ships during each tick. Each ship costs 25 industry and takes three ticks to complete. |
 | Expansion | Adds the same percentage as a bonus to your effective presence. More presence increases your resource share and can help you qualify to colonise. |
 
-Research still matters even though its priority weight has no direct effect. At 200 research, your empire unlocks **Survey Projection**, which adds a further 10% effective-presence bonus.
+Research still matters even though Innovation has no direct effect. At 200 research, your empire unlocks **Survey Projection**, which adds a further 10% effective-presence bonus.
 
-For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Industry or Research reduces those two active effects, but does not yet create another direct benefit.
+For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Development or Innovation reduces those two active effects, but does not yet create another direct benefit.
 
 The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
 

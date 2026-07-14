@@ -1376,6 +1376,20 @@ dd {
     gap: 8px;
 }
 
+.priority-model-note {
+    margin: 0 0 4px;
+    padding: 8px 10px;
+    border-left: 2px solid rgba(223, 186, 104, 0.72);
+    background: rgba(223, 186, 104, 0.06);
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.priority-model-note strong {
+    color: var(--text);
+}
+
 .priority-channels {
     display: grid;
     align-content: start;
@@ -1384,20 +1398,48 @@ dd {
 
 .priority-channel {
     display: grid;
-    grid-template-columns: 140px minmax(0, 1fr) 36px;
+    grid-template-columns: 160px minmax(0, 1fr) 36px;
     align-items: center;
     gap: 8px;
     min-width: 0;
 }
 
 .priority-channel-name {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    display: grid;
+    align-items: start;
+    gap: 2px;
     min-width: 0;
     color: var(--muted);
     font-weight: 800;
+}
+
+.priority-channel-name > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     white-space: nowrap;
+}
+
+.priority-effect-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 1px 5px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.priority-effect-status--active {
+    color: var(--accent-strong);
+}
+
+.priority-effect-status--inactive {
+    color: var(--gold);
 }
 
 .priority-channel > output {

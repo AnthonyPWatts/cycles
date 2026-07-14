@@ -38,11 +38,11 @@ Q013 and Q019-Q022 still gate player-action timing, visibility, Chronicle treatm
 
 ### Visibility, Doctrine, Technology, And Intelligence
 
-Q023-Q046 gate discovery, sensor and estimate semantics, alliance visibility, research choices, logistics, detection, cloaking, and modifier scope. Survey Projection remains the single automatic threshold unlock, not a complete doctrine system.
+Q023-Q034 and Q038-Q046 gate discovery, sensor and estimate semantics, alliance visibility, selectable doctrine categories and branches, logistics, detection, cloaking, and modifier scope. Q035-Q037 retain Survey Projection as the non-consuming universal introduction and select a future player-chosen, Research-consuming project model.
 
 ### Combat, Comeback, And Colonisation
 
-Q047 onward in this area gates comeback mechanics, outpost capture/destruction/infrastructure/migration, and any mechanically unconquerable home-system rule. Current combat and colonisation may be exercised through [#131](https://github.com/AnthonyPWatts/cycles/issues/131), but rule or constant changes require repeatable evidence and any applicable product answer.
+Q050-Q052, Q054-Q056, and Q058 still gate comeback mechanics, home-system protection, ship classes, rally points, capacity limits, and cross-Cycle economic echoes. Q047-Q049 confirm the current Population-funded, fleet-supported outpost model; Q053 selects bounded Development/construction capacity as Industry's next role, and Q057 keeps raw output influence-share based. Current combat, colonisation, and priorities may be exercised through [#131](https://github.com/AnthonyPWatts/cycles/issues/131), but rule or constant changes require repeatable evidence and any applicable remaining product answer.
 
 ### Chronicle And Narrative
 

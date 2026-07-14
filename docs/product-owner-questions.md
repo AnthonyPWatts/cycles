@@ -64,6 +64,14 @@ Q129 was answered on 2026-07-14 by keeping maintained documentation aligned with
 
 Q130 was answered on 2026-07-14 by treating complete state export/import as sensitive operator/admin support tooling rather than a player-facing save/restore feature.
 
+Q035-Q037 were answered on 2026-07-14 by retaining Survey Projection as the universal introductory unlock, selecting a hybrid automatic-then-player-selected doctrine model, and spending Research when future selected projects complete while leaving the introductory unlock non-consuming.
+
+Q047-Q049 were answered on 2026-07-14 by confirming Population-funded, fleet-supported outposts as Population's first role without adding a Population priority.
+
+Q053 was answered on 2026-07-14 by selecting a bounded civilian-development and construction-capacity programme as Industry's next role rather than another ship class or a flat output multiplier.
+
+Q057 was answered on 2026-07-14 by keeping raw system resource generation strictly influence-share based for the first version; Population and infrastructure do not multiply system output.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -146,6 +154,19 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q118](https://github.com/AnthonyPWatts/cycles/issues/106) | Do not ban SQL Server-specific features. Permit Azure-SQL-compatible features inside `Cycles.Infrastructure.SqlServer` and SQL migrations when they materially improve correctness, consistency, measured performance, or operations. | Keep `Cycles.Core` and the store contract provider-neutral, document material portability implications, and reject provider-specific features added merely for convenience. The existing `sp_getapplock` transaction boundary is an accepted example. |
 | [Q119](https://github.com/AnthonyPWatts/cycles/issues/107) | Demote JSON now to explicit import/export only. API and Worker runtime hosts require explicit SQL configuration after the deployed cutover; normal local development uses the documented SQL Server container. | Keep JSON for versioned state transfer, validation, offline inspection, fixtures, and migration evidence, not as a silently selected runtime store. Implement import/export before using it for issue [#125](https://github.com/AnthonyPWatts/cycles/issues/125), then remove the fallback without breaking deployment. Implementation is tracked by [issue #126](https://github.com/AnthonyPWatts/cycles/issues/126). |
 
+## Accepted Q035-Q037, Q047-Q049, Q053, And Q057 Answers
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q035](https://github.com/AnthonyPWatts/cycles/issues/23) | Keep Survey Projection as the universal introductory doctrine unlock. | It remains the current automatic threshold effect and is not converted into a selectable branch. |
+| [Q036](https://github.com/AnthonyPWatts/cycles/issues/24) | Use a hybrid research model: the introductory unlock is automatic, while later doctrine projects are player-selected. | A selectable doctrine implementation remains gated by Q038-Q046 and separate bounded implementation work. |
+| [Q037](https://github.com/AnthonyPWatts/cycles/issues/25) | Do not consume Research for Survey Projection; consume it when a future selected doctrine project completes. | Research keeps its current compatibility behaviour until the first project system exists, then gains an ongoing sink. |
+| [Q047](https://github.com/AnthonyPWatts/cycles/issues/35) | Keep Population's first role as direct funding for colonisation. Do not add a Population priority merely to mirror the resource list. | Population remains a stockpile spent by deliberate, location-specific orders. |
+| [Q048](https://github.com/AnthonyPWatts/cycles/issues/36) | Keep colonisation as a Population-funded outpost that adds supported local presence rather than ownership or a raw extraction multiplier. | The implemented outpost model is an accepted product rule. Capture, destruction, migration, and infrastructure remain separate decisions. |
+| [Q049](https://github.com/AnthonyPWatts/cycles/issues/37) | Require an active supporting fleet for an outpost to provide presence. | Outposts do not create permanent fleetless control outside home systems. |
+| [Q053](https://github.com/AnthonyPWatts/cycles/issues/41) | Make Industry's next role a bounded civilian-development and construction-capacity programme, not another ship class or a flat resource-output multiplier. | The persisted Industry weight represents the future Development programme; implementation waits for a bounded design and balance evidence. |
+| [Q057](https://github.com/AnthonyPWatts/cycles/issues/45) | Keep raw system resource generation strictly influence-share based for the first version. | Population and infrastructure may affect bounded programmes later but do not multiply Industry, Research, or Population output. |
+
 ## Established Product Contracts
 
 These earlier answers remain in force unless a later accepted question explicitly supersedes them.
@@ -153,12 +174,14 @@ These earlier answers remain in force unless a later accepted question explicitl
 ### Strategy And Economy
 
 - Industry, Research, and Population are non-negative stockpiles.
-- Priority weights are percentages totalling 100 and affect the next tick.
+- Priority weights are percentages totalling 100 and allocate strategic effort across Development, Innovation, Military, and Expansion; they do not map one-to-one to the resource stockpiles.
+- The persisted Industry and Research weights remain compatibility names for Development and Innovation. They stay visible but explicitly inactive until their accepted programme models are implemented.
 - Automatic spending may leave resources reserved.
-- Industry has mixed future roles; the first spend converts Military allocation into ships.
+- Military converts Industry into ships. Development's accepted future role is bounded civilian development or construction capacity rather than a flat output multiplier.
 - The first ship costs 25 industry, takes three ticks, and joins the home fleet.
-- Research accumulates towards future unlocks; Survey Projection is the first automatic threshold effect.
-- Population's first role is colonisation.
+- Research accumulates towards Survey Projection without being consumed; later player-selected doctrine projects will consume Research when completed.
+- Population's first role is direct, fleet-supported colonisation. It does not have a priority slider.
+- Raw system resource generation remains strictly influence-share based; Population and infrastructure do not multiply it in the first version.
 - Uncapped within-Cycle growth is acceptable for the prototype because each Cycle resets, but comeback mechanics remain desirable.
 - Engineering may tune named constants from repeatable evidence without seeking approval for each number.
 
@@ -246,8 +269,8 @@ Do not expand these areas until the referenced questions have accepted answers:
 | --- | --- | --- |
 | Diplomacy | Q013 and Q019-Q022 | Timing, visibility, Chronicle treatment, and memory. Q014-Q018 settle consent, unilateral hostile or terminating actions, first-version Alliance mechanics, separate empire rankings, and allied influence coexistence; Q025 separately owns shared visibility. |
 | Visibility and intelligence | Q023-Q034 | Sensors, stale or estimated contacts, alliance sharing, public Chronicle detail, live ranking visibility. |
-| Doctrine and technology | Q035-Q046 | Unlock choice, research spending, modifier scope, logistics, detection, cloaking, reset behaviour. |
-| Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
+| Doctrine and technology | Q038-Q046 | First selectable categories, branch count, switching, visibility, modifier scope, logistics, detection, cloaking, and reset behaviour. Q035-Q037 settle the introductory unlock, hybrid choice model, and future Research spending boundary. |
+| Population, infrastructure, and comeback | Q050-Q052, Q054-Q056, and Q058 | Comeback rules, home-system protection, ship classes, rally points, capacity limits, and cross-Cycle economic echoes. Q047-Q049 confirm the current outpost model; Q053 and Q057 settle the next Industry direction and first-version output boundary. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
 

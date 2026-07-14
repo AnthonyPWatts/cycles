@@ -1278,7 +1278,7 @@ function tutorialSteps() {
             id: "priorities",
             view: "command",
             title: "Choose what this turn emphasises",
-            body: "Drag any priority slider and the other three rebalance to keep 100 points allocated. Military converts industry into ship construction; Expansion strengthens your projected influence. Save the new allocation when it is ready.",
+            body: "The 100 points represent strategic effort, not the three resource stockpiles. Development and Innovation are visible but inactive while their programmes are designed. Military converts Industry into ship construction; Expansion strengthens projected influence. Drag a slider and save the new allocation when it is ready.",
             target: () => document.querySelector("#prioritySection"),
             required: true,
             requirement: "Save the priority allocation to continue.",
