@@ -122,6 +122,7 @@ public sealed class DashboardAccessMiddlewareTests
         public GameState LoadOrCreate() => state;
         public T Update<T>(Func<GameState, T> update) => update(state);
         public TickResult RunTick(DateTimeOffset now) => throw new NotSupportedException();
+        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
         public void Replace(GameState replacement) => throw new NotSupportedException();
     }
 }

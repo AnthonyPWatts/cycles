@@ -1326,3 +1326,19 @@ Consequences:
 - The file store, fallback factory, and their redundant persistence test are removed.
 - CI runs CLI seed, tick, and show checks against its disposable SQL Server service.
 - JSON state is never mutated in place as live game state; explicit transfer output remains versioned, validated, sensitive operator data.
+
+## 2026-07-14: Evaluate Scheduled Due State Inside The Cycle Lock
+
+Decision: scheduled Workers ask the game-state store to run a tick only if it is due. The SQL implementation acquires the per-Cycle application lock before reading the latest completed-tick time and evaluating cadence.
+
+Reasoning:
+
+- A lock around tick execution serialises writers, but it does not by itself stop two Workers from both observing the same due state before either obtains the lock.
+- Re-evaluating due state after lock acquisition lets a waiting Worker observe the first Worker's completed tick and return without advancing again.
+- The same `TickSchedule` policy remains authoritative for in-memory tests and SQL-backed scheduling; database code only supplies the locked latest-completion value.
+
+Consequences:
+
+- Multiple Workers may poll the same active Cycle without turning one due observation into consecutive ticks.
+- Explicit operator or Development tick execution remains an intentional unconditional operation; only the scheduled Worker path applies cadence.
+- A singleton leader is not required solely for duplicate-due prevention. Health, shutdown, supported Cycle topology, operational signals, and deployment monitoring remain in issue #132.

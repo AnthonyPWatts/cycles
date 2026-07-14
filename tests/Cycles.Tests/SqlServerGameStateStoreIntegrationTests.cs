@@ -538,6 +538,46 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public async Task Store_run_tick_if_due_advances_cycle_once_across_concurrent_workers()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var firstStore = new SqlServerGameStateStore(connectionString);
+        var secondStore = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        cycle.StartAt = TestState.Now;
+        cycle.TickLengthMinutes = 60;
+        firstStore.Replace(state);
+
+        using var startBarrier = new Barrier(participantCount: 2);
+        var firstAttempt = RunConcurrently(firstStore);
+        var secondAttempt = RunConcurrently(secondStore);
+        var results = await Task.WhenAll(firstAttempt, secondAttempt);
+
+        Assert.Single(results, result => result is not null);
+        var updated = firstStore.LoadOrCreate();
+        Assert.Equal(1, updated.GetActiveCycle()?.CurrentTickNumber);
+        Assert.Single(
+            updated.TickLogs,
+            log => log.CycleId == cycle.CycleId && log.Status == TickLogStatus.Completed);
+
+        Task<TickResult?> RunConcurrently(SqlServerGameStateStore store) => Task.Run(() =>
+        {
+            if (!startBarrier.SignalAndWait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException("Concurrent tick attempts did not reach the start barrier.");
+            }
+
+            return store.RunTickIfDue(TestState.Now);
+        });
+    }
+
+    [Fact]
     public void Store_rolls_back_when_duplicate_running_tick_is_detected()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);

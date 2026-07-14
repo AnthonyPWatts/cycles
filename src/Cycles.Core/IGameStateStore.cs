@@ -10,5 +10,7 @@ public interface IGameStateStore
 
     TickResult RunTick(DateTimeOffset now);
 
+    TickResult? RunTickIfDue(DateTimeOffset now);
+
     void Replace(GameState state);
 }

@@ -119,6 +119,8 @@ public sealed class ApiAdminBoundaryTests
             return new TickEngine().RunTick(state, cycle.CycleId, now);
         }
 
+        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
+
         public void Replace(GameState replacement) => throw new NotSupportedException();
     }
 }

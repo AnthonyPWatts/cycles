@@ -70,10 +70,15 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     }
 
     public TickResult RunTick(DateTimeOffset now) =>
-        RunTick(cycleId: null, now);
+        RunTick(cycleId: null, now, requireDue: false)
+        ?? throw new InvalidOperationException("The requested tick was not executed.");
 
     public TickResult RunTick(Guid cycleId, DateTimeOffset now) =>
-        RunTick((Guid?)cycleId, now);
+        RunTick(cycleId, now, requireDue: false)
+        ?? throw new InvalidOperationException("The requested tick was not executed.");
+
+    public TickResult? RunTickIfDue(DateTimeOffset now) =>
+        RunTick(cycleId: null, now, requireDue: true);
 
     public void Replace(GameState state)
     {
@@ -86,7 +91,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         transaction.Commit();
     }
 
-    private TickResult RunTick(Guid? cycleId, DateTimeOffset now)
+    private TickResult? RunTick(Guid? cycleId, DateTimeOffset now, bool requireDue)
     {
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
@@ -100,21 +105,48 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
             state = LoadFocusedTickStateUnsafe(connection, transaction, activeCycleId.Value);
         }
-        else if (AnyCycleExistsUnsafe(connection, transaction))
-        {
-            throw new InvalidOperationException("No active cycle exists.");
-        }
         else
         {
             AcquireApplicationLock(connection, transaction);
-            state = _seedFactory();
-            createdState = true;
-            activeCycleId = state.GetActiveCycle()?.CycleId
-                ?? throw new InvalidOperationException("No active cycle exists.");
-            AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
+            activeCycleId = ReadActiveCycleIdUnsafe(connection, transaction);
+            if (activeCycleId.HasValue)
+            {
+                AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
+                state = LoadFocusedTickStateUnsafe(connection, transaction, activeCycleId.Value);
+            }
+            else if (AnyCycleExistsUnsafe(connection, transaction))
+            {
+                throw new InvalidOperationException("No active cycle exists.");
+            }
+            else
+            {
+                state = _seedFactory();
+                createdState = true;
+                activeCycleId = state.GetActiveCycle()?.CycleId
+                    ?? throw new InvalidOperationException("No active cycle exists.");
+                AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
+            }
         }
 
         StrategicPriorityPolicy.Normalize(state);
+        if (requireDue)
+        {
+            var cycle = state.GetActiveCycle();
+            var lastCompletedAt = createdState || cycle is null
+                ? null
+                : ReadLastCompletedTickAtUnsafe(connection, transaction, cycle.CycleId);
+            if (cycle is null || !TickSchedule.IsDue(cycle, lastCompletedAt, now))
+            {
+                if (createdState)
+                {
+                    SaveUnsafe(connection, transaction, state);
+                }
+
+                transaction.Commit();
+                return null;
+            }
+        }
+
         var result = new TickEngine().RunTick(state, activeCycleId.Value, now);
         if (createdState)
         {
@@ -1691,6 +1723,25 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
         var value = command.ExecuteScalar();
         return value is Guid cycleId ? cycleId : null;
+    }
+
+    private static DateTimeOffset? ReadLastCompletedTickAtUnsafe(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Guid cycleId)
+    {
+        using var command = CreateCommand(connection, transaction, """
+            SELECT MAX(CompletedAt)
+            FROM dbo.TickLogs
+            WHERE CycleID = @CycleID
+                AND Status = @Status
+                AND CompletedAt IS NOT NULL;
+            """);
+        AddGuid(command, "@CycleID", cycleId);
+        AddString(command, "@Status", TickLogStatus.Completed.ToString(), 32);
+
+        var value = command.ExecuteScalar();
+        return value is DateTimeOffset completedAt ? completedAt : null;
     }
 
     private static bool AnyCycleExistsUnsafe(SqlConnection connection, SqlTransaction transaction)

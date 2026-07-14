@@ -64,6 +64,24 @@ public sealed class TickScheduleTests
         Assert.Equal(1, state.GetActiveCycle()!.CurrentTickNumber);
     }
 
+    [Fact]
+    public void Worker_does_not_run_when_store_reports_tick_is_not_due()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var store = new InMemoryGameStateStore(state);
+        var worker = new TickWorker(
+            store,
+            Options.Create(new TickWorkerOptions()),
+            TimeProvider.System,
+            NullLogger<TickWorker>.Instance);
+
+        var ran = worker.RunIfDue(state.GetActiveCycle()!.StartAt.AddTicks(-1));
+
+        Assert.False(ran);
+        Assert.Equal(0, store.RunTickCalls);
+        Assert.Equal(0, state.GetActiveCycle()!.CurrentTickNumber);
+    }
+
     private sealed class InMemoryGameStateStore(GameState state) : IGameStateStore
     {
         public string Description => "In-memory worker state";
@@ -76,6 +94,9 @@ public sealed class TickScheduleTests
             RunTickCalls++;
             return new TickEngine().RunTick(state, state.GetActiveCycle()!.CycleId, now);
         }
+
+        public TickResult? RunTickIfDue(DateTimeOffset now) =>
+            TickSchedule.IsDue(state, now) ? RunTick(now) : null;
 
         public void Replace(GameState replacement) => throw new NotSupportedException();
     }

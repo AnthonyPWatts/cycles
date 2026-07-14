@@ -31,13 +31,12 @@ public sealed class TickWorker(
 
     public bool RunIfDue(DateTimeOffset now)
     {
-        var state = store.LoadOrCreate();
-        if (!TickSchedule.IsDue(state, now))
+        var result = store.RunTickIfDue(now);
+        if (result is null)
         {
             return false;
         }
 
-        var result = store.RunTick(now);
         if (result.Status == TickLogStatus.Completed)
         {
             logger.LogInformation("Completed scheduled tick {TickNumber} with {OrderCount} orders.", result.TickNumber, result.OrdersProcessed);
@@ -55,28 +54,4 @@ public sealed class TickWorkerOptions
 {
     public bool Enabled { get; set; } = true;
     public int PollIntervalSeconds { get; set; } = 30;
-}
-
-public static class TickSchedule
-{
-    public static bool IsDue(GameState state, DateTimeOffset now)
-    {
-        var cycle = state.GetActiveCycle();
-        if (cycle is null)
-        {
-            return false;
-        }
-
-        var lastCompletedAt = state.TickLogs
-            .Where(item => item.CycleId == cycle.CycleId
-                           && item.Status == TickLogStatus.Completed
-                           && item.CompletedAt.HasValue)
-            .Max(item => item.CompletedAt);
-        var cadence = TimeSpan.FromMinutes(Math.Max(1, cycle.TickLengthMinutes));
-        var nextDueAt = lastCompletedAt.HasValue
-            ? lastCompletedAt.Value + cadence
-            : cycle.StartAt;
-
-        return now >= nextDueAt;
-    }
 }

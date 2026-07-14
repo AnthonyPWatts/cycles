@@ -9,7 +9,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
 | Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated 24-system, four-empire development opening. | That scale is accepted for the next player test; 50- and 100-system dashboard behaviour is unverified and deliberately deferred. |
-| Tick execution | CLI tick runner, scheduled Worker, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, singleton leadership, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
+| Tick execution | CLI tick runner, scheduled Worker, SQL-atomic due execution, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, shutdown behaviour, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation are locked at zero until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
@@ -26,7 +26,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 - A default Cycle lasts 90 days with a 60-minute tick cadence.
 - The next simulation step is `CurrentTickNumber + 1`.
-- The Worker checks immediately on startup, polls every 30 seconds by default, and runs at most one due tick per poll.
+- The Worker checks immediately on startup and polls every 30 seconds by default. Each poll asks the store to run at most one due tick; SQL evaluates due state after acquiring the Cycle tick lock so concurrent Workers cannot turn one due observation into two ticks.
 - Tick work uses a focused transactional working copy. Mutable entities are isolated; append-only facts are rolled back if processing fails.
 - A failed tick records diagnostics, marks the Cycle `RecoveryRequired`, and blocks further ticks until an operator clears or retries it.
 - The CLI exposes `diagnostics`, `recovery`, `recovery details`, inspected `recovery abandon`, `recovery clear`, and `recovery retry`.
@@ -93,7 +93,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ### Persistence
 
-- `IGameStateStore` is shared by the CLI, API, and Worker.
+- `IGameStateStore` is shared by the CLI, API, and Worker. Its scheduled path distinguishes a tick that ran from a Cycle that was not due.
 - API, Worker, and gameplay/operator CLI commands use SQL Server exclusively. No executable file-backed game store or implicit store-selection factory remains.
 - Operator CLI export/import uses a versioned envelope, requires every persisted collection, rejects incompatible or partial input, validates identifiers/references/tick recovery/embedded JSON, protects overwrite/replacement with explicit confirmations, and reloads SQL after import. The bounded `state convert-runtime-file` bridge converts and validates the retired unversioned file-store shape without modifying its source.
 - Complete exports contain private state across all empires, identities, audit context, and hidden facts. They are sensitive operator/developer artefacts, not player save files or database backups.
@@ -101,7 +101,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - SQL Server migrations are plain ordered scripts under `database/migrations` and are tracked in `dbo.SchemaMigrations`.
 - Migration `014_lock_inactive_priorities` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
-- SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history.
+- SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history. Scheduled attempts read the latest completed-tick time and evaluate cadence while holding that lock.
 - SQL Server-specific locking and persistence details remain contained in `Cycles.Infrastructure.SqlServer`; `Cycles.Core` and `IGameStateStore` remain independent of database packages.
 
 ### Trusted Hosted Playground
@@ -143,6 +143,6 @@ The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_
 
 ## Current Boundaries
 
-The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception, DTO-only player API, external identity boundary, audited local admin authority, protected dashboard, explicit state-transfer tooling, mandatory SQL hosts, managed-SQL playground cutover, and isolated restore proof are implemented contracts. Before calling the build an alpha or inviting untrusted online players, it still needs production Worker leadership/health in #132, guided play evidence in #131, the security gate in #133, and the remaining deployment/monitoring work those issues expose.
+The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception, DTO-only player API, external identity boundary, audited local admin authority, protected dashboard, explicit state-transfer tooling, mandatory SQL hosts, managed-SQL playground cutover, isolated restore proof, and duplicate-safe scheduled due execution are implemented contracts. Before calling the build an alpha or inviting untrusted online players, it still needs the remaining Worker health, shutdown, scheduling-policy, and monitoring work in #132, guided play evidence in #131, and the security gate in #133.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). GitHub issues own actionable work; the [Backlog](backlog.md) curates sequence, decision gates, conditional risks, and links.
