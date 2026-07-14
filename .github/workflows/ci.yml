@@ -42,10 +42,6 @@ jobs:
           dotnet run --no-build --project src/Cycles.Cli -- tick $statePath
           dotnet run --no-build --project src/Cycles.Cli -- show $statePath
 
-      - name: Alpha gameplay smoke check
-        shell: pwsh
-        run: ./eng/alpha-gameplay-smoke.ps1 -NoBuild -StatePath (Join-Path $env:RUNNER_TEMP "cycles-ci-alpha-state.json")
-
   sql-server-integration:
     name: SQL Server integration
     runs-on: ubuntu-latest
@@ -88,3 +84,7 @@ jobs:
       - name: Test with SQL Server
         shell: pwsh
         run: ./eng/test.ps1
+
+      - name: Alpha gameplay smoke check
+        shell: pwsh
+        run: ./eng/alpha-gameplay-smoke.ps1 -ConfirmReplace

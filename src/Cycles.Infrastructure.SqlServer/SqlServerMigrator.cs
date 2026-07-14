@@ -133,7 +133,7 @@ public sealed class SqlServerMigrator
             using var connection = OpenTargetConnection();
             return true;
         }
-        catch (SqlException exception) when (exception.Number == 4060)
+        catch (SqlException exception) when (exception.Errors.Cast<SqlError>().Any(error => error.Number == 4060))
         {
             return false;
         }
