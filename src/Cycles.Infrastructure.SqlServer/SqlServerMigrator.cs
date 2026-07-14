@@ -128,15 +128,11 @@ public sealed class SqlServerMigrator
 
     private bool DatabaseExists()
     {
-        try
-        {
-            using var connection = OpenTargetConnection();
-            return true;
-        }
-        catch (SqlException exception) when (exception.Errors.Cast<SqlError>().Any(error => error.Number == 4060))
-        {
-            return false;
-        }
+        using var connection = OpenMasterConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT CONVERT(bit, CASE WHEN EXISTS (SELECT 1 FROM sys.databases WHERE name = @DatabaseName) THEN 1 ELSE 0 END);";
+        AddString(command, "@DatabaseName", _databaseName, 128);
+        return (bool)command.ExecuteScalar()!;
     }
 
     private void EnsureDatabaseExists()
