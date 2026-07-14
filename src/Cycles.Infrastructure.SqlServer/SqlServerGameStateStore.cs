@@ -158,6 +158,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         new()
         {
             Players = ReadRows(connection, transaction, "SELECT * FROM dbo.Players", ReadPlayer),
+            AdminRoleAuditRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.AdminRoleAuditRecords", ReadAdminRoleAuditRecord),
             Cycles = ReadRows(connection, transaction, "SELECT * FROM dbo.Cycles", ReadCycle),
             Systems = ReadRows(connection, transaction, "SELECT * FROM dbo.Systems", ReadSystem),
             Empires = ReadRows(connection, transaction, "SELECT * FROM dbo.Empires", ReadEmpire),
@@ -307,6 +308,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.Players)
         {
             UpsertPlayer(connection, transaction, item);
+        }
+
+        foreach (var item in state.AdminRoleAuditRecords)
+        {
+            UpsertAdminRoleAuditRecord(connection, transaction, item);
         }
 
         foreach (var item in state.Cycles)
@@ -499,10 +505,24 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Username = GetString(reader, "Username"),
         Email = GetString(reader, "Email"),
         PasswordHash = GetString(reader, "PasswordHash"),
+        ExternalIssuer = GetString(reader, "ExternalIssuer"),
+        ExternalSubject = GetString(reader, "ExternalSubject"),
         Role = GetEnum<PlayerRole>(reader, "Role"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
         LastLoginAt = GetNullableDateTimeOffset(reader, "LastLoginAt"),
         Status = GetEnum<PlayerStatus>(reader, "Status")
+    };
+
+    private static AdminRoleAuditRecord ReadAdminRoleAuditRecord(SqlDataReader reader) => new()
+    {
+        AdminRoleAuditRecordId = GetGuid(reader, "AdminRoleAuditRecordID"),
+        ActorPlayerId = GetNullableGuid(reader, "ActorPlayerID"),
+        TargetPlayerId = GetGuid(reader, "TargetPlayerID"),
+        Action = GetEnum<AdminRoleAuditAction>(reader, "Action"),
+        Reason = GetString(reader, "Reason"),
+        Source = GetString(reader, "Source"),
+        Severity = GetEnum<EventSeverity>(reader, "Severity"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
     private static Cycle ReadCycle(SqlDataReader reader) => new()
@@ -809,6 +829,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             SET Username = @Username,
                 Email = @Email,
                 PasswordHash = @PasswordHash,
+                ExternalIssuer = @ExternalIssuer,
+                ExternalSubject = @ExternalSubject,
                 Role = @Role,
                 CreatedAt = @CreatedAt,
                 LastLoginAt = @LastLoginAt,
@@ -817,8 +839,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, Role, CreatedAt, LastLoginAt, Status)
-            VALUES (@PlayerID, @Username, @Email, @PasswordHash, @Role, @CreatedAt, @LastLoginAt, @Status);
+            INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, ExternalIssuer, ExternalSubject, Role, CreatedAt, LastLoginAt, Status)
+            VALUES (@PlayerID, @Username, @Email, @PasswordHash, @ExternalIssuer, @ExternalSubject, @Role, @CreatedAt, @LastLoginAt, @Status);
             END;
             """, command =>
         {
@@ -826,10 +848,56 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Username", item.Username, 80);
             AddString(command, "@Email", item.Email, 256);
             AddString(command, "@PasswordHash", item.PasswordHash, 512);
+            AddString(command, "@ExternalIssuer", item.ExternalIssuer, 256);
+            AddString(command, "@ExternalSubject", item.ExternalSubject, 256);
             AddString(command, "@Role", item.Role.ToString(), 32);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
             AddNullableDateTimeOffset(command, "@LastLoginAt", item.LastLoginAt);
             AddString(command, "@Status", item.Status.ToString(), 32);
+        });
+
+    private static void UpsertAdminRoleAuditRecord(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        AdminRoleAuditRecord item) =>
+        Execute(connection, transaction, """
+            IF EXISTS (SELECT 1 FROM dbo.AdminRoleAuditRecords WHERE AdminRoleAuditRecordID = @AdminRoleAuditRecordID)
+            BEGIN
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.AdminRoleAuditRecords
+                    WHERE AdminRoleAuditRecordID = @AdminRoleAuditRecordID
+                      AND NOT
+                      (
+                          (ActorPlayerID = @ActorPlayerID OR (ActorPlayerID IS NULL AND @ActorPlayerID IS NULL))
+                          AND TargetPlayerID = @TargetPlayerID
+                          AND Action = @Action
+                          AND Reason = @Reason
+                          AND Source = @Source
+                          AND Severity = @Severity
+                          AND CreatedAt = @CreatedAt
+                      )
+                )
+                BEGIN
+                    THROW 51001, 'Admin role audit records are immutable.', 1;
+                END;
+            END
+            ELSE
+            BEGIN
+                INSERT INTO dbo.AdminRoleAuditRecords(AdminRoleAuditRecordID, ActorPlayerID, TargetPlayerID, Action, Reason, Source, Severity, CreatedAt)
+                VALUES (@AdminRoleAuditRecordID, @ActorPlayerID, @TargetPlayerID, @Action, @Reason, @Source, @Severity, @CreatedAt);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@AdminRoleAuditRecordID", item.AdminRoleAuditRecordId);
+            AddNullableGuid(command, "@ActorPlayerID", item.ActorPlayerId);
+            AddGuid(command, "@TargetPlayerID", item.TargetPlayerId);
+            AddString(command, "@Action", item.Action.ToString(), 32);
+            AddString(command, "@Reason", item.Reason, 1024);
+            AddString(command, "@Source", item.Source, 256);
+            AddString(command, "@Severity", item.Severity.ToString(), 32);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
     private static void UpsertCycle(SqlConnection connection, SqlTransaction transaction, Cycle item) =>
@@ -1535,6 +1603,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
+        DeleteMissingRows(connection, transaction, "dbo.AdminRoleAuditRecords", "AdminRoleAuditRecordID", state.AdminRoleAuditRecords.Select(item => item.AdminRoleAuditRecordId));
         DeleteMissingRows(connection, transaction, "dbo.AdmiralBattleHistories", "AdmiralBattleHistoryID", state.AdmiralBattleHistories.Select(item => item.AdmiralBattleHistoryId));
         DeleteMissingRows(connection, transaction, "dbo.DiplomaticRelationships", "DiplomaticRelationshipID", state.DiplomaticRelationships.Select(item => item.DiplomaticRelationshipId));
         DeleteMissingRows(connection, transaction, "dbo.ColonialOutposts", "ColonialOutpostID", state.ColonialOutposts.Select(item => item.ColonialOutpostId));

@@ -62,6 +62,31 @@ public sealed class BalanceScenarioTests
     }
 
     [Fact]
+    public void MixedScenarioLetsDifferentPoliciesCompeteInTheSameCycle()
+    {
+        var result = BalanceScenarioRunner.Run(new BalanceScenarioOptions(
+            TickCount: 48,
+            SystemCount: 16,
+            EmpireCount: 4,
+            Seed: 71421,
+            Strategy: BalanceScenarioStrategy.Mixed));
+
+        Assert.Equal(48, result.CompletedTicks);
+        Assert.Equal(
+            new[]
+            {
+                BalanceScenarioStrategy.Balanced,
+                BalanceScenarioStrategy.Military,
+                BalanceScenarioStrategy.Expansion,
+                BalanceScenarioStrategy.Cautious
+            },
+            result.Empires.Select(empire => empire.Strategy));
+        Assert.True(result.OrdersProcessed > 0);
+        Assert.True(result.Battles > 0);
+        Assert.True(result.ColonialOutposts > 0);
+    }
+
+    [Fact]
     public void ScenarioRejectsInvalidDimensions()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => BalanceScenarioRunner.Run(
@@ -100,6 +125,7 @@ public sealed class BalanceScenarioTests
         result.StopReason,
         result.Empires.Select(empire => new EmpireProjection(
             empire.EmpireName,
+            empire.Strategy,
             empire.ActiveShips,
             empire.ShipGrowthFactor,
             empire.Industry,
@@ -161,6 +187,7 @@ public sealed class BalanceScenarioTests
 
     private sealed record EmpireProjection(
         string EmpireName,
+        BalanceScenarioStrategy Strategy,
         int ActiveShips,
         decimal ShipGrowthFactor,
         decimal Industry,

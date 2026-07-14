@@ -41,17 +41,9 @@ public static class ApiAdminEndpoints
         {
             return Results.Ok(action());
         }
-        catch (ApiUnauthorizedException ex)
+        catch (Exception ex) when (ApiErrorResponses.IsHandled(ex))
         {
-            return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status401Unauthorized);
-        }
-        catch (ApiForbiddenException ex)
-        {
-            return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status403Forbidden);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Results.BadRequest(new ErrorResponse(ex.Message));
+            return ApiErrorResponses.ToResult(ex);
         }
     }
 }

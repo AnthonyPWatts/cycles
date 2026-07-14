@@ -10,6 +10,11 @@ try
         return RunDatabaseCommand(args);
     }
 
+    if (command == "state")
+    {
+        return RunStateTransferCommand(args);
+    }
+
     if (command == "recovery")
     {
         return RunRecoveryCommand(args);
@@ -40,7 +45,7 @@ try
             Show(store);
             break;
         case "diagnostics":
-            ShowDiagnostics(store);
+            ShowDiagnostics(store, GetRunningTickSuspicionThreshold());
             break;
         case "move":
             SubmitMove(args, store);
@@ -66,13 +71,20 @@ return 0;
 
 static void Seed(string[] args, IGameStateStore store)
 {
-    var useCuratedColdStart = args.Length <= 2;
+    if (store is SqlServerGameStateStore
+        && !args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("Seeding replaces all Cycles state in the SQL database. Re-run with --confirm-replace against the intended local or disposable target.");
+    }
+
+    var generationArgs = args.Where(argument => !argument.StartsWith("--", StringComparison.Ordinal)).ToArray();
+    var useCuratedColdStart = generationArgs.Length <= 2;
     var state = useCuratedColdStart
         ? GameSeeder.CreateCuratedColdStart()
         : GameSeeder.CreateDefault(
-            ParseOptionalInt(args, 2, 24),
-            ParseOptionalInt(args, 3, 4),
-            ParseOptionalInt(args, 4, 71421));
+            ParseOptionalInt(generationArgs, 2, 24),
+            ParseOptionalInt(generationArgs, 3, 4),
+            ParseOptionalInt(generationArgs, 4, 71421));
 
     store.Replace(state);
     Console.WriteLine($"Seeded {store.Description}");
@@ -220,9 +232,12 @@ static void Show(IGameStateStore store)
     }
 }
 
-static void ShowDiagnostics(IGameStateStore store)
+static void ShowDiagnostics(IGameStateStore store, TimeSpan runningTickSuspicionThreshold)
 {
-    var diagnostics = OperationalDiagnosticsService.Create(store.LoadOrCreate(), DateTimeOffset.UtcNow);
+    var diagnostics = OperationalDiagnosticsService.Create(
+        store.LoadOrCreate(),
+        DateTimeOffset.UtcNow,
+        runningTickSuspicionThreshold);
 
     Console.WriteLine($"Store: {store.Description}");
     if (!diagnostics.CycleId.HasValue)
@@ -237,6 +252,30 @@ static void ShowDiagnostics(IGameStateStore store)
     Console.WriteLine($"Tick logs: {diagnostics.CompletedTickLogs} completed; {diagnostics.FailedTickLogs} failed; {diagnostics.RunningTickLogs} running");
     Console.WriteLine($"Orders: {diagnostics.PendingOrders} pending; {diagnostics.OrdersDueNextTick} due by next tick");
     Console.WriteLine($"Construction: {diagnostics.QueuedShipConstructions} queued; {diagnostics.ConstructionsDueNextTick} due by next tick");
+    Console.WriteLine($"Running-tick suspicion threshold: {diagnostics.RunningTickSuspicionThreshold.TotalMinutes:0.##} minute(s) (diagnostic only)");
+    if (diagnostics.SuspiciousRunningTicks.Count > 0)
+    {
+        Console.WriteLine("Suspicious persisted running attempts");
+        foreach (var attempt in diagnostics.SuspiciousRunningTicks)
+        {
+            Console.WriteLine($"- {attempt.CycleName} ({attempt.CycleId}) tick {attempt.TickNumber}; attempt {attempt.TickLogId}");
+            Console.WriteLine($"  Started: {attempt.StartedAt:u}; age: {FormatDuration(attempt.Elapsed)}");
+            if (attempt.DiagnosticContext is not null)
+            {
+                Console.WriteLine($"  Context: {attempt.DiagnosticContext}");
+            }
+        }
+        Console.WriteLine("Inspection required: age alone never fails, retries, repairs, or cancels an attempt. Use recovery abandon only after confirming the attempt is abandoned.");
+    }
+
+    if (diagnostics.RecentFinishedTicks.Count > 0)
+    {
+        Console.WriteLine("Recent authoritative attempt durations");
+        foreach (var attempt in diagnostics.RecentFinishedTicks)
+        {
+            Console.WriteLine($"- {attempt.CycleName} tick {attempt.TickNumber}; attempt {attempt.TickLogId}; {attempt.Status}; {FormatDuration(attempt.Elapsed)}");
+        }
+    }
     if (diagnostics.RequiresRecovery)
     {
         Console.WriteLine("Action required: inspect recovery details, repair the underlying state, then clear or retry recovery with an operator and reason.");
@@ -352,10 +391,10 @@ static int RunBalanceScenario(string[] args)
         Console.WriteLine($"Partial run: {result.StopReason}");
     }
     Console.WriteLine();
-    Console.WriteLine("Empire | Ships | Growth | Map | Colonies | Industry | Research | Population | W-L");
+    Console.WriteLine("Empire | Strategy | Ships | Growth | Map | Colonies | Industry | Research | Population | W-L");
     foreach (var empire in result.Empires)
     {
-        Console.WriteLine($"{empire.EmpireName} | {empire.ActiveShips} | {empire.ShipGrowthFactor:0.00}x | {empire.MapControlPercent:0.00}% | {empire.ColonialOutposts} | {empire.Industry:0.00} | {empire.Research:0.00} | {empire.Population:0.00} | {empire.BattlesWon}-{empire.BattlesLost}");
+        Console.WriteLine($"{empire.EmpireName} | {empire.Strategy} | {empire.ActiveShips} | {empire.ShipGrowthFactor:0.00}x | {empire.MapControlPercent:0.00}% | {empire.ColonialOutposts} | {empire.Industry:0.00} | {empire.Research:0.00} | {empire.Population:0.00} | {empire.BattlesWon}-{empire.BattlesLost}");
     }
 
     return 0;
@@ -368,7 +407,8 @@ static BalanceScenarioStrategy ParseBalanceStrategy(string? value) =>
         "military" => BalanceScenarioStrategy.Military,
         "expansion" => BalanceScenarioStrategy.Expansion,
         "cautious" => BalanceScenarioStrategy.Cautious,
-        _ => throw new ArgumentException("Balance strategy must be balanced, military, expansion, or cautious.")
+        "mixed" => BalanceScenarioStrategy.Mixed,
+        _ => throw new ArgumentException("Balance strategy must be balanced, military, expansion, cautious, or mixed.")
     };
 
 static string FormatRange(IEnumerable<decimal> values)
@@ -424,6 +464,26 @@ static int RunRecoveryCommand(string[] args)
 
                 Console.WriteLine($"Retry tick {result.TickNumber}: {result.Status}");
                 Console.WriteLine($"Orders: {result.OrdersProcessed}; events: {result.EventsCreated}; battles: {result.BattlesCreated}; Chronicle entries: {result.ChronicleEntriesCreated}");
+                return 0;
+            }
+
+        case "abandon":
+            {
+                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var tickLogId = ParseRequiredGuid(args, 3, "tick attempt id");
+                var operatorName = ParseRequiredOption(args, "--operator");
+                var reason = ParseRequiredOption(args, "--reason");
+                var auditEvent = store.Update(state => RecoveryService.MarkTickAbandoned(
+                    state,
+                    tickLogId,
+                    operatorName,
+                    reason,
+                    DateTimeOffset.UtcNow,
+                    GetRunningTickSuspicionThreshold()));
+
+                Console.WriteLine($"Tick attempt {tickLogId} was marked abandoned.");
+                Console.WriteLine($"Audit event: {auditEvent.EventId}");
+                Console.WriteLine("The Cycle remains recovery-required. Repair the cause, then use recovery clear or recovery retry.");
                 return 0;
             }
 
@@ -577,6 +637,110 @@ static int RunDatabaseCommand(string[] args)
     }
 }
 
+static int RunStateTransferCommand(string[] args)
+{
+    var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
+    switch (subcommand)
+    {
+        case "validate":
+        {
+            var inputPath = Path.GetFullPath(ParseRequiredArgument(args, 2, "input JSON path"));
+            using var input = File.OpenRead(inputPath);
+            var document = GameStateTransfer.Read(input);
+            Console.WriteLine($"Valid state transfer format {document.FormatVersion}: {GameStateTransfer.CountRecords(document.State)} record(s).");
+            Console.WriteLine($"Exported at: {document.ExportedAt:u}");
+            return 0;
+        }
+
+        case "export":
+        {
+            var connectionString = ParseRequiredSqlServerConnectionString(args, 2);
+            var outputPath = Path.GetFullPath(ParseRequiredArgument(args, 3, "output JSON path"));
+            if (File.Exists(outputPath) && !args.Contains("--confirm-overwrite", StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Output file '{outputPath}' already exists. Re-run with --confirm-overwrite to replace it.");
+            }
+
+            EnsureDatabaseSchemaCurrent(connectionString);
+            var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+            var state = store.LoadOrCreate();
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var tempPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    GameStateTransfer.Write(output, state, DateTimeOffset.UtcNow);
+                }
+
+                File.Move(tempPath, outputPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+
+            Console.WriteLine($"Exported {GameStateTransfer.CountRecords(state)} record(s) from {store.Description} to '{outputPath}'.");
+            Console.WriteLine("Sensitive export: restrict access, transfer securely, retain only as required, then delete it securely. This is not a database backup.");
+            return 0;
+        }
+
+        case "import":
+        {
+            if (!args.Contains("--confirm-import", StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("State import replaces authoritative SQL state. Review the target and re-run with --confirm-import.");
+            }
+
+            var inputPath = Path.GetFullPath(ParseRequiredArgument(args, 2, "input JSON path"));
+            using var input = File.OpenRead(inputPath);
+            var document = GameStateTransfer.Read(input);
+            var connectionString = ParseRequiredSqlServerConnectionString(args, 3);
+            new SqlServerMigrator(connectionString).Migrate();
+            var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+            var existing = store.LoadOrCreate();
+            var existingRecordCount = GameStateTransfer.CountRecords(existing);
+            if (existingRecordCount > 0 && !args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Target {store.Description} contains {existingRecordCount} state record(s). Re-run with --confirm-replace only after confirming they may be destroyed.");
+            }
+
+            store.Replace(document.State);
+            var reloaded = store.LoadOrCreate();
+            var reloadedValidation = GameStateTransfer.Validate(reloaded);
+            if (!reloadedValidation.IsValid || GameStateTransfer.CountRecords(reloaded) != GameStateTransfer.CountRecords(document.State))
+            {
+                throw new InvalidOperationException("SQL state did not pass post-import validation. Treat the target as requiring operator investigation.");
+            }
+
+            Console.WriteLine($"Imported and verified {GameStateTransfer.CountRecords(reloaded)} record(s) into {store.Description}.");
+            Console.WriteLine("The input contains private cross-empire and identity data; retain or delete it according to the operator handling policy.");
+            return 0;
+        }
+
+        default:
+            PrintUsage();
+            return 2;
+    }
+}
+
+static void EnsureDatabaseSchemaCurrent(string connectionString)
+{
+    var status = new SqlServerMigrator(connectionString).GetStatus();
+    if (!status.DatabaseExists || status.PendingMigrations.Count > 0)
+    {
+        throw new InvalidOperationException("The source SQL database is missing or has pending migrations. Run 'db migrate' before exporting.");
+    }
+}
+
 static string ParseRequiredSqlServerConnectionString(string[] args, int index)
 {
     if (args.Length <= index || string.IsNullOrWhiteSpace(args[index]))
@@ -611,7 +775,7 @@ static string ParseRequiredOption(string[] args, string optionName)
 }
 
 static bool IsRecoverySubcommand(string? value) =>
-    value is "details" or "clear" or "retry";
+    value is "details" or "clear" or "retry" or "abandon";
 
 static Cycle GetDisplayCycle(GameState state) =>
     state.GetActiveCycle()
@@ -647,15 +811,37 @@ static string FormatDiagnostic(string diagnosticLog, bool showDetails) =>
             .FirstOrDefault()
             ?? diagnosticLog.Trim();
 
+static TimeSpan GetRunningTickSuspicionThreshold()
+{
+    const string variableName = "CYCLES_RUNNING_TICK_SUSPICION_MINUTES";
+    var configured = Environment.GetEnvironmentVariable(variableName);
+    if (string.IsNullOrWhiteSpace(configured))
+    {
+        return OperationalDiagnosticsService.DefaultRunningTickSuspicionThreshold;
+    }
+
+    if (!double.TryParse(configured, out var minutes) || minutes <= 0)
+    {
+        throw new InvalidOperationException($"{variableName} must be a positive number of minutes.");
+    }
+
+    return TimeSpan.FromMinutes(minutes);
+}
+
+static string FormatDuration(TimeSpan duration) =>
+    duration.TotalMinutes >= 1
+        ? $"{duration.TotalMinutes:0.##} minute(s)"
+        : $"{duration.TotalSeconds:0.##} second(s)";
+
 static void PrintUsage()
 {
     Console.WriteLine("Cycles CLI");
     Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath|sqlserver:connectionString] [systemCount] [empireCount] [seed] [--confirm-replace]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- diagnostics [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed] [balanced|military|expansion|cautious]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed] [balanced|military|expansion|cautious|mixed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance compare [tickCount] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next [statePath] [completedCycleId] [seed]");
@@ -663,6 +849,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details [statePath]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <statePath> <cycleId> --operator <name> --reason <reason>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery retry <statePath> <cycleId> --operator <name> --reason <reason>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery abandon <statePath> <tickAttemptId> --operator <name> --reason <reason>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");
@@ -670,6 +857,9 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db migrate <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db profile <sqlserver:connectionString> [systemCount] [empireCount] [historyTicks] [iterations] [seed] --confirm-replace");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state export <sqlserver:connectionString> <output.json> [--confirm-overwrite]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state validate <input.json>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state import <input.json> <sqlserver:connectionString> --confirm-import [--confirm-replace]");
     Console.WriteLine();
     Console.WriteLine("Use sqlserver:<connectionString> instead of a state path to read and write SQL Server state.");
 }

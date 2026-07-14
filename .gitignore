@@ -8,3 +8,4 @@ _codex_*.json
 _codex_*.py
 src/Cycles.Api/_codex_*.json
 output/
+.gstack/

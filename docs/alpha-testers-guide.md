@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 13 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 14 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -44,12 +44,14 @@ The guide takes you through this sequence:
 1. Read the resource cards and what each stockpile pays for.
 2. Drag any priority slider. The other three rebalance automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
 3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
-4. In **Fleets**, select **Aurelian Home Guard**. The guide opens **Move**; choose **Nadir Crossing**, then select **Queue move**.
-5. Select **Pale Harbour Survey**. The guide opens **Colonise**; select **Queue outpost**.
-6. Select **Treaty Gate Vanguard**. The guide opens **Attack**; choose the **Khepri Mandate**, then select **Queue attack**.
-7. Check that the order queue contains the three commitments.
-8. Select **Advance turn**.
-9. Read the factual results in **Events**, then open the **Chronicle** account of Treaty Gate.
+4. Read the visibility note: routes are always known, while exact remote facts require an active fleet in the system.
+5. In **Fleets**, select **Aurelian Home Guard**. The guide opens **Move**; choose **Nadir Crossing**, then select **Queue move**.
+6. Select **Pale Harbour Survey**. The guide opens **Colonise**; select **Queue outpost**.
+7. Select **Treaty Gate Vanguard**. The guide opens **Attack**; choose the **Khepri Mandate**, then select **Queue attack**.
+8. Check that the order queue contains the three commitments.
+9. Select **Advance turn**.
+10. Read the factual results in **Events**, then open the selective **Chronicle** account of Treaty Gate.
+11. Read how the current tick fits into the operator-driven Cycle end, final ranking, and successor boundary.
 
 All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The battle is deliberately staged at a sufficiently important system to create an immediate Chronicle entry without scripting its outcome.
 
@@ -85,7 +87,7 @@ The map legend marks:
 
 The **Held** count means systems where your empire has positive presence. It does not mean permanent ownership.
 
-You can see the full galaxy structure, but exact presence, local fleets, events, and Chronicle entries depend on fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
+You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 
 The four priority weights must total 100. Change the values, check the displayed total, then select **Save priorities**. The new allocation affects the next tick.
 

@@ -88,4 +88,67 @@ public sealed class OperationalDiagnosticsTests
         Assert.Null(result.NextDueAt);
         Assert.False(result.IsTickDue);
     }
+
+    [Fact]
+    public void OldRunningAttemptIsReportedWithoutChangingState()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var tickLog = new TickLog
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now.AddMinutes(-6),
+            Status = TickLogStatus.Running,
+            DiagnosticLog = "worker host app-01\nprivate detail not shown in the summary"
+        };
+        state.TickLogs.Add(tickLog);
+
+        var result = OperationalDiagnosticsService.Create(state, TestState.Now);
+
+        var suspicious = Assert.Single(result.SuspiciousRunningTicks);
+        Assert.Equal(tickLog.TickLogId, suspicious.TickLogId);
+        Assert.Equal(TimeSpan.FromMinutes(6), suspicious.Elapsed);
+        Assert.Equal("worker host app-01", suspicious.DiagnosticContext);
+        Assert.True(suspicious.IsSuspicious);
+        Assert.Equal(TickLogStatus.Running, tickLog.Status);
+        Assert.Null(tickLog.CompletedAt);
+        Assert.Equal(CycleStatus.Active, cycle.Status);
+    }
+
+    [Fact]
+    public void RunningAttemptBelowConfiguredThresholdIsNotSuspicious()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = state.GetActiveCycle()!.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now.AddMinutes(-6),
+            Status = TickLogStatus.Running
+        });
+
+        var result = OperationalDiagnosticsService.Create(state, TestState.Now, TimeSpan.FromMinutes(10));
+
+        Assert.Equal(TimeSpan.FromMinutes(10), result.RunningTickSuspicionThreshold);
+        Assert.Empty(result.SuspiciousRunningTicks);
+    }
+
+    [Fact]
+    public void FinishedAttemptReportsEndToEndDuration()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        state.TickLogs.Add(new TickLog
+        {
+            CycleId = state.GetActiveCycle()!.CycleId,
+            TickNumber = 1,
+            StartedAt = TestState.Now.AddSeconds(-12),
+            CompletedAt = TestState.Now.AddSeconds(-2),
+            Status = TickLogStatus.Completed
+        });
+
+        var result = OperationalDiagnosticsService.Create(state, TestState.Now);
+
+        Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(result.RecentFinishedTicks).Elapsed);
+    }
 }

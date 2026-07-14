@@ -10,6 +10,15 @@ public sealed class GameStateRecordCounterTests
         var state = TestState.CreateSingleEmpireState();
         var cycle = state.GetActiveCycle()!;
         var empire = state.Empires.Single();
+        var player = state.Players.Single();
+        state.AdminRoleAuditRecords.Add(new AdminRoleAuditRecord
+        {
+            TargetPlayerId = player.PlayerId,
+            Action = AdminRoleAuditAction.Bootstrap,
+            Reason = "Test bootstrap.",
+            Source = "test",
+            CreatedAt = TestState.Now
+        });
         state.DiplomaticRelationships.Add(new DiplomaticRelationship
         {
             CycleId = cycle.CycleId,
@@ -20,6 +29,7 @@ public sealed class GameStateRecordCounterTests
         });
 
         var expected = state.Players.Count
+                       + state.AdminRoleAuditRecords.Count
                        + state.Cycles.Count
                        + state.Systems.Count
                        + state.SystemLinks.Count

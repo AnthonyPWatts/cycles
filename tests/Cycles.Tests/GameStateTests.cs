@@ -15,6 +15,16 @@ public sealed class GameStateTests
         var defender = state.Empires[1];
         var admiral = state.Admirals.Single(item => item.EmpireId == attacker.EmpireId);
         state.Players[0].Role = PlayerRole.Admin;
+        state.Players[0].ExternalIssuer = "https://identity.example";
+        state.Players[0].ExternalSubject = "subject-1";
+        state.AdminRoleAuditRecords.Add(new AdminRoleAuditRecord
+        {
+            TargetPlayerId = state.Players[0].PlayerId,
+            Action = AdminRoleAuditAction.Bootstrap,
+            Reason = "Configured bootstrap.",
+            Source = "test",
+            CreatedAt = TestState.Now
+        });
         var battle = new BattleRecord
         {
             CycleId = cycle.CycleId,
@@ -146,6 +156,10 @@ public sealed class GameStateTests
 
         Assert.Equal(state.Players.Count, clone.Players.Count);
         Assert.Equal(PlayerRole.Admin, clone.Players[0].Role);
+        Assert.Equal("https://identity.example", clone.Players[0].ExternalIssuer);
+        Assert.Equal("subject-1", clone.Players[0].ExternalSubject);
+        Assert.Single(clone.AdminRoleAuditRecords);
+        Assert.NotSame(state.AdminRoleAuditRecords[0], clone.AdminRoleAuditRecords[0]);
         Assert.Equal(state.Cycles.Count, clone.Cycles.Count);
         Assert.Equal(state.Empires.Count, clone.Empires.Count);
         Assert.Equal(state.EmpireResources.Count, clone.EmpireResources.Count);

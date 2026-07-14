@@ -23,6 +23,19 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var system = state.Systems.First(system => system.CycleId == cycle.CycleId);
         var attacker = state.Empires[0];
         var defender = state.Empires[1];
+        var adminPlayer = state.Players.Single(player => player.PlayerId == attacker.PlayerId);
+        adminPlayer.ExternalIssuer = "https://identity.example";
+        adminPlayer.ExternalSubject = "integration-admin";
+        adminPlayer.Role = PlayerRole.Admin;
+        var adminAudit = new AdminRoleAuditRecord
+        {
+            TargetPlayerId = adminPlayer.PlayerId,
+            Action = AdminRoleAuditAction.Bootstrap,
+            Reason = "SQL integration bootstrap.",
+            Source = "integration-test",
+            CreatedAt = TestState.Now
+        };
+        state.AdminRoleAuditRecords.Add(adminAudit);
         var battle = new BattleRecord
         {
             CycleId = cycle.CycleId,
@@ -80,6 +93,13 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(2, loaded.Empires.Count);
         Assert.Equal(2, loaded.Admirals.Count);
         Assert.All(loaded.Fleets, fleet => Assert.NotNull(fleet.AdmiralId));
+        var loadedAdmin = loaded.Players.Single(player => player.PlayerId == adminPlayer.PlayerId);
+        Assert.Equal("https://identity.example", loadedAdmin.ExternalIssuer);
+        Assert.Equal("integration-admin", loadedAdmin.ExternalSubject);
+        Assert.Equal(PlayerRole.Admin, loadedAdmin.Role);
+        var loadedAudit = Assert.Single(loaded.AdminRoleAuditRecords, item => item.AdminRoleAuditRecordId == adminAudit.AdminRoleAuditRecordId);
+        Assert.Equal(AdminRoleAuditAction.Bootstrap, loadedAudit.Action);
+        Assert.Equal("integration-test", loadedAudit.Source);
         var loadedChronicle = Assert.Single(loaded.ChronicleEntries, item => item.ChronicleEntryId == chronicle.ChronicleEntryId);
         Assert.Equal(NarrativeGenerationStatus.Failed, loadedChronicle.NarrativeStatus);
         Assert.Equal("""{"source":"integration"}""", loadedChronicle.NarrativeContextJson);
@@ -142,6 +162,38 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(1, processedOrder.ProcessedTick);
         Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
         Assert.Single(updated.EmpireMetrics, item => item.CycleId == cycle.CycleId && item.TickNumber == 1);
+    }
+
+    [Fact]
+    public void Store_refuses_to_mutate_an_existing_admin_role_audit_record_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var audit = new AdminRoleAuditRecord
+        {
+            TargetPlayerId = state.Players.Single().PlayerId,
+            Action = AdminRoleAuditAction.Granted,
+            Reason = "Original reason.",
+            Source = "integration-test",
+            CreatedAt = TestState.Now
+        };
+        state.AdminRoleAuditRecords.Add(audit);
+        store.Replace(state);
+
+        Assert.Throws<SqlException>(() => store.Update(current =>
+        {
+            current.AdminRoleAuditRecords.Single().Reason = "Rewritten reason.";
+            return true;
+        }));
+
+        var reloaded = store.LoadOrCreate();
+        Assert.Equal("Original reason.", reloaded.AdminRoleAuditRecords.Single().Reason);
     }
 
     [Fact]

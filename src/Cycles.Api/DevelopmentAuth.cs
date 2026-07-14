@@ -1,5 +1,6 @@
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 public static class DevelopmentAuth
 {
@@ -45,7 +46,7 @@ public static class DevelopmentAuth
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
-            ?? throw new InvalidOperationException("Fleet does not exist in the active cycle.");
+            ?? throw new ApiNotFoundException("Fleet does not exist in the active cycle.");
 
         if (!actor.IsAdmin && fleet.EmpireId != RequirePlayerEmpireId(actor))
         {
@@ -82,7 +83,7 @@ public static class DevelopmentAuth
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
         var order = state.FleetOrders.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetOrderId == fleetOrderId)
-            ?? throw new InvalidOperationException("Fleet order does not exist in the active cycle.");
+            ?? throw new ApiNotFoundException("Fleet order does not exist in the active cycle.");
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == order.FleetId)
             ?? throw new InvalidOperationException("Fleet for order does not exist in the active cycle.");
 
@@ -111,6 +112,11 @@ public static class DevelopmentAuth
 
     private static Guid? ReadPlayerId(HttpContext httpContext)
     {
+        if (Guid.TryParse(httpContext.User.FindFirstValue(CyclesClaimTypes.PlayerId), out var authenticatedPlayerId))
+        {
+            return authenticatedPlayerId;
+        }
+
         if (httpContext.Request.Headers.TryGetValue(HeaderName, out var headerValues)
             && Guid.TryParse(headerValues.FirstOrDefault(), out var headerPlayerId))
         {
@@ -145,7 +151,7 @@ public static class DevelopmentAuth
     {
         if (!state.Empires.Any(item => item.CycleId == cycleId && item.EmpireId == empireId))
         {
-            throw new InvalidOperationException("Empire does not exist in the active cycle.");
+            throw new ApiNotFoundException("Empire does not exist in the active cycle.");
         }
     }
 }

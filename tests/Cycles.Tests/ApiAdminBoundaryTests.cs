@@ -96,7 +96,7 @@ public sealed class ApiAdminBoundaryTests
         services.AddLogging();
         services.ConfigureHttpJsonOptions(options =>
         {
-            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            ApiJson.Configure(options.SerializerOptions);
         });
         return services.BuildServiceProvider();
     }

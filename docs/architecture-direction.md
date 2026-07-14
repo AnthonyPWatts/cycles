@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 Cycles is server-authoritative and simulation-first. Clients submit intentions and read permitted state. A tick host decides outcomes, persistence stores authoritative facts, and narrative systems interpret those facts only after the simulation has resolved them.
 
@@ -21,18 +21,19 @@ Cycles is server-authoritative and simulation-first. Clients submit intentions a
 Browser
    |
    v
-Cycles.Api ---- development tick capability
+Cycles.Api ---- OIDC/cookie identity outside Development
+   |            Cycles-owned admission, empire, and admin authority
    |                         |
    |                         v
    +---- IGameStateStore.RunTick <---- Cycles.Worker / Cycles.Cli
                   |
-          +-------+--------+
-          |                |
-          v                v
-     JSON store       SQL Server store
-                           |
-                           v
-              focused Cycle tick workspace
+                  v
+            SQL Server store
+                  |
+                  v
+       focused Cycle tick workspace
+
+Operator CLI <---- versioned validated JSON ----> SQL Server
 
 Cycles.Core owns simulation rules used by every host and store path.
 Events, battles, Chronicle entries, metrics, and Cycle history are outputs.
@@ -50,17 +51,19 @@ It must not depend on database providers, HTTP concerns, authentication provider
 
 ### `Cycles.Api`
 
-Owns HTTP contracts, development authentication and authorisation, visibility filtering, dashboard hosting, and player intention submission.
+Owns HTTP contracts, Development authentication, external OIDC/cookie authentication, local player/admin authorisation, visibility filtering, dashboard hosting, and player intention submission.
 
 Ordinary order endpoints must not run ticks. The protected tick endpoint invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API. It is available to admins in every environment and, temporarily, to any authenticated player in Development. That capability does not promote the actor or bypass normal visibility and empire ownership.
 
-Player API contracts use camelCase property names and camelCase string enums; numeric enum values are not part of the public contract. Handled failures retain meaningful HTTP status and expose stable machine-readable codes alongside safe human-readable messages, with optional validation detail and trace correlation. Clients must not branch on message wording. Issue #128 replaces the current message-only response and locks these conventions before external clients exist.
+Player API contracts use camelCase property names and camelCase string enums; numeric enum values are rejected. Handled failures retain meaningful HTTP status and expose stable machine-readable codes alongside safe human-readable messages, with optional validation detail and trace correlation. Clients must not branch on message wording.
+
+Outside Development, OIDC proves an external issuer/subject identity and a secure application cookie restores the session. Exact configured identities govern admission; Cycles-owned player records govern empire and Admin authority. Provider role/group/email/display claims cannot elevate authority. `/` and `/health` remain public in the normal route contract, while `/app.html` challenges and verifies admission. Every game API independently resolves the local actor.
 
 The dashboard's next-test scale is the curated 24-system, four-empire galaxy. The current SVG map and bounded client-side lists do not promise support for 50 or 100 systems. If gameplay evidence selects a larger target, revisit navigation, clustering, filtering, payload shape, and rendering together rather than treating smaller nodes as sufficient scaling.
 
 Desktop and laptop browsers are the primary dashboard command surface. Responsive layouts must preserve a readable narrow-screen core loop for authentication, status and History, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling. Equal mobile optimisation, a touch-first interaction model, and native mobile clients remain deferred until usage evidence selects mobile as a primary surface.
 
-The resumable Day One guide is the primary in-dashboard training path and uses real controls and authoritative outcomes. It must teach priorities, visibility, order lifecycle, Events versus Chronicle, and the current tick/Cycle boundary using the current Command, Galaxy, Fleets, and History views. Keep contextual hints local and concise; issue #129 completes the visibility and Cycle-history coverage rather than creating a parallel help application.
+The resumable Day One guide is the primary in-dashboard training path and uses real controls and authoritative outcomes. It teaches priorities, visibility, order lifecycle, Events versus Chronicle, and the current tick/Cycle boundary using the current Command, Galaxy, Fleets, and History views. Keep contextual hints local and concise rather than creating a parallel help application.
 
 ### `Cycles.Worker`
 
@@ -72,7 +75,7 @@ Production use still needs health reporting, leader election or equivalent singl
 
 Owns local development and operator workflows: seeding, inspection, manual ticking, migrations, recovery, Cycle completion and continuation, diagnostics, profiling, and balance scenarios.
 
-It is an administrative convenience, not the scheduled production host.
+It is an administrative convenience, not the scheduled production host. Complete state transfer remains here: versioned JSON is validated before SQL import, replacements require explicit confirmation, and private payloads are not exposed through player endpoints.
 
 ### `Cycles.Infrastructure.SqlServer`
 
@@ -117,23 +120,24 @@ Current SQL paths:
 - generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;
 - `RunTick` acquires a per-Cycle lock, loads only the active tick workspace, and persists targeted outcomes without loading unrelated retained history;
 - plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`.
+- external issuer/subject correlation and admin-role audit records are persisted by migration 013.
 
 The generic path is a bridge for low-frequency API/admin mutations. Profile a new high-frequency caller before placing it on that path. Do not start a broad repository rewrite without evidence that the existing orchestration boundary is the problem.
 
 ## Facts, Visibility, And Narrative
 
-Events and battle records are factual, queryable records tied to Cycle, tick, system, empire, and source identifiers where possible. `FactJson` remains flexible internal storage while fact shapes evolve. Introduce a typed or validated contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed; do not launch a broad fact migration merely to type unstable diplomacy or narrative shapes. Ordinary player responses use display text or purpose-built typed detail rather than raw fact storage. Issue #127 applies that boundary to events, battles, tick results, and the dashboard's opening briefing.
+Events and battle records are factual, queryable records tied to Cycle, tick, system, empire, and source identifiers where possible. `FactJson` remains flexible internal storage while fact shapes evolve. Introduce a typed or validated contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed; do not launch a broad fact migration merely to type unstable diplomacy or narrative shapes. Ordinary player responses use display text or purpose-built typed detail rather than raw fact storage; the opening briefing is the first typed mechanical consumer.
 
 Chronicle entries select historically important facts. Factual summaries, narrative text, importance scores, source identifiers, generation status, and generation context remain separate. Future AI generation must run outside the tick transaction and must fail without affecting gameplay.
 
-Development-auth players see the full galaxy topology but exact local presence, fleets, events, last-tick facts, and Chronicle entries only where active-fleet visibility allows. Admins bypass that filter for trusted support. The temporary Development turn capability changes timing control, not authorisation over player data or simulation outcomes. Production identity and security must preserve the actor/empire boundary without treating the current cookie as a deployable solution.
+Players see the full galaxy topology but exact local presence, fleets, events, last-tick facts, and Chronicle entries only where active-fleet visibility allows. Admins bypass that filter for trusted support. The temporary Development turn capability changes timing control, not authorisation over player data or simulation outcomes. Non-Development identity uses external OIDC and a secure application cookie while preserving the same local actor/empire boundary.
 
 ## Deployment Gate
 
 No production deployment path is complete. A cost-capped trusted playground currently hosts the Development build behind restricted access, uses persistent JSON state, and relies on manual Development turns. It is an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, implement the accepted boundaries and remaining operational gates:
 
-- external OIDC, invited-player admission, protected dashboard routing, and audited admin provisioning;
-- versioned JSON import/export, the managed Azure SQL cutover, migration rollback, database-native backup, and a proved restore;
+- a configured external provider/proxy path using the implemented OIDC, invited-player, dashboard, and audited-admin boundaries;
+- the managed Azure SQL cutover using the implemented versioned transfer, migration rollback, database-native backup, and a proved restore;
 - Worker health, leadership, and multi-Cycle behaviour;
 - secrets, logging, monitoring, and incident diagnostics;
 - explicit recovery administration.

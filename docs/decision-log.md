@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -1196,3 +1196,37 @@ Consequences:
 - Existing relationship-independent influence, economy, and ranking calculations remain valid and require no mechanical implementation change.
 - Dashboard wording may describe allied empires as coexisting, but displayed shares remain separate and must not imply common ownership.
 - No implementation issue is required. Q013 and Q019-Q022 still gate the remaining player-facing diplomacy lifecycle.
+
+## 2026-07-14: Stage The SQL Runtime Cutover Behind An Explicit Activation Gate
+
+Decision: implement strict versioned JSON-to-SQL transfer and a `Cycles:RequireSqlRuntime` startup guard now, switch normal local instructions to SQL Server, but do not remove the hosted file fallback until issue #125 has imported and verified the deployed state and proved database restore.
+
+Reasoning:
+
+- Q119 requires import/export before the deployed cutover and requires fallback removal only after the SQL target is configured and verified.
+- Removing the fallback in the same undeployed change would redeploy the current JSON-backed playground without an authoritative target.
+- A fail-fast activation flag lets local and future environments prove the intended SQL-only startup contract without changing the current hosted storage prematurely.
+
+Consequences:
+
+- The operator CLI exports and imports a complete format-versioned document, validates all persisted collections and references, and requires explicit import/replacement confirmation.
+- Complete exports are sensitive cross-empire operator artefacts and are not player endpoints or managed backups.
+- Normal local API and Worker instructions set `Cycles:RequireSqlRuntime=true` with SQL Server.
+- Issue #125 must use the importer and prove Azure SQL restore before #126 removes the remaining runtime fallback.
+
+## 2026-07-14: Make GitHub The Actionable Backlog Authority
+
+Decision: complete the Q128 ownership transition by keeping concrete actionable scope, acceptance criteria, ownership, dependencies, live status, and completion in GitHub issues; retain `docs/backlog.md` as a curated sequence, decision-gate map, conditional-risk register, and issue index.
+
+Reasoning:
+
+- Duplicated Markdown checkboxes and issue state create two mutable queues that can disagree.
+- Product decisions, implemented state, durable rationale, and actionable work already have distinct repository/GitHub owners.
+- Conditional risks and parking-lot ideas should not create speculative issue noise.
+
+Consequences:
+
+- Guided play evidence, production Worker operation, and the pre-untrusted-test security review are tracked by issues #131, #132, and #133.
+- Decision-gated gameplay and narrative themes stay linked to the product question queue until their rules settle.
+- Concrete friction in a conditional risk creates one bounded evidence-backed issue when it occurs; it does not restore a permanent Markdown checklist.
+- Contributor and agent guidance must not duplicate live ticket status in repository documentation.

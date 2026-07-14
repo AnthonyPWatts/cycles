@@ -14,6 +14,7 @@ public static class GameStateRecordCounter
             .ToHashSet();
 
         return state.Players.Count(item => playerIds.Contains(item.PlayerId))
+               + state.AdminRoleAuditRecords.Count(item => playerIds.Contains(item.TargetPlayerId))
                + state.Cycles.Count(item => item.CycleId == cycleId)
                + state.Systems.Count(item => item.CycleId == cycleId)
                + state.SystemLinks.Count(item => item.CycleId == cycleId)

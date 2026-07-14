@@ -9,7 +9,7 @@ The maintained documentation has one owner for each kind of information. Update 
 | [Gameplay Guide](alpha-testers-guide.md) | Player-facing Day One tutorial and development-build expectations. |
 | [Project State](project-state.md) | What is implemented, verified, and still limited. |
 | [Architecture Direction](architecture-direction.md) | System boundaries, invariants, and intended technical shape. |
-| [Backlog](backlog.md) | The current implementation queue and blocker list; issue #130 will convert it to a curated roadmap and sequencing summary linked to authoritative GitHub tickets. |
+| [Backlog](backlog.md) | Curated priorities, sequencing, decision gates, conditional risks, and links to authoritative GitHub issues. |
 | [Product Owner Questions](product-owner-questions.md) | Accepted product answers and active product-decision gates. |
 | [Decision Log](decision-log.md) | Durable chronological decisions and their consequences. |
 
@@ -40,7 +40,7 @@ These Word files preserve source intent and historical product prompts. The Mark
 ## Maintenance Rules
 
 - Put current behaviour and verification only in `project-state.md`.
-- Until issue #130 completes, keep unfinished implementation work in `backlog.md`. After the migration, keep concrete scope, ownership, status, and acceptance criteria in GitHub issues and use `backlog.md` for priorities, sequencing, decision gates, and issue links.
+- Keep concrete scope, ownership, live status, dependencies, and acceptance criteria in GitHub issues. Use `backlog.md` for priorities, sequencing, decision gates, conditional risks, and issue links.
 - Put unresolved product choices and accepted product answers only in `product-owner-questions.md`.
 - Add a decision-log entry when a choice would otherwise be rediscovered.
 - Keep commands in the root README, Operations, or the SQL Server runbook according to audience.

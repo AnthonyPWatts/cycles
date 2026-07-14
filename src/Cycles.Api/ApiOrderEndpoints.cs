@@ -56,7 +56,7 @@ public static class ApiOrderEndpoints
                 request.FleetOrderId,
                 empireId,
                 now));
-        }));
+        }), invalidOperationIsConflict: true);
 
     public static IResult UpdatePriorities(PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
         UpdatePriorities(request, httpContext, store, DateTimeOffset.UtcNow);
@@ -101,7 +101,7 @@ public static class ApiOrderEndpoints
             priorities.ExpansionWeight,
             priorities.UpdatedAt);
 
-    private static IResult TryResult<T>(Func<T> action)
+    private static IResult TryResult<T>(Func<T> action, bool invalidOperationIsConflict = false)
     {
         try
         {
@@ -109,19 +109,25 @@ public static class ApiOrderEndpoints
         }
         catch (ApiUnauthorizedException ex)
         {
-            return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status401Unauthorized);
+            return ApiErrorResponses.ToResult(ex);
         }
         catch (ApiForbiddenException ex)
         {
-            return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status403Forbidden);
+            return ApiErrorResponses.ToResult(ex);
+        }
+        catch (ApiNotFoundException ex)
+        {
+            return ApiErrorResponses.ToResult(ex);
         }
         catch (InvalidOperationException ex)
         {
-            return Results.BadRequest(new ErrorResponse(ex.Message));
+            return ApiErrorResponses.ToResult(invalidOperationIsConflict
+                ? new ApiStateConflictException(ex.Message)
+                : new ApiValidationException(ex.Message));
         }
         catch (ArgumentException ex)
         {
-            return Results.BadRequest(new ErrorResponse(ex.Message));
+            return ApiErrorResponses.ToResult(ex);
         }
     }
 }

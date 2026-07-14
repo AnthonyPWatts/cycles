@@ -12,6 +12,7 @@ const state = {
     orders: [],
     events: [],
     chronicle: [],
+    openingBriefing: null,
     activeView: "command",
     fleetTab: "command",
     fleetAction: "move",
@@ -40,7 +41,7 @@ const viewShortcuts = new Map([
 ]);
 
 const tutorial = {
-    version: "v1",
+    version: "v2",
     active: false,
     status: "available",
     storageKey: null,
@@ -478,16 +479,7 @@ async function login(username) {
 
 async function signOut() {
     elements.signOutButton.disabled = true;
-
-    try {
-        await postJson("/auth/logout", {});
-        showLogin("You have signed out. Enter your player name to continue.");
-        elements.username.focus();
-    } catch (error) {
-        setTurnMessage(error.message);
-    } finally {
-        elements.signOutButton.disabled = false;
-    }
+    window.location.assign("/auth/logout");
 }
 
 function applySession(login) {
@@ -532,14 +524,15 @@ function showLogin(message) {
 }
 
 async function refresh() {
-    const [cycle, empire, galaxy, fleets, orders, events, chronicle] = await Promise.all([
+    const [cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing] = await Promise.all([
         getJson("/cycles/current"),
         getJson("/empire"),
         getJson("/galaxy"),
         getJson("/fleets"),
         getJson("/orders"),
         getJson("/events/recent?limit=20"),
-        getJson("/chronicle")
+        getJson("/chronicle"),
+        getJson("/briefings/opening")
     ]);
 
     state.empire = empire;
@@ -549,6 +542,7 @@ async function refresh() {
     state.orders = orders;
     state.events = events;
     state.chronicle = chronicle;
+    state.openingBriefing = openingBriefing;
 
     if (!state.selectedFleetId || !fleets.some(item => item.fleet.fleetId === state.selectedFleetId)) {
         const defaultFleet = fleets.find(item => item.fleet.status === "active" && item.fleet.shipCount > 0) ?? fleets[0];
@@ -1020,7 +1014,7 @@ function syncTutorialAfterRefresh() {
     if (tutorial.storageKey !== storageKey) {
         clearTutorialTarget();
         tutorial.storageKey = storageKey;
-        tutorial.briefing = findOpeningBriefing();
+        tutorial.briefing = state.openingBriefing;
         tutorial.completedActions = new Set();
         tutorial.initialTick = state.cycle.currentTickNumber;
         tutorial.stepIndex = 0;
@@ -1062,7 +1056,7 @@ function startOrResumeTutorial() {
         tutorial.stepIndex = 0;
         tutorial.initialTick = state.cycle.currentTickNumber;
         tutorial.completedActions = new Set();
-        tutorial.briefing = findOpeningBriefing() ?? tutorial.briefing;
+        tutorial.briefing = state.openingBriefing ?? tutorial.briefing;
     }
 
     saveTutorialState();
@@ -1253,30 +1247,6 @@ function resetTutorialContext() {
     tutorial.completedActions = new Set();
 }
 
-function findOpeningBriefing() {
-    for (const event of state.events) {
-        if (event.eventType !== "openingBriefingIssued" || event.empireId !== state.empire?.empireId) {
-            continue;
-        }
-
-        try {
-            const facts = JSON.parse(event.factJson);
-            if (facts.scenarioKey === "development-cold-start-v1") {
-                return {
-                    scenarioKey: facts.scenarioKey,
-                    focusSystemId: facts.focusSystemId,
-                    objectives: facts.objectives,
-                    displayText: event.displayText
-                };
-            }
-        } catch {
-            // A malformed optional briefing should not block the dashboard.
-        }
-    }
-
-    return null;
-}
-
 function tutorialSteps() {
     const briefing = tutorial.briefing;
     const move = briefing?.objectives?.move;
@@ -1326,6 +1296,14 @@ function tutorialSteps() {
             required: true,
             requirement: "Select the highlighted system on the map.",
             isSatisfied: () => state.selectedSystemId === focusSystemId
+        },
+        {
+            id: "visibility",
+            view: "galaxy",
+            title: "Know what the map does not reveal",
+            body: "You always see the galaxy topology and routes. Exact remote presence, fleets, events, last-turn facts, and Chronicle detail appear only where your active fleets provide visibility; an apparently quiet system may still contain hidden activity.",
+            target: () => elements.galaxyMap,
+            required: false
         },
         {
             id: "fleet",
@@ -1425,23 +1403,33 @@ function tutorialSteps() {
         }
     );
 
-    if (curated) {
-        steps.push({
-            id: "chronicle",
-            view: "history",
-            historyTab: "chronicle",
-            title: "See what became history",
-            body: "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history.",
-            target: () => document.querySelector("#chronicleSection"),
-            required: false
-        });
-    }
+    steps.push({
+        id: "chronicle",
+        view: "history",
+        historyTab: "chronicle",
+        title: "See what became history",
+        body: curated
+            ? "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history."
+            : "The Chronicle is selective history, not a second audit log. Only visible events important enough to cross the historical threshold appear here.",
+        target: () => document.querySelector("#chronicleSection"),
+        required: false
+    });
+
+    steps.push({
+        id: "cycle-history",
+        view: "history",
+        historyTab: "events",
+        title: "Place this turn in the Cycle",
+        body: `You are viewing tick ${state.cycle?.currentTickNumber ?? 0} of the current Cycle. Events record factual turn results; the Chronicle preserves selected history. In this build, an operator ends the Cycle, records the final ranking, and creates its successor outside the player dashboard.`,
+        target: () => elements.cycleStatus,
+        required: false
+    });
 
     steps.push({
         id: "next",
         view: "command",
         title: "That is the Cycles loop",
-        body: "Inspect, prioritise, commit orders, resolve the turn, then read the consequences. From here, reinforce pressure, build ships, found outposts, or seek another battle worth remembering.",
+        body: "Inspect, prioritise, commit orders, resolve the turn, then read the visible consequences. From here, reinforce pressure, build ships, found outposts, or seek another battle worth remembering before the operator closes the Cycle.",
         required: false
     });
 
@@ -1800,7 +1788,11 @@ async function postJson(url, body) {
 async function readResponse(response) {
     const payload = await response.json();
     if (!response.ok) {
-        throw new Error(payload.message ?? "Request failed.");
+        const error = new Error(payload.message ?? "Request failed.");
+        error.code = payload.code ?? "requestFailed";
+        error.details = payload.details ?? null;
+        error.traceId = payload.traceId ?? null;
+        throw error;
     }
 
     return payload;

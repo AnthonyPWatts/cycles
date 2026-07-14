@@ -6,7 +6,7 @@ This file captures Cycles-specific guidance for coding agents. Anthony's global 
 
 - Read `README.md`, `docs/project-state.md`, `docs/backlog.md`, and `docs/decision-log.md` before substantial changes.
 - Treat `docs/product-owner-questions.md` as the current source for product calls that have been answered or are still blocked.
-- Keep changes small and tied to the backlog or the user's explicit request.
+- Keep changes small and tied to an authoritative GitHub issue, the curated roadmap in `docs/backlog.md`, or the user's explicit request.
 
 ## Verification
 
@@ -38,7 +38,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 - `Cycles.Api` exposes state and accepts player intentions; do not casually expose tick execution through public API endpoints.
 - Scheduled tick execution is Worker-owned. The CLI remains an operator convenience. As a temporary development-only exception, any authenticated player can invoke the same authoritative store boundary without gaining admin visibility or cross-empire authority; ordinary production players must not execute ticks.
 - SQL Server is the current primary relational path. Plain SQL migrations live under `database/migrations` and are applied through the small migration runner.
-- JSON persistence remains useful for local development, but the accepted long-term direction is SQL-backed runtime with JSON demoted to import/export support.
+- Normal local development uses SQL Server. JSON remains for explicit versioned import/export, offline inspection, deterministic fixtures, and migration evidence; the API/Worker fallback remains only until the deployed cutover in #125 is proved and #126 activates mandatory SQL runtime configuration.
 - Recovery handling is explicit and audited; failed ticks should not silently auto-retry.
 
 ## Dashboard And UI
@@ -55,6 +55,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 - Update `docs/project-state.md`, `docs/backlog.md`, and `docs/decision-log.md` when a feature slice materially changes behaviour or durable direction.
 - Do not mark planned systems as implemented until code and relevant verification exist.
 - Keep original design documents under `docs/source`; the Markdown docs are the working development layer.
+- GitHub issues own concrete actionable scope, acceptance criteria, ownership, live status, dependencies, and completion. `docs/backlog.md` owns priorities, sequencing, decision gates, conditional risks, and links; do not duplicate live ticket status there.
 
 ## Future-System Discipline
 

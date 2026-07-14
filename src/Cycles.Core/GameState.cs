@@ -7,6 +7,7 @@ namespace Cycles.Core;
 public sealed class GameState
 {
     public List<Player> Players { get; set; } = [];
+    public List<AdminRoleAuditRecord> AdminRoleAuditRecords { get; set; } = [];
     public List<Cycle> Cycles { get; set; } = [];
     public List<Empire> Empires { get; set; } = [];
     public List<EmpireResource> EmpireResources { get; set; } = [];
@@ -39,6 +40,7 @@ public sealed class GameState
         new()
         {
             Players = Players.Select(Clone).ToList(),
+            AdminRoleAuditRecords = AdminRoleAuditRecords.Select(Clone).ToList(),
             Cycles = Cycles.Select(Clone).ToList(),
             Empires = Empires.Select(Clone).ToList(),
             EmpireResources = EmpireResources.Select(Clone).ToList(),
@@ -73,6 +75,7 @@ public sealed class GameState
         {
             // These collections are read-only during tick processing.
             Players = Players,
+            AdminRoleAuditRecords = AdminRoleAuditRecords,
             Empires = Empires,
             EmpirePriorities = EmpirePriorities,
             CycleRankings = CycleRankings,
@@ -113,6 +116,7 @@ public sealed class GameState
     public void ReplaceWith(GameState other)
     {
         Players = other.Players;
+        AdminRoleAuditRecords = other.AdminRoleAuditRecords;
         Cycles = other.Cycles;
         Empires = other.Empires;
         EmpireResources = other.EmpireResources;
@@ -142,10 +146,24 @@ public sealed class GameState
         Username = item.Username,
         Email = item.Email,
         PasswordHash = item.PasswordHash,
+        ExternalIssuer = item.ExternalIssuer,
+        ExternalSubject = item.ExternalSubject,
         Role = item.Role,
         CreatedAt = item.CreatedAt,
         LastLoginAt = item.LastLoginAt,
         Status = item.Status
+    };
+
+    private static AdminRoleAuditRecord Clone(AdminRoleAuditRecord item) => new()
+    {
+        AdminRoleAuditRecordId = item.AdminRoleAuditRecordId,
+        ActorPlayerId = item.ActorPlayerId,
+        TargetPlayerId = item.TargetPlayerId,
+        Action = item.Action,
+        Reason = item.Reason,
+        Source = item.Source,
+        Severity = item.Severity,
+        CreatedAt = item.CreatedAt
     };
 
     private static Cycle Clone(Cycle item) => new()
@@ -453,10 +471,24 @@ public sealed class Player
     public string Username { get; set; } = "";
     public string Email { get; set; } = "";
     public string PasswordHash { get; set; } = "";
+    public string ExternalIssuer { get; set; } = "";
+    public string ExternalSubject { get; set; } = "";
     public PlayerRole Role { get; set; } = PlayerRole.Player;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
     public PlayerStatus Status { get; set; } = PlayerStatus.Active;
+}
+
+public sealed class AdminRoleAuditRecord
+{
+    public Guid AdminRoleAuditRecordId { get; set; } = Guid.NewGuid();
+    public Guid? ActorPlayerId { get; set; }
+    public Guid TargetPlayerId { get; set; }
+    public AdminRoleAuditAction Action { get; set; }
+    public string Reason { get; set; } = "";
+    public string Source { get; set; } = "";
+    public EventSeverity Severity { get; set; } = EventSeverity.High;
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class Cycle
@@ -773,6 +805,13 @@ public enum PlayerRole
     Admin
 }
 
+public enum AdminRoleAuditAction
+{
+    Bootstrap,
+    Granted,
+    Revoked
+}
+
 public enum CycleStatus
 {
     Active,
@@ -859,6 +898,7 @@ public enum EventType
     CombatResolved,
     PrioritiesChanged,
     ChronicleCreated,
+    TickAbandoned,
     RecoveryCleared,
     CycleCompleted,
     DoctrineUnlocked,

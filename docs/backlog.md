@@ -2,162 +2,83 @@
 
 Last updated: 2026-07-14
 
-This remains the repository's operative implementation queue until [issue #130](https://github.com/AnthonyPWatts/cycles/issues/130) completes the accepted ownership migration. After that migration, GitHub issues own concrete scope, acceptance criteria, ownership, live status, dependencies, and completion; this document becomes the curated roadmap, sequencing summary, decision-gate overview, and issue index. Completed behaviour belongs in [Project State](project-state.md), while durable rationale belongs in the [Decision Log](decision-log.md).
+GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
-## Recommended Next Work
+Completed behaviour and verification belong in [Project State](project-state.md). Accepted product answers and unresolved gates belong in [Product Owner Questions](product-owner-questions.md). Durable rationale belongs in the [Decision Log](decision-log.md). [Issue #130](https://github.com/AnthonyPWatts/cycles/issues/130) records the ownership migration.
 
-These items can proceed without another product-owner decision:
+## Current Sequence
 
-- [ ] Add a mixed-strategy balance scenario in which different policies compete in the same Cycle.
-- [ ] Gather guided development-play evidence, then private-alpha evidence, on colonisation, combat, priority clarity, and order feedback before changing named balance constants.
-- [ ] Add focused regression or live SQL Server integration coverage whenever an existing specified behaviour exposes a gap.
-- [ ] Continue profiling retained-history and generic state paths when a measured caller or scenario justifies it.
-- [ ] Improve diagnostics, CI, migration safety, documentation, and clean-checkout reproducibility when concrete friction appears.
-- [ ] Fix correctness, data-safety, recovery, migration, and concurrency defects without changing player-visible rules.
+1. Finish and verify the local implementation boundaries in [#120-#124](https://github.com/AnthonyPWatts/cycles/issues/120), [#126](https://github.com/AnthonyPWatts/cycles/issues/126), and [#127-#129](https://github.com/AnthonyPWatts/cycles/issues/127).
+2. Use the verified state importer during the managed Azure SQL cutover and restore proof in [#125](https://github.com/AnthonyPWatts/cycles/issues/125). Only then activate mandatory SQL runtime configuration and remove the deployment fallback owned by #126.
+3. Harden shared scheduled execution through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), including Worker health and duplicate-due-execution protection.
+4. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before changing combat, colonisation, priority, or order-feedback rules.
+5. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
 
-Do not treat this list as permission for speculative refactors. `Cycles.Application`, provider-neutral repositories, typed fact contracts, and dashboard scaling remain conditional work: start them only when measured complexity or a selected feature requires them.
+This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
 
-## Persistence And Operations
+## Actionable Issue Index
 
-- [ ] [Demote JSON persistence to explicit import and export](https://github.com/AnthonyPWatts/cycles/issues/126): add operator-only, versioned, validated state transfer with sensitive-data handling; use it for the deployed cutover; then require SQL for API, Worker, and normal local-development runtime hosts.
-- [ ] [Add external OIDC authentication and invited-player mapping](https://github.com/AnthonyPWatts/cycles/issues/122), preserving Cycles-owned empire and admin authorisation while keeping Development username login Development-only.
-- [ ] [Add audited admin provisioning and revocation](https://github.com/AnthonyPWatts/cycles/issues/123), including explicit initial bootstrap, immutable role-change records, final-admin protection, and a separate break-glass operator procedure.
-- [ ] [Protect the private dashboard while keeping landing and health public](https://github.com/AnthonyPWatts/cycles/issues/124), while retaining the trusted playground's whole-site access-code gate as an explicit deployment override.
-- [ ] [Migrate the deployed playground to managed SQL and prove restore](https://github.com/AnthonyPWatts/cycles/issues/125), including JSON-state import, cutover validation, at least seven days of point-in-time recovery, one isolated restore, and deliberate cost-policy changes.
-- [ ] Define the remaining hosting, migration ownership, and environment configuration after the accepted Azure SQL playground choice.
-- [ ] Add production Worker health, singleton leadership, multi-Cycle scheduling policy, and operational monitoring.
-- [ ] [Add persisted-running tick diagnostics](https://github.com/AnthonyPWatts/cycles/issues/120), including the accepted configurable five-minute suspicion default, SQL attempt context, end-to-end duration, and the strict no-automatic-recovery boundary.
-- [ ] [Add audited abandoned-tick resolution](https://github.com/AnthonyPWatts/cycles/issues/121) so an inspected persisted `Running` attempt can be explicitly marked failed with an operator and reason before normal repair and recovery.
-- [ ] Define secret handling and the remaining recovery-administration boundaries.
+| Theme | Authoritative issues | Sequencing note |
+| --- | --- | --- |
+| Tick diagnosis and inspected abandonment | [#120](https://github.com/AnthonyPWatts/cycles/issues/120), [#121](https://github.com/AnthonyPWatts/cycles/issues/121) | Diagnosis remains read-only; abandonment requires an explicit operator and reason before normal recovery. |
+| External identity, local admin authority, and private dashboard | [#122](https://github.com/AnthonyPWatts/cycles/issues/122), [#123](https://github.com/AnthonyPWatts/cycles/issues/123), [#124](https://github.com/AnthonyPWatts/cycles/issues/124) | OIDC proves identity; Cycles owns admission, empire, and admin authority. |
+| Managed SQL deployment and JSON demotion | [#125](https://github.com/AnthonyPWatts/cycles/issues/125), [#126](https://github.com/AnthonyPWatts/cycles/issues/126) | Import/export precedes cutover; fallback removal follows deployed SQL and restore verification. |
+| Player API and Day One teaching contracts | [#127](https://github.com/AnthonyPWatts/cycles/issues/127), [#128](https://github.com/AnthonyPWatts/cycles/issues/128), [#129](https://github.com/AnthonyPWatts/cycles/issues/129) | Keep player responses typed, wire conventions explicit, and guide copy tied to real controls and outcomes. |
+| Guided play and balance evidence | [#131](https://github.com/AnthonyPWatts/cycles/issues/131) | Evidence precedes named constant or rule changes. |
+| Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Depends on the SQL deployment shape in #125 and runtime cutover in #126. |
+| Pre-untrusted-test security gate | [#133](https://github.com/AnthonyPWatts/cycles/issues/133) | Review the implemented identity, authorisation, data-transfer, proxy, persistence, and deployment boundaries together. |
 
-Production persistence and operations may proceed only within the accepted Q107-Q119 boundaries and their linked implementation issues. The import/export work in #126 must precede the deployed cutover in #125; Development auth and the local/private Worker are not production substitutes.
+## Decision-Gated Roadmap
 
-The cost-capped hosted playground is also not a production substitute. Its F1 App Service, persistent JSON file, manual Development turns, and restricted edge access exist only to gather trusted play evidence without opening a paid runtime path.
-
-## Gameplay And Product Systems
+These are roadmap themes, not implementation tickets. Create bounded implementation issues only after the linked product questions settle enough behaviour to build.
 
 ### Diplomacy
 
-- [ ] Add player-facing diplomatic offers, acceptance, declarations, and treaty lifecycle.
-- [ ] Implement the accepted first-version Alliance boundary after the remaining gates settle: prevent ordinary friendly fire and record Alliance history without pooling influence, resources, rankings, fleets, or attack control. Q025 separately owns shared visibility.
-- [ ] Define diplomatic visibility, Chronicle selection, and cross-Cycle memory.
+Q013 and Q019-Q022 still gate player-action timing, visibility, Chronicle treatment, NPC participation, and cross-Cycle memory. Q014-Q018 already establish mutual consent for positive agreements, unilateral hostile/terminating actions, first-version Alliance limits, independent rankings, and independent allied influence. The stored relationship vocabulary and aggression foundation remain valid but do not authorise a player-facing lifecycle yet.
 
-Blocked by Q013 and Q019-Q022. Q014 requires mutual acceptance for positive bilateral agreements. Q015 keeps war declarations, treaty termination, and pre-acceptance offer withdrawal unilateral without a separate warning period. Q016 limits the first Alliance to friendly-fire prevention and factual history while Q025 owns shared visibility. Q017 confirms separate per-empire rankings and a single empire winner. Q018 allows allied coexistence while retaining independent influence and resource competition. The stored relationship vocabulary, attack aggression facts, treaty-breaking cancellation behaviour, independent rankings, and relationship-independent influence calculations are already implemented.
+### Visibility, Doctrine, Technology, And Intelligence
 
-### Doctrine, Technology, And Intelligence
-
-- [ ] Define player-selected doctrine or research-project semantics.
-- [ ] Define whether research is spent, retained, or both.
-- [ ] Add logistics only after its effect on travel, projection, construction, or supply is chosen.
-- [ ] Add detection before cloaking and define what information either system can reveal or hide.
-- [ ] Define alliance visibility and any stale or estimated intelligence model.
-
-Blocked by Q023-Q046. Survey Projection remains the single automatic threshold unlock, not a complete doctrine system.
+Q023-Q046 gate discovery, sensor and estimate semantics, alliance visibility, research choices, logistics, detection, cloaking, and modifier scope. Survey Projection remains the single automatic threshold unlock, not a complete doctrine system.
 
 ### Combat, Comeback, And Colonisation
 
-- [ ] Tune combat or colonisation constants only from repeatable scenarios, guided development play, or later private-alpha evidence.
-- [ ] Define comeback mechanics beyond minimum home-system presence.
-- [ ] Define outpost capture, destruction, infrastructure, migration, and cross-Cycle treatment.
-- [ ] Define whether home systems are merely protected by pressure or mechanically unconquerable.
-
-Blocked where rules would change player-visible behaviour. Evidence gathering and diagnostic scenarios are ready now.
+Q047 onward in this area gates comeback mechanics, outpost capture/destruction/infrastructure/migration, and any mechanically unconquerable home-system rule. Current combat and colonisation may be exercised through [#131](https://github.com/AnthonyPWatts/cycles/issues/131), but rule or constant changes require repeatable evidence and any applicable product answer.
 
 ### Chronicle And Narrative
 
-- [ ] Queue narrative work outside the tick transaction.
-- [ ] Select an AI/provider boundary and durable job ownership.
-- [ ] Define retry, fallback, review, safety, and player-visible failure behaviour.
-- [ ] Decide which Chronicle thresholds become Cycle configuration.
-
-Blocked by Q094-Q101 and related visibility questions. Deterministic templates, required-fact validation, generation status, and context snapshots already exist.
+Q094-Q106 gate queued narrative ownership, provider selection, retry/fallback/review/safety, threshold configuration, and player-visible failure behaviour. Deterministic templates, required-fact validation, generation status, and retained context remain the current safe boundary.
 
 ### Cycle Continuity And Named Figures
 
-- [ ] Define richer successor-faction flavour and historical summaries.
-- [ ] Define historical-system evolution beyond preserved names, significance, and strategic echoes.
-- [ ] Define admiral transfer, promotion, retirement, succession, biography, and player-management rules.
+The remaining continuity and admiral questions gate richer successor flavour, historical-system evolution, transfer, promotion, retirement, succession, biography, and player management. Current final rankings, major-event preservation, system signals, and fleet-attached admirals are complete first slices.
 
-Blocked until the corresponding continuity and character questions are selected. Current Cycle-end history and fleet-attached admiral behaviour are complete first slices.
+## Conditional Technical Risks
 
-## Technical Debt And Risks
+The following do not justify standing implementation tickets without evidence:
 
-- [ ] Complete [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127): remove raw `FactJson` from ordinary player responses and replace the guide's direct parsing with a typed opening-briefing contract. Keep internal storage flexible and do not launch a broad fact migration before diplomacy and narrative shapes stabilise.
-- [ ] Complete [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128): lock camelCase properties and string enums, reject numeric enum input, and replace the message-only API error with stable codes plus safe messages and optional diagnostic detail.
-- [ ] Complete [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129): add explicit visibility and Cycle-history teaching to the resumable Day One guide, audit every instruction against the current UI, and keep the player guide aligned without introducing a separate help system.
-- [ ] Revisit the generic whole-state SQL mutation bridge if profiling shows it on a high-frequency or scaling-critical path.
-- [ ] Revisit dashboard rendering when an agreed galaxy/player scale exceeds the current small-map assumption.
-- [ ] Add a production security review before any untrusted online test.
-- [ ] Balance combat before making competitive balance claims.
+- add focused regression or SQL integration coverage when a specified behaviour exposes a concrete gap;
+- profile retained-history and generic whole-state paths when a measured caller or scenario warrants it;
+- revisit the generic SQL mutation bridge only if profiling shows a high-frequency or scaling-critical problem;
+- revisit dashboard rendering only after an agreed galaxy/player target exceeds the current 24-system, four-empire test;
+- introduce `Cycles.Application`, provider-neutral repositories, or broader typed fact schemas only when a selected feature or measured complexity requires them;
+- continue small correctness, migration-safety, diagnostics, CI, and clean-checkout repairs when concrete friction is observed.
 
-## Product Decision Gates
+When one of these risks becomes concrete, create one bounded GitHub issue with evidence and acceptance criteria rather than restoring a permanent Markdown checkbox.
 
-The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWatts/cycles/issues/119). Accepted answers must be copied into [Product Owner Questions](product-owner-questions.md) before implementation relies on them.
+## Migration Audit
 
-| Gate | Questions | Blocks |
-| --- | --- | --- |
-| Diplomacy | Q013 and Q019-Q022 | Player-action timing, visibility, Chronicle treatment, and memory. Q014-Q018 settle consent, unilateral hostile or terminating actions, first-version Alliance mechanics, separate empire rankings, and allied influence coexistence. |
-| Visibility and intelligence | Q023-Q034 | Sensors, estimates, alliance sharing, public/private Chronicle detail. |
-| Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
-| Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
-| Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
+The former Markdown checklist was classified as follows:
 
-Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
+- the mixed-strategy scenario is implemented and belongs in Project State;
+- guided play/balance evidence moved to #131;
+- Worker health/leadership moved to #132;
+- the security review moved to #133;
+- hosting, migration, identity, admin, dashboard, recovery, API, guide, and state-transfer work already had #120-#129;
+- remaining gameplay/narrative items are product-decision gates;
+- scaling, profiling, architecture extraction, and opportunistic regression work are conditional risks;
+- long-horizon ideas remain in the parking lot.
 
-Q014 requires mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. Q015 confirms that War declarations and treaty termination are unilateral, with no separate advance-notice or cooling-off period; pending offers may also be withdrawn before acceptance. Q016 makes friendly-fire prevention and factual history the first Alliance mechanics, keeps pooled resources/control out, and leaves shared visibility to Q025. Q017 accepts the implemented independent per-empire rankings and single empire winner. Q018 accepts the implemented independent influence and resource calculation when allies coexist in one system. Q013 and Q019-Q022 still block implementation, so no player-facing diplomacy ticket is ready yet.
-
-Q111 selects a new diagnostic default rather than confirming existing behaviour. Issue [#120](https://github.com/AnthonyPWatts/cycles/issues/120) tracks the bounded implementation without authorising automatic recovery.
-
-Q112 confirms the existing conservative block but requires a missing audited abandonment operation. Issue [#121](https://github.com/AnthonyPWatts/cycles/issues/121) tracks that operation without authorising automatic failure or recovery.
-
-Q113 selects external OIDC authentication with local player correlation and Cycles-owned authorisation. Issue [#122](https://github.com/AnthonyPWatts/cycles/issues/122) tracks implementation.
-
-Q114 selects explicit local admin bootstrap plus audited grants and revocations. Issue [#123](https://github.com/AnthonyPWatts/cycles/issues/123) tracks implementation without promoting the Development `isAdmin` switch into shared environments.
-
-Q115 selects a public landing page and health endpoint with an authenticated, admitted dashboard. Issue [#124](https://github.com/AnthonyPWatts/cycles/issues/124) tracks the route boundary while preserving the current whole-site access-code gate as a trusted-playground override.
-
-Q116 requires a managed-SQL cutover for the deployed playground plus database-native backup retention and a proved restore. Issue [#125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the migration and recovery evidence and consumes the importer now specified by Q119 and issue #126.
-
-Q117 selects the existing SQL Server provider on managed Azure SQL for that cutover and first online test. Provider portability does not block issue #125 and remains conditional on measured cost, licensing, or hosting evidence.
-
-Q118 confirms the existing provider-isolation default: justified Azure-SQL-compatible features may remain inside `Cycles.Infrastructure.SqlServer` and SQL migrations, while `Cycles.Core` and the store contract stay provider-neutral. No separate implementation issue is required.
-
-Q119 demotes JSON to explicit import/export, inspection, fixtures, and migration evidence. Issue [#126](https://github.com/AnthonyPWatts/cycles/issues/126) owns the safe tooling/runtime-default sequence and must supply the verified importer consumed by issue #125.
-
-Q130 defines complete state export/import as sensitive operator/admin support tooling for migration, recovery preparation, debugging, and reproducible fixtures. It is not a player-facing save/restore feature or a replacement for database backups. Issue #126 owns the authorisation and handling controls; any future player-sharing format requires a separate redacted design.
-
-Q122 accepts flexible internal `FactJson` for another stage and establishes the trigger for a typed or validated contract: mechanical consumption, querying, migration, or public exposure. It does not authorise a broad fact-schema migration. Q123 subsequently settles the public-exposure and opening-briefing API boundary.
-
-Q123 keeps raw `FactJson` out of the normal dashboard and ordinary player API. Display text remains the default presentation, with purpose-built typed detail only where it adds player value. Issue [#127](https://github.com/AnthonyPWatts/cycles/issues/127) removes the current raw response fields and replaces the guide's direct JSON parsing without changing internal fact storage.
-
-Q124 locks the existing camelCase property and camelCase string-enum defaults before external clients exist, but does not freeze the current message-only error shape. Issue [#128](https://github.com/AnthonyPWatts/cycles/issues/128) adds stable machine-readable codes, safe messages, optional validation detail and trace correlation, with HTTP status remaining authoritative.
-
-Q125 accepts the current 24-system, four-empire curated galaxy as the dashboard target for the next player test. No 50- or 100-system optimisation is required now; a larger target needs gameplay evidence and a fresh assessment of navigation, clustering, filtering, payload size, and rendering rather than denser use of the current layout.
-
-Q126 makes desktop and laptop browsers the primary command surface while retaining a functional narrow-screen core loop. Equal mobile polish and touch-first redesign remain deferred unless tester usage makes mobile a primary play surface; the existing responsive implementation requires no separate issue now.
-
-Q127 accepts the existing resumable Day One guide as the primary in-dashboard training path. Issue [#129](https://github.com/AnthonyPWatts/cycles/issues/129) adds the missing explicit visibility and Cycle-history teaching, audits instructions and targets against the current four-view UI, and keeps `docs/alpha-testers-guide.md` aligned without creating a separate help centre.
-
-Q128 selects GitHub issues as the future authority for concrete actionable backlog work while keeping this document as a curated roadmap and sequencing summary. Issue [#130](https://github.com/AnthonyPWatts/cycles/issues/130) inventories every checkbox, creates or reuses only worthwhile concrete tickets, removes duplicate mutable status, and updates ownership guidance. This Markdown queue remains operative until that migration is complete.
-
-Q129 confirms that maintained documentation describes current `main` rather than being copied per gameplay Cycle or ad hoc test build. Historical test evidence records the deployed commit/build and relies on Git tags, commits, or release notes when an old documentation snapshot is required; no implementation issue is needed.
-
-## Completed Foundations
-
-The following are established and should not remain as open roadmap stages:
-
-- deterministic simulation, order lifecycle, combat facts, and explicit tick recovery;
-- JSON and SQL Server stores, ordered migrations, focused SQL tick loading/writes, and per-Cycle locking;
-- strategic priorities, ship construction, expansion projection, Survey Projection, and colonisation;
-- development auth, actor-derived empire authority, active-fleet visibility, the accepted explicit-DTO/internal-domain API boundary, and order cancellation;
-- scheduled Worker ticks, the accepted narrow Development-player turn exception, diagnostics, and running-API smoke coverage;
-- the curated Day One opening, structured objective briefing, and resumable click-along dashboard guide;
-- the F1 Free trusted playground deployment path, GitHub Actions workload identity, and Azure-side paid-resource guardrails;
-- the task-focused Command, Galaxy, Fleets, and History dashboard views, contextual fleet actions, filterable Chronicle/Event records, and bounded resolved-order rendering;
-- Cycle-end rankings, major-battle preservation, historical signals, and successor-Cycle generation;
-- deterministic Chronicle reports, admirals, and the diplomacy storage/aggression foundation.
-
-Git history and [Project State](project-state.md) hold the evidence; completed checklists are intentionally not duplicated here.
+No concrete actionable work remains owned only by this Markdown file.
 
 ## Parking Lot
 

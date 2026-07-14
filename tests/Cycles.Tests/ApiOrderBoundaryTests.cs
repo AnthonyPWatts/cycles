@@ -54,6 +54,7 @@ public sealed class ApiOrderBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Contains("\"code\":\"validationFailed\"", response.Body, StringComparison.Ordinal);
         Assert.Contains("adjacent linked system", response.Body, StringComparison.Ordinal);
         Assert.Empty(state.FleetOrders);
     }
@@ -74,7 +75,8 @@ public sealed class ApiOrderBoundaryTests
 
         var response = await ExecuteAsync(result);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Equal(StatusCodes.Status404NotFound, response.StatusCode);
+        Assert.Contains("\"code\":\"notFound\"", response.Body, StringComparison.Ordinal);
         Assert.Contains("Fleet does not exist", response.Body, StringComparison.Ordinal);
         Assert.Empty(state.FleetOrders);
     }
@@ -215,8 +217,9 @@ public sealed class ApiOrderBoundaryTests
 
         var response = await ExecuteAsync(result);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
         Assert.Contains("Only pending orders", response.Body, StringComparison.Ordinal);
+        Assert.Contains("\"code\":\"stateConflict\"", response.Body, StringComparison.Ordinal);
         Assert.Equal(FleetOrderStatus.Processed, order.Status);
     }
 
@@ -354,7 +357,7 @@ public sealed class ApiOrderBoundaryTests
         services.AddLogging();
         services.ConfigureHttpJsonOptions(options =>
         {
-            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            ApiJson.Configure(options.SerializerOptions);
         });
 
         return services.BuildServiceProvider();

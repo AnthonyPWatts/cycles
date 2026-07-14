@@ -96,6 +96,21 @@ public sealed class DashboardViewContractTests
         Assert.Contains("document.querySelector(`[data-fleet-id=\"${attack.fleetId}\"]`)", script);
     }
 
+    [Fact]
+    public void Day_one_guide_uses_typed_briefing_and_teaches_visibility_and_cycle_history()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("version: \"v2\"", script);
+        Assert.Contains("getJson(\"/briefings/opening\")", script);
+        Assert.DoesNotContain("event.factJson", script);
+        Assert.DoesNotContain("JSON.parse(event.factJson)", script);
+        Assert.Contains("id: \"visibility\"", script);
+        Assert.Contains("galaxy topology and routes", script);
+        Assert.Contains("id: \"cycle-history\"", script);
+        Assert.Contains("an operator ends the Cycle", script);
+    }
+
     private static string ReadDashboardAsset(string fileName) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dashboard", fileName));
 }

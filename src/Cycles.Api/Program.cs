@@ -1,7 +1,10 @@
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
+using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuredStatePath = builder.Configuration["Cycles:StatePath"]
@@ -10,6 +13,11 @@ var configuredStatePath = builder.Configuration["Cycles:StatePath"]
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
+var requireSqlRuntime = builder.Configuration.GetValue<bool>("Cycles:RequireSqlRuntime");
+if (requireSqlRuntime && string.IsNullOrWhiteSpace(configuredSqlConnectionString))
+{
+    throw new InvalidOperationException("Cycles:RequireSqlRuntime is enabled, but no Cycles SQL connection string is configured.");
+}
 Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
     ? () => GameSeeder.CreateCuratedColdStart()
     : null;
@@ -17,27 +25,89 @@ Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
 builder.Services.AddSingleton(GameStateStoreFactory.Create(configuredStatePath, configuredSqlConnectionString, developmentSeedFactory));
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    ApiJson.Configure(options.SerializerOptions);
 });
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+
+ExternalAuthenticationOptions? externalAuthentication = null;
+if (!builder.Environment.IsDevelopment())
+{
+    externalAuthentication = builder.Services.AddExternalCyclesAuthentication(builder.Configuration);
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        foreach (var configuredProxy in externalAuthentication.KnownProxies)
+        {
+            if (!IPAddress.TryParse(configuredProxy, out var proxy))
+            {
+                throw new InvalidOperationException($"Cycles:Authentication:KnownProxies contains invalid IP address '{configuredProxy}'.");
+            }
+
+            options.KnownProxies.Add(proxy);
+        }
+    });
+}
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseForwardedHeaders();
+}
 
 app.UsePlaygroundAccess(
     Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE")
         ?? builder.Configuration["Cycles:PlaygroundAccessCode"]);
+app.UseMiddleware<ApiErrorMiddleware>();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
+app.UsePrivateDashboard(app.Environment.IsDevelopment());
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() => store.Update(state => Login(state, request, httpContext, app.Environment.IsDevelopment(), DateTimeOffset.UtcNow))));
-
-app.MapPost("/auth/logout", (HttpContext httpContext) =>
+if (app.Environment.IsDevelopment())
 {
-    DevelopmentAuth.SignOut(httpContext);
-    return Results.Ok(new { signedOut = true });
-});
+    app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
+        TryResult(() => store.Update(state => Login(state, request, httpContext, DateTimeOffset.UtcNow))));
+
+    app.MapPost("/auth/logout", (HttpContext httpContext) =>
+    {
+        DevelopmentAuth.SignOut(httpContext);
+        return Results.Ok(new { signedOut = true });
+    });
+
+    app.MapGet("/auth/logout", (HttpContext httpContext) =>
+    {
+        DevelopmentAuth.SignOut(httpContext);
+        return Results.Redirect("/app.html");
+    });
+}
+else
+{
+    app.MapGet("/auth/external/login", () => Results.Challenge(
+        new AuthenticationProperties { RedirectUri = "/app.html" },
+        [CyclesAuthenticationSchemes.OpenIdConnect]));
+
+    app.MapGet("/auth/logout", () => Results.SignOut(
+        new AuthenticationProperties { RedirectUri = "/" },
+        [CyclesAuthenticationSchemes.Cookie, CyclesAuthenticationSchemes.OpenIdConnect]));
+
+    app.MapGet("/auth/error", (string? code) => Results.Json(
+        new ErrorResponse(
+            code is "accessDenied" ? ApiErrorCodes.Forbidden : ApiErrorCodes.AuthenticationRequired,
+            code is "accessDenied"
+                ? "The identity provider denied access."
+                : "External authentication could not be completed.",
+            Details: null,
+            TraceId: null),
+        statusCode: code is "accessDenied" ? StatusCodes.Status403Forbidden : StatusCodes.Status401Unauthorized));
+}
 
 app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
@@ -49,10 +119,11 @@ app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
         return ToLoginResponse(state, actor.Player, empire, app.Environment.IsDevelopment());
     }));
 
-app.MapGet("/cycles/current", (IGameStateStore store) =>
+app.MapGet("/cycles/current", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
         var state = store.LoadOrCreate();
+        _ = DevelopmentAuth.RequireActor(httpContext, state);
         return ToCycleResponse(state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists."));
     }));
 
@@ -125,7 +196,7 @@ app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, 
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var system = state.Systems.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.SystemId == systemId)
-            ?? throw new InvalidOperationException("System was not found in the active cycle.");
+            ?? throw new ApiNotFoundException("System was not found in the active cycle.");
 
         return ToSystemDetailResponse(state, cycle, system, actor, visibleSystemIds);
     }));
@@ -153,7 +224,7 @@ app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGa
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
-            ?? throw new InvalidOperationException("Fleet was not found in the active cycle.");
+            ?? throw new ApiNotFoundException("Fleet was not found in the active cycle.");
         if (!actor.IsAdmin && fleet.EmpireId != DevelopmentAuth.ResolveEmpireId(state, actor))
         {
             throw new ApiForbiddenException("The authenticated player cannot inspect this fleet.");
@@ -201,6 +272,12 @@ app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpCont
 app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
     ApiAdminEndpoints.RunTick(httpContext, store, app.Environment.IsDevelopment()));
 
+app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (Guid targetPlayerId, AdminRoleChangeRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, store));
+
+app.MapDelete("/admin/players/{targetPlayerId:guid}/roles/admin", (Guid targetPlayerId, [FromBody] AdminRoleChangeRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiAdminRoleEndpoints.Revoke(targetPlayerId, request, httpContext, store));
+
 app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
@@ -215,6 +292,16 @@ app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateSto
             .Take(Math.Clamp(limit ?? 25, 1, 100))
             .Select(ToEventResponse)
             .ToArray();
+    }));
+
+app.MapGet("/briefings/opening", (HttpContext httpContext, IGameStateStore store) =>
+    TryResult(() =>
+    {
+        var state = store.LoadOrCreate();
+        var cycle = GetActiveCycle(state);
+        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+        return OpeningBriefingContract.FindVisible(state, cycle, actor, visibleSystemIds);
     }));
 
 app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
@@ -246,21 +333,9 @@ static IResult TryResult<T>(Func<T> action)
     {
         return Results.Ok(action());
     }
-    catch (ApiUnauthorizedException ex)
+    catch (Exception ex) when (ApiErrorResponses.IsHandled(ex))
     {
-        return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status401Unauthorized);
-    }
-    catch (ApiForbiddenException ex)
-    {
-        return Results.Json(new ErrorResponse(ex.Message), statusCode: StatusCodes.Status403Forbidden);
-    }
-    catch (InvalidOperationException ex)
-    {
-        return Results.BadRequest(new ErrorResponse(ex.Message));
-    }
-    catch (ArgumentException ex)
-    {
-        return Results.BadRequest(new ErrorResponse(ex.Message));
+        return ApiErrorResponses.ToResult(ex);
     }
 }
 
@@ -271,7 +346,6 @@ static LoginResponse Login(
     GameState state,
     LoginRequest request,
     HttpContext httpContext,
-    bool isDevelopment,
     DateTimeOffset now)
 {
     var username = string.IsNullOrWhiteSpace(request.Username) ? "player-1" : request.Username.Trim();
@@ -298,10 +372,10 @@ static LoginResponse Login(
     player.LastLoginAt = now;
     var cycle = GetActiveCycle(state);
     var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.PlayerId == player.PlayerId)
-        ?? AddEmpireForPlayer(state, cycle, player, request.EmpireName, now);
+        ?? PlayerProvisioning.AddEmpireForPlayer(state, cycle, player, request.EmpireName, now);
 
     DevelopmentAuth.SignIn(httpContext, player);
-    return ToLoginResponse(state, player, empire, isDevelopment);
+    return ToLoginResponse(state, player, empire, isDevelopment: true);
 }
 
 static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool isDevelopment) =>
@@ -311,72 +385,6 @@ static LoginResponse ToLoginResponse(GameState state, Player player, Empire empi
         player.Role,
         player.Role == PlayerRole.Admin || isDevelopment,
         ToEmpireResponse(state, empire));
-
-static Empire AddEmpireForPlayer(GameState state, Cycle cycle, Player player, string? requestedEmpireName, DateTimeOffset now)
-{
-    var claimedHomeSystems = state.Empires.Where(empire => empire.CycleId == cycle.CycleId).Select(empire => empire.HomeSystemId).ToHashSet();
-    var homeSystem = state.Systems
-        .Where(system => system.CycleId == cycle.CycleId && !claimedHomeSystems.Contains(system.SystemId))
-        .OrderByDescending(system => system.StrategicValue)
-        .FirstOrDefault()
-        ?? state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderByDescending(system => system.StrategicValue).First();
-
-    var empire = new Empire
-    {
-        CycleId = cycle.CycleId,
-        PlayerId = player.PlayerId,
-        EmpireName = string.IsNullOrWhiteSpace(requestedEmpireName) ? $"{player.Username} Continuance" : requestedEmpireName.Trim(),
-        HomeSystemId = homeSystem.SystemId,
-        CreatedAt = now,
-        Status = EmpireStatus.Active
-    };
-    state.Empires.Add(empire);
-
-    state.EmpireResources.Add(new EmpireResource
-    {
-        EmpireId = empire.EmpireId,
-        Industry = 100,
-        Research = 100,
-        Population = 100,
-        UpdatedAt = now
-    });
-
-    state.EmpirePriorities.Add(new EmpirePriority
-    {
-        EmpireId = empire.EmpireId,
-        IndustryWeight = 30,
-        ResearchWeight = 25,
-        MilitaryWeight = 30,
-        ExpansionWeight = 15,
-        UpdatedAt = now
-    });
-
-    var admiral = new Admiral
-    {
-        CycleId = cycle.CycleId,
-        EmpireId = empire.EmpireId,
-        AdmiralName = $"{player.Username} Vanguard",
-        ReputationScore = 0,
-        Status = AdmiralStatus.Active,
-        CreatedAt = now,
-        UpdatedAt = now
-    };
-    state.Admirals.Add(admiral);
-
-    state.Fleets.Add(new Fleet
-    {
-        CycleId = cycle.CycleId,
-        EmpireId = empire.EmpireId,
-        AdmiralId = admiral.AdmiralId,
-        FleetName = $"{empire.EmpireName} Home Fleet",
-        CurrentSystemId = homeSystem.SystemId,
-        ShipCount = 45,
-        Status = FleetStatus.Active,
-        CreatedAt = now
-    });
-
-    return empire;
-}
 
 static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 {
@@ -568,7 +576,6 @@ static EventResponse ToEventResponse(EventRecord item) =>
         item.SystemId,
         item.EmpireId,
         item.Severity,
-        item.FactJson,
         item.DisplayText,
         item.CreatedAt);
 
@@ -587,7 +594,6 @@ static BattleResponse ToBattleResponse(BattleRecord item) =>
         item.AttackerLosses,
         item.DefenderLosses,
         item.Outcome,
-        item.FactJson,
         item.CreatedAt);
 
 static ChronicleEntryResponse ToChronicleEntryResponse(
@@ -1019,7 +1025,6 @@ public sealed record EventResponse(
     Guid? SystemId,
     Guid? EmpireId,
     EventSeverity Severity,
-    string FactJson,
     string DisplayText,
     DateTimeOffset CreatedAt);
 
@@ -1037,7 +1042,6 @@ public sealed record BattleResponse(
     int AttackerLosses,
     int DefenderLosses,
     BattleOutcome Outcome,
-    string FactJson,
     DateTimeOffset CreatedAt);
 
 public sealed record ChronicleEntryResponse(
@@ -1072,5 +1076,3 @@ public sealed record PriorityRequest(
     int ResearchWeight,
     int MilitaryWeight,
     int ExpansionWeight);
-
-public sealed record ErrorResponse(string Message);

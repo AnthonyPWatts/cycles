@@ -20,7 +20,7 @@ public sealed class DashboardAuthContractTests
         Assert.Contains("elements.loginForm.hidden = false;", script);
         Assert.Contains("elements.sessionSummary.hidden = true;", script);
         Assert.Contains("elements.appShell.hidden = true;", script);
-        Assert.Contains("await postJson(\"/auth/logout\", {});", script);
+        Assert.Contains("window.location.assign(\"/auth/logout\");", script);
     }
 
     [Fact]

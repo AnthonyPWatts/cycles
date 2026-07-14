@@ -2,7 +2,7 @@
 
 This folder contains a Cycles-specific SQL Server container definition based on the SQLDockerDeployKit pattern: a SQL Server image that creates `CyclesDb`, applies the ordered SQL migrations from `database/migrations`, then executes ordered seed scripts from `SQLScripts`.
 
-The application still uses JSON persistence by default, but the CLI and API can opt into this SQL Server database through the `Cycles.Infrastructure.SqlServer` store.
+Normal local API and Worker runs use this SQL Server database through the `Cycles.Infrastructure.SqlServer` store. Versioned JSON is retained for explicit operator import/export, fixtures, and migration evidence while the hosted cutover remains pending.
 
 ## Build
 
@@ -34,7 +34,7 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
 
 ## Connection String
 
@@ -56,10 +56,21 @@ dotnet run --project src/Cycles.Cli -- tick "sqlserver:Server=localhost,14333;Da
 Run the API against SQL Server with `ConnectionStrings:Cycles`:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10" --Cycles:RequireSqlRuntime true
+dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10" --Cycles:RequireSqlRuntime true
 ```
 
 The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. SQL-backed tick execution uses a focused tick workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store is still a practical bridge from JSON persistence to the final application-service/repository model.
+
+Use the guarded state-transfer commands for migration or recovery rather than copying the old JSON store into place:
+
+```powershell
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v1.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:<target-connection-string>" --confirm-import --confirm-replace
+```
+
+The export contains player identity and game state. Store it as a sensitive temporary artefact, verify the imported record count, and remove it through the approved secure-file process after the restore or cutover evidence has been retained.
 
 ## Integration Test
 

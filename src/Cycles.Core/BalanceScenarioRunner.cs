@@ -9,7 +9,8 @@ public enum BalanceScenarioStrategy
     Balanced,
     Military,
     Expansion,
-    Cautious
+    Cautious,
+    Mixed
 }
 
 public sealed record BalanceScenarioOptions(
@@ -22,6 +23,7 @@ public sealed record BalanceScenarioOptions(
 
 public sealed record BalanceEmpireResult(
     string EmpireName,
+    BalanceScenarioStrategy Strategy,
     int InitialShips,
     int ActiveShips,
     decimal ShipGrowthFactor,
@@ -78,8 +80,8 @@ public static class BalanceScenarioRunner
             options.Seed,
             ScenarioStart);
         var cycle = state.GetActiveCycle()!;
-        var strategy = GetStrategy(options.Strategy);
-        ApplyStrategy(state, cycle.CycleId, strategy);
+        var strategiesByEmpireId = AssignStrategies(state, cycle.CycleId, options.Strategy);
+        ApplyStrategies(state, strategiesByEmpireId);
         CreateExpeditionFleets(state, cycle.CycleId, options.Seed);
         var rendezvous = SelectRendezvousSystem(state, cycle.CycleId);
         var initialShips = state.Empires.ToDictionary(
@@ -103,7 +105,7 @@ public static class BalanceScenarioRunner
             var now = ScenarioStart.AddMinutes(cycle.TickLengthMinutes * tick);
             var orderPlanningStarted = Stopwatch.GetTimestamp();
             LaunchAvailableExpeditions(state, cycle.CycleId, options.Seed, now);
-            SubmitScenarioOrders(state, cycle.CycleId, rendezvous.SystemId, strategy, now);
+            SubmitScenarioOrders(state, cycle.CycleId, rendezvous.SystemId, strategiesByEmpireId, now);
             orderPlanningTime += Stopwatch.GetElapsedTime(orderPlanningStarted);
             var tickProcessingStarted = Stopwatch.GetTimestamp();
             var tickResult = engine.RunTick(state, cycle.CycleId, now);
@@ -123,7 +125,12 @@ public static class BalanceScenarioRunner
         var empireResults = state.Empires
             .Where(empire => empire.CycleId == cycle.CycleId)
             .OrderBy(empire => empire.EmpireName)
-            .Select(empire => CreateEmpireResult(state, empire, initialShips[empire.EmpireId], finalMetrics[empire.EmpireId]))
+            .Select(empire => CreateEmpireResult(
+                state,
+                empire,
+                strategiesByEmpireId[empire.EmpireId].Name,
+                initialShips[empire.EmpireId],
+                finalMetrics[empire.EmpireId]))
             .ToArray();
         var mapControlValues = empireResults.Select(result => result.MapControlPercent).ToArray();
 
@@ -154,7 +161,7 @@ public static class BalanceScenarioRunner
         GameState state,
         Guid cycleId,
         Guid rendezvousSystemId,
-        BalanceStrategy strategy,
+        IReadOnlyDictionary<Guid, BalanceStrategy> strategiesByEmpireId,
         DateTimeOffset now)
     {
         var empiresById = state.Empires
@@ -194,6 +201,7 @@ public static class BalanceScenarioRunner
                      .OrderBy(fleet => empiresById[fleet.EmpireId].EmpireName)
                      .ThenBy(fleet => fleet.FleetName))
         {
+            var strategy = strategiesByEmpireId[fleet.EmpireId];
             if (pendingFleetIds.Contains(fleet.FleetId))
             {
                 continue;
@@ -261,15 +269,41 @@ public static class BalanceScenarioRunner
         }
     }
 
-    private static void ApplyStrategy(GameState state, Guid cycleId, BalanceStrategy strategy)
+    private static IReadOnlyDictionary<Guid, BalanceStrategy> AssignStrategies(
+        GameState state,
+        Guid cycleId,
+        BalanceScenarioStrategy requestedStrategy)
     {
-        var empireIds = state.Empires
+        var empires = state.Empires
             .Where(empire => empire.CycleId == cycleId)
-            .Select(empire => empire.EmpireId)
-            .ToHashSet();
-
-        foreach (var priority in state.EmpirePriorities.Where(priority => empireIds.Contains(priority.EmpireId)))
+            .OrderBy(empire => empire.EmpireName)
+            .ToArray();
+        var mixedStrategies = new[]
         {
+            BalanceScenarioStrategy.Balanced,
+            BalanceScenarioStrategy.Military,
+            BalanceScenarioStrategy.Expansion,
+            BalanceScenarioStrategy.Cautious
+        };
+
+        return empires
+            .Select((empire, index) => new
+            {
+                empire.EmpireId,
+                Strategy = GetStrategy(requestedStrategy == BalanceScenarioStrategy.Mixed
+                    ? mixedStrategies[index % mixedStrategies.Length]
+                    : requestedStrategy)
+            })
+            .ToDictionary(item => item.EmpireId, item => item.Strategy);
+    }
+
+    private static void ApplyStrategies(
+        GameState state,
+        IReadOnlyDictionary<Guid, BalanceStrategy> strategiesByEmpireId)
+    {
+        foreach (var priority in state.EmpirePriorities.Where(priority => strategiesByEmpireId.ContainsKey(priority.EmpireId)))
+        {
+            var strategy = strategiesByEmpireId[priority.EmpireId];
             priority.IndustryWeight = strategy.IndustryWeight;
             priority.ResearchWeight = strategy.ResearchWeight;
             priority.MilitaryWeight = strategy.MilitaryWeight;
@@ -281,14 +315,15 @@ public static class BalanceScenarioRunner
     private static BalanceStrategy GetStrategy(BalanceScenarioStrategy strategy) =>
         strategy switch
         {
-            BalanceScenarioStrategy.Balanced => new BalanceStrategy(30, 25, 30, 15, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Military => new BalanceStrategy(10, 10, 70, 10, AttackHostiles: true, Colonise: false, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Expansion => new BalanceStrategy(10, 10, 10, 70, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Cautious => new BalanceStrategy(20, 20, 20, 40, AttackHostiles: false, Colonise: true, AvoidHostileDestinations: true),
+            BalanceScenarioStrategy.Balanced => new BalanceStrategy(strategy, 30, 25, 30, 15, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Military => new BalanceStrategy(strategy, 10, 10, 70, 10, AttackHostiles: true, Colonise: false, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Expansion => new BalanceStrategy(strategy, 10, 10, 10, 70, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Cautious => new BalanceStrategy(strategy, 20, 20, 20, 40, AttackHostiles: false, Colonise: true, AvoidHostileDestinations: true),
             _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unknown balance scenario strategy.")
         };
 
     private sealed record BalanceStrategy(
+        BalanceScenarioStrategy Name,
         int IndustryWeight,
         int ResearchWeight,
         int MilitaryWeight,
@@ -403,6 +438,7 @@ public static class BalanceScenarioRunner
     private static BalanceEmpireResult CreateEmpireResult(
         GameState state,
         Empire empire,
+        BalanceScenarioStrategy strategy,
         int initialShips,
         EmpireMetric finalMetric)
     {
@@ -412,6 +448,7 @@ public static class BalanceScenarioRunner
                                                           || battle.DefenderEmpireId == empire.EmpireId).ToArray();
         return new BalanceEmpireResult(
             empire.EmpireName,
+            strategy,
             initialShips,
             activeShips,
             initialShips == 0 ? 0 : decimal.Round((decimal)activeShips / initialShips, 2),
