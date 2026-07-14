@@ -56,6 +56,8 @@ Ordinary order endpoints must not run ticks. The protected tick endpoint invokes
 
 Player API contracts use camelCase property names and camelCase string enums; numeric enum values are not part of the public contract. Handled failures retain meaningful HTTP status and expose stable machine-readable codes alongside safe human-readable messages, with optional validation detail and trace correlation. Clients must not branch on message wording. Issue #128 replaces the current message-only response and locks these conventions before external clients exist.
 
+The dashboard's next-test scale is the curated 24-system, four-empire galaxy. The current SVG map and bounded client-side lists do not promise support for 50 or 100 systems. If gameplay evidence selects a larger target, revisit navigation, clustering, filtering, payload shape, and rendering together rather than treating smaller nodes as sufficient scaling.
+
 ### `Cycles.Worker`
 
 Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.

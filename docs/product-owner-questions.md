@@ -42,6 +42,8 @@ Q123 was answered on 2026-07-14 by keeping raw fact storage out of the normal da
 
 Q124 was answered on 2026-07-14 by locking camelCase properties and camelCase string enums, while requiring a stable machine-readable error code before freezing the current message-only envelope.
 
+Q125 was answered on 2026-07-14 by targeting the existing 24-system, four-empire curated galaxy for the next player test and deferring larger-map work until gameplay evidence justifies it.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -78,7 +80,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110 And Q120-Q124 Answers
+## Accepted Q110 And Q120-Q125 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -88,6 +90,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q122](https://github.com/AnthonyPWatts/cycles/issues/110) | Keep `FactJson` as flexible internal storage for another stage. Introduce a typed or validated fact contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed, rather than merely because it is displayed. | Do not begin a broad typed-fact migration before diplomacy and narrative shapes stabilise. The opening briefing is the current contract candidate because the dashboard consumes its fields; Q123 subsequently settles its public API boundary. |
 | [Q123](https://github.com/AnthonyPWatts/cycles/issues/111) | Keep raw `FactJson` out of the normal dashboard and ordinary player API. Use display text by default and add purpose-built typed detail contracts only where they provide player value. | Event and battle storage may remain flexible internally. The Day One guide must receive a typed opening briefing rather than parse storage JSON, while any raw operator view remains an explicit authorised diagnostic. Implementation is tracked by [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127). |
 | [Q124](https://github.com/AnthonyPWatts/cycles/issues/112) | Lock camelCase JSON property names and camelCase string enum values before external clients exist. Before freezing the error contract, extend the current `message` response with a stable machine-readable `code`, retaining optional structured validation detail and a trace identifier. | HTTP status remains authoritative for the broad failure class; clients may branch on stable codes but not message wording. Numeric enum values are not part of the public contract. Implementation is tracked by [issue #128](https://github.com/AnthonyPWatts/cycles/issues/128). |
+| [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | Target the existing 24-system, four-empire curated galaxy for the next player test. Do not optimise for 50 or 100 systems without evidence that a larger galaxy improves the intended test. | The current map and bounded-list assumptions are accepted for the next test. When expansion is justified, reassess navigation, clustering, filtering, API payloads, and rendering rather than merely shrinking more nodes into the current layout. No implementation issue is required now. |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -156,6 +159,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Ordinary player responses and the normal dashboard do not expose raw fact storage. Display text is the default presentation; useful structured detail uses a purpose-built typed contract, while raw inspection is limited to an explicit authorised operator surface.
 - Player API property names use camelCase and enum wire values use camelCase strings; numeric enum values are not accepted as part of the public contract.
 - Handled player API errors retain the correct HTTP status and use a stable machine-readable code plus a safe human-readable message. Optional structured validation detail and trace correlation may be added without exposing internal exception data.
+- The next player test targets the curated 24-system, four-empire galaxy. Support for 50 or 100 systems is not an implied dashboard contract and requires gameplay evidence plus a fresh navigation and rendering assessment.
 
 ### Cycle End And History
 
@@ -193,7 +197,6 @@ The following open questions now have reversible engineering defaults in the Dev
 
 | Open questions | Current implemented default |
 | --- | --- |
-| [Q125](https://github.com/AnthonyPWatts/cycles/issues/113) | The dashboard is tuned for the current small seeded galaxy and bounded lists; larger-scale rendering remains conditional work. |
 | [Q126](https://github.com/AnthonyPWatts/cycles/issues/114) | The dashboard prioritises desktop command use while retaining basic responsive behaviour for narrower screens. |
 | [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | A resumable Day One guide explains resources, priorities, fog of war, fleet orders, factual Events, and the narrative Chronicle through the real controls. |
 
@@ -209,7 +212,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q125-Q130 | Scale target, help content, backlog ownership, and saved-game exports. Q120-Q124's DTO, fact, and serialization boundaries are settled. |
+| API and dashboard follow-ons | Q126-Q130 | Responsive target, help content, backlog ownership, and saved-game exports. Q120-Q125's DTO, fact, serialization, and next-test scale boundaries are settled. |
 
 ## Engineering Defaults
 

@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q124 now settle the fact, public-exposure, and serialization boundaries; Q125-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q125 now settle the fact, public-exposure, serialization, and next-test scale boundaries; Q126-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -995,3 +995,21 @@ Consequences:
 - HTTP status remains authoritative for the broad failure class, while clients may branch on documented codes and must not parse message wording.
 - Additive optional fields and new error codes are compatible. Renaming or removing fields, changing existing enum wire values or code meanings, or making optional fields required needs an explicit compatibility decision.
 - Implementation and contract tests are tracked by GitHub issue #128. API URL versioning and message localisation remain out of scope.
+
+## 2026-07-14: Keep The Next Dashboard Test At 24 Systems
+
+Decision: target the existing curated 24-system, four-empire galaxy for the next player test. Do not optimise the dashboard for 50, 100, or more systems until gameplay evidence shows that a larger galaxy improves the intended test.
+
+Reasoning:
+
+- The curated opening, guide, strategic choices, map, and bounded lists are designed and exercised together at 24 systems and four empires.
+- The next test needs evidence about player decisions and comprehension, not speculative maximum-map capacity.
+- Increasing node count without reconsidering navigation and information density would create clutter rather than credible scale support.
+- A concrete larger target should drive measurement and design work; an abstract promise of 50 or 100 systems would not identify which interactions must remain usable.
+
+Consequences:
+
+- The current small-galaxy dashboard default is an accepted next-test product boundary rather than an unapproved implementation assumption.
+- No 50- or 100-system dashboard implementation issue is created now.
+- Larger test scenarios remain valid for simulation or persistence evidence, but do not establish dashboard usability at that scale.
+- If a later test selects a larger galaxy, reassess navigation, clustering, filtering, API payloads, rendering cost, and system selection together.

@@ -8,7 +8,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
-| Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated development opening. | The dashboard assumes a small galaxy. |
+| Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated 24-system, four-empire development opening. | That scale is accepted for the next player test; 50- and 100-system dashboard behaviour is unverified and deliberately deferred. |
 | Tick execution | CLI tick runner, scheduled Worker, accepted authenticated-development-player trigger, duplicate-running-tick guards, and explicit recovery state. | Production health, leader election, multi-Cycle scheduling, and deployment policy are undefined. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point priorities, military ship construction, expansion projection, and one research unlock. | Industry and research priorities have no separate direct spending effects; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
