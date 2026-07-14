@@ -42,7 +42,7 @@ The cost-capped hosted playground is also not a production substitute. Its F1 Ap
 - [ ] Define alliance effects on combat, influence, ranking, movement, and shared visibility.
 - [ ] Define diplomatic visibility, Chronicle selection, and cross-Cycle memory.
 
-Blocked by Q013-Q022. The stored relationship vocabulary, attack aggression facts, and treaty-breaking cancellation behaviour are already implemented.
+Blocked by Q013 and Q015-Q022. Q014 now requires mutual acceptance for positive bilateral agreements while keeping war declarations, treaty termination, and pre-acceptance offer withdrawal unilateral. The stored relationship vocabulary, attack aggression facts, and treaty-breaking cancellation behaviour are already implemented.
 
 ### Doctrine, Technology, And Intelligence
 
@@ -96,13 +96,15 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 
 | Gate | Questions | Blocks |
 | --- | --- | --- |
-| Diplomacy | Q013-Q022 | Player actions, alliance mechanics, visibility, Chronicle treatment, memory. |
+| Diplomacy | Q013 and Q015-Q022 | Player-action timing, declarations, alliance mechanics, visibility, Chronicle treatment, and memory. Q014's mutual-acceptance rule is settled. |
 | Visibility and intelligence | Q023-Q034 | Sensors, estimates, alliance sharing, public/private Chronicle detail. |
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
+
+Q014 requires mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. War declarations and treaty termination are unilateral, and pending offers may be withdrawn before acceptance. Q013 and Q015-Q022 still block implementation, so no player-facing diplomacy ticket is ready yet.
 
 Q111 selects a new diagnostic default rather than confirming existing behaviour. Issue [#120](https://github.com/AnthonyPWatts/cycles/issues/120) tracks the bounded implementation without authorising automatic recovery.
 

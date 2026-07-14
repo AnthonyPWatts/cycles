@@ -572,7 +572,7 @@ Consequences:
 - `DiplomaticRelationships` now stores one canonical empire pair per Cycle, while absence still means Neutral.
 - Attack processing records aggression, cancels a pact or alliance to Neutral, and does not silently infer War from combat.
 - Migration `012_add_diplomatic_relationships` and the focused SQL tick path persist relationship changes and their factual events.
-- Q013-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
+- Q014 now settles mutual consent, while Q013 and Q015-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
 
 ## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary
 
@@ -1105,3 +1105,21 @@ Consequences:
 - Ordinary players receive no authoritative-state download or upload endpoint, and normal logs must not contain export payloads, credentials, or private state.
 - Complete exports remain sensitive support artefacts and do not replace database-native backup and restore.
 - Any later player-facing sharing feature requires a separate product decision and a redacted, versioned format.
+
+## 2026-07-14: Require Mutual Consent For Positive Diplomatic Agreements
+
+Decision: require mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. War declarations and treaty termination remain unilateral, and an unaccepted offer may be withdrawn unilaterally.
+
+Reasoning:
+
+- Positive bilateral agreements grant obligations or benefits to both empires and must not be imposed by one player.
+- Ending War also binds both parties, so peace is a mutually accepted transition to Neutral rather than a unilateral action or a new stored relationship state.
+- An empire must remain free to declare hostility, leave an agreement, or retract an offer that the other side has not accepted.
+- Applying the same consent rule to future trade and shared visibility avoids inventing inconsistent diplomacy semantics when those systems are designed.
+
+Consequences:
+
+- Alliance, peace, and Non-Aggression Pact transitions require acceptance by both affected empires.
+- Future trade or shared-visibility agreements use the same mutual-consent boundary, but neither feature is authorised by this decision.
+- War declarations, treaty termination, and withdrawal of an unaccepted offer require only the acting empire's authority.
+- Q013 still determines when diplomatic actions resolve, and Q015-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
