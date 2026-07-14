@@ -534,10 +534,10 @@ public sealed class EmpirePriority
 {
     public Guid EmpirePriorityId { get; set; } = Guid.NewGuid();
     public Guid EmpireId { get; set; }
-    public int IndustryWeight { get; set; } = 25;
-    public int ResearchWeight { get; set; } = 25;
-    public int MilitaryWeight { get; set; } = 25;
-    public int ExpansionWeight { get; set; } = 25;
+    public int IndustryWeight { get; set; }
+    public int ResearchWeight { get; set; }
+    public int MilitaryWeight { get; set; } = StrategicPriorityPolicy.DefaultMilitaryWeight;
+    public int ExpansionWeight { get; set; } = StrategicPriorityPolicy.DefaultExpansionWeight;
     public DateTimeOffset UpdatedAt { get; set; }
 }
 

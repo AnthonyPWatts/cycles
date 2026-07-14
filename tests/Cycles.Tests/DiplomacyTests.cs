@@ -61,7 +61,9 @@ public sealed class DiplomacyTests
             TestState.Now);
         OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, defender.EmpireId, TestState.Now);
 
-        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.True(result.Status == TickLogStatus.Completed, state.TickLogs.Last().DiagnosticLog);
 
         Assert.Equal(
             DiplomaticRelationshipState.Neutral,
@@ -81,7 +83,9 @@ public sealed class DiplomacyTests
         var attackerFleet = state.Fleets.Single(item => item.EmpireId == attacker.EmpireId);
         OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, defender.EmpireId, TestState.Now);
 
-        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.True(result.Status == TickLogStatus.Completed, state.TickLogs.Last().DiagnosticLog);
 
         Assert.Equal(
             DiplomaticRelationshipState.Neutral,

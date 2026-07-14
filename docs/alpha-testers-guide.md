@@ -42,7 +42,7 @@ Your Aurelian command begins with three live problems:
 The guide takes you through this sequence:
 
 1. Read the resource cards and what each stockpile pays for.
-2. Drag any priority slider. The other three rebalance automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
+2. Drag either the Military or Expansion slider. The other active slider rebalances automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
 3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
 4. Read the visibility note: routes are always known, while exact remote facts require an active fleet in the system.
 5. In **Fleets**, select **Aurelian Home Guard**. The guide opens **Move**; choose **Nadir Crossing**, then select **Queue move**.
@@ -89,18 +89,18 @@ The **Held** count means systems where your empire has positive presence. It doe
 
 You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 
-The four priority weights must total 100 and represent strategic effort rather than matching the three resource stockpiles. Change the values, then select **Save priorities**. Military and Expansion affect the next tick; Development and Innovation remain visible but inactive until their planned programmes are implemented.
+The four priority weights represent strategic effort rather than matching the three resource stockpiles. Development and Innovation remain visible but are locked at zero until their planned programmes are implemented. Military and Expansion share the full 100-point active allocation and affect the next tick. Change either active value, then select **Save priorities**.
 
 | Priority | Effect in the current build |
 | --- | --- |
-| Development | Stored through the existing Industry weight for compatibility, but has no direct effect yet. The accepted programme will eventually commit Industry to bounded civilian development or construction capacity rather than multiply raw income. |
-| Innovation | Stored through the existing Research weight for compatibility, but has no direct effect yet. Research income and the current Survey Projection threshold remain independent of this weight. |
+| Development | Locked at zero through the existing Industry compatibility field. The accepted programme will eventually commit Industry to bounded civilian development or construction capacity rather than multiply raw income. |
+| Innovation | Locked at zero through the existing Research compatibility field. Research income and the current Survey Projection threshold remain independent of this weight. |
 | Military | Spends that percentage of your industry stockpile on ships during each tick. Each ship costs 25 industry and takes three ticks to complete. |
 | Expansion | Adds the same percentage as a bonus to your effective presence. More presence increases your resource share and can help you qualify to colonise. |
 
 Research still matters even though Innovation has no direct effect. At 200 research, your empire unlocks **Survey Projection**, which adds a further 10% effective-presence bonus.
 
-For the clearest development experiment, change the balance between Military and Expansion. Putting weight into Development or Innovation reduces those two active effects, but does not yet create another direct benefit.
+Change the balance between Military and Expansion to experiment with the current priority system. Existing saves are normalised to preserve their previous Military-to-Expansion ratio when the inactive allocations are removed.
 
 The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
 
@@ -231,7 +231,7 @@ Refresh reloads data without processing a tick. In Development, every authentica
 
 ### My priorities will not save
 
-Check that all four values are zero or greater and total 100.
+Development and Innovation must remain zero, and Military plus Expansion must total 100. The dashboard enforces both rules; an older client receives a validation error instead of storing inactive weight.
 
 ### I logged into the wrong empire
 

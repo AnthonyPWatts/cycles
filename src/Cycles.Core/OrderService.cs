@@ -152,7 +152,7 @@ public static class OrderService
         var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.EmpireId == empireId)
             ?? throw new InvalidOperationException("Empire does not exist in the active cycle.");
 
-        EconomyProcessor.ValidatePriorities(new EmpirePriority
+        StrategicPriorityPolicy.Validate(new EmpirePriority
         {
             IndustryWeight = industryWeight,
             ResearchWeight = researchWeight,

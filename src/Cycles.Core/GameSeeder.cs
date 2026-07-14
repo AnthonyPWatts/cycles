@@ -290,10 +290,10 @@ public static class GameSeeder
             {
                 EmpirePriorityId = nextId(),
                 EmpireId = empire.EmpireId,
-                IndustryWeight = 30,
-                ResearchWeight = 25,
-                MilitaryWeight = 30,
-                ExpansionWeight = 15,
+                IndustryWeight = 0,
+                ResearchWeight = 0,
+                MilitaryWeight = StrategicPriorityPolicy.DefaultMilitaryWeight,
+                ExpansionWeight = StrategicPriorityPolicy.DefaultExpansionWeight,
                 UpdatedAt = now
             });
 

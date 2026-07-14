@@ -39,6 +39,7 @@ public sealed class SqlServerMigratorTests
         var colonialOutposts = Assert.Single(migrations, migration => migration.MigrationId == "011_add_colonial_outposts");
         var diplomaticRelationships = Assert.Single(migrations, migration => migration.MigrationId == "012_add_diplomatic_relationships");
         var externalIdentityAndAdminAudit = Assert.Single(migrations, migration => migration.MigrationId == "013_add_external_identity_and_admin_audit");
+        var inactivePriorities = Assert.Single(migrations, migration => migration.MigrationId == "014_lock_inactive_priorities");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -58,5 +59,7 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CREATE TABLE dbo.DiplomaticRelationships", diplomaticRelationships.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE UNIQUE INDEX UX_Players_ExternalIdentity", externalIdentityAndAdminAudit.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.AdminRoleAuditRecords", externalIdentityAndAdminAudit.Script, StringComparison.Ordinal);
+        Assert.Contains("CK_EmpirePriorities_ActiveProgrammes", inactivePriorities.Script, StringComparison.Ordinal);
+        Assert.Contains("CAST(MilitaryWeight AS BIGINT) + ExpansionWeight = 100", inactivePriorities.Script, StringComparison.Ordinal);
     }
 }

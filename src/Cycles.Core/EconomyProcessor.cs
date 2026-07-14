@@ -63,7 +63,7 @@ public static class EconomyProcessor
             var priorities = state.EmpirePriorities.SingleOrDefault(item => item.EmpireId == empire.EmpireId)
                 ?? throw new InvalidOperationException($"Empire {empire.EmpireId} does not have strategic priorities.");
 
-            ValidatePriorities(priorities);
+            StrategicPriorityPolicy.Validate(priorities);
             ClampResources(resources);
 
             resources.LastSpentIndustry = 0;
@@ -165,27 +165,6 @@ public static class EconomyProcessor
                                  && item.EmpireId == empireId
                                  && item.EventType == EventType.DoctrineUnlocked
                                  && item.FactJson.Contains(SurveyProjectionDoctrineKey, StringComparison.Ordinal));
-
-    internal static void ValidatePriorities(EmpirePriority priorities)
-    {
-        var weights = new[]
-        {
-            priorities.IndustryWeight,
-            priorities.ResearchWeight,
-            priorities.MilitaryWeight,
-            priorities.ExpansionWeight
-        };
-
-        if (weights.Any(weight => weight < 0))
-        {
-            throw new InvalidOperationException("Priority weights cannot be negative.");
-        }
-
-        if (weights.Sum() != 100)
-        {
-            throw new InvalidOperationException("Priority weights must total 100.");
-        }
-    }
 
     private static Fleet GetOrCreateHomeFleet(GameState state, Guid cycleId, Empire empire, DateTimeOffset now)
     {

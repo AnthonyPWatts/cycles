@@ -150,6 +150,10 @@ internal static class TestState
         state.EmpirePriorities.Add(new EmpirePriority
         {
             EmpireId = empireId,
+            IndustryWeight = 0,
+            ResearchWeight = 0,
+            MilitaryWeight = 0,
+            ExpansionWeight = 100,
             UpdatedAt = Now
         });
     }

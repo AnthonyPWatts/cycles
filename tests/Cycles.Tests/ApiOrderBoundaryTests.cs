@@ -244,6 +244,26 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task PriorityEndpointRejectsInactiveWeights()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var store = new InMemoryGameStateStore(state);
+        var httpContext = CreateAuthenticatedContext(state);
+
+        var result = ApiOrderEndpoints.UpdatePriorities(
+            new PriorityRequest(null, 1, 0, 66, 33),
+            httpContext,
+            store,
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Contains("locked at zero", response.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(state.Events);
+    }
+
+    [Fact]
     public async Task MoveOrderEndpointRequiresDevelopmentLogin()
     {
         var state = TestState.CreateMovementState(linkSystems: true);

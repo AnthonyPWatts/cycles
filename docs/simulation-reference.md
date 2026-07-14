@@ -1,6 +1,6 @@
 # Simulation Reference
 
-Last updated: 2026-07-11
+Last updated: 2026-07-14
 
 This reference records the simulation contracts that need more precision than the project-state summary: determinism, Cycle-end ranking, and the repeatable balance diagnostic. It describes current behaviour, not intended game balance.
 
@@ -86,10 +86,10 @@ Defaults: 48 ticks, 24 systems, four empires, seed `71421`, balanced policy. The
 
 | Strategy | Industry / Research / Military / Expansion | Colonises | Attacks | Avoids hostile destinations |
 | --- | --- | --- | --- | --- |
-| Balanced | 30 / 25 / 30 / 15 | Yes | Yes | No |
-| Military | 10 / 10 / 70 / 10 | No | Yes | No |
-| Expansion | 10 / 10 / 10 / 70 | Yes | Yes | No |
-| Cautious | 20 / 20 / 20 / 40 | Yes | No | Yes |
+| Balanced | 0 / 0 / 67 / 33 | Yes | Yes | No |
+| Military | 0 / 0 / 88 / 12 | No | Yes | No |
+| Expansion | 0 / 0 / 13 / 87 | Yes | Yes | No |
+| Cautious | 0 / 0 / 33 / 67 | Yes | No | Yes |
 
 These homogeneous policies isolate behaviour. A mixed-strategy scenario, where different policies compete within one Cycle, remains the next useful diagnostic.
 
@@ -99,12 +99,12 @@ Seed `71421`, 24 systems, four empires, balanced policy:
 
 | Requested ticks | Completed | Orders | Battles | Colonies | Constructions | Retained records |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 24 | 24 | 60 | 22 | 10 | 84 | 777 |
-| 48 | 48 | 125 | 51 | 11 | 180 | 1,484 |
-| 96 | 96 | 256 | 107 | 12 | 367 | 2,892 |
-| 2,160 | 2,160 | 25,766 | 2,298 | 12 | 8,304 | 102,343 |
+| 24 | 24 | 68 | 24 | 10 | 83 | 792 |
+| 48 | 48 | 131 | 53 | 12 | 176 | 1,491 |
+| 96 | 96 | 265 | 115 | 12 | 362 | 2,908 |
+| 2,160 | 2,160 | 29,735 | 2,250 | 12 | 8,247 | 110,018 |
 
-The full 2,160-tick scenario completed locally on 2026-07-11 without deleting or archiving history. Order planning took 3.16 seconds, Core tick processing 5.37 seconds, and total CLI wall time including build/startup 18.39 seconds. These are dated engineering measurements, not performance thresholds.
+The full 2,160-tick scenario completed locally on 2026-07-14 without deleting or archiving history. Order planning took 3.59 seconds and Core tick processing took 5.93 seconds. These are dated engineering measurements, not performance thresholds.
 
 ### Strategy Comparison Baseline
 
@@ -112,11 +112,12 @@ Seed `71421`, 96 ticks, 24 systems, four empires:
 
 | Strategy | Orders | Battles | Colonies | Ships completed | Map-control gap | Active-ship range |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 256 | 107 | 12 | 1,102 | 3.68 | 52-76 |
-| Military | 236 | 96 | 0 | 1,113 | 4.17 | 39-234 |
-| Expansion | 228 | 100 | 12 | 982 | 8.33 | 37-95 |
-| Cautious | 54 | 0 | 8 | 1,334 | 0.00 | 358-446 |
+| Balanced | 265 | 115 | 12 | 1,114 | 4.17 | 55-64 |
+| Military | 240 | 105 | 0 | 1,116 | 8.33 | 40-127 |
+| Expansion | 240 | 106 | 12 | 1,025 | 4.17 | 52-65 |
+| Cautious | 56 | 0 | 8 | 1,369 | 0.00 | 366-456 |
+| Mixed | 227 | 86 | 8 | 1,128 | 4.17 | 60-279 |
 
 The results show that movement and engagement policy changes outcomes at least as much as priority weights. Research and Population grow substantially after the available unlock and colonisation targets are exhausted. This evidence does not justify changing ship cost, build delay, colonisation cost, outpost presence, research threshold, or Chronicle threshold in isolation.
 
-No balance constant changed from this baseline. Further tuning should use mixed-policy competition or private-alpha evidence rather than hide missing long-term resource sinks with a single-number adjustment.
+This baseline incorporates the inactive-priority lock and the resulting full Military/Expansion allocation. No ship, colonisation, influence, research, combat, or Chronicle constant changed. Further tuning should use mixed-policy competition or private-alpha evidence rather than hide missing long-term resource sinks with a single-number adjustment.

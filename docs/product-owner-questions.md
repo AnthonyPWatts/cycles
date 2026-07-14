@@ -175,7 +175,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 
 - Industry, Research, and Population are non-negative stockpiles.
 - Priority weights are percentages totalling 100 and allocate strategic effort across Development, Innovation, Military, and Expansion; they do not map one-to-one to the resource stockpiles.
-- The persisted Industry and Research weights remain compatibility names for Development and Innovation. They stay visible but explicitly inactive until their accepted programme models are implemented.
+- The persisted Industry and Research weights remain compatibility names for Development and Innovation. They stay visible but are locked at zero until their accepted programme models are implemented; Military and Expansion share the active 100 points.
 - Automatic spending may leave resources reserved.
 - Military converts Industry into ships. Development's accepted future role is bounded civilian development or construction capacity rather than a flat output multiplier.
 - The first ship costs 25 industry, takes three ticks, and joins the home fleet.

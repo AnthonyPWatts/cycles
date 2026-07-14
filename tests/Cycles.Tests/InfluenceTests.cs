@@ -162,9 +162,9 @@ public sealed class InfluenceTests
 
     private static void SetExpansionWeight(EmpirePriority priority, int expansionWeight)
     {
-        priority.IndustryWeight = 100 - expansionWeight;
+        priority.IndustryWeight = 0;
         priority.ResearchWeight = 0;
-        priority.MilitaryWeight = 0;
+        priority.MilitaryWeight = 100 - expansionWeight;
         priority.ExpansionWeight = expansionWeight;
     }
 }

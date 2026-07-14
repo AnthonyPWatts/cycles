@@ -315,10 +315,10 @@ public static class BalanceScenarioRunner
     private static BalanceStrategy GetStrategy(BalanceScenarioStrategy strategy) =>
         strategy switch
         {
-            BalanceScenarioStrategy.Balanced => new BalanceStrategy(strategy, 30, 25, 30, 15, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Military => new BalanceStrategy(strategy, 10, 10, 70, 10, AttackHostiles: true, Colonise: false, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Expansion => new BalanceStrategy(strategy, 10, 10, 10, 70, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
-            BalanceScenarioStrategy.Cautious => new BalanceStrategy(strategy, 20, 20, 20, 40, AttackHostiles: false, Colonise: true, AvoidHostileDestinations: true),
+            BalanceScenarioStrategy.Balanced => new BalanceStrategy(strategy, 0, 0, 67, 33, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Military => new BalanceStrategy(strategy, 0, 0, 88, 12, AttackHostiles: true, Colonise: false, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Expansion => new BalanceStrategy(strategy, 0, 0, 13, 87, AttackHostiles: true, Colonise: true, AvoidHostileDestinations: false),
+            BalanceScenarioStrategy.Cautious => new BalanceStrategy(strategy, 0, 0, 33, 67, AttackHostiles: false, Colonise: true, AvoidHostileDestinations: true),
             _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unknown balance scenario strategy.")
         };
 

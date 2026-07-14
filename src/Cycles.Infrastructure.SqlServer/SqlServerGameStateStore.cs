@@ -34,9 +34,15 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         AcquireApplicationLock(connection, transaction);
 
         var state = LoadUnsafe(connection, transaction);
+        var createdState = state.Cycles.Count == 0;
         if (state.Cycles.Count == 0)
         {
             state = _seedFactory();
+        }
+
+        var prioritiesChanged = StrategicPriorityPolicy.Normalize(state);
+        if (createdState || prioritiesChanged)
+        {
             SaveUnsafe(connection, transaction, state);
         }
 
@@ -56,6 +62,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             state = _seedFactory();
         }
 
+        StrategicPriorityPolicy.Normalize(state);
         var result = update(state);
         SaveUnsafe(connection, transaction, state);
         transaction.Commit();
@@ -74,6 +81,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
         AcquireApplicationLock(connection, transaction);
 
+        StrategicPriorityPolicy.Normalize(state);
         SaveUnsafe(connection, transaction, state);
         transaction.Commit();
     }
@@ -106,6 +114,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AcquireCycleTickLock(connection, transaction, activeCycleId.Value);
         }
 
+        StrategicPriorityPolicy.Normalize(state);
         var result = new TickEngine().RunTick(state, activeCycleId.Value, now);
         if (createdState)
         {
@@ -436,6 +445,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.EmpireResources.Where(resource => empireIds.Contains(resource.EmpireId)))
         {
             UpsertEmpireResource(connection, transaction, item);
+        }
+
+        foreach (var item in state.EmpirePriorities.Where(priority => empireIds.Contains(priority.EmpireId)))
+        {
+            UpsertEmpirePriority(connection, transaction, item);
         }
 
         foreach (var item in state.Admirals.Where(admiral => admiral.CycleId == cycleId))

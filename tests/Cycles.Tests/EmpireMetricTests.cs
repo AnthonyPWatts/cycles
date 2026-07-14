@@ -67,6 +67,7 @@ public sealed class EmpireMetricTests
         var state = TestState.CreateTwoEmpireContest(attackerShips: 70, defenderShips: 30);
         var cycle = state.GetActiveCycle()!;
         SetExpansionWeight(state, 0);
+        state.Systems.Single().IndustryOutput = 0;
 
         var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
 
@@ -152,9 +153,9 @@ public sealed class EmpireMetricTests
         state.EmpirePriorities.Add(new EmpirePriority
         {
             EmpireId = empireId,
-            IndustryWeight = 100,
+            IndustryWeight = 0,
             ResearchWeight = 0,
-            MilitaryWeight = 0,
+            MilitaryWeight = 100,
             ExpansionWeight = 0,
             UpdatedAt = TestState.Now
         });
@@ -175,9 +176,9 @@ public sealed class EmpireMetricTests
     {
         foreach (var priority in state.EmpirePriorities)
         {
-            priority.IndustryWeight = 100 - expansionWeight;
+            priority.IndustryWeight = 0;
             priority.ResearchWeight = 0;
-            priority.MilitaryWeight = 0;
+            priority.MilitaryWeight = 100 - expansionWeight;
             priority.ExpansionWeight = expansionWeight;
         }
     }

@@ -35,7 +35,7 @@ public sealed class ColonisationTests
         var fleet = Assert.Single(state.Fleets);
         var priority = Assert.Single(state.EmpirePriorities);
         priority.ExpansionWeight = 0;
-        priority.IndustryWeight = 50;
+        priority.MilitaryWeight = 100;
         state.ColonialOutposts.Add(new ColonialOutpost
         {
             CycleId = cycle.CycleId,

@@ -23,6 +23,24 @@ public sealed class EconomyTests
     }
 
     [Fact]
+    public void InactivePrioritiesMustRemainAtZero()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var empire = Assert.Single(state.Empires);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => OrderService.UpdatePriorities(
+            state,
+            empire.EmpireId,
+            industryWeight: 1,
+            researchWeight: 0,
+            militaryWeight: 66,
+            expansionWeight: 33,
+            TestState.Now));
+
+        Assert.Contains("locked at zero", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void MilitaryPrioritySpendsIndustryIntoQueuedShipConstruction()
     {
         var state = CreateShipBuildingState(industry: 100);

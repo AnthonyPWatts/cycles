@@ -45,19 +45,26 @@ public sealed class FileGameStateStore : IGameStateStore
     public void Replace(GameState state)
     {
         using var stateLock = AcquireLock();
+        StrategicPriorityPolicy.Normalize(state);
         SaveUnsafe(state);
     }
 
     private GameState LoadUnsafe()
     {
+        GameState state;
         if (!File.Exists(_statePath) || new FileInfo(_statePath).Length == 0)
         {
-            return _seedFactory();
+            state = _seedFactory();
+        }
+        else
+        {
+            using var stream = File.OpenRead(_statePath);
+            state = JsonSerializer.Deserialize<GameState>(stream, GameStateJson.Options)
+                ?? throw new InvalidOperationException($"State file '{_statePath}' could not be read.");
         }
 
-        using var stream = File.OpenRead(_statePath);
-        return JsonSerializer.Deserialize<GameState>(stream, GameStateJson.Options)
-            ?? throw new InvalidOperationException($"State file '{_statePath}' could not be read.");
+        StrategicPriorityPolicy.Normalize(state);
+        return state;
     }
 
     private void SaveUnsafe(GameState state)

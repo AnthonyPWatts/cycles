@@ -2,6 +2,7 @@ using Cycles.Core;
 using System.Collections;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 namespace Cycles.Tests;
 
@@ -46,6 +47,28 @@ public sealed class GameStateTransferTests
             """);
         var partialException = Assert.Throws<InvalidOperationException>(() => GameStateTransfer.Read(partial));
         Assert.Contains("adminRoleAuditRecords", partialException.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReaderNormalisesLegacyPriorityAllocations()
+    {
+        var state = CreateCompleteValidState();
+        var priorities = state.EmpirePriorities[0];
+        priorities.IndustryWeight = 30;
+        priorities.ResearchWeight = 25;
+        priorities.MilitaryWeight = 30;
+        priorities.ExpansionWeight = 15;
+        using var stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(
+            new GameStateTransferDocument(GameStateTransfer.CurrentFormatVersion, TestState.Now, state),
+            GameStateJson.Options));
+
+        var document = GameStateTransfer.Read(stream);
+        var normalised = document.State.EmpirePriorities.Single(item => item.EmpirePriorityId == priorities.EmpirePriorityId);
+
+        Assert.Equal(0, normalised.IndustryWeight);
+        Assert.Equal(0, normalised.ResearchWeight);
+        Assert.Equal(67, normalised.MilitaryWeight);
+        Assert.Equal(33, normalised.ExpansionWeight);
     }
 
     [Fact]

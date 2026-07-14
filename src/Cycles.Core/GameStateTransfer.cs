@@ -100,6 +100,7 @@ public static class GameStateTransfer
                 throw new InvalidOperationException($"The state transfer document has an invalid value: {exception.Message}", exception);
             }
 
+            StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
             if (!validation.IsValid)
             {
@@ -442,9 +443,19 @@ public static class GameStateTransfer
         foreach (var priority in state.EmpirePriorities)
         {
             Reference(empireIds, priority.EmpireId, $"Empire priority {priority.EmpirePriorityId} empire", errors);
-            if (priority.IndustryWeight + priority.ResearchWeight + priority.MilitaryWeight + priority.ExpansionWeight != 100)
+            if (priority.IndustryWeight < 0 || priority.ResearchWeight < 0 || priority.MilitaryWeight < 0 || priority.ExpansionWeight < 0)
+            {
+                errors.Add($"Empire priority {priority.EmpirePriorityId} weights cannot be negative.");
+            }
+
+            if ((long)priority.IndustryWeight + priority.ResearchWeight + priority.MilitaryWeight + priority.ExpansionWeight != 100)
             {
                 errors.Add($"Empire priority {priority.EmpirePriorityId} weights must total 100.");
+            }
+
+            if (priority.IndustryWeight != 0 || priority.ResearchWeight != 0)
+            {
+                errors.Add($"Empire priority {priority.EmpirePriorityId} Development and Innovation weights must be zero.");
             }
         }
 

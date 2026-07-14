@@ -92,28 +92,28 @@
                         </div>
                         <form id="priorityForm" class="priority-form">
                             <p id="priorityModelNote" class="priority-model-note">
-                                <strong>Current build:</strong> Military and Expansion affect the next tick. Development and Innovation remain visible for the planned programmes but currently provide no direct benefit.
+                                <strong>Current build:</strong> Military and Expansion affect the next tick. Development and Innovation are locked at zero until their programmes are active.
                             </p>
                             <div class="priority-channels">
                                 <label class="priority-channel" for="industryWeight">
                                     <span class="priority-channel-name">
-                                        <span>Development <small class="priority-effect-status priority-effect-status--inactive">Inactive</small></span>
+                                        <span>Development <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
                                         <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small>
                                     </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
+                                        <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
                                     </span>
                                     <output id="industryWeightValue" for="industryWeight">0</output>
                                 </label>
                                 <label class="priority-channel" for="researchWeight">
                                     <span class="priority-channel-name">
-                                        <span>Innovation <small class="priority-effect-status priority-effect-status--inactive">Inactive</small></span>
+                                        <span>Innovation <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
                                         <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small>
                                     </span>
                                     <span class="priority-slider-shell">
                                         <span class="priority-saved-marker" aria-hidden="true"></span>
-                                        <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
+                                        <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
                                     </span>
                                     <output id="researchWeightValue" for="researchWeight">0</output>
                                 </label>

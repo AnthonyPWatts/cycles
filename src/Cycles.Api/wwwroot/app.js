@@ -33,6 +33,8 @@ const state = {
 
 const viewIds = ["command", "galaxy", "fleets", "history"];
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
+const inactivePriorityKeys = ["industryWeight", "researchWeight"];
+const activePriorityKeys = ["militaryWeight", "expansionWeight"];
 const viewShortcuts = new Map([
     ["1", "command"],
     ["2", "galaxy"],
@@ -737,7 +739,12 @@ function setViewBadge(element, value, label) {
 }
 
 function renderPriorities(priorities) {
-    state.priorityDraft = Object.fromEntries(priorityKeys.map(key => [key, parseWeight(priorities[key])]));
+    const normalised = normalisePriorityAllocation(priorities);
+    if (state.empire) {
+        state.empire.priorities = { ...priorities, ...normalised };
+    }
+
+    state.priorityDraft = normalised;
     renderPriorityControls();
 }
 
@@ -1278,7 +1285,7 @@ function tutorialSteps() {
             id: "priorities",
             view: "command",
             title: "Choose what this turn emphasises",
-            body: "The 100 points represent strategic effort, not the three resource stockpiles. Development and Innovation are visible but inactive while their programmes are designed. Military converts Industry into ship construction; Expansion strengthens projected influence. Drag a slider and save the new allocation when it is ready.",
+            body: "The 100 points represent strategic effort, not the three resource stockpiles. Development and Innovation are locked at zero until their programmes are active. Military converts Industry into ship construction; Expansion strengthens projected influence. Adjust either active slider and save the new allocation when it is ready.",
             target: () => document.querySelector("#prioritySection"),
             required: true,
             requirement: "Save the priority allocation to continue.",
@@ -1810,13 +1817,13 @@ function setTurnMessage(message) {
 }
 
 function rebalancePriorityDraft(activeKey, requestedValue) {
-    if (!priorityKeys.includes(activeKey)) {
+    if (!activePriorityKeys.includes(activeKey)) {
         return;
     }
 
     const activeValue = Math.max(0, Math.min(100, requestedValue));
     const pointDelta = activeValue - state.priorityDraft[activeKey];
-    const otherKeys = priorityKeys.filter(key => key !== activeKey);
+    const otherKeys = activePriorityKeys.filter(key => key !== activeKey);
     state.priorityDraft[activeKey] = activeValue;
 
     for (let point = 0; point < Math.abs(pointDelta); point += 1) {
@@ -1842,9 +1849,10 @@ function renderPriorityControls() {
         const value = state.priorityDraft[key];
         const savedValue = state.empire ? parseWeight(state.empire.priorities[key]) : value;
         const isChanged = value !== savedValue;
+        const isInactive = inactivePriorityKeys.includes(key);
         const sliderShell = input.closest(".priority-slider-shell");
         input.value = value;
-        input.disabled = state.prioritySaving;
+        input.disabled = state.prioritySaving || isInactive;
         input.setAttribute("aria-valuetext", `${value} points; linked total 100`);
         sliderShell.style.setProperty("--priority-percent", `${value}%`);
         sliderShell.style.setProperty("--saved-percent", `${savedValue}%`);
@@ -1862,6 +1870,22 @@ function renderPriorityControls() {
     elements.prioritySaveButton.textContent = state.prioritySaving ? "Saving…" : "Save priorities";
     elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;
     elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;
+}
+
+function normalisePriorityAllocation(priorities) {
+    const militaryWeight = parseWeight(priorities.militaryWeight);
+    const expansionWeight = parseWeight(priorities.expansionWeight);
+    const activeTotal = militaryWeight + expansionWeight;
+    const normalisedMilitary = activeTotal === 0
+        ? 50
+        : Math.max(0, Math.min(100, Math.round(militaryWeight * 100 / activeTotal)));
+
+    return {
+        industryWeight: 0,
+        researchWeight: 0,
+        militaryWeight: normalisedMilitary,
+        expansionWeight: 100 - normalisedMilitary
+    };
 }
 
 function pulsePriorityConsole() {

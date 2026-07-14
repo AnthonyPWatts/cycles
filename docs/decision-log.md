@@ -1235,6 +1235,8 @@ Consequences:
 
 Decision: keep three resource stockpiles and four 100-point strategic programmes. Present the persisted Industry and Research weights as Development and Innovation compatibility fields, keep them visibly inactive until their programmes exist, retain Military and Expansion as the two active effects, and keep Population as a directly consumed resource without adding a fifth priority.
 
+Status: extended later on 2026-07-14 by locking the inactive Development and Innovation weights at zero and assigning the full active allocation to Military and Expansion.
+
 Reasoning:
 
 - Four priorities and three resources are compatible when priorities represent empire-level strategic effort rather than one control per stockpile.
@@ -1251,3 +1253,20 @@ Consequences:
 - Raw system Industry, Research, and Population output remains strictly divided by effective presence for the first version.
 - The existing persistence and API field names remain unchanged for compatibility. Any mechanical activation or public-contract rename requires a separate bounded implementation and should begin at a deliberate Cycle or reseed boundary.
 - Expansion retains its current effect for compatibility; narrowing or rebalancing its broad presence effect requires guided play and mixed-strategy evidence through issue #131.
+
+## 2026-07-14: Lock Inactive Priority Programmes At Zero
+
+Decision: keep Development and Innovation visible as future strategic programmes but lock both compatibility weights at zero until their mechanics are active. Military and Expansion divide the current 100-point allocation.
+
+Reasoning:
+
+- A visible, editable control with no effect asks players to make a false strategic choice.
+- Disabling the inactive controls is coherent once their stored points are moved into the active allocation rather than stranded.
+- Preserving each legacy allocation's Military-to-Expansion ratio minimises strategic drift while producing a valid active total. A legacy allocation with neither active weight uses a neutral 50/50 fallback.
+
+Consequences:
+
+- Domain validation rejects new non-zero Development or Innovation weights, and SQL adds an equivalent checked constraint.
+- Seeded, newly provisioned, and balance-scenario empires start with zero inactive weight. JSON, SQL, and versioned imports normalise legacy allocations deterministically.
+- The dashboard disables the two inactive sliders, labels them **Locked**, and rebalances only Military and Expansion.
+- Activating either future programme requires a deliberate validation, persistence, UI, balance, and Cycle-transition change rather than merely enabling a control.
