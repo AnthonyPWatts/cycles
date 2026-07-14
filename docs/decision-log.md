@@ -1290,5 +1290,5 @@ Consequences:
 - The final stopped JSON checkpoint is sensitive migration evidence. Once SQL-backed gameplay resumed, Azure SQL backup/restore became authoritative and the stale file ceased to be a normal rollback path.
 - API and Worker require `ConnectionStrings:Cycles`, `Cycles:SqlConnectionString`, or `CYCLES_SQL_CONNECTION_STRING`; they no longer read `Cycles:StatePath` or `CYCLES_STATE_PATH` and cannot select `FileGameStateStore`.
 - `state convert-runtime-file` is a bounded bridge from the retired unversioned runtime shape to the validated transfer envelope. It does not make raw file persistence a supported host mode.
-- SQL migration discovery opens the target database directly and treats only SQL error 4060 as absence, avoiding Azure SQL's restricted `master` metadata visibility.
+- SQL migration discovery queries `master.sys.databases` by name, avoiding Azure SQL's current-database limitation for `DB_ID` and SQL clients that collapse a missing target into a login failure.
 - The cutover checkpoint preserved all 23 persisted collection counts and 166 records. The reopened API passed health and authenticated gameplay checks, and an isolated restore reproduced the current 14-migration schema, active tick 3, and zero unresolved recovery.
