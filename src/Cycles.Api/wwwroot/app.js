@@ -1914,8 +1914,9 @@ function resourceCard(label, value, maxResource, generated, spent) {
     const generatedNumeric = Number(generated ?? 0);
     const spentNumeric = Number(spent ?? 0);
     const width = numeric <= 0 ? 0 : Math.max(4, Math.round(numeric / maxResource * 100));
+    const resourceKey = label.toLowerCase();
     return `
-        <div class="resource-card">
+        <div class="resource-card resource-card-${escapeHtml(resourceKey)}">
             <dt>${escapeHtml(label)}</dt>
             <dd>
                 <strong>${formatNumber(numeric)}</strong>
