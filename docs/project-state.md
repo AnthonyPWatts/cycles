@@ -89,6 +89,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - `IGameStateStore` is shared by the CLI, API, and Worker.
 - JSON is the default zero-service development store and uses file locking for writers.
 - This JSON runtime fallback is transitional. Q119 requires issue #126 to replace it with explicit import/export and mandatory SQL configuration after the safe deployed cutover sequence.
+- Q130 limits complete state export/import to operator/admin and developer support. Full exports contain private state across all empires, are sensitive artefacts, and are neither player save files nor database backups; issue #126 owns the missing controls and guidance.
 - SQL Server migrations are plain ordered scripts under `database/migrations` and are tracked in `dbo.SchemaMigrations`.
 - Migration `012_add_diplomatic_relationships` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.

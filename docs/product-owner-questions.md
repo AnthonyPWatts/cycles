@@ -52,6 +52,8 @@ Q128 was answered on 2026-07-14 by making GitHub issues authoritative for concre
 
 Q129 was answered on 2026-07-14 by keeping maintained documentation aligned with current `main` and using Git/build evidence for historical snapshots rather than copying docs per gameplay Cycle.
 
+Q130 was answered on 2026-07-14 by treating complete state export/import as sensitive operator/admin support tooling rather than a player-facing save/restore feature.
+
 When an answer is accepted:
 
 1. record the concise answer and any authorised default here;
@@ -88,7 +90,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
 | [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
-## Accepted Q110 And Q120-Q129 Answers
+## Accepted Q110 And Q120-Q130 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
@@ -103,6 +105,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q127](https://github.com/AnthonyPWatts/cycles/issues/115) | Keep the resumable Day One guide as the primary in-dashboard training. Teach priorities, visibility and fog-of-war, the order lifecycle, factual Events versus the selective Chronicle, and basic tick/Cycle history through the real controls. | The existing guide already covers the playable order loop but needs explicit visibility and Cycle-history steps plus a current-UI copy audit. Keep contextual hints concise and do not build a separate help centre. Implementation is tracked by [issue #129](https://github.com/AnthonyPWatts/cycles/issues/129). |
 | [Q128](https://github.com/AnthonyPWatts/cycles/issues/116) | Make GitHub issues authoritative for concrete actionable backlog work: scope, acceptance criteria, owner, status, dependencies, and completion. Keep `docs/backlog.md` as the curated roadmap, sequencing summary, decision-gate overview, and issue index. | Do not duplicate live ticket status or full acceptance criteria in Markdown, and do not file every parked idea prematurely. Accepted answers, implemented state, and durable rationale remain canonical repository documentation. Migration is tracked by [issue #130](https://github.com/AnthonyPWatts/cycles/issues/130); Markdown remains operative until it completes. |
 | [Q129](https://github.com/AnthonyPWatts/cycles/issues/117) | Maintained documentation describes current `main` behaviour. Do not create a documentation copy for each gameplay Cycle or ad hoc test build. | Record the deployed commit or build identifier in test evidence. Use Git tags, commits, and release notes when a historical documentation snapshot is genuinely needed. A gameplay Cycle is persisted game data, not a software documentation version. No implementation issue is required. |
+| [Q130](https://github.com/AnthonyPWatts/cycles/issues/118) | Treat complete game-state export/import as an operator/admin support tool for migration, recovery preparation, debugging, and reproducible fixtures. It may support developer workflows, but it is not a player-facing save/restore feature. | Complete exports contain private state across all empires and must be handled as sensitive data behind explicit operator or admin authorisation. They do not replace database-native backups. [Issue #126](https://github.com/AnthonyPWatts/cycles/issues/126) owns implementation; any future player-sharing format requires a separate redacted design. |
 
 ## Accepted Q111 And Q112 Answers
 
@@ -202,6 +205,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - The playground and first online test use the existing SQL Server provider on managed Azure SQL. Provider portability is deferred until measured cost, licensing, or hosting evidence justifies it.
 - Azure-SQL-compatible provider features are allowed when they solve a material need and remain inside the SQL Server adapter or migrations; the core domain and store contract remain provider-neutral.
 - JSON's accepted role is explicit import/export, inspection, fixtures, and migration evidence rather than API or Worker runtime persistence. Normal runtime and local-development hosts require SQL after the safe cutover sequence.
+- Complete state exports are sensitive operator/admin artefacts, not player save files or database backups. Any future player-sharing format must be separately designed and redacted.
 - Online testing follows authentication hardening and a coherent operational boundary.
 - Longer-term production hosting, database, and vendor choices remain open beyond the accepted Azure SQL playground and first-online-test boundary.
 
@@ -226,7 +230,6 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |
 | Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
 | Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
-| API and dashboard follow-ons | Q130 | Saved-game exports. Q120-Q129's API, scale, training, and documentation-governance boundaries are settled. |
 
 ## Engineering Defaults
 

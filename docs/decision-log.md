@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q129 now settle the fact, API, scale, training, and documentation-governance boundaries; Q130 remains open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q130 now settle the fact, API, scale, training, documentation-governance, and state-export boundaries; this API/dashboard decision group is closed.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -1087,3 +1087,21 @@ Consequences:
 - Hosted or organised test evidence records the deployed commit SHA or build identifier and, where useful, the Cycle identifier as separate facts.
 - Git tags or releases may preserve named historical documentation snapshots when genuine external compatibility or support needs appear.
 - Gameplay Cycle creation does not copy or version the documentation tree, and no implementation issue is required for this accepted existing default.
+
+## 2026-07-14: Keep Complete State Transfer An Operator Tool
+
+Decision: treat complete game-state export/import as an operator/admin support tool for migration, recovery preparation, debugging, and reproducible fixtures. It may also support developer workflows, but it is not a player-facing save/restore feature.
+
+Reasoning:
+
+- A complete export contains private state across every empire, including identities or audit context, hidden facts, and operational state that an ordinary player must not receive.
+- The same full-fidelity format is useful for the accepted SQL cutover, controlled recovery preparation, debugging, and deterministic fixtures without creating a second player product.
+- Database-native backup and restore remains the authoritative recovery mechanism after the SQL cutover; an application export has different consistency, retention, and operational guarantees.
+- Player sharing would require a deliberately redacted scenario contract with its own versioning, visibility, and privacy rules rather than exposing the operator format.
+
+Consequences:
+
+- Issue #126 keeps complete export/import behind explicit operator CLI or admin authorisation and documents secure handling, retention, transfer, and deletion.
+- Ordinary players receive no authoritative-state download or upload endpoint, and normal logs must not contain export payloads, credentials, or private state.
+- Complete exports remain sensitive support artefacts and do not replace database-native backup and restore.
+- Any later player-facing sharing feature requires a separate product decision and a redacted, versioned format.

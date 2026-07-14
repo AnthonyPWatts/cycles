@@ -19,7 +19,7 @@ Do not treat this list as permission for speculative refactors. `Cycles.Applicat
 
 ## Persistence And Operations
 
-- [ ] [Demote JSON persistence to explicit import and export](https://github.com/AnthonyPWatts/cycles/issues/126): add versioned, validated state transfer; use it for the deployed cutover; then require SQL for API, Worker, and normal local-development runtime hosts.
+- [ ] [Demote JSON persistence to explicit import and export](https://github.com/AnthonyPWatts/cycles/issues/126): add operator-only, versioned, validated state transfer with sensitive-data handling; use it for the deployed cutover; then require SQL for API, Worker, and normal local-development runtime hosts.
 - [ ] [Add external OIDC authentication and invited-player mapping](https://github.com/AnthonyPWatts/cycles/issues/122), preserving Cycles-owned empire and admin authorisation while keeping Development username login Development-only.
 - [ ] [Add audited admin provisioning and revocation](https://github.com/AnthonyPWatts/cycles/issues/123), including explicit initial bootstrap, immutable role-change records, final-admin protection, and a separate break-glass operator procedure.
 - [ ] [Protect the private dashboard while keeping landing and health public](https://github.com/AnthonyPWatts/cycles/issues/124), while retaining the trusted playground's whole-site access-code gate as an explicit deployment override.
@@ -101,7 +101,6 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
-| API and dashboard follow-ons | Q130 | Saved-game exports. Q120-Q129's API, scale, training, and documentation-governance boundaries are settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
@@ -122,6 +121,8 @@ Q117 selects the existing SQL Server provider on managed Azure SQL for that cuto
 Q118 confirms the existing provider-isolation default: justified Azure-SQL-compatible features may remain inside `Cycles.Infrastructure.SqlServer` and SQL migrations, while `Cycles.Core` and the store contract stay provider-neutral. No separate implementation issue is required.
 
 Q119 demotes JSON to explicit import/export, inspection, fixtures, and migration evidence. Issue [#126](https://github.com/AnthonyPWatts/cycles/issues/126) owns the safe tooling/runtime-default sequence and must supply the verified importer consumed by issue #125.
+
+Q130 defines complete state export/import as sensitive operator/admin support tooling for migration, recovery preparation, debugging, and reproducible fixtures. It is not a player-facing save/restore feature or a replacement for database backups. Issue #126 owns the authorisation and handling controls; any future player-sharing format requires a separate redacted design.
 
 Q122 accepts flexible internal `FactJson` for another stage and establishes the trigger for a typed or validated contract: mechanical consumption, querying, migration, or public exposure. It does not authorise a broad fact-schema migration. Q123 subsequently settles the public-exposure and opening-briefing API boundary.
 
