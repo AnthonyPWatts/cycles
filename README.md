@@ -54,7 +54,7 @@ Focused and running-application checks:
 .\eng\alpha-gameplay-smoke.ps1 -ConfirmReplace
 ```
 
-The test helper writes build output under `%TEMP%\cycles-test-bin\`, avoiding locked assemblies when `Cycles.Api` is already running. The gameplay smoke check uses disposable state and exercises login, priority editing, movement, a development-player turn advance, resource generation, and visible events through the real API.
+The test helper writes build output under `%TEMP%\cycles-test-bin\`, avoiding locked assemblies when `Cycles.Api` is already running. The gameplay smoke check uses a dedicated disposable SQL database and exercises login, priority editing, movement, a development-player turn advance, resource generation, and visible events through the real API.
 
 ## Run Locally
 
@@ -131,6 +131,6 @@ dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.js
 
 Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Advance turn** without receiving admin visibility or cross-empire authority. Production players cannot use that capability.
 
-SQL Server is the mandatory API and Worker runtime path. Both hosts fail startup clearly when a Cycles SQL connection string is absent. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export and the bounded legacy-file conversion remain operator CLI paths; file persistence is not selected by runtime hosts.
+SQL Server is the mandatory gameplay and operator-store path for the API, Worker, and CLI. They fail clearly when a Cycles SQL connection string is absent. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export and the bounded legacy-file conversion remain explicit operator CLI paths; no executable file-backed game store remains.
 
 Events and battle records remain authoritative facts. Chronicle prose is deterministic template output stored separately from those facts, leaving future narrative generation non-authoritative.

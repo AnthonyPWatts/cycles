@@ -11,7 +11,7 @@ The goal is reproducible simulation facts. Timestamps, generated database identi
 ### Seeded Galaxy Generation
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- seed [statePath] [systemCount] [empireCount] [seed]
+dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" [systemCount] [empireCount] [seed] --confirm-replace
 ```
 
 The default integer seed is `71421`. For the same code, runtime, system count, empire count, and seed, `GameSeeder.CreateDefault` must reproduce:

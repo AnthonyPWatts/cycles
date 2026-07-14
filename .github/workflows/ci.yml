@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Build, test, and smoke check
+    name: Build and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -33,14 +33,6 @@ jobs:
       - name: Test
         shell: pwsh
         run: ./eng/test.ps1
-
-      - name: CLI smoke check
-        shell: pwsh
-        run: |
-          $statePath = Join-Path $env:RUNNER_TEMP "cycles-ci-state.json"
-          dotnet run --no-build --project src/Cycles.Cli -- seed $statePath 8 2 90210
-          dotnet run --no-build --project src/Cycles.Cli -- tick $statePath
-          dotnet run --no-build --project src/Cycles.Cli -- show $statePath
 
   sql-server-integration:
     name: SQL Server integration
@@ -84,6 +76,14 @@ jobs:
       - name: Test with SQL Server
         shell: pwsh
         run: ./eng/test.ps1
+
+      - name: CLI SQL smoke check
+        shell: pwsh
+        run: |
+          $store = "sqlserver:$env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING"
+          dotnet run --no-build --project src/Cycles.Cli -- seed $store 8 2 90210 --confirm-replace
+          dotnet run --no-build --project src/Cycles.Cli -- tick $store
+          dotnet run --no-build --project src/Cycles.Cli -- show $store
 
       - name: Alpha gameplay smoke check
         shell: pwsh

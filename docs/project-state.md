@@ -35,7 +35,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ### Curated Development Opening
 
-- A normal CLI `seed [statePath]` and a missing Development-host store create the fixed `development-cold-start-v1` scenario. Explicit system, empire, or seed arguments retain generic deterministic generation.
+- A normal SQL CLI seed and a missing Development-host SQL store create the fixed `development-cold-start-v1` scenario. Explicit system, empire, or seed arguments retain generic deterministic generation.
 - The Aurelian player begins with three genuine first-turn opportunities: move the Home Guard from Aster Vale to Nadir Crossing, establish an outpost from the Pale Harbour Survey, and attack the local Khepri force with the Treaty Gate Vanguard.
 - Both principal empires retain 60 starting ships. The Treaty Gate outcome is resolved by the normal combat engine and is important enough to enter the Chronicle; it is not a scripted result.
 - An empire-scoped `OpeningBriefingIssued` fact carries stable objective identifiers so the dashboard guide does not infer intent from display names.
@@ -94,10 +94,10 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### Persistence
 
 - `IGameStateStore` is shared by the CLI, API, and Worker.
-- Normal local API and Worker instructions use SQL Server. The file store remains bounded to deterministic fixtures, offline inspection, CLI tooling, and migration evidence.
+- API, Worker, and gameplay/operator CLI commands use SQL Server exclusively. No executable file-backed game store or implicit store-selection factory remains.
 - Operator CLI export/import uses a versioned envelope, requires every persisted collection, rejects incompatible or partial input, validates identifiers/references/tick recovery/embedded JSON, protects overwrite/replacement with explicit confirmations, and reloads SQL after import. The bounded `state convert-runtime-file` bridge converts and validates the retired unversioned file-store shape without modifying its source.
 - Complete exports contain private state across all empires, identities, audit context, and hidden facts. They are sensitive operator/developer artefacts, not player save files or database backups.
-- API and Worker require a Cycles SQL connection unconditionally and fail startup clearly when it is absent. They do not read `Cycles:StatePath` or `CYCLES_STATE_PATH` and cannot select `FileGameStateStore`; the file store remains bounded to CLI tooling, inspection, fixtures, and migration evidence.
+- API and Worker require a Cycles SQL connection unconditionally and fail startup clearly when it is absent. The CLI likewise rejects file paths for gameplay and operator commands. JSON remains bounded to versioned transfer, validation, legacy conversion, inspection, fixtures, and migration evidence.
 - SQL Server migrations are plain ordered scripts under `database/migrations` and are tracked in `dbo.SchemaMigrations`.
 - Migration `014_lock_inactive_priorities` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
@@ -125,7 +125,7 @@ Latest local verification on 2026-07-14 used the normal repository test helper:
 .\eng\test.ps1
 ```
 
-Result: **192 tests passed, 0 failed** in the normal suite. The SQL-backed API journey passed against the dedicated local integration database migrated through `014_lock_inactive_priorities`.
+Result: **191 tests passed, 0 failed** in the normal suite. The SQL-backed API journey passed against the dedicated local integration database migrated through `014_lock_inactive_priorities`.
 
 The automated coverage includes:
 

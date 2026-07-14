@@ -15,13 +15,13 @@ For the curated local opening:
 - use the prefilled `player-1` username;
 - start from tick 0 of a freshly seeded state.
 
-Reseed the local file if the opening has already been played:
+Reseed the local SQL database if the opening has already been played:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- seed data/cycles-state.json
+dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-Stop the API before replacing a state file that it is using, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening. Explicit dimensions and seed values create a generic galaxy instead.
+Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening. Explicit dimensions and seed values create a generic galaxy instead.
 
 For an organised hosted test, use the access code and username supplied by the organiser. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
 

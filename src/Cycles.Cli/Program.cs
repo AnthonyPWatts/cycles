@@ -30,31 +30,28 @@ try
         return RunBalanceScenario(args);
     }
 
-    var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
-    var store = GameStateStoreFactory.Create(statePath, seedFactory: () => GameSeeder.CreateCuratedColdStart());
-
     switch (command)
     {
         case "seed":
-            Seed(args, store);
+            Seed(args, CreateRequiredGameplayStore(args, 1));
             break;
         case "tick":
-            Tick(store);
+            Tick(CreateRequiredGameplayStore(args, 1));
             break;
         case "show":
-            Show(store);
+            Show(CreateRequiredGameplayStore(args, 1));
             break;
         case "diagnostics":
-            ShowDiagnostics(store, GetRunningTickSuspicionThreshold());
+            ShowDiagnostics(CreateRequiredGameplayStore(args, 1), GetRunningTickSuspicionThreshold());
             break;
         case "move":
-            SubmitMove(args, store);
+            SubmitMove(args, CreateRequiredGameplayStore(args, 1));
             break;
         case "attack":
-            SubmitAttack(args, store);
+            SubmitAttack(args, CreateRequiredGameplayStore(args, 1));
             break;
         case "hold":
-            SubmitHold(args, store);
+            SubmitHold(args, CreateRequiredGameplayStore(args, 1));
             break;
         default:
             PrintUsage();
@@ -71,8 +68,7 @@ return 0;
 
 static void Seed(string[] args, IGameStateStore store)
 {
-    if (store is SqlServerGameStateStore
-        && !args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase))
+    if (!args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase))
     {
         throw new InvalidOperationException("Seeding replaces all Cycles state in the SQL database. Re-run with --confirm-replace against the intended local or disposable target.");
     }
@@ -289,9 +285,8 @@ static int RunCycleCommand(string[] args)
     {
         case "end":
             {
-                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
                 var requestedCycleId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
-                var store = GameStateStoreFactory.Create(statePath);
+                var store = CreateRequiredSqlServerStore(args, 2);
                 var rankings = store.Update(state =>
                 {
                     var cycleId = requestedCycleId
@@ -315,10 +310,9 @@ static int RunCycleCommand(string[] args)
 
         case "next":
             {
-                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
                 var requestedCycleId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
                 var seed = args.Length > 4 ? int.Parse(args[4]) : (int?)null;
-                var store = GameStateStoreFactory.Create(statePath);
+                var store = CreateRequiredSqlServerStore(args, 2);
                 var result = store.Update(state =>
                 {
                     var cycleId = requestedCycleId
@@ -422,8 +416,7 @@ static int RunRecoveryCommand(string[] args)
     var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
     if (!IsRecoverySubcommand(subcommand))
     {
-        var statePath = args.ElementAtOrDefault(1) ?? Path.Combine("data", "cycles-state.json");
-        ShowRecovery(GameStateStoreFactory.Create(statePath), showDetails: false);
+        ShowRecovery(CreateRequiredSqlServerStore(args, 1), showDetails: false);
         return 0;
     }
 
@@ -431,14 +424,13 @@ static int RunRecoveryCommand(string[] args)
     {
         case "details":
             {
-                var statePath = args.ElementAtOrDefault(2) ?? Path.Combine("data", "cycles-state.json");
-                ShowRecovery(GameStateStoreFactory.Create(statePath), showDetails: true);
+                ShowRecovery(CreateRequiredSqlServerStore(args, 2), showDetails: true);
                 return 0;
             }
 
         case "clear":
             {
-                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var store = CreateRequiredSqlServerStore(args, 2);
                 var cycleId = ParseRequiredGuid(args, 3, "cycle id");
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
@@ -451,7 +443,7 @@ static int RunRecoveryCommand(string[] args)
 
         case "retry":
             {
-                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var store = CreateRequiredSqlServerStore(args, 2);
                 var cycleId = ParseRequiredGuid(args, 3, "cycle id");
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
@@ -469,7 +461,7 @@ static int RunRecoveryCommand(string[] args)
 
         case "abandon":
             {
-                var store = GameStateStoreFactory.Create(ParseRequiredArgument(args, 2, "state path"));
+                var store = CreateRequiredSqlServerStore(args, 2);
                 var tickLogId = ParseRequiredGuid(args, 3, "tick attempt id");
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
@@ -794,10 +786,32 @@ static string ParseRequiredSqlServerConnectionString(string[] args, int index)
         throw new InvalidOperationException("Missing SQL Server connection string. Use sqlserver:<connectionString>.");
     }
 
-    return GameStateStoreFactory.TryParseSqlServerSpecifier(args[index], out var parsedConnectionString)
-        ? parsedConnectionString
-        : args[index];
+    const string prefix = "sqlserver:";
+    var value = args[index].Trim();
+    if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+    {
+        var connectionString = value[prefix.Length..].Trim();
+        return connectionString.Length > 0
+            ? connectionString
+            : throw new InvalidOperationException("The SQL Server store specifier contains no connection string.");
+    }
+
+    if (value.Contains('=', StringComparison.Ordinal))
+    {
+        return value;
+    }
+
+    throw new InvalidOperationException("Expected a SQL Server store specifier. File-backed gameplay state is no longer supported; use sqlserver:<connectionString>.");
 }
+
+static SqlServerGameStateStore CreateRequiredSqlServerStore(
+    string[] args,
+    int index,
+    Func<GameState>? seedFactory = null) =>
+    new(ParseRequiredSqlServerConnectionString(args, index), seedFactory);
+
+static SqlServerGameStateStore CreateRequiredGameplayStore(string[] args, int index) =>
+    CreateRequiredSqlServerStore(args, index, () => GameSeeder.CreateCuratedColdStart());
 
 static string ParseRequiredArgument(string[] args, int index, string label)
 {
@@ -883,22 +897,22 @@ static void PrintUsage()
 {
     Console.WriteLine("Cycles CLI");
     Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed [statePath|sqlserver:connectionString] [systemCount] [empireCount] [seed] [--confirm-replace]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- diagnostics [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick [statePath]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- seed <sqlserver:connectionString> [systemCount] [empireCount] [seed] --confirm-replace");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- show <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- diagnostics <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- tick <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance [tickCount] [systemCount] [empireCount] [seed] [balanced|military|expansion|cautious|mixed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance compare [tickCount] [systemCount] [empireCount] [seed]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end [statePath] [cycleId]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next [statePath] [completedCycleId] [seed]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details [statePath]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <statePath> <cycleId> --operator <name> --reason <reason>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery retry <statePath> <cycleId> --operator <name> --reason <reason>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery abandon <statePath> <tickAttemptId> --operator <name> --reason <reason>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move [statePath] <fleetId> <targetSystemId>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack [statePath] <fleetId> [targetEmpireId]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold [statePath] <fleetId>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end <sqlserver:connectionString> [cycleId]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next <sqlserver:connectionString> [completedCycleId] [seed]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details <sqlserver:connectionString>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <sqlserver:connectionString> <cycleId> --operator <name> --reason <reason>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery retry <sqlserver:connectionString> <cycleId> --operator <name> --reason <reason>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery abandon <sqlserver:connectionString> <tickAttemptId> --operator <name> --reason <reason>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move <sqlserver:connectionString> <fleetId> <targetSystemId>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack <sqlserver:connectionString> <fleetId> [targetEmpireId]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold <sqlserver:connectionString> <fleetId>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db init <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db migrate <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");
@@ -908,5 +922,5 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state validate <input.json>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state import <input.json> <sqlserver:connectionString> --confirm-import [--confirm-replace]");
     Console.WriteLine();
-    Console.WriteLine("Use sqlserver:<connectionString> instead of a state path to read and write SQL Server state.");
+    Console.WriteLine("Gameplay and operator commands require SQL Server. JSON is available only through the explicit state transfer commands.");
 }

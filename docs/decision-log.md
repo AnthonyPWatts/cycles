@@ -1292,3 +1292,21 @@ Consequences:
 - `state convert-runtime-file` is a bounded bridge from the retired unversioned runtime shape to the validated transfer envelope. It does not make raw file persistence a supported host mode.
 - SQL migration discovery queries `master.sys.databases` by name, avoiding Azure SQL's current-database limitation for `DB_ID` and SQL clients that collapse a missing target into a login failure.
 - The cutover checkpoint preserved all 23 persisted collection counts and 166 records. The reopened API passed health and authenticated gameplay checks, and an isolated restore reproduced the current 14-migration schema, active tick 3, and zero unresolved recovery.
+
+## 2026-07-14: Remove The Executable File-Backed Game Store
+
+Decision: remove `FileGameStateStore` and implicit path-or-provider selection after the proved managed-SQL cutover. Require SQL Server for every API, Worker, gameplay CLI, and operator CLI state operation while retaining JSON only through named transfer, validation, legacy-conversion, inspection, fixture, and migration-evidence paths.
+
+Reasoning:
+
+- A second executable datastore no longer provides rollback: once SQL accepted new gameplay, a file state became a stale divergent timeline.
+- Keeping file-backed CLI seeding, ticking, orders, Cycle administration, and recovery would continue to exercise and document a runtime mode that the deployed game cannot use.
+- Versioned import/export and the bounded legacy converter preserve the useful JSON capabilities without retaining locking, save, implicit seeding, or provider-selection code.
+- Balance scenarios remain deterministic in-memory diagnostics and do not require a persistent file store.
+
+Consequences:
+
+- Gameplay and operator CLI commands require `sqlserver:<connectionString>` (or a raw SQL connection string) and reject file paths with an actionable error.
+- The file store, fallback factory, and their redundant persistence test are removed.
+- CI runs CLI seed, tick, and show checks against its disposable SQL Server service.
+- JSON state is never mutated in place as live game state; explicit transfer output remains versioned, validated, sensitive operator data.

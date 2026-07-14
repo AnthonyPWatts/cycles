@@ -20,7 +20,7 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Connection
 dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString"
 ```
 
-The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions. A file store remains only for deterministic fixtures, offline inspection, CLI tooling, and migration evidence. API and Worker do not read `Cycles:StatePath` or `CYCLES_STATE_PATH` and never select a file runtime fallback.
+The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions. API, Worker, and gameplay/operator CLI commands use SQL Server exclusively. JSON remains only in explicit versioned transfer, validation, legacy conversion, offline-inspection, fixture, and migration-evidence paths; there is no file-store fallback.
 
 ## Development Cold Start
 
