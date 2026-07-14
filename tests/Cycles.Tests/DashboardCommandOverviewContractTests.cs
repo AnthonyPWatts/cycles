@@ -27,12 +27,24 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("elements.homeSystemName.textContent = empire.homeSystem.systemName;", script);
         Assert.DoesNotContain("resource-home", script);
         Assert.Contains("rebalancePriorityDraft(input.dataset.priorityKey", script);
-        Assert.Contains("const exactValue = remaining * weight / weightTotal;", script);
         Assert.Contains("sliderShell.classList.toggle(\"has-saved-marker\", isChanged);", script);
         Assert.Contains("elements.priorityDraftStatus.textContent = state.prioritySaving ? \"Saving\" : isDirty ? \"Unsaved\" : \"Saved\";", script);
         Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
         Assert.Contains("target: () => document.querySelector(\"#prioritySection\")", script);
+    }
+
+    [Fact]
+    public void Priority_sliders_transfer_points_towards_a_balanced_allocation()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("const pointDelta = activeValue - state.priorityDraft[activeKey];", script);
+        Assert.Contains("for (let point = 0; point < Math.abs(pointDelta); point += 1)", script);
+        Assert.Contains("? candidateValue > selectedValue", script);
+        Assert.Contains(": candidateValue < selectedValue;", script);
+        Assert.Contains("state.priorityDraft[transferKey] -= Math.sign(pointDelta);", script);
+        Assert.DoesNotContain("remaining * weight / weightTotal", script);
     }
 
     private static string ReadDashboardAsset(string fileName) =>

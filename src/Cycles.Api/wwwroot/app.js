@@ -1816,32 +1816,22 @@ function rebalancePriorityDraft(activeKey, requestedValue) {
     }
 
     const activeValue = Math.max(0, Math.min(100, requestedValue));
+    const pointDelta = activeValue - state.priorityDraft[activeKey];
     const otherKeys = priorityKeys.filter(key => key !== activeKey);
-    const remaining = 100 - activeValue;
-    const currentOtherTotal = otherKeys.reduce((total, key) => total + state.priorityDraft[key], 0);
-    const weightTotal = currentOtherTotal > 0 ? currentOtherTotal : otherKeys.length;
-    const allocations = otherKeys.map((key, index) => {
-        const weight = currentOtherTotal > 0 ? state.priorityDraft[key] : 1;
-        const exactValue = remaining * weight / weightTotal;
-        const value = Math.floor(exactValue);
-        return { key, index, value, remainder: exactValue - value };
-    });
-    let pointsLeft = remaining - allocations.reduce((total, allocation) => total + allocation.value, 0);
+    state.priorityDraft[activeKey] = activeValue;
 
-    allocations
-        .slice()
-        .sort((left, right) => right.remainder - left.remainder || left.index - right.index)
-        .forEach(allocation => {
-            if (pointsLeft > 0) {
-                allocation.value += 1;
-                pointsLeft -= 1;
-            }
+    for (let point = 0; point < Math.abs(pointDelta); point += 1) {
+        const transferKey = otherKeys.reduce((selectedKey, candidateKey) => {
+            const selectedValue = state.priorityDraft[selectedKey];
+            const candidateValue = state.priorityDraft[candidateKey];
+            const candidateIsBetter = pointDelta > 0
+                ? candidateValue > selectedValue
+                : candidateValue < selectedValue;
+            return candidateIsBetter ? candidateKey : selectedKey;
         });
 
-    state.priorityDraft[activeKey] = activeValue;
-    allocations.forEach(allocation => {
-        state.priorityDraft[allocation.key] = allocation.value;
-    });
+        state.priorityDraft[transferKey] -= Math.sign(pointDelta);
+    }
 }
 
 function renderPriorityControls() {
