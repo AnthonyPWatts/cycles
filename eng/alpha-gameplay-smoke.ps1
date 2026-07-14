@@ -168,12 +168,15 @@ try {
     $targetSystemId = if ($link.systemAId -eq $fleet.currentSystemId) { $link.systemBId } else { $link.systemAId }
 
     $priorities = Post-Json $playerClient "/orders/priorities" @{
-        industryWeight = 20
-        researchWeight = 20
-        militaryWeight = 40
-        expansionWeight = 20
+        industryWeight = 0
+        researchWeight = 0
+        militaryWeight = 75
+        expansionWeight = 25
     }
-    Assert-Condition ($priorities.militaryWeight -eq 40) "The API did not save the development player's priorities."
+    Assert-Condition ($priorities.industryWeight -eq 0) "The API did not keep the Development priority locked at zero."
+    Assert-Condition ($priorities.researchWeight -eq 0) "The API did not keep the Innovation priority locked at zero."
+    Assert-Condition ($priorities.militaryWeight -eq 75) "The API did not save the development player's Military priority."
+    Assert-Condition ($priorities.expansionWeight -eq 25) "The API did not save the development player's Expansion priority."
 
     $move = Post-Json $playerClient "/orders/fleet/move" @{
         fleetId = $fleet.fleetId
@@ -200,7 +203,10 @@ try {
     Assert-Condition $reachedOrTravelling "The fleet neither reached nor began travelling to its ordered destination."
 
     $empireAfter = Get-Json $playerClient "/empire"
-    Assert-Condition ($empireAfter.priorities.militaryWeight -eq 40) "The saved priority was not visible after the tick."
+    Assert-Condition ($empireAfter.priorities.industryWeight -eq 0) "The Development priority was not locked at zero after the tick."
+    Assert-Condition ($empireAfter.priorities.researchWeight -eq 0) "The Innovation priority was not locked at zero after the tick."
+    Assert-Condition ($empireAfter.priorities.militaryWeight -eq 75) "The saved Military priority was not visible after the tick."
+    Assert-Condition ($empireAfter.priorities.expansionWeight -eq 25) "The saved Expansion priority was not visible after the tick."
     Assert-Condition ($empireAfter.resources.lastGeneratedIndustry -gt 0) "The tick did not generate visible industry for the player."
 
     $events = @(Get-Json $playerClient "/events/recent?limit=50")
