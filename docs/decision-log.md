@@ -1270,3 +1270,25 @@ Consequences:
 - Seeded, newly provisioned, and balance-scenario empires start with zero inactive weight. JSON, SQL, and versioned imports normalise legacy allocations deterministically.
 - The dashboard disables the two inactive sliders, labels them **Locked**, and rebalances only Military and Expansion.
 - Activating either future programme requires a deliberate validation, persistence, UI, balance, and Cycle-transition change rather than merely enabling a control.
+
+## 2026-07-14: Complete The Managed-SQL Cutover And Retire Runtime Files
+
+Decision: run the trusted playground on Azure SQL through the existing SQL Server provider, prove seven-day point-in-time recovery with an isolated restore, and make SQL configuration unconditional for API and Worker hosts. Retain JSON only in named operator tooling, offline inspection, deterministic fixtures, and migration evidence.
+
+Reasoning:
+
+- The stopped deployed state passed strict conversion and import validation, so the safe activation point defined by Q119 and issue #126 has been reached.
+- This subscription could not provision the selected free serverless tier in either UK region. France Central was the nearest eligible region and avoids choosing an always-billable tier merely to keep the database beside the F1 app.
+- The Azure SQL free offer can stop at its monthly allowance; `AutoPause` exhaustion is a stronger cost boundary than using the available testing credit as an informal limit.
+- A backup configuration claim is insufficient recovery evidence. The post-cutover point-in-time restore had to reproduce the schema and representative state through the authoritative store.
+- Keeping `Cycles:RequireSqlRuntime` and a silent file fallback after the proved cutover would preserve an obsolete second host mode and weaken configuration failures.
+
+Consequences:
+
+- `CyclesDb` uses General Purpose Gen5 serverless in France Central with 2 vCores maximum, 0.5 vCores minimum, 32 GB maximum, provider-default 60-minute auto-pause, local backup storage, seven-day point-in-time retention, and free-limit exhaustion behaviour `AutoPause`.
+- The cost policy deliberately permits the approved Azure SQL server/database while continuing to deny Container Apps, container registry, Application Insights, and Log Analytics resources.
+- The final stopped JSON checkpoint is sensitive migration evidence. Once SQL-backed gameplay resumed, Azure SQL backup/restore became authoritative and the stale file ceased to be a normal rollback path.
+- API and Worker require `ConnectionStrings:Cycles`, `Cycles:SqlConnectionString`, or `CYCLES_SQL_CONNECTION_STRING`; they no longer read `Cycles:StatePath` or `CYCLES_STATE_PATH` and cannot select `FileGameStateStore`.
+- `state convert-runtime-file` is a bounded bridge from the retired unversioned runtime shape to the validated transfer envelope. It does not make raw file persistence a supported host mode.
+- SQL migration discovery opens the target database directly and treats only SQL error 4060 as absence, avoiding Azure SQL's restricted `master` metadata visibility.
+- The cutover checkpoint preserved all 23 persisted collection counts and 166 records. The reopened API passed health and authenticated gameplay checks, and an isolated restore reproduced the current 14-migration schema, active tick 3, and zero unresolved recovery.

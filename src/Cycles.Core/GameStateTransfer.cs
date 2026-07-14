@@ -111,6 +111,59 @@ public static class GameStateTransfer
         }
     }
 
+    public static GameState ReadLegacyRuntimeState(Stream source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        JsonDocument json;
+        try
+        {
+            json = JsonDocument.Parse(source);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"The legacy runtime state file is not valid JSON: {exception.Message}", exception);
+        }
+
+        using (json)
+        {
+            var root = json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidOperationException("The legacy runtime state file must contain a JSON object.");
+            }
+
+            foreach (var property in PersistedCollections)
+            {
+                var jsonName = JsonNamingPolicy.CamelCase.ConvertName(property.Name);
+                var collection = RequireProperty(root, jsonName);
+                if (collection.ValueKind != JsonValueKind.Array)
+                {
+                    throw new InvalidOperationException($"The legacy runtime state {jsonName} property must contain an array.");
+                }
+            }
+
+            GameState state;
+            try
+            {
+                state = root.Deserialize<GameState>(GameStateJson.Options)
+                    ?? throw new InvalidOperationException("The legacy runtime state could not be deserialised.");
+            }
+            catch (JsonException exception)
+            {
+                throw new InvalidOperationException($"The legacy runtime state has an invalid value: {exception.Message}", exception);
+            }
+
+            StrategicPriorityPolicy.Normalize(state);
+            var validation = Validate(state);
+            if (!validation.IsValid)
+            {
+                throw InvalidState(validation);
+            }
+
+            return state;
+        }
+    }
+
     public static GameStateValidationResult Validate(GameState state)
     {
         ArgumentNullException.ThrowIfNull(state);

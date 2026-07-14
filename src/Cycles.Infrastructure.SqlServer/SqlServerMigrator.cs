@@ -128,15 +128,24 @@ public sealed class SqlServerMigrator
 
     private bool DatabaseExists()
     {
-        using var connection = OpenMasterConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT CONVERT(bit, CASE WHEN DB_ID(@DatabaseName) IS NULL THEN 0 ELSE 1 END);";
-        AddString(command, "@DatabaseName", _databaseName, 128);
-        return (bool)command.ExecuteScalar()!;
+        try
+        {
+            using var connection = OpenTargetConnection();
+            return true;
+        }
+        catch (SqlException exception) when (exception.Number == 4060)
+        {
+            return false;
+        }
     }
 
     private void EnsureDatabaseExists()
     {
+        if (DatabaseExists())
+        {
+            return;
+        }
+
         using var connection = OpenMasterConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """

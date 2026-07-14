@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
     [int] $Port = 5087,
-    [string] $StatePath = (Join-Path ([System.IO.Path]::GetTempPath()) "cycles-gameplay-smoke-$([Guid]::NewGuid().ToString('N')).json"),
+    [string] $ConnectionString = $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING,
     [string] $Configuration = "Debug",
     [switch] $NoBuild,
+    [switch] $ConfirmReplace,
     [switch] $KeepArtifacts
 )
 
@@ -64,15 +65,17 @@ function New-SessionClient {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$stateFullPath = [System.IO.Path]::GetFullPath($StatePath)
-if (Test-Path -LiteralPath $stateFullPath) {
-    throw "Gameplay smoke state path already exists: $stateFullPath"
+if ([string]::IsNullOrWhiteSpace($ConnectionString)) {
+    throw "Set CYCLES_SQL_INTEGRATION_CONNECTION_STRING to a dedicated disposable SQL test database. The smoke journey replaces its authoritative state."
+}
+if (-not $ConfirmReplace) {
+    throw "The gameplay smoke journey replaces authoritative SQL state. Review the target and re-run with -ConfirmReplace only for a dedicated disposable test database."
 }
 
-$artifactDirectory = Split-Path -Parent $stateFullPath
+$artifactDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "cycles-gameplay-smoke-$([Guid]::NewGuid().ToString('N'))"
 [System.IO.Directory]::CreateDirectory($artifactDirectory) | Out-Null
-$stdoutPath = "$stateFullPath.api.stdout.log"
-$stderrPath = "$stateFullPath.api.stderr.log"
+$stdoutPath = Join-Path $artifactDirectory "api.stdout.log"
+$stderrPath = Join-Path $artifactDirectory "api.stderr.log"
 $baseAddress = [Uri]"http://127.0.0.1:$Port"
 $runArguments = @("run", "--configuration", $Configuration)
 if ($NoBuild) {
@@ -83,11 +86,22 @@ $apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net10.0/Cy
 
 $apiProcess = $null
 $playerClient = $null
+$previousSqlConnectionString = $env:CYCLES_SQL_CONNECTION_STRING
 
 try {
+    $storeSpecifier = "sqlserver:$ConnectionString"
+    $migrationArguments = $runArguments + @(
+        "--project", (Join-Path $repoRoot "src/Cycles.Cli"),
+        "--", "db", "migrate", $storeSpecifier
+    )
+    & dotnet @migrationArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to migrate the gameplay smoke database."
+    }
+
     $seedArguments = $runArguments + @(
         "--project", (Join-Path $repoRoot "src/Cycles.Cli"),
-        "--", "seed", $stateFullPath, "8", "2", "90210"
+        "--", "seed", $storeSpecifier, "8", "2", "90210", "--confirm-replace"
     )
     & dotnet @seedArguments
     if ($LASTEXITCODE -ne 0) {
@@ -105,9 +119,9 @@ try {
     $apiArguments = @(
         $apiAssembly,
         "--environment", "Development",
-        "--urls", $baseAddress.AbsoluteUri.TrimEnd('/'),
-        "--Cycles:StatePath", $stateFullPath
+        "--urls", $baseAddress.AbsoluteUri.TrimEnd('/')
     )
+    $env:CYCLES_SQL_CONNECTION_STRING = $ConnectionString
     $apiProcess = Start-Process dotnet `
         -ArgumentList $apiArguments `
         -WorkingDirectory $repoRoot `
@@ -227,6 +241,7 @@ catch {
     throw
 }
 finally {
+    $env:CYCLES_SQL_CONNECTION_STRING = $previousSqlConnectionString
     if ($null -ne $playerClient) {
         $playerClient.Dispose()
     }
@@ -240,9 +255,10 @@ finally {
     }
 
     if (-not $KeepArtifacts) {
-        Remove-Item -LiteralPath $stateFullPath, $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $artifactDirectory -Force -ErrorAction SilentlyContinue
     }
     else {
-        Write-Host "Gameplay smoke artifacts retained at $stateFullPath and adjacent log files."
+        Write-Host "Gameplay smoke logs retained at $artifactDirectory."
     }
 }

@@ -15,7 +15,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - resolve deterministic combat and persist factual events, admirals, and Chronicle reports;
 - record map-control metrics, complete a Cycle, preserve major history, and generate a successor Cycle;
 - learn the first-turn loop through a resumable click-along guide in the dashboard;
-- run normal local development against SQL Server, with versioned JSON retained for explicit operator transfer, fixtures, and migration evidence while the deployed cutover is still pending.
+- run local and trusted-playground hosts against SQL Server, with versioned JSON retained only for explicit operator transfer, fixtures, inspection, and migration evidence.
 
 This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.
 
@@ -51,7 +51,7 @@ Focused and running-application checks:
 
 ```powershell
 .\eng\test.ps1 -Filter InfluenceTests
-.\eng\alpha-gameplay-smoke.ps1
+.\eng\alpha-gameplay-smoke.ps1 -ConfirmReplace
 ```
 
 The test helper writes build output under `%TEMP%\cycles-test-bin\`, avoiding locked assemblies when `Cycles.Api` is already running. The gameplay smoke check uses disposable state and exercises login, priority editing, movement, a development-player turn advance, resource generation, and visible events through the real API.
@@ -71,7 +71,7 @@ With no size or seed arguments, this creates the curated `development-cold-start
 Run the API and dashboard:
 
 ```powershell
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString" --Cycles:RequireSqlRuntime true
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString"
 ```
 
 Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Log in as the prefilled `player-1` to receive the curated Aurelian opening. The development login creates or finds a local player and issues an HttpOnly cookie; **Sign out** removes that cookie and returns to the login prompt. This flow is suitable only for trusted local testing.
@@ -84,10 +84,10 @@ dotnet run --project src/Cycles.Cli -- show "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- diagnostics "sqlserver:$connectionString"
 ```
 
-Run scheduled ticks against the same file:
+Run scheduled ticks against the same database:
 
 ```powershell
-dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString" --Cycles:RequireSqlRuntime true
+dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString"
 ```
 
 The worker polls every 30 seconds by default and runs at most one tick when the active Cycle is due. `Cycles:Worker:Enabled` and `Cycles:Worker:PollIntervalSeconds` are normal .NET configuration values; the Cycle's `TickLengthMinutes` defines simulation cadence.
@@ -117,17 +117,20 @@ The image creates `CyclesDb`, applies ordered migrations, and seeds a smoke-test
 Complete exports are operator artefacts containing identities, audit context, hidden facts, and private state for every empire. Store and transfer them securely, do not attach them to ordinary issue logs, and delete them when the migration/debugging need ends. They are not database backups or player save files.
 
 ```powershell
+# One-time bridge for a retired raw runtime file; the input is not modified.
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v1.json
+
 dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v1.json
 dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
 dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:$connectionString" --confirm-import --confirm-replace
 ```
 
-Export refuses to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, references, tick/recovery invariants, and retained JSON before it opens the target. It imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
+`convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, references, tick/recovery invariants, and retained JSON before it opens the target. It imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
 
 ## Architectural Position
 
 Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Advance turn** without receiving admin visibility or cross-empire authority. Production players cannot use that capability.
 
-SQL Server is the selected runtime path. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export is available through the operator CLI. `Cycles:RequireSqlRuntime=true` makes API/Worker startup fail clearly without SQL; it must be activated for the hosted environment only after [#125](https://github.com/AnthonyPWatts/cycles/issues/125) has imported and verified the deployed state. Removing the transitional host fallback remains the final ordered step in [#126](https://github.com/AnthonyPWatts/cycles/issues/126).
+SQL Server is the mandatory API and Worker runtime path. Both hosts fail startup clearly when a Cycles SQL connection string is absent. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export and the bounded legacy-file conversion remain operator CLI paths; file persistence is not selected by runtime hosts.
 
 Events and battle records remain authoritative facts. Chronicle prose is deterministic template output stored separately from those facts, leaving future narrative generation non-authoritative.

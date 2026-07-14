@@ -8,11 +8,10 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 
 ## Current Sequence
 
-1. Finish and verify the local implementation boundaries in [#120-#124](https://github.com/AnthonyPWatts/cycles/issues/120), [#126](https://github.com/AnthonyPWatts/cycles/issues/126), and [#127-#129](https://github.com/AnthonyPWatts/cycles/issues/127).
-2. Use the verified state importer during the managed Azure SQL cutover and restore proof in [#125](https://github.com/AnthonyPWatts/cycles/issues/125). Only then activate mandatory SQL runtime configuration and remove the deployment fallback owned by #126.
-3. Harden shared scheduled execution through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), including Worker health and duplicate-due-execution protection.
-4. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before changing combat, colonisation, priority, or order-feedback rules.
-5. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
+1. Finish and verify the local implementation boundaries in [#120-#124](https://github.com/AnthonyPWatts/cycles/issues/120) and [#127-#129](https://github.com/AnthonyPWatts/cycles/issues/127).
+2. Harden shared scheduled execution through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), including Worker health and duplicate-due-execution protection.
+3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before changing combat, colonisation, priority, or order-feedback rules.
+4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
 
@@ -22,10 +21,9 @@ This sequence does not authorise speculative gameplay expansion. The active prod
 | --- | --- | --- |
 | Tick diagnosis and inspected abandonment | [#120](https://github.com/AnthonyPWatts/cycles/issues/120), [#121](https://github.com/AnthonyPWatts/cycles/issues/121) | Diagnosis remains read-only; abandonment requires an explicit operator and reason before normal recovery. |
 | External identity, local admin authority, and private dashboard | [#122](https://github.com/AnthonyPWatts/cycles/issues/122), [#123](https://github.com/AnthonyPWatts/cycles/issues/123), [#124](https://github.com/AnthonyPWatts/cycles/issues/124) | OIDC proves identity; Cycles owns admission, empire, and admin authority. |
-| Managed SQL deployment and JSON demotion | [#125](https://github.com/AnthonyPWatts/cycles/issues/125), [#126](https://github.com/AnthonyPWatts/cycles/issues/126) | Import/export precedes cutover; fallback removal follows deployed SQL and restore verification. |
 | Player API and Day One teaching contracts | [#127](https://github.com/AnthonyPWatts/cycles/issues/127), [#128](https://github.com/AnthonyPWatts/cycles/issues/128), [#129](https://github.com/AnthonyPWatts/cycles/issues/129) | Keep player responses typed, wire conventions explicit, and guide copy tied to real controls and outcomes. |
 | Guided play and balance evidence | [#131](https://github.com/AnthonyPWatts/cycles/issues/131) | Evidence precedes named constant or rule changes. |
-| Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Depends on the SQL deployment shape in #125 and runtime cutover in #126. |
+| Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Builds on the completed managed-SQL deployment and mandatory runtime-host configuration. |
 | Pre-untrusted-test security gate | [#133](https://github.com/AnthonyPWatts/cycles/issues/133) | Review the implemented identity, authorisation, data-transfer, proxy, persistence, and deployment boundaries together. |
 
 ## Decision-Gated Roadmap

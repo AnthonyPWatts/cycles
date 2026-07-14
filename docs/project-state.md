@@ -16,8 +16,8 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers or declarations. The accepted first-version Alliance friendly-fire guard and factual-history contract are not implemented; shared visibility remains governed separately by Q025. |
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
-| Identity and visibility | Development-only username login; non-Development OIDC/cookie authentication; exact issuer/subject invitation mapping; Cycles-owned empire/admin authority and audited bootstrap/grant/revoke; protected dashboard; active-fleet fog-of-war. | A concrete provider registration and deployed proxy/callback configuration are still required; the trusted playground remains on its explicit whole-site Development override until cutover. |
-| Persistence | SQL Server store, ordered migrations, transaction locks, focused SQL tick workspace, targeted tick writes, strict versioned JSON transfer, and a fail-fast SQL-runtime activation flag. | The trusted hosted playground still persists JSON until #125 imports/verifies it in Azure SQL and proves restore; only then may #126 remove the fallback. Generic API/admin SQL mutations still use the whole-state bridge. |
+| Identity and visibility | Development-only username login; non-Development OIDC/cookie authentication; exact issuer/subject invitation mapping; Cycles-owned empire/admin authority and audited bootstrap/grant/revoke; protected dashboard; active-fleet fog-of-war. | A concrete provider registration and deployed proxy/callback configuration are still required; the trusted playground remains on its explicit whole-site Development override pending that production identity boundary. |
+| Persistence | Mandatory SQL Server API/Worker runtime, ordered migrations, transaction locks, focused SQL tick workspace, targeted tick writes, strict versioned JSON transfer, bounded legacy-file conversion, Azure SQL playground cutover, and proved point-in-time restore. | Generic API/admin SQL mutations still use the whole-state bridge. |
 | Client | Public landing page and protected playable dashboard with focused Command, Galaxy, Fleets, and History views, a resumable Day One guide including visibility and Cycle-history teaching, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. |
 
 ## Implemented Rules
@@ -94,12 +94,12 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### Persistence
 
 - `IGameStateStore` is shared by the CLI, API, and Worker.
-- Normal local API and Worker instructions use SQL Server. The file store remains bounded to deterministic fixtures, offline inspection, and the ordered deployed migration.
-- Operator CLI export/import uses a versioned envelope, requires every persisted collection, rejects incompatible or partial input, validates identifiers/references/tick recovery/embedded JSON, protects overwrite/replacement with explicit confirmations, and reloads SQL after import.
+- Normal local API and Worker instructions use SQL Server. The file store remains bounded to deterministic fixtures, offline inspection, CLI tooling, and migration evidence.
+- Operator CLI export/import uses a versioned envelope, requires every persisted collection, rejects incompatible or partial input, validates identifiers/references/tick recovery/embedded JSON, protects overwrite/replacement with explicit confirmations, and reloads SQL after import. The bounded `state convert-runtime-file` bridge converts and validates the retired unversioned file-store shape without modifying its source.
 - Complete exports contain private state across all empires, identities, audit context, and hidden facts. They are sensitive operator/developer artefacts, not player save files or database backups.
-- `Cycles:RequireSqlRuntime=true` makes API/Worker startup fail clearly without SQL. It is implemented for deliberate activation after #125's deployed import and restore proof; the fallback is not removed early because doing so would break the current hosted playground.
+- API and Worker require a Cycles SQL connection unconditionally and fail startup clearly when it is absent. They do not read `Cycles:StatePath` or `CYCLES_STATE_PATH` and cannot select `FileGameStateStore`; the file store remains bounded to CLI tooling, inspection, fixtures, and migration evidence.
 - SQL Server migrations are plain ordered scripts under `database/migrations` and are tracked in `dbo.SchemaMigrations`.
-- Migration `013_add_external_identity_and_admin_audit` is the latest schema migration.
+- Migration `014_lock_inactive_priorities` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
 - SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history.
 - SQL Server-specific locking and persistence details remain contained in `Cycles.Infrastructure.SqlServer`; `Cycles.Core` and `IGameStateStore` remain independent of database packages.
@@ -108,13 +108,14 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 - `Cycles.Api` targets .NET 10 LTS and is deployed to an Azure App Service F1 Free plan for invited Development play-testing.
 - GitHub Actions publishes a successful `main` build through workload identity federation; no long-lived Azure credential is stored in the repository or GitHub environment.
-- The hosted process stores state at `/home/data/cycles-state.json`. The App Service persistent filesystem keeps the curated Development game across restarts and deployments.
-- No `Cycles.Worker` process or database is deployed. Invited players use the accepted Development-only **Advance turn** capability.
-- The hosting scope is protected by a read-only plan lock and an Azure Policy deny list for the known paid resource classes. F1 compute and storage quotas are the enforced spend boundary; budget notifications are not treated as a hard cap.
+- The hosted process reads and writes Azure SQL database `CyclesDb` in France Central through an App Service secret connection string, with mandatory SQL runtime configuration enabled. The final stopped JSON file is retained only as sensitive cutover evidence and rollback material for the frozen checkpoint.
+- The database uses the Azure SQL free serverless offer with a 2-vCore maximum, 0.5-vCore minimum, 32 GB maximum, provider-default 60-minute auto-pause, local backup storage, seven-day point-in-time retention, and automatic pause rather than billing when the free allowance is exhausted.
+- No `Cycles.Worker` process is deployed. Invited players use the accepted Development-only **Advance turn** capability.
+- The hosting scope is protected by a read-only App Service plan lock and an Azure Policy deny list for unapproved platform resources. The policy deliberately permits the approved Azure SQL server/database; F1 quotas and SQL free-limit exhaustion behaviour are the enforced spend boundaries, while budget notifications are not treated as a hard cap.
 - `cycles.anthonypwatts.co.uk` is routed through a binding-free Cloudflare Worker on the Free plan. The direct Azure origin and the custom domain share an application-level access-code gate; only `/health` is public.
 - The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
 - The whole-site access-code gate is an explicit deployment override. The accepted private-alpha and Production route contract instead keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
-- Before further tester invitations, the playground must migrate its current state through the existing SQL Server provider to managed Azure SQL, enable at least seven days of point-in-time recovery, and prove an isolated restore.
+- The managed-SQL cutover preserved all 23 persisted collection counts and 166 records, and the reopened health plus authenticated gameplay smoke passed. Azure SQL retains seven days of point-in-time recovery; an isolated restore at the post-cutover checkpoint reproduced the current schema, all collection counts, active tick 3, and zero unresolved recovery.
 
 ## Verification
 
@@ -124,7 +125,7 @@ Latest local verification on 2026-07-14 used the normal repository test helper:
 .\eng\test.ps1
 ```
 
-Result: **190 tests passed, 0 failed**, both normally and with the opt-in SQL Server integration suite enabled against a disposable database migrated through `014_lock_inactive_priorities`.
+Result: **192 tests passed, 0 failed** in the normal suite. The SQL-backed API journey passed against the dedicated local integration database migrated through `014_lock_inactive_priorities`.
 
 The automated coverage includes:
 
@@ -132,14 +133,16 @@ The automated coverage includes:
 - development and external identity mapping, authorisation, audited admin authority, dashboard admission, visibility, stable API contracts, the hosted access-code gate, protected Development turn advancement, and Worker scheduling;
 - the curated opening contract and its complete move, colonise, battle, event, and Chronicle outcome;
 - tick rollback, guarded abandonment, recovery, duplicate-running-tick prevention, focused-working-copy equivalence, and a 2,160-tick retained-history scenario;
-- strict versioned state-transfer validation across every persisted collection and retained history;
+- strict versioned state-transfer validation across every persisted collection and retained history, including the bounded legacy-runtime conversion path;
 - migration discovery/application and opt-in live SQL Server coverage for round trips, external identity/admin audit persistence and immutability, focused tick loading and writes, recovery attempts, Cycle locks, rankings, successor continuity, admirals, diplomacy, and colonisation;
-- the running-API development gameplay journey in `eng/alpha-gameplay-smoke.ps1`.
+- the SQL-backed running-API development gameplay journey in `eng/alpha-gameplay-smoke.ps1`;
+- explicit API and Worker startup failures when SQL configuration is absent;
+- live Azure SQL migration/import/export round-trip evidence, deployed authenticated smoke checks, seven-day retention, and an isolated point-in-time restore.
 
 The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`; CI runs them against a migrated SQL Server service container. See the [SQL Server runbook](../database/sqldockerdeploykit/README.md).
 
 ## Current Boundaries
 
-The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception, DTO-only player API, external identity boundary, audited local admin authority, protected dashboard, and explicit state-transfer tooling are implemented contracts. Before further tester invitations, the hosted playground still needs the managed-SQL import/cutover and proved restore in #125, followed by mandatory SQL activation/fallback removal in #126. Before calling the build an alpha or inviting untrusted online players, it also needs production Worker leadership/health in #132, guided play evidence in #131, the security gate in #133, and the remaining deployment/monitoring work those issues expose.
+The development build is suitable for trusted local or access-restricted hosted play-testing. The **Advance turn** exception, DTO-only player API, external identity boundary, audited local admin authority, protected dashboard, explicit state-transfer tooling, mandatory SQL hosts, managed-SQL playground cutover, and isolated restore proof are implemented contracts. Before calling the build an alpha or inviting untrusted online players, it still needs production Worker leadership/health in #132, guided play evidence in #131, the security gate in #133, and the remaining deployment/monitoring work those issues expose.
 
 Gameplay expansion is decision-gated in the [Product Owner Questions](product-owner-questions.md). GitHub issues own actionable work; the [Backlog](backlog.md) curates sequence, decision gates, conditional risks, and links.

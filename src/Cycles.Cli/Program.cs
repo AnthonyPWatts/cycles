@@ -656,7 +656,8 @@ static int RunStateTransferCommand(string[] args)
         {
             var connectionString = ParseRequiredSqlServerConnectionString(args, 2);
             var outputPath = Path.GetFullPath(ParseRequiredArgument(args, 3, "output JSON path"));
-            if (File.Exists(outputPath) && !args.Contains("--confirm-overwrite", StringComparer.OrdinalIgnoreCase))
+            var confirmOverwrite = args.Contains("--confirm-overwrite", StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(outputPath) && !confirmOverwrite)
             {
                 throw new InvalidOperationException($"Output file '{outputPath}' already exists. Re-run with --confirm-overwrite to replace it.");
             }
@@ -678,7 +679,7 @@ static int RunStateTransferCommand(string[] args)
                     GameStateTransfer.Write(output, state, DateTimeOffset.UtcNow);
                 }
 
-                File.Move(tempPath, outputPath, overwrite: true);
+                File.Move(tempPath, outputPath, overwrite: confirmOverwrite);
             }
             finally
             {
@@ -689,6 +690,51 @@ static int RunStateTransferCommand(string[] args)
             }
 
             Console.WriteLine($"Exported {GameStateTransfer.CountRecords(state)} record(s) from {store.Description} to '{outputPath}'.");
+            Console.WriteLine("Sensitive export: restrict access, transfer securely, retain only as required, then delete it securely. This is not a database backup.");
+            return 0;
+        }
+
+        case "convert-runtime-file":
+        {
+            var inputPath = Path.GetFullPath(ParseRequiredArgument(args, 2, "legacy runtime JSON path"));
+            var outputPath = Path.GetFullPath(ParseRequiredArgument(args, 3, "output JSON path"));
+            var confirmOverwrite = args.Contains("--confirm-overwrite", StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(outputPath) && !confirmOverwrite)
+            {
+                throw new InvalidOperationException($"Output file '{outputPath}' already exists. Re-run with --confirm-overwrite to replace it.");
+            }
+
+            GameState state;
+            using (var input = File.OpenRead(inputPath))
+            {
+                state = GameStateTransfer.ReadLegacyRuntimeState(input);
+            }
+
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var tempPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    GameStateTransfer.Write(output, state, DateTimeOffset.UtcNow);
+                }
+
+                File.Move(tempPath, outputPath, overwrite: confirmOverwrite);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+
+            Console.WriteLine($"Converted and validated {GameStateTransfer.CountRecords(state)} record(s) from legacy runtime state to '{outputPath}'.");
             Console.WriteLine("Sensitive export: restrict access, transfer securely, retain only as required, then delete it securely. This is not a database backup.");
             return 0;
         }
@@ -858,6 +904,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db profile <sqlserver:connectionString> [systemCount] [empireCount] [historyTicks] [iterations] [seed] --confirm-replace");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state export <sqlserver:connectionString> <output.json> [--confirm-overwrite]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state convert-runtime-file <input.json> <output.json> [--confirm-overwrite]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state validate <input.json>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- state import <input.json> <sqlserver:connectionString> --confirm-import [--confirm-replace]");
     Console.WriteLine();

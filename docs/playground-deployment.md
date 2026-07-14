@@ -5,22 +5,63 @@ The hosted playground is a deliberately constrained development environment for 
 ## Runtime Shape
 
 - `Cycles.Api` targets .NET 10 LTS and runs on the Azure App Service **F1 Free** plan.
-- State is stored in `/home/data/cycles-state.json` on App Service's persistent filesystem.
+- Authoritative state is stored in Azure SQL database `CyclesDb` on logical server `cycles-sql-b366b760` in France Central. The UK regions do not permit this subscription to provision the selected tier.
+- The database uses the Azure SQL free serverless offer: General Purpose Gen5, 2 vCores maximum, 0.5 vCores minimum, the provider-required 60-minute auto-pause, 32 GB maximum data size, locally redundant backup storage, and `AutoPause` when the monthly free allowance is exhausted.
 - `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Advance turn** capability.
 - The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the curated Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan proxies `https://cycles.anthonypwatts.co.uk` to the App Service origin. The Worker has no bindings, storage, observability, or paid features.
 - Both the custom domain and the direct Azure origin are protected by the same application-level access code. `/health` remains unauthenticated for deployment verification.
 
-App Service F1 enforces CPU, memory, bandwidth, and filesystem quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. The 1 GB filesystem quota bounds the JSON store. This single-process playground does not deploy `Cycles.Worker` or share the file with another process.
+App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
 
-JSON is a deliberate playground exception, not a reversal of the SQL-backed runtime direction. It removes database and inter-region transfer cost exposure while keeping the trusted manual-turn test loop persistent across App Service restarts and deployments.
+The final stopped `/home/data/cycles-state.json` file is retained off-host as sensitive migration evidence and emergency rollback material for the cutover checkpoint. It is not updated after the SQL-backed site reopened and must not be used for normal recovery. Database-native backup and point-in-time restore are authoritative after SQL-backed gameplay resumes.
 
-## Accepted Managed-SQL Cutover
+## Managed-SQL Cutover
 
-The JSON exception describes the currently deployed state, but it is no longer the accepted destination for further tester invitations. Q119 demotes JSON to explicit import/export, and [GitHub issue #126](https://github.com/AnthonyPWatts/cycles/issues/126) must provide the validated importer before Q116 moves the existing game to managed SQL. [GitHub issue #125](https://github.com/AnthonyPWatts/cycles/issues/125) tracks the cutover, at least seven days of database-native point-in-time recovery, and one proved isolated restore.
+The playground was stopped on 2026-07-14 and its final atomic JSON state was converted to transfer format version 1, validated, and imported through the operator CLI. The raw snapshot SHA-256 is `8945C5856BB547D61F15BAA8E7A97C1E983656063A0F6DB83CA1E76FA4E2D665`; the versioned transfer SHA-256 is `559215E1C012A56BDA566084372FF780043654187832A74FFD4934ECB0B30665`. The SQL round trip preserved all 23 persisted collection counts and 166 records. The agreed checkpoint retained 4 players, 4 empires, 7 fleets, 4 orders, 42 events, 1 Chronicle entry, 3 tick logs, an active Cycle at tick 3, and no unresolved recovery. The reopened API passed health, access-gate, Development login, Cycle, fleet, order, and Chronicle checks against SQL.
 
-The cutover must intentionally revise the cost guardrails below rather than bypass them. Q117 selects the existing SQL Server provider on managed Azure SQL, subject to a compatibility smoke test. Until that choice is implemented and verified, the current SQL-resource deny policy remains enforced and the JSON-backed deployment remains the truthful runtime description.
+Short-term backup retention is seven days. The restore point at `2026-07-14T16:58:31Z` was restored to isolated database `CyclesDbRestoreProof20260714`. Its schema was current with all 14 migrations, and the operator export reproduced all 23 collection counts, 166 records, active tick 3, and zero unresolved recovery. The paid restore target is temporary evidence only and must be deleted immediately after verification; the live free-offer database remains untouched.
+
+Before the playground reopened, rollback could have returned to the frozen JSON checkpoint. SQL-backed login has now written newer state, so the frozen file is no longer a normal rollback target. Use Azure SQL point-in-time restore for recovery, investigate the isolated result, and deliberately decide whether to repair from it or replace the live database. Never silently switch back to stale JSON or dual-write both stores.
+
+### Restore Rehearsal
+
+Azure SQL point-in-time restore creates a new paid database. Use the smallest compatible serverless target, validate it promptly, and delete only that named target after recording evidence:
+
+```powershell
+$resourceGroup = "rg-cycles-playground-uks"
+$server = "cycles-sql-b366b760"
+$source = "CyclesDb"
+$destination = "CyclesDbRestoreProof-$(Get-Date -Format yyyyMMddHHmmss)"
+$restorePointUtc = "<UTC point at or after earliestRestoreDate>"
+
+az sql db restore `
+  --resource-group $resourceGroup `
+  --server $server `
+  --name $source `
+  --dest-name $destination `
+  --time $restorePointUtc `
+  --edition GeneralPurpose `
+  --family Gen5 `
+  --capacity 2 `
+  --compute-model Serverless `
+  --auto-pause-delay 60 `
+  --min-capacity 0.5 `
+  --backup-storage-redundancy Local `
+  --zone-redundant false
+
+# Derive a connection string for the isolated database without printing its secret,
+# then verify schema, export through the authoritative store, and validate the export.
+dotnet run --project src/Cycles.Cli -- db status "sqlserver:$restoreConnectionString"
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:$restoreConnectionString" C:\secure\restore-proof-v1.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\restore-proof-v1.json
+
+# Destructive: verify the exact temporary name before running this cleanup.
+az sql db delete --resource-group $resourceGroup --server $server --name $destination --yes
+```
+
+Compare every persisted collection count plus the active Cycle/tick, players, empires, fleets, orders, events, Chronicle entries, tick logs, and unresolved recovery state. Do not connect the application to the rehearsal database.
 
 ## Deployment
 
@@ -50,13 +91,13 @@ This shared-code gate is a trusted-playground exception, not production identity
 ## Cost Guardrails
 
 - Keep the App Service plan on SKU `F1`.
-- Keep `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true` and `CYCLES_STATE_PATH=/home/data/cycles-state.json`.
-- Do not add a database, continuously running Worker, Container Apps environment, Azure Container Registry, private endpoint, Application Insights resource, Log Analytics workspace, or paid App Service feature to this playground.
-- Treat Azure budgets as notifications only; the enforced F1 quotas are the actual spend controls.
+- Keep `CyclesDb` on the free serverless offer with 2 vCores maximum, 0.5 vCores minimum, 32 GB maximum size, locally redundant backups, provider-default auto-pause, and free-limit exhaustion behaviour `AutoPause`. Do not select `BillOverUsage`.
+- Do not add another persistent database, continuously running Worker, Container Apps environment, Azure Container Registry, private endpoint, Application Insights resource, Log Analytics workspace, or paid App Service feature to this playground. A restore-rehearsal database must be isolated, validated, and deleted immediately after evidence is recorded.
+- Treat Azure budgets as notifications only; the F1 quotas and Azure SQL free-limit exhaustion setting are the enforced spend controls.
 - Keep the `cycles-f1-read-only` resource lock on the App Service plan. Remove it only for an intentional, reviewed plan change or teardown.
-- Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It denies SQL, Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
+- Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It permits the approved Azure SQL resources but continues to deny Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
 - Keep access restricted at the edge. This environment uses development authentication and is not suitable for untrusted public access.
-- Do not invite further testers until the accepted managed-SQL cutover, backup retention, and restore rehearsal are complete.
+- The database cutover and restore gate is complete; later tester scope remains governed by the guided-play, Worker-operation, and security gates in the project backlog.
 - Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
 
 ## Verification
@@ -67,10 +108,22 @@ az appservice plan show `
   --name asp-cycles-playground-ukw `
   --query '{sku:sku.name,tier:sku.tier}'
 
-az webapp config appsettings list `
+az sql db show `
+  --resource-group rg-cycles-playground-uks `
+  --server cycles-sql-b366b760 `
+  --name CyclesDb `
+  --query '{status:status,location:location,sku:sku.name,capacity:sku.capacity,minCapacity:minCapacity,autoPauseDelay:autoPauseDelay,maxSizeBytes:maxSizeBytes,useFreeLimit:useFreeLimit,freeLimitExhaustionBehavior:freeLimitExhaustionBehavior,backupStorage:currentBackupStorageRedundancy}'
+
+az sql db str-policy show `
+  --resource-group rg-cycles-playground-uks `
+  --server cycles-sql-b366b760 `
+  --name CyclesDb `
+  --query '{retentionDays:retentionDays,diffBackupIntervalInHours:diffBackupIntervalInHours}'
+
+az webapp config connection-string list `
   --resource-group rg-cycles-playground-uks `
   --name cycles-play-b366b760 `
-  --query "[?name=='CYCLES_STATE_PATH' || name=='WEBSITES_ENABLE_APP_SERVICE_STORAGE'].{name:name,value:value}"
+  --query '[].name'
 
 az webapp config appsettings list `
   --resource-group rg-cycles-playground-uks `
@@ -87,4 +140,4 @@ az policy assignment show `
   --query '{enforcementMode:enforcementMode,scope:scope}'
 ```
 
-The checks must continue to report `F1`, `Free`, `/home/data/cycles-state.json`, `true`, an access-code setting without displaying its value, a `ReadOnly` lock, and an enforced policy assignment respectively. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.
+The checks must continue to report `F1`/`Free`; an online `GP_S_Gen5` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; seven retention days; a `Cycles` connection-string name without displaying its value; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.

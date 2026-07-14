@@ -12,15 +12,15 @@ Normal API and Worker development uses SQL Server. CLI gameplay and operator com
 dotnet run --project src/Cycles.Cli -- show "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=<local-password>;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
-Configure SQL Server for the API or Worker through `ConnectionStrings:Cycles` using the connection string without the `sqlserver:` prefix. Set `Cycles:RequireSqlRuntime=true` to fail startup clearly if SQL configuration is missing:
+Configure SQL Server for the API or Worker through `ConnectionStrings:Cycles` using the connection string without the `sqlserver:` prefix. Both hosts fail startup clearly if SQL configuration is missing:
 
 ```powershell
 $connectionString = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=<local-password>;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
-dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString" --Cycles:RequireSqlRuntime true
-dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString" --Cycles:RequireSqlRuntime true
+dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString"
+dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString"
 ```
 
-The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions. A file store still exists for deterministic fixtures, offline inspection, and the ordered deployed migration. Do not use `Cycles:StatePath` as a new normal runtime configuration. The fallback cannot be removed from the hosted process until #125 has imported and verified its current state; #126 owns that final activation/removal step.
+The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions. A file store remains only for deterministic fixtures, offline inspection, CLI tooling, and migration evidence. API and Worker do not read `Cycles:StatePath` or `CYCLES_STATE_PATH` and never select a file runtime fallback.
 
 ## Development Cold Start
 
@@ -46,8 +46,7 @@ Configuration keys:
 
 - `Cycles:Worker:Enabled`;
 - `Cycles:Worker:PollIntervalSeconds`;
-- `ConnectionStrings:Cycles`;
-- `Cycles:RequireSqlRuntime`.
+- `ConnectionStrings:Cycles`.
 
 The Cycle's `TickLengthMinutes` controls simulation cadence. Recovery-required and non-active Cycles are not scheduled.
 
@@ -121,11 +120,14 @@ Complete state transfer is an operator/developer support path for migration, rec
 ### Export And Validate
 
 ```powershell
+# One-time bridge for a retired raw runtime file; the input is not modified.
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v1.json
+
 dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v1.json
 dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
 ```
 
-Export requires a migrated source, validates the authoritative state, and writes a versioned document atomically. It refuses an existing destination unless `--confirm-overwrite` is supplied and never prints the connection string or payload.
+`convert-runtime-file` exists only to move the retired unversioned file-store shape into the strict transfer format. It requires every persisted collection, normalises inactive priorities, validates the state, writes atomically, and does not modify the source. SQL export requires a migrated source and applies the same state validation. Both commands refuse an existing destination unless `--confirm-overwrite` is supplied and never print the connection string or payload.
 
 ### Import
 

@@ -6,22 +6,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-var configuredStatePath = builder.Configuration["Cycles:StatePath"]
-    ?? Environment.GetEnvironmentVariable("CYCLES_STATE_PATH")
-    ?? Path.Combine(builder.Environment.ContentRootPath, "data", "cycles-state.json");
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
-var requireSqlRuntime = builder.Configuration.GetValue<bool>("Cycles:RequireSqlRuntime");
-if (requireSqlRuntime && string.IsNullOrWhiteSpace(configuredSqlConnectionString))
+if (string.IsNullOrWhiteSpace(configuredSqlConnectionString))
 {
-    throw new InvalidOperationException("Cycles:RequireSqlRuntime is enabled, but no Cycles SQL connection string is configured.");
+    throw new InvalidOperationException("Cycles.Worker requires a Cycles SQL connection string. Configure ConnectionStrings:Cycles or CYCLES_SQL_CONNECTION_STRING.");
 }
 Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
     ? () => GameSeeder.CreateCuratedColdStart()
     : null;
 
-builder.Services.AddSingleton(GameStateStoreFactory.Create(configuredStatePath, configuredSqlConnectionString, developmentSeedFactory));
+builder.Services.AddSingleton<IGameStateStore>(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
 builder.Services.Configure<TickWorkerOptions>(builder.Configuration.GetSection("Cycles:Worker"));
 builder.Services.AddHostedService<TickWorker>();
 builder.Services.AddSingleton(TimeProvider.System);

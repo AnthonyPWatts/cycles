@@ -72,6 +72,39 @@ public sealed class GameStateTransferTests
     }
 
     [Fact]
+    public void LegacyRuntimeReaderConvertsCompleteStateAndNormalisesPriorities()
+    {
+        var state = CreateCompleteValidState();
+        var priorities = state.EmpirePriorities[0];
+        priorities.IndustryWeight = 30;
+        priorities.ResearchWeight = 25;
+        priorities.MilitaryWeight = 30;
+        priorities.ExpansionWeight = 15;
+        using var stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(state, GameStateJson.Options));
+
+        var converted = GameStateTransfer.ReadLegacyRuntimeState(stream);
+        var normalised = converted.EmpirePriorities.Single(item => item.EmpirePriorityId == priorities.EmpirePriorityId);
+
+        Assert.Equal(GameStateTransfer.CountRecords(state), GameStateTransfer.CountRecords(converted));
+        Assert.Equal(0, normalised.IndustryWeight);
+        Assert.Equal(0, normalised.ResearchWeight);
+        Assert.Equal(67, normalised.MilitaryWeight);
+        Assert.Equal(33, normalised.ExpansionWeight);
+    }
+
+    [Fact]
+    public void LegacyRuntimeReaderRejectsPartialStateBeforeDeserialisation()
+    {
+        using var stream = JsonStream("""
+            {"players":[]}
+            """);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GameStateTransfer.ReadLegacyRuntimeState(stream));
+
+        Assert.Contains("adminRoleAuditRecords", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validator_reports_referential_and_recovery_inconsistency()
     {
         var state = TestState.CreateSingleEmpireState();
