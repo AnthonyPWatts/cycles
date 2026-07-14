@@ -572,7 +572,7 @@ Consequences:
 - `DiplomaticRelationships` now stores one canonical empire pair per Cycle, while absence still means Neutral.
 - Attack processing records aggression, cancels a pact or alliance to Neutral, and does not silently infer War from combat.
 - Migration `012_add_diplomatic_relationships` and the focused SQL tick path persist relationship changes and their factual events.
-- Q014-Q015 now settle mutual consent, unilateral hostile or terminating actions, and the absence of a separate warning period, while Q013 and Q016-Q022 remain the implementation gate for complete diplomacy orders, alliance effects, shared visibility, and Chronicle behaviour.
+- Q014-Q016 now settle mutual consent, unilateral hostile or terminating actions, the absence of a separate warning period, and first-version Alliance mechanics, while Q013 and Q017-Q022 remain the implementation gate for complete diplomacy orders, visibility, ranking, and Chronicle behaviour.
 
 ## 2026-07-11: Run Due Ticks Through A Dedicated Worker And Admin Boundary
 
@@ -1122,7 +1122,7 @@ Consequences:
 - Alliance, peace, and Non-Aggression Pact transitions require acceptance by both affected empires.
 - Future trade or shared-visibility agreements use the same mutual-consent boundary, but neither feature is authorised by this decision.
 - War declarations, treaty termination, and withdrawal of an unaccepted offer require only the acting empire's authority.
-- Q013 still determines when diplomatic actions resolve, and Q016-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
+- Q013 still determines when diplomatic actions resolve, and Q017-Q022 still govern the remaining lifecycle and effects; no implementation issue is ready yet.
 
 ## 2026-07-14: Do Not Add A Separate Diplomatic Warning Period
 
@@ -1140,4 +1140,23 @@ Consequences:
 - War declarations and voluntary treaty termination are unilateral actions with no additional notice timer or cooling-off state.
 - Q013 still decides whether the action itself is immediate or resolves as a durable order; Q015 adds no further delay.
 - When the transition becomes authoritative, both parties are notified and a high-severity factual event records the actor, prior state, new state, and effective tick.
-- The existing attack-driven treaty cancellation remains valid. Explicit declaration and voluntary-termination actions remain unimplemented and blocked with the wider lifecycle by Q013 and Q016-Q022.
+- The existing attack-driven treaty cancellation remains valid. Explicit declaration and voluntary-termination actions remain unimplemented and blocked with the wider lifecycle by Q013 and Q017-Q022.
+
+## 2026-07-14: Keep First-Version Alliances Mechanically Narrow
+
+Decision: make friendly-fire prevention and factual history the only first-version Alliance mechanics. While an Alliance is active, ordinary direct attacks between its members are not permitted; a player must terminate the Alliance before deliberately attacking.
+
+Reasoning:
+
+- Preventing friendly fire gives Alliance an immediate, understandable mechanical promise without coupling it to every strategic system.
+- Pooling influence, resources, rankings, fleets, or attack control would erase empire-level choices and make balance substantially harder before the basic diplomacy loop is proved.
+- Movement is not currently blocked by foreign territory, so an Alliance-specific movement permission would add no useful behaviour.
+- Shared visibility materially changes fog-of-war and belongs to Q025 rather than being decided indirectly as an Alliance side effect.
+
+Consequences:
+
+- Attack submission and authoritative resolution must reject an ordinary attack against an empire that is still an ally.
+- Alliance creation, termination, and any valid betrayal edge case produce factual Events/history.
+- Existing Q012 treaty-breach cancellation remains as a defensive boundary for already-pending or exceptional conflicts; normal deliberate betrayal requires terminating the Alliance first.
+- Alliance does not pool influence, resources, rankings, fleets, or attack control, and it grants no special movement rule.
+- Q025 remains authoritative for allied visibility. Q013 and Q017-Q022 still block the complete player-facing diplomacy lifecycle, so no implementation issue is ready yet.
