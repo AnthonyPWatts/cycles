@@ -66,6 +66,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Chronicle battle prose is deterministic template output validated against required source facts and stored separately from factual summaries.
 - Completed ticks store each empire's map-control percentage, rank, winner flag, effective presence, and active ships.
 - `cycle end` ranks active empires by `MapControlPercent`, stores final standings, selects the top 10% of battles by losses with a minimum of one, and records system history signals.
+- Rankings remain per empire regardless of diplomatic relationships: allies do not pool map control or become joint winners.
 - `cycle next` creates a successor only after the source Cycle completes and no other Cycle is active. It preserves player continuity and selected famous-system names and significance without carrying mechanical empire advantages.
 
 ### API And Dashboard

@@ -16,6 +16,8 @@ Q015 was answered on 2026-07-14 by allowing unilateral war declarations and trea
 
 Q016 was answered on 2026-07-14 by making friendly-fire prevention and factual history the only first-version Alliance mechanics, while leaving shared visibility to Q025 and keeping resources, influence, rankings, fleets, and attack control separate.
 
+Q017 was answered on 2026-07-14 by retaining separate per-empire map-control rankings and a single empire winner regardless of Alliances.
+
 Q110, Q120, and Q121 were answered on 2026-07-12 by accepting their documented defaults. They are recorded below and no longer form active product gates.
 
 Q107 was answered on 2026-07-13 by accepting the already-implemented Worker sequencing default.
@@ -86,15 +88,16 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 | Q011 | An attack does not automatically create War. | Record aggression; the attacked empire controls escalation. |
 | Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
 
-The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013 and Q017-Q022 still gate player-facing diplomacy.
+The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013 and Q018-Q022 still gate player-facing diplomacy.
 
-## Accepted Q014-Q016 Answers
+## Accepted Q014-Q017 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
 | [Q014](https://github.com/AnthonyPWatts/cycles/issues/2) | Require mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. War declarations and treaty termination are unilateral, and a pending offer may be withdrawn unilaterally before acceptance. | Peace is a mutually accepted transition from War rather than a separate stored relationship state. Trade and shared visibility remain deferred; this answer establishes their future consent rule without adding them to the current vocabulary. |
 | [Q015](https://github.com/AnthonyPWatts/cycles/issues/3) | A player may unilaterally declare War or terminate a treaty. Do not add a separate advance-notice or cooling-off period beyond the normal resolution timing selected under Q013. | When the state change becomes authoritative, notify both parties and record a high-severity factual event. Attacks already cancel a breached treaty during attack resolution without advance warning; explicit declaration and voluntary-termination actions remain unimplemented. |
-| [Q016](https://github.com/AnthonyPWatts/cycles/issues/4) | In the first version, an active Alliance prevents ordinary direct attacks between its members and records its creation, termination, and betrayal in factual Events/history. A player must terminate the Alliance before deliberately attacking. | Do not pool influence, resources, rankings, fleets, or attack control. Movement needs no Alliance permission because it is not territorially blocked. Q025 owns shared visibility. Existing treaty-breach handling remains a defensive boundary for pending or exceptional conflicts. Q013 and Q017-Q022 still block the complete lifecycle, so no implementation issue is created yet. |
+| [Q016](https://github.com/AnthonyPWatts/cycles/issues/4) | In the first version, an active Alliance prevents ordinary direct attacks between its members and records its creation, termination, and betrayal in factual Events/history. A player must terminate the Alliance before deliberately attacking. | Do not pool influence, resources, rankings, fleets, or attack control. Movement needs no Alliance permission because it is not territorially blocked. Q025 owns shared visibility. Existing treaty-breach handling remains a defensive boundary for pending or exceptional conflicts. |
+| [Q017](https://github.com/AnthonyPWatts/cycles/issues/5) | Allies remain separately ranked empires. Alliance members do not contribute map control to one another, pool scores, or become joint winners. | The implemented per-empire `MapControlPercent`, `CycleRankings`, and single-winner behaviour are accepted without changes. History may acknowledge a winner's allies, but it does not alter authoritative standings. No implementation issue is required. Q013 and Q018-Q022 still gate the complete diplomacy lifecycle. |
 
 ## Accepted Q107-Q109 Answers
 
@@ -238,7 +241,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 
 | Area | Questions | Decision required |
 | --- | --- | --- |
-| Diplomacy | Q013 and Q017-Q022 | Timing, ranking, visibility, Chronicle treatment, and memory. Q014-Q016 settle consent, unilateral hostile or terminating actions, and first-version Alliance mechanics; Q025 separately owns shared visibility. |
+| Diplomacy | Q013 and Q018-Q022 | Timing, visibility, Chronicle treatment, and memory. Q014-Q017 settle consent, unilateral hostile or terminating actions, first-version Alliance mechanics, and separate empire rankings; Q025 separately owns shared visibility. |
 | Visibility and intelligence | Q023-Q034 | Sensors, stale or estimated contacts, alliance sharing, public Chronicle detail, live ranking visibility. |
 | Doctrine and technology | Q035-Q046 | Unlock choice, research spending, modifier scope, logistics, detection, cloaking, reset behaviour. |
 | Population, infrastructure, and comeback | Q047 onward in that section | Outpost evolution, further resource roles, recovery mechanics, home-system protection. |

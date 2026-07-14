@@ -42,7 +42,7 @@ The cost-capped hosted playground is also not a production substitute. Its F1 Ap
 - [ ] Implement the accepted first-version Alliance boundary after the remaining gates settle: prevent ordinary friendly fire and record Alliance history without pooling influence, resources, rankings, fleets, or attack control. Q025 separately owns shared visibility.
 - [ ] Define diplomatic visibility, Chronicle selection, and cross-Cycle memory.
 
-Blocked by Q013 and Q017-Q022. Q014 requires mutual acceptance for positive bilateral agreements. Q015 keeps war declarations, treaty termination, and pre-acceptance offer withdrawal unilateral without a separate warning period. Q016 limits the first Alliance to friendly-fire prevention and factual history while Q025 owns shared visibility. The stored relationship vocabulary, attack aggression facts, and treaty-breaking cancellation behaviour are already implemented.
+Blocked by Q013 and Q018-Q022. Q014 requires mutual acceptance for positive bilateral agreements. Q015 keeps war declarations, treaty termination, and pre-acceptance offer withdrawal unilateral without a separate warning period. Q016 limits the first Alliance to friendly-fire prevention and factual history while Q025 owns shared visibility. Q017 confirms separate per-empire rankings and a single empire winner. The stored relationship vocabulary, attack aggression facts, treaty-breaking cancellation behaviour, and independent rankings are already implemented.
 
 ### Doctrine, Technology, And Intelligence
 
@@ -96,7 +96,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 
 | Gate | Questions | Blocks |
 | --- | --- | --- |
-| Diplomacy | Q013 and Q017-Q022 | Player-action timing, ranking, visibility, Chronicle treatment, and memory. Q014-Q016 settle consent, unilateral hostile or terminating actions, and first-version Alliance mechanics. |
+| Diplomacy | Q013 and Q018-Q022 | Player-action timing, visibility, Chronicle treatment, and memory. Q014-Q017 settle consent, unilateral hostile or terminating actions, first-version Alliance mechanics, and separate empire rankings. |
 | Visibility and intelligence | Q023-Q034 | Sensors, estimates, alliance sharing, public/private Chronicle detail. |
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
@@ -104,7 +104,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
-Q014 requires mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. Q015 confirms that War declarations and treaty termination are unilateral, with no separate advance-notice or cooling-off period; pending offers may also be withdrawn before acceptance. Q016 makes friendly-fire prevention and factual history the first Alliance mechanics, keeps pooled resources/control out, and leaves shared visibility to Q025. Q013 and Q017-Q022 still block implementation, so no player-facing diplomacy ticket is ready yet.
+Q014 requires mutual acceptance for Alliance, peace, Non-Aggression Pacts, and any future trade or shared-visibility agreement. Q015 confirms that War declarations and treaty termination are unilateral, with no separate advance-notice or cooling-off period; pending offers may also be withdrawn before acceptance. Q016 makes friendly-fire prevention and factual history the first Alliance mechanics, keeps pooled resources/control out, and leaves shared visibility to Q025. Q017 accepts the implemented independent per-empire rankings and single empire winner. Q013 and Q018-Q022 still block implementation, so no player-facing diplomacy ticket is ready yet.
 
 Q111 selects a new diagnostic default rather than confirming existing behaviour. Issue [#120](https://github.com/AnthonyPWatts/cycles/issues/120) tracks the bounded implementation without authorising automatic recovery.
 
