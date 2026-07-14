@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122 now settles the fact-contract trigger; Q123-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q123 now settle the fact-contract and public-exposure boundaries; Q124-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -956,4 +956,23 @@ Consequences:
 - Existing fact rows remain stored as JSON strings; this decision does not create a generic typed-fact framework or broad migration issue.
 - New code that mechanically consumes, queries, migrates, or publicly exposes fact fields must introduce a named typed or validated reader, model, or response contract at that boundary.
 - Display-only facts may remain flexible while their shapes stabilise, provided normal UI does not expose raw storage JSON.
-- Q123 decides the public exposure boundary and the purpose-built replacement for the dashboard's direct opening-briefing parsing.
+- Q123 subsequently keeps raw fact storage out of ordinary player responses and requires the purpose-built replacement for the dashboard's direct opening-briefing parsing. Implementation is tracked by issue #127.
+
+## 2026-07-14: Present Fact Detail Through Purpose-Built Player Contracts
+
+Decision: keep raw `FactJson` out of the normal dashboard and ordinary player API. Use display text as the default event presentation and add purpose-built typed detail only when it provides player value. Raw fact inspection belongs, if needed, behind an explicit authorised operator diagnostic.
+
+Reasoning:
+
+- Storage JSON is an internal persistence shape, not a stable or approachable player interface.
+- Display text already gives the History view useful factual context without coupling the client to each evolving event shape.
+- Parsed detail is valuable when the player needs structured information or an interaction depends on stable identifiers, but a generic panel would merely expose implementation detail with nicer formatting.
+- The Day One guide currently parses `OpeningBriefingIssued` in JavaScript, so its stable objective identifiers need a server-owned contract and compatibility boundary.
+
+Consequences:
+
+- Ordinary event, battle, and tick-result responses will stop carrying raw `FactJson`; internal storage remains unchanged.
+- The dashboard continues to show display text by default and gains typed detail only for deliberate player-facing use cases.
+- The opening briefing becomes a purpose-built, visibility-checked response consumed by the guide rather than raw event JSON.
+- Any future raw fact viewer must be an explicit authorised operator diagnostic, not a field retained in ordinary responses.
+- Implementation is tracked by GitHub issue #127; no general typed-fact framework or storage migration is authorised.

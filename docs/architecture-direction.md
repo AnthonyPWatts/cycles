@@ -114,7 +114,7 @@ The generic path is a bridge for low-frequency API/admin mutations. Profile a ne
 
 ## Facts, Visibility, And Narrative
 
-Events and battle records are factual, queryable records tied to Cycle, tick, system, empire, and source identifiers where possible. `FactJson` remains flexible internal storage while fact shapes evolve. Introduce a typed or validated contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed; do not launch a broad fact migration merely to type unstable diplomacy or narrative shapes. The dashboard's opening-briefing consumer is the current contract candidate, subject to Q123's public-exposure decision.
+Events and battle records are factual, queryable records tied to Cycle, tick, system, empire, and source identifiers where possible. `FactJson` remains flexible internal storage while fact shapes evolve. Introduce a typed or validated contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed; do not launch a broad fact migration merely to type unstable diplomacy or narrative shapes. Ordinary player responses use display text or purpose-built typed detail rather than raw fact storage. Issue #127 applies that boundary to events, battles, tick results, and the dashboard's opening briefing.
 
 Chronicle entries select historically important facts. Factual summaries, narrative text, importance scores, source identifiers, generation status, and generation context remain separate. Future AI generation must run outside the tick transaction and must fail without affecting gameplay.
 

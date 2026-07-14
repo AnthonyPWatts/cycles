@@ -72,7 +72,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 - Ordinary player endpoints expose filtered state and accept intentions through explicit response DTOs.
 - Raw domain entities remain internal and are not returned to the dashboard.
-- Event and battle DTOs still carry flexible `FactJson`, and the Day One guide parses the `OpeningBriefingIssued` payload. The accepted boundary now requires a typed or validated contract when fact fields are mechanically consumed, queried, migrated, or publicly exposed; Q123 still governs raw public exposure.
+- Event and battle DTOs still carry flexible `FactJson`, and the Day One guide parses the `OpeningBriefingIssued` payload. This now conflicts with the accepted ordinary-player boundary; [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127) removes the raw response fields and supplies a typed opening briefing without changing internal fact storage.
 - Player mutations derive empire authority from the authenticated development session rather than caller-supplied empire IDs.
 - Players can see the full map structure, but exact presence, local fleets, events, last-tick facts, and Chronicle entries are limited by active-fleet visibility. Development admins can inspect all state.
 - In Development, every authenticated player receives an **Advance turn** capability that invokes the same authoritative store operation used by the Worker and CLI. This does not change the player's role, visibility, or empire authority.

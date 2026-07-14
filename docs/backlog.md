@@ -82,7 +82,7 @@ Blocked until the corresponding continuity and character questions are selected.
 
 ## Technical Debt And Risks
 
-- [ ] Introduce a typed or validated fact contract at the first mechanical consumer, query, migration, or public exposure boundary. The opening briefing is the current candidate and remains coupled to Q123's public-exposure decision; do not launch a broad fact migration before diplomacy and narrative shapes stabilise.
+- [ ] Complete [issue #127](https://github.com/AnthonyPWatts/cycles/issues/127): remove raw `FactJson` from ordinary player responses and replace the guide's direct parsing with a typed opening-briefing contract. Keep internal storage flexible and do not launch a broad fact migration before diplomacy and narrative shapes stabilise.
 - [ ] Revisit the generic whole-state SQL mutation bridge if profiling shows it on a high-frequency or scaling-critical path.
 - [ ] Revisit dashboard rendering when an agreed galaxy/player scale exceeds the current small-map assumption.
 - [ ] Add a production security review before any untrusted online test.
@@ -99,7 +99,7 @@ The active queue is indexed by [GitHub issue #119](https://github.com/AnthonyPWa
 | Doctrine and technology | Q035-Q046 | Research choices, logistics, detection, cloaking, modifier scope. |
 | Population and infrastructure follow-ons | Q047 onward in that area | Outpost evolution, comeback, further industry/population roles. |
 | Narrative AI | Q094-Q101 | Provider, queue, fallback, review, and failure contract. |
-| API and dashboard follow-ons | Q123-Q130 | Event-detail UX, public fact exposure, frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q122's DTO and fact-contract boundaries are settled. |
+| API and dashboard follow-ons | Q124-Q130 | Frozen conventions, scale target, help content, backlog ownership, and saved-game exports. Q120-Q123's DTO, fact-contract, and public-exposure boundaries are settled. |
 
 Q107-Q110 and Q120-Q121 confirm behaviour already implemented and covered by tests: the scheduled Worker was created before further gameplay expansion, uses each Cycle's configured cadence without catch-up storms, manual player turn control remains a narrow Development-only exception, broader lifecycle controls remain restricted, player responses are DTO-only, and domain entities remain internal. They do not by themselves authorise the still-gated production operations or API/dashboard follow-on work above.
 
@@ -121,7 +121,9 @@ Q118 confirms the existing provider-isolation default: justified Azure-SQL-compa
 
 Q119 demotes JSON to explicit import/export, inspection, fixtures, and migration evidence. Issue [#126](https://github.com/AnthonyPWatts/cycles/issues/126) owns the safe tooling/runtime-default sequence and must supply the verified importer consumed by issue #125.
 
-Q122 accepts flexible internal `FactJson` for another stage and establishes the trigger for a typed or validated contract: mechanical consumption, querying, migration, or public exposure. It does not authorise a broad fact-schema migration. Q123 owns the remaining public-exposure and opening-briefing API decision.
+Q122 accepts flexible internal `FactJson` for another stage and establishes the trigger for a typed or validated contract: mechanical consumption, querying, migration, or public exposure. It does not authorise a broad fact-schema migration. Q123 subsequently settles the public-exposure and opening-briefing API boundary.
+
+Q123 keeps raw `FactJson` out of the normal dashboard and ordinary player API. Display text remains the default presentation, with purpose-built typed detail only where it adds player value. Issue [#127](https://github.com/AnthonyPWatts/cycles/issues/127) removes the current raw response fields and replaces the guide's direct JSON parsing without changing internal fact storage.
 
 Several other open questions have reversible defaults visible in the Development build or trusted playground. [Product Owner Questions](product-owner-questions.md#implemented-defaults-awaiting-product-confirmation) records those defaults separately so deployed behaviour is not mistaken for approval; the GitHub issues remain the decision queue.
 
