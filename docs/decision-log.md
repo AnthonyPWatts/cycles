@@ -665,7 +665,7 @@ Consequences:
 
 - New player-facing endpoints must define explicit response contracts and must not expose `Cycles.Core` entities.
 - The existing DTO-only implementation satisfies the accepted decision; no compatibility rewrite is required.
-- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q127 now settle the fact, API, scale, responsive, and training boundaries; Q128-Q130 remain open.
+- At that decision point, typed fact schemas and the remaining API/dashboard choices were still governed by Q122-Q130 rather than being inferred from Q120-Q121. Q122-Q128 now settle the fact, API, scale, training, and backlog-ownership boundaries; Q129-Q130 remain open.
 
 ## 2026-07-13: Organise The Dashboard Around Player Tasks
 
@@ -1050,3 +1050,22 @@ Consequences:
 - Bump the guide content version when the step sequence changes so stored progress cannot misalign with the new steps.
 - Keep `docs/alpha-testers-guide.md` aligned with the live wording and current controls.
 - Implementation and desktop/narrow smoke verification are tracked by GitHub issue #129; no Playwright dependency or separate help centre is authorised.
+
+## 2026-07-14: Put Actionable Ticket Lifecycle In GitHub
+
+Decision: make GitHub issues authoritative for concrete actionable backlog work, including scope, acceptance criteria, owner, live status, dependencies, and completion. Keep `docs/backlog.md` as the curated roadmap, sequencing summary, decision-gate overview, and issue index. Keep accepted answers, implemented state, and durable rationale in their existing canonical repository documents.
+
+Reasoning:
+
+- Concrete work already needs assignment, labels, dependencies, discussion, and closure; duplicating that mutable lifecycle in Markdown creates drift.
+- The Markdown backlog remains valuable for explaining priority, sequence, blocked areas, and the relationship between tickets without requiring a large issue dump.
+- Product answers and durable technical rationale need reviewable repository history and must not disappear into closed issue comments.
+- Filing every conditional risk, parked idea, or unresolved product choice would create noise rather than a useful actionable queue.
+
+Consequences:
+
+- Concrete selected work has one authoritative GitHub issue; Markdown links to it without duplicating live status or complete acceptance criteria.
+- `docs/product-owner-questions.md` remains authoritative for accepted product answers, `docs/project-state.md` for implemented behaviour and verification, and `docs/decision-log.md` for durable rationale.
+- Unshaped ideas may remain in roadmap or parking-lot prose until selected; unresolved decisions remain in the product-decision queue rather than becoming premature implementation tickets.
+- Issue #130 inventories the current Markdown checkboxes, reuses or creates worthwhile tickets, removes duplicated mutable detail, and updates repository guidance.
+- Until that migration completes, `docs/backlog.md` remains the operative implementation queue so no concrete work is orphaned during the transition.

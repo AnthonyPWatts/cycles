@@ -25,7 +25,7 @@ This is a working development MVP, not an alpha release or production game servi
 - [Trusted Playground Deployment](docs/playground-deployment.md) records the hosted test boundary and cost guardrails.
 - [Project State](docs/project-state.md) records implemented behaviour, verification, and known limits.
 - [Documentation Index](docs/README.md) defines the purpose and ownership of every maintained document.
-- [Backlog](docs/backlog.md) is the sole implementation queue.
+- [Backlog](docs/backlog.md) remains the operative implementation queue until [issue #130](https://github.com/AnthonyPWatts/cycles/issues/130) completes the accepted transition to GitHub-owned actionable tickets and a Markdown roadmap summary.
 
 ## Projects
 
