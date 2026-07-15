@@ -149,6 +149,27 @@ public sealed class ApiResponseContractTests
         Assert.DoesNotContain("stack", document.RootElement.EnumerateObject().Select(property => property.Name));
     }
 
+    [Fact]
+    public async Task Optional_json_results_write_a_literal_null_body()
+    {
+        var result = ApiEndpointResults.TryJson<OpeningBriefingResponse?>(() => null);
+        var context = new DefaultHttpContext();
+        await using var body = new MemoryStream();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.ConfigureHttpJsonOptions(options => ApiJson.Configure(options.SerializerOptions));
+        context.RequestServices = services.BuildServiceProvider();
+        context.Response.Body = body;
+
+        await result.ExecuteAsync(context);
+        body.Position = 0;
+        using var reader = new StreamReader(body);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.StartsWith("application/json", context.Response.ContentType, StringComparison.Ordinal);
+        Assert.Equal("null", await reader.ReadToEndAsync());
+    }
+
     private static IEnumerable<Type> FlattenType(Type type)
     {
         yield return type;

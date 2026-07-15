@@ -291,7 +291,7 @@ app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateSto
     }));
 
 app.MapGet("/briefings/opening", (HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+    ApiEndpointResults.TryJson(() =>
     {
         var state = store.LoadOrCreate();
         var cycle = GetActiveCycle(state);

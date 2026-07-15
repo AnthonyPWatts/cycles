@@ -17,7 +17,7 @@ DECLARE @AdmiralOneID UNIQUEIDENTIFIER = '55555555-5555-5555-5555-555555555551';
 DECLARE @AdmiralTwoID UNIQUEIDENTIFIER = '55555555-5555-5555-5555-555555555552';
 DECLARE @Now DATETIMEOFFSET = SYSDATETIMEOFFSET();
 
-IF NOT EXISTS (SELECT 1 FROM dbo.Cycles WHERE CycleID = @CycleID)
+IF NOT EXISTS (SELECT 1 FROM dbo.Cycles WHERE Status = N'Active')
 BEGIN
     INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, Role, CreatedAt, LastLoginAt, Status)
     VALUES
@@ -44,8 +44,8 @@ BEGIN
 
     INSERT INTO dbo.EmpirePriorities(EmpirePriorityID, EmpireID, IndustryWeight, ResearchWeight, MilitaryWeight, ExpansionWeight, UpdatedAt)
     VALUES
-        (NEWID(), @EmpireOneID, 30, 25, 30, 15, @Now),
-        (NEWID(), @EmpireTwoID, 30, 25, 30, 15, @Now);
+        (NEWID(), @EmpireOneID, 0, 0, 67, 33, @Now),
+        (NEWID(), @EmpireTwoID, 0, 0, 67, 33, @Now);
 
     INSERT INTO dbo.SystemLinks(SystemLinkID, CycleID, SystemAID, SystemBID, Distance, TravelTicks)
     VALUES (NEWID(), @CycleID, @SystemOneID, @SystemTwoID, 241.87, 1);

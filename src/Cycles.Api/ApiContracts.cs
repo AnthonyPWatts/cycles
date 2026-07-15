@@ -47,6 +47,24 @@ public static class ApiErrorResponses
     }
 }
 
+public static class ApiEndpointResults
+{
+    public static IResult TryJson<T>(Func<T> action)
+    {
+        try
+        {
+            var value = action();
+            return value is null
+                ? Results.Text("null", "application/json")
+                : Results.Json(value);
+        }
+        catch (Exception exception) when (ApiErrorResponses.IsHandled(exception))
+        {
+            return ApiErrorResponses.ToResult(exception);
+        }
+    }
+}
+
 public sealed class ApiErrorMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)

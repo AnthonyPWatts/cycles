@@ -21,8 +21,7 @@ public static class InfluenceCalculator
             .GroupBy(fleet => fleet.EmpireId)
             .ToDictionary(group => group.Key, group => (decimal)group.Sum(fleet => fleet.ShipCount));
 
-        var homeEmpire = state.Empires.SingleOrDefault(empire => empire.CycleId == cycleId && empire.HomeSystemId == systemId);
-        if (homeEmpire is not null)
+        foreach (var homeEmpire in state.Empires.Where(empire => empire.CycleId == cycleId && empire.HomeSystemId == systemId))
         {
             presence[homeEmpire.EmpireId] = presence.TryGetValue(homeEmpire.EmpireId, out var currentPresence)
                 ? Math.Max(currentPresence, HomeSystemMinimumPresence)
