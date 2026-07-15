@@ -13,7 +13,7 @@ public sealed class CanonicalGalaxyTopologyTests
     ];
 
     [Fact]
-    public void Curated_galaxy_is_a_connected_sixteen_sector_crown()
+    public void Curated_galaxy_is_a_connected_irregular_territorial_graph()
     {
         var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
         var cycle = state.GetActiveCycle()!;
@@ -24,8 +24,8 @@ public sealed class CanonicalGalaxyTopologyTests
 
         Assert.Equal(GameSeeder.CanonicalGalaxySectorCount, sectors.Length);
         Assert.Equal(GameSeeder.CanonicalGalaxySystemCount, systems.Length);
-        Assert.Equal(296, links.Length);
-        Assert.Equal([18, 15, 21, 14, 17, 20, 12, 19, 16, 22, 13, 18, 24, 15, 20, 16],
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, links.Length);
+        Assert.Equal(Enumerable.Repeat(8, GameSeeder.CanonicalGalaxySectorCount),
             sectors.Select(sector => systems.Count(system => system.SectorId == sector.SectorId)));
         Assert.Equal(systems.Length, systems.Select(item => item.SystemName).Distinct(StringComparer.Ordinal).Count());
         Assert.All(systems, item =>
@@ -37,7 +37,7 @@ public sealed class CanonicalGalaxyTopologyTests
         var crossLinks = links
             .Where(link => sectorBySystem[link.SystemAId] != sectorBySystem[link.SystemBId])
             .ToArray();
-        Assert.Equal(GameSeeder.CanonicalGalaxySectorCount, crossLinks.Length);
+        Assert.Equal(GameSeeder.CanonicalGalaxyBridgeCount, crossLinks.Length);
         Assert.All(crossLinks, link => Assert.Equal(2, link.TravelTicks));
 
         foreach (var sector in sectors)
@@ -49,17 +49,49 @@ public sealed class CanonicalGalaxyTopologyTests
                 .Where(memberIds.Contains)
                 .ToArray();
 
-            Assert.Equal(memberIds.Count, localLinks.Length);
-            Assert.All(memberIds, systemId => Assert.Equal(2, localLinks.Count(link => link.SystemAId == systemId || link.SystemBId == systemId)));
-            Assert.Equal(2, exits.Length);
+            Assert.Equal(memberIds.Count + (memberIds.Count / 3), localLinks.Length);
+            Assert.All(memberIds, systemId => Assert.InRange(
+                localLinks.Count(link => link.SystemAId == systemId || link.SystemBId == systemId),
+                2,
+                4));
+            Assert.Contains(memberIds, systemId => localLinks.Count(link => link.SystemAId == systemId || link.SystemBId == systemId) > 2);
+            Assert.InRange(exits.Length, 2, 5);
             Assert.Equal(2, exits.Distinct().Count());
+            Assert.Equal(memberIds.Count, ReachableSystemIds(memberIds.First(), localLinks).Count);
         }
 
-        Assert.All(crossLinks.SelectMany(link => new[] { link.SystemAId, link.SystemBId }).GroupBy(item => item),
-            gateway => Assert.Single(gateway));
-        Assert.Equal(2, sectors.Select(sector => AdjacentSectors(sector.SectorId, crossLinks, sectorBySystem).Count).Distinct().Single());
+        var gatewayBridgeDegrees = crossLinks
+            .SelectMany(link => new[] { link.SystemAId, link.SystemBId })
+            .GroupBy(item => item)
+            .Select(group => group.Count())
+            .ToArray();
+        Assert.All(gatewayBridgeDegrees, degree => Assert.InRange(degree, 1, 3));
+        Assert.Contains(1, gatewayBridgeDegrees);
+        Assert.Contains(gatewayBridgeDegrees, degree => degree > 1);
+        var sectorDegrees = sectors
+            .Select(sector => AdjacentSectors(sector.SectorId, crossLinks, sectorBySystem).Count)
+            .ToArray();
+        Assert.All(sectorDegrees, degree => Assert.InRange(degree, 2, 5));
+        Assert.Equal([2, 3, 4, 5], sectorDegrees.Distinct().Order().ToArray());
         Assert.Equal(sectors.Length, ReachableSectorIds(sectors[0].SectorId, crossLinks, sectorBySystem).Count);
         Assert.Equal(systems.Length, ReachableSystemIds(systems[0].SystemId, links).Count);
+
+        var sectorRadii = sectors
+            .Select(sector => (int)Math.Round(Math.Sqrt(Math.Pow(sector.CentreX - 500, 2) + Math.Pow(sector.CentreY - 350, 2))))
+            .Distinct()
+            .Count();
+        Assert.True(sectorRadii >= 6, "The sector layout should occupy an irregular map rather than a circle.");
+
+        var graphDegrees = systems.ToDictionary(
+            system => system.SystemId,
+            system => links.Count(link => link.SystemAId == system.SystemId || link.SystemBId == system.SystemId));
+        var superconnected = systems.Where(system => graphDegrees[system.SystemId] >= 5).ToArray();
+        Assert.NotEmpty(superconnected);
+        Assert.All(superconnected, system =>
+        {
+            Assert.True(system.StrategicValue >= 35);
+            Assert.True(system.HistoricalSignificance >= 2);
+        });
 
         var treatyGate = systems.Single(item => item.SystemName == "Treaty Gate");
         Assert.Contains(crossLinks, link => link.SystemAId == treatyGate.SystemId || link.SystemBId == treatyGate.SystemId);
@@ -95,9 +127,9 @@ public sealed class CanonicalGalaxyTopologyTests
         var result = GameSeeder.UpgradeGalaxyTopology(state);
 
         Assert.True(result.Changed);
-        Assert.Equal(16, result.SectorsAdded);
-        Assert.Equal(256, result.SystemsAdded);
-        Assert.Equal(296, result.LinksAdded);
+        Assert.Equal(8, result.SectorsAdded);
+        Assert.Equal(40, result.SystemsAdded);
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, result.LinksAdded);
         Assert.Equal(1, result.LinksRemoved);
         Assert.Equal(retainedIds, state.Systems.Where(item => legacyNames.Contains(item.SystemName))
             .ToDictionary(item => item.SystemName, item => item.SystemId, StringComparer.Ordinal));
@@ -105,8 +137,8 @@ public sealed class CanonicalGalaxyTopologyTests
 
         var second = GameSeeder.UpgradeGalaxyTopology(state);
         Assert.False(second.Changed);
-        Assert.Equal(280, state.Systems.Count);
-        Assert.Equal(296, state.SystemLinks.Count);
+        Assert.Equal(64, state.Systems.Count);
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, state.SystemLinks.Count);
     }
 
     [Fact]
@@ -120,8 +152,8 @@ public sealed class CanonicalGalaxyTopologyTests
         Assert.True(result.Changed);
         Assert.Equal(0, result.SectorsAdded);
         Assert.Equal(0, result.SystemsAdded);
-        Assert.Equal(296, result.LinksAdded);
-        Assert.Equal(296, result.LinksRemoved);
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, result.LinksAdded);
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, result.LinksRemoved);
         Assert.All(state.SystemLinks, link => Assert.Contains(link.TravelTicks, new[] { 1, 2 }));
         Assert.False(GameSeeder.UpgradeGalaxyTopology(state).Changed);
     }
@@ -139,9 +171,9 @@ public sealed class CanonicalGalaxyTopologyTests
         var exception = Assert.Throws<InvalidOperationException>(() => GameSeeder.UpgradeGalaxyTopology(state));
 
         Assert.Contains("no fleets in transit", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(16, state.Sectors.Count);
-        Assert.Equal(280, state.Systems.Count);
-        Assert.Equal(296, state.SystemLinks.Count);
+        Assert.Equal(8, state.Sectors.Count);
+        Assert.Equal(64, state.Systems.Count);
+        Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, state.SystemLinks.Count);
         Assert.Equal(99, driftedLink.TravelTicks);
     }
 
