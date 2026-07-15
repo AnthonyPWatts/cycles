@@ -2001,14 +2001,14 @@ function renderGalaxy(galaxy, empire) {
                 <path d="M 50 0 L 0 0 0 50" class="chart-grid-line"></path>
             </pattern>
             <radialGradient id="chartField" cx="50%" cy="42%" r="72%">
-                <stop offset="0" stop-color="#193027"></stop>
-                <stop offset="0.48" stop-color="#0d1713"></stop>
-                <stop offset="1" stop-color="#070a09"></stop>
+                <stop offset="0" stop-color="#18213a"></stop>
+                <stop offset="0.48" stop-color="#0b1020"></stop>
+                <stop offset="1" stop-color="#050711"></stop>
             </radialGradient>
             <linearGradient id="galacticPlane" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#8fd1bd" stop-opacity="0"></stop>
-                <stop offset="0.5" stop-color="#8fd1bd" stop-opacity="0.12"></stop>
-                <stop offset="1" stop-color="#dfba68" stop-opacity="0"></stop>
+                <stop offset="0" stop-color="#5875aa" stop-opacity="0"></stop>
+                <stop offset="0.5" stop-color="#6f83b4" stop-opacity="0.12"></stop>
+                <stop offset="1" stop-color="#d4a85b" stop-opacity="0"></stop>
             </linearGradient>
         </defs>
         <rect class="chart-field" x="-80" y="-80" width="1160" height="860"></rect>
