@@ -28,9 +28,12 @@ const state = {
     eventSeverity: "all",
     eventSort: "newest",
     mapLens: "overview",
+    mapPreset: "galaxy",
     mapViewBox: { x: 0, y: 0, width: 1000, height: 700 },
     mapDrag: null,
     mapDragged: false,
+    mapRecentSystemIds: [],
+    mapMaximised: false,
     priorityDraft: null,
     prioritySaving: false
 };
@@ -40,6 +43,11 @@ const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "exp
 const inactivePriorityKeys = ["industryWeight", "researchWeight"];
 const activePriorityKeys = ["militaryWeight", "expansionWeight"];
 const mapBounds = Object.freeze({ x: 0, y: 0, width: 1000, height: 700 });
+const mapPresetWidths = Object.freeze({
+    galaxy: 1000,
+    sector: 600,
+    local: 320
+});
 const mapLensLabels = Object.freeze({
     overview: "Overview",
     presence: "Presence",
@@ -138,17 +146,29 @@ const elements = {
     historyTabButtons: [...document.querySelectorAll("[data-history-tab]")],
     historyTabPanels: [...document.querySelectorAll(".history-tab-panel")],
     systemHeading: document.querySelector("#systemHeading"),
+    galaxyWorkspace: document.querySelector("#galaxyWorkspace"),
     systemSearchForm: document.querySelector("#systemSearchForm"),
     systemSearch: document.querySelector("#systemSearch"),
     systemOptions: document.querySelector("#systemOptions"),
     mapLensButtons: [...document.querySelectorAll("[data-map-lens]")],
+    mapPresetButtons: [...document.querySelectorAll("[data-map-preset]")],
     mapInsightLabel: document.querySelector("#mapInsightLabel"),
     mapInsight: document.querySelector("#mapInsight"),
     galaxyMap: document.querySelector("#galaxyMap"),
+    mapNavigator: document.querySelector("#mapNavigator"),
+    mapNavigatorReset: document.querySelector("#mapNavigatorReset"),
+    mapRecentSystems: document.querySelector("#mapRecentSystems"),
+    mapCameraScale: document.querySelector("#mapCameraScale"),
+    mapCameraPosition: document.querySelector("#mapCameraPosition"),
+    mapCameraTarget: document.querySelector("#mapCameraTarget"),
     mapStats: document.querySelector("#mapStats"),
     mapZoomOut: document.querySelector("#mapZoomOut"),
     mapResetView: document.querySelector("#mapResetView"),
     mapZoomIn: document.querySelector("#mapZoomIn"),
+    mapFocusHome: document.querySelector("#mapFocusHome"),
+    mapFocusSelected: document.querySelector("#mapFocusSelected"),
+    mapFocusFrontier: document.querySelector("#mapFocusFrontier"),
+    mapMaximise: document.querySelector("#mapMaximise"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
     turnMessage: document.querySelector("#turnMessage"),
     refreshButton: document.querySelector("#refreshButton"),
@@ -186,6 +206,13 @@ document.addEventListener("keydown", event => {
     if (shortcutView && !elements.appShell.hidden) {
         event.preventDefault();
         activateView(shortcutView, { updateLocation: true, focusHeading: true });
+        return;
+    }
+
+    if (event.key === "Escape" && state.mapMaximised) {
+        event.preventDefault();
+        setMapMaximised(false);
+        elements.mapMaximise.focus({ preventScroll: true });
         return;
     }
 
@@ -283,9 +310,35 @@ for (const button of elements.mapLensButtons) {
     button.addEventListener("click", () => setMapLens(button.dataset.mapLens));
 }
 
+for (const button of elements.mapPresetButtons) {
+    button.addEventListener("click", () => applyMapPreset(button.dataset.mapPreset));
+}
+
 elements.mapZoomOut.addEventListener("click", () => zoomMap(1.24));
 elements.mapZoomIn.addEventListener("click", () => zoomMap(0.8));
 elements.mapResetView.addEventListener("click", resetMapView);
+elements.mapFocusHome.addEventListener("click", () => recoverMapToSystem(state.empire?.homeSystem.systemId));
+elements.mapFocusSelected.addEventListener("click", () => recoverMapToSystem(state.selectedSystemId));
+elements.mapFocusFrontier.addEventListener("click", recoverMapToFrontier);
+elements.mapNavigatorReset.addEventListener("click", () => recoverMapToSystem(state.selectedSystemId));
+elements.mapMaximise.addEventListener("click", () => setMapMaximised(!state.mapMaximised));
+
+elements.mapRecentSystems.addEventListener("click", event => {
+    const button = event.target.closest("[data-recent-system]");
+    if (button) {
+        selectSystem(button.dataset.recentSystem, { focusMap: true });
+    }
+});
+
+elements.mapNavigator.addEventListener("click", moveMapFromNavigator);
+elements.mapNavigator.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    event.preventDefault();
+    recoverMapToSystem(state.selectedSystemId);
+});
 
 elements.galaxyMap.addEventListener("wheel", event => {
     event.preventDefault();
@@ -317,6 +370,7 @@ elements.galaxyMap.addEventListener("pointermove", event => {
     const deltaY = event.clientY - state.mapDrag.clientY;
     if (Math.abs(deltaX) + Math.abs(deltaY) > 4) {
         state.mapDragged = true;
+        state.mapPreset = null;
     }
 
     state.mapViewBox.x = state.mapDrag.viewBox.x - deltaX * state.mapDrag.viewBox.width / rect.width;
@@ -644,6 +698,7 @@ function showLogin(message) {
     state.role = null;
     state.canAdvanceTurn = false;
     state.empire = null;
+    setMapMaximised(false);
     elements.loginMessage.textContent = message;
     elements.loginForm.hidden = false;
     elements.sessionSummary.hidden = true;
@@ -684,6 +739,7 @@ async function refresh() {
     if (!state.selectedSystemId || !galaxy.systems.some(system => system.systemId === state.selectedSystemId)) {
         state.selectedSystemId = empire.homeSystem.systemId;
     }
+    rememberMapSystem(state.selectedSystemId);
 
     renderCycle(cycle);
     renderEmpire(empire);
@@ -722,6 +778,9 @@ function resolveInitialView() {
 
 function activateView(viewId, { updateLocation = false, focusHeading = false } = {}) {
     const selectedView = viewIds.includes(viewId) ? viewId : "command";
+    if (selectedView !== "galaxy" && state.mapMaximised) {
+        setMapMaximised(false);
+    }
     state.activeView = selectedView;
 
     for (const view of elements.views) {
@@ -1881,7 +1940,12 @@ function renderGalaxy(galaxy, empire) {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
         const isSelectedRoute = link.systemAId === selectedId || link.systemBId === selectedId;
-        return `<line class="link${isSelectedRoute ? " selected-route" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
+        return `
+            <g class="route-segment${isSelectedRoute ? " is-selected" : ""}">
+                <line class="route-glow" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
+                <line class="link${isSelectedRoute ? " selected-route" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
+            </g>
+        `;
     }).join("");
 
     const lensMetrics = galaxy.systems.map(system => mapLensMetric(
@@ -1918,7 +1982,11 @@ function renderGalaxy(galaxy, empire) {
                 <circle class="system-aura" cx="${system.x}" cy="${system.y}" r="${radius + 11}"></circle>
                 ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
                 ${isContested ? `<circle class="contested-ring" cx="${system.x}" cy="${system.y}" r="${radius + 10}"></circle>` : ""}
-                ${isSelected ? `<circle class="selection-orbit" cx="${system.x}" cy="${system.y}" r="${radius + 16}"></circle>` : ""}
+                ${isSelected ? `
+                    <circle class="selection-scan" cx="${system.x}" cy="${system.y}" r="${radius + 29}"></circle>
+                    <circle class="selection-orbit" cx="${system.x}" cy="${system.y}" r="${radius + 16}"></circle>
+                    ${mapSelectionReticle(system.x, system.y, radius + 23)}
+                ` : ""}
                 <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
                 <circle class="system-core" cx="${system.x}" cy="${system.y}" r="${Math.max(2.8, radius * 0.24)}"></circle>
                 <text class="system-label${isSelected ? " selected-label" : ""}" x="${system.x + radius + 8}" y="${system.y + 5}">${escapeHtml(system.systemName)}</text>
@@ -1937,9 +2005,16 @@ function renderGalaxy(galaxy, empire) {
                 <stop offset="0.48" stop-color="#0d1713"></stop>
                 <stop offset="1" stop-color="#070a09"></stop>
             </radialGradient>
+            <linearGradient id="galacticPlane" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#8fd1bd" stop-opacity="0"></stop>
+                <stop offset="0.5" stop-color="#8fd1bd" stop-opacity="0.12"></stop>
+                <stop offset="1" stop-color="#dfba68" stop-opacity="0"></stop>
+            </linearGradient>
         </defs>
         <rect class="chart-field" x="-80" y="-80" width="1160" height="860"></rect>
         <rect class="chart-grid" x="-80" y="-80" width="1160" height="860"></rect>
+        <g class="starfield-layer">${renderMapStarfield()}</g>
+        <ellipse class="galactic-plane" cx="500" cy="350" rx="610" ry="158" transform="rotate(-11 500 350)"></ellipse>
         <g class="route-layer">${lines}</g>
         <g class="system-layer">${nodes}</g>
     `;
@@ -1958,10 +2033,40 @@ function renderGalaxy(galaxy, empire) {
     applyMapViewBox();
     renderMapStats(galaxy);
     renderMapInsight(galaxy, empire, presenceBySystem);
+    renderMapNavigator(galaxy, empire);
+    renderRecentMapSystems();
+    renderMapRecoveryState(galaxy, presenceBySystem);
+}
+
+function renderMapStarfield() {
+    return Array.from({ length: 112 }, (_, index) => {
+        const x = (index * 83 + (index % 7) * 29) % mapBounds.width;
+        const y = (index * 47 + (index % 11) * 41) % mapBounds.height;
+        const radius = index % 13 === 0 ? 1.65 : index % 5 === 0 ? 1.05 : 0.62;
+        const depth = index % 3;
+        return `<circle class="chart-star chart-star-${depth}" cx="${x}" cy="${y}" r="${radius}"></circle>`;
+    }).join("");
+}
+
+function mapSelectionReticle(x, y, radius) {
+    const arm = 10;
+    return `
+        <g class="selection-reticle" transform="translate(${x} ${y})">
+            <path d="M ${-radius} ${-radius + arm} V ${-radius} H ${-radius + arm}"></path>
+            <path d="M ${radius - arm} ${-radius} H ${radius} V ${-radius + arm}"></path>
+            <path d="M ${radius} ${radius - arm} V ${radius} H ${radius - arm}"></path>
+            <path d="M ${-radius + arm} ${radius} H ${-radius} V ${radius - arm}"></path>
+        </g>
+    `;
 }
 
 function selectSystem(systemId, { focusMap = false } = {}) {
+    if (!state.galaxy?.systems.some(system => system.systemId === systemId)) {
+        return;
+    }
+
     state.selectedSystemId = systemId;
+    rememberMapSystem(systemId);
     if (focusMap) {
         focusMapOnSystem(systemId);
     }
@@ -2061,17 +2166,36 @@ function renderMapInsight(galaxy, empire, presenceBySystem) {
 }
 
 function resetMapView() {
-    state.mapViewBox = { ...mapBounds };
+    applyMapPreset("galaxy");
+}
+
+function applyMapPreset(preset) {
+    if (!Object.hasOwn(mapPresetWidths, preset)) {
+        return;
+    }
+
+    state.mapPreset = preset;
+    if (preset === "galaxy") {
+        state.mapViewBox = { ...mapBounds };
+    } else {
+        const targetId = state.selectedSystemId ?? state.empire?.homeSystem.systemId;
+        setMapViewAroundSystem(targetId, mapPresetWidths[preset]);
+    }
+    constrainMapViewBox();
     applyMapViewBox();
 }
 
 function focusMapOnSystem(systemId) {
+    state.mapPreset = "local";
+    setMapViewAroundSystem(systemId, mapPresetWidths.local);
+}
+
+function setMapViewAroundSystem(systemId, width) {
     const system = state.galaxy?.systems.find(item => item.systemId === systemId);
     if (!system) {
         return;
     }
 
-    const width = 430;
     const height = width * mapBounds.height / mapBounds.width;
     state.mapViewBox = {
         x: system.x - width / 2,
@@ -2082,9 +2206,124 @@ function focusMapOnSystem(systemId) {
     constrainMapViewBox();
 }
 
+function recoverMapToSystem(systemId) {
+    if (!systemId || !state.galaxy?.systems.some(system => system.systemId === systemId)) {
+        return;
+    }
+
+    if (state.selectedSystemId !== systemId) {
+        selectSystem(systemId);
+    } else {
+        rememberMapSystem(systemId);
+        renderRecentMapSystems();
+    }
+    state.mapPreset = "sector";
+    setMapViewAroundSystem(systemId, mapPresetWidths.sector);
+    applyMapViewBox();
+    elements.galaxyMap.focus({ preventScroll: true });
+}
+
+function recoverMapToFrontier() {
+    const frontier = visibleFlashpoints(state.galaxy)[0];
+    if (frontier) {
+        recoverMapToSystem(frontier.systemId);
+    }
+}
+
+function visibleFlashpoints(galaxy, presenceBySystem = null) {
+    if (!galaxy) {
+        return [];
+    }
+
+    const presence = presenceBySystem ?? new Map(galaxy.presence.map(item => [item.systemId, item.effectivePresence]));
+    return galaxy.systems
+        .filter(system => Object.values(presence.get(system.systemId) ?? {}).filter(value => Number(value) > 0).length > 1)
+        .sort((left, right) => {
+            const leftPresence = Object.values(presence.get(left.systemId) ?? {}).reduce((total, value) => total + Number(value), 0);
+            const rightPresence = Object.values(presence.get(right.systemId) ?? {}).reduce((total, value) => total + Number(value), 0);
+            return rightPresence - leftPresence
+                || right.strategicValue - left.strategicValue
+                || left.systemName.localeCompare(right.systemName);
+        });
+}
+
+function renderMapRecoveryState(galaxy, presenceBySystem) {
+    const frontier = visibleFlashpoints(galaxy, presenceBySystem)[0];
+    elements.mapFocusHome.disabled = !state.empire?.homeSystem.systemId;
+    elements.mapFocusSelected.disabled = !state.selectedSystemId;
+    elements.mapFocusFrontier.disabled = !frontier;
+    elements.mapFocusFrontier.title = frontier
+        ? `Recover ${frontier.systemName}, the strongest visible flashpoint`
+        : "No visible flashpoints";
+}
+
+function rememberMapSystem(systemId) {
+    if (!systemId) {
+        return;
+    }
+
+    state.mapRecentSystemIds = [
+        systemId,
+        ...state.mapRecentSystemIds.filter(candidate => candidate !== systemId)
+    ].slice(0, 5);
+}
+
+function renderRecentMapSystems() {
+    const systems = new Map((state.galaxy?.systems ?? []).map(system => [system.systemId, system]));
+    elements.mapRecentSystems.innerHTML = state.mapRecentSystemIds
+        .map(systemId => systems.get(systemId))
+        .filter(Boolean)
+        .map(system => `
+            <button type="button" data-recent-system="${escapeHtml(system.systemId)}"${system.systemId === state.selectedSystemId ? " aria-current=\"true\"" : ""}>
+                ${escapeHtml(system.systemName)}
+            </button>
+        `)
+        .join("");
+}
+
+function renderMapNavigator(galaxy, empire) {
+    const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
+    const routes = galaxy.links.map(link => {
+        const a = systems.get(link.systemAId);
+        const b = systems.get(link.systemBId);
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
+    }).join("");
+    const nodes = galaxy.systems.map(system => {
+        const classes = [
+            "navigator-system",
+            system.systemId === empire.homeSystem.systemId ? "is-home" : "",
+            system.systemId === state.selectedSystemId ? "is-selected" : ""
+        ].filter(Boolean).join(" ");
+        return `<circle class="${classes}" cx="${system.x}" cy="${system.y}" r="10"><title>${escapeHtml(system.systemName)}</title></circle>`;
+    }).join("");
+
+    elements.mapNavigator.innerHTML = `
+        <rect class="navigator-field" x="0" y="0" width="1000" height="700"></rect>
+        <g class="navigator-routes">${routes}</g>
+        <g class="navigator-systems">${nodes}</g>
+        <rect id="mapNavigatorViewport" class="navigator-viewport" rx="8"></rect>
+    `;
+    syncNavigatorViewport();
+}
+
+function moveMapFromNavigator(event) {
+    const rect = elements.mapNavigator.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+        return;
+    }
+
+    const centreX = mapBounds.x + (event.clientX - rect.left) / rect.width * mapBounds.width;
+    const centreY = mapBounds.y + (event.clientY - rect.top) / rect.height * mapBounds.height;
+    state.mapPreset = null;
+    state.mapViewBox.x = centreX - state.mapViewBox.width / 2;
+    state.mapViewBox.y = centreY - state.mapViewBox.height / 2;
+    constrainMapViewBox();
+    applyMapViewBox();
+}
+
 function zoomMap(factor, anchor = null) {
     const current = state.mapViewBox;
-    const targetWidth = Math.min(mapBounds.width, Math.max(260, current.width * factor));
+    const targetWidth = Math.min(mapBounds.width, Math.max(220, current.width * factor));
     const scale = targetWidth / current.width;
     const targetHeight = current.height * scale;
     const point = anchor ?? {
@@ -2097,6 +2336,7 @@ function zoomMap(factor, anchor = null) {
         width: targetWidth,
         height: targetHeight
     };
+    state.mapPreset = null;
     constrainMapViewBox();
     applyMapViewBox();
 }
@@ -2110,7 +2350,7 @@ function mapPointFromEvent(event) {
 }
 
 function constrainMapViewBox() {
-    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(260, state.mapViewBox.width));
+    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(220, state.mapViewBox.width));
     state.mapViewBox.height = state.mapViewBox.width * mapBounds.height / mapBounds.width;
     state.mapViewBox.x = Math.min(mapBounds.x + mapBounds.width - state.mapViewBox.width, Math.max(mapBounds.x, state.mapViewBox.x));
     state.mapViewBox.y = Math.min(mapBounds.y + mapBounds.height - state.mapViewBox.height, Math.max(mapBounds.y, state.mapViewBox.y));
@@ -2120,6 +2360,42 @@ function applyMapViewBox() {
     const viewBox = state.mapViewBox;
     elements.galaxyMap.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
     elements.mapResetView.classList.toggle("is-zoomed", viewBox.width < mapBounds.width);
+    for (const button of elements.mapPresetButtons) {
+        button.setAttribute("aria-pressed", String(button.dataset.mapPreset === state.mapPreset));
+    }
+    updateMapCameraHud();
+    syncNavigatorViewport();
+}
+
+function updateMapCameraHud() {
+    const viewBox = state.mapViewBox;
+    const centreX = Math.round(viewBox.x + viewBox.width / 2);
+    const centreY = Math.round(viewBox.y + viewBox.height / 2);
+    const selected = state.galaxy?.systems.find(system => system.systemId === state.selectedSystemId);
+    elements.mapCameraScale.textContent = `${Math.round(mapBounds.width / viewBox.width * 100)}%`;
+    elements.mapCameraPosition.textContent = `X ${centreX} · Y ${centreY}`;
+    elements.mapCameraTarget.textContent = selected ? `Lock · ${selected.systemName}` : "No target lock";
+}
+
+function syncNavigatorViewport() {
+    const viewport = elements.mapNavigator.querySelector("#mapNavigatorViewport");
+    if (!viewport) {
+        return;
+    }
+
+    viewport.setAttribute("x", state.mapViewBox.x);
+    viewport.setAttribute("y", state.mapViewBox.y);
+    viewport.setAttribute("width", state.mapViewBox.width);
+    viewport.setAttribute("height", state.mapViewBox.height);
+}
+
+function setMapMaximised(maximised) {
+    state.mapMaximised = Boolean(maximised);
+    document.body.classList.toggle("map-maximised", state.mapMaximised);
+    elements.galaxyWorkspace.classList.toggle("is-maximised", state.mapMaximised);
+    elements.mapMaximise.setAttribute("aria-pressed", String(state.mapMaximised));
+    elements.mapMaximise.title = state.mapMaximised ? "Restore galaxy map" : "Maximise galaxy map";
+    elements.mapMaximise.querySelector(".map-maximise-label").textContent = state.mapMaximised ? "Restore" : "Maximise";
 }
 
 async function selectFleet(fleetId) {

@@ -1358,4 +1358,7 @@ Consequences:
 - The desktop map stage remains pinned to the available Galaxy workspace height while the inspector scrolls independently; narrow layouts stack the same information.
 - Overview, Presence, Strategy, Output, and History lenses change visual emphasis only. They do not reveal data hidden by active-fleet visibility.
 - Selecting or searching for a system highlights its immediate routes. Inspector links can focus adjacent systems or transfer a local player fleet into the existing Fleets command view.
+- The Galaxy surface is intentionally allowed to lead the rest of the dashboard's visual ambition. A maximised viewport keeps the chart and inspector together, while named Galaxy, Sector, and Local ranges provide predictable spatial scale.
+- Recovery is a first-class map capability rather than a reset afterthought: players can return to their home system, current target, strongest visible flashpoint, recent system locks, or any position on the overview navigator.
+- Camera telemetry, the overview viewport frame, deterministic star field, target reticle, and animated selected routes are presentation derived entirely from already-visible data; none changes authoritative state or visibility.
 - The current interaction is proved against the accepted 24-system opening. Larger galaxy rendering remains a conditional scaling risk rather than an implemented claim.

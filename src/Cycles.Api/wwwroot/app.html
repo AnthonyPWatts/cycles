@@ -157,11 +157,11 @@
 
             <section id="galaxyView" class="app-view galaxy-view" data-view="galaxy" aria-labelledby="galaxyViewTitle" hidden>
                 <h1 id="galaxyViewTitle" class="visually-hidden" tabindex="-1">Galaxy</h1>
-                <div class="galaxy-layout">
+                <div id="galaxyWorkspace" class="galaxy-layout">
                     <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
                         <header class="map-command-bar">
                             <div class="map-title">
-                                <span class="section-kicker">Strategic chart</span>
+                                <span class="section-kicker">Galactic cartography</span>
                                 <strong>Known galaxy</strong>
                             </div>
                             <form id="systemSearchForm" class="map-search" role="search">
@@ -170,10 +170,16 @@
                                 <datalist id="systemOptions"></datalist>
                                 <button type="submit">Locate</button>
                             </form>
-                            <div class="map-zoom" role="group" aria-label="Map zoom controls">
-                                <button id="mapZoomOut" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
-                                <button id="mapResetView" type="button" title="Fit the whole galaxy">Fit</button>
-                                <button id="mapZoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+                            <div class="map-command-actions">
+                                <div class="map-zoom" role="group" aria-label="Map zoom controls">
+                                    <button id="mapZoomOut" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+                                    <button id="mapResetView" type="button" title="Fit the whole galaxy">Fit</button>
+                                    <button id="mapZoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+                                </div>
+                                <button id="mapMaximise" class="map-maximise" type="button" aria-pressed="false" title="Maximise galaxy map">
+                                    <span aria-hidden="true">&#x26F6;</span>
+                                    <span class="map-maximise-label">Maximise</span>
+                                </button>
                             </div>
                         </header>
                         <div class="map-lens-bar">
@@ -191,8 +197,42 @@
                             </div>
                         </div>
                         <div class="map-stage">
-                            <p id="mapInteractionHint" class="visually-hidden">Select a system for intelligence. Drag empty space to pan, use the mouse wheel or controls to zoom, and use Fit to restore the whole galaxy.</p>
+                            <p id="mapInteractionHint" class="visually-hidden">Select a system for intelligence. Drag empty space to pan, use the mouse wheel or controls to zoom, choose a named range, or use the recovery controls and navigator to find your way back.</p>
+                            <div class="map-viewport-controls" aria-label="Map range and recovery controls">
+                                <div class="map-presets" role="group" aria-label="Map range">
+                                    <span>Range</span>
+                                    <button type="button" data-map-preset="galaxy" aria-pressed="true">Galaxy</button>
+                                    <button type="button" data-map-preset="sector" aria-pressed="false">Sector</button>
+                                    <button type="button" data-map-preset="local" aria-pressed="false">Local</button>
+                                </div>
+                                <div class="map-recovery" role="group" aria-label="Recover map position">
+                                    <span>Recover</span>
+                                    <button id="mapFocusHome" type="button">Home</button>
+                                    <button id="mapFocusSelected" type="button">Selected</button>
+                                    <button id="mapFocusFrontier" type="button">Flashpoint</button>
+                                </div>
+                            </div>
+                            <div class="map-camera-hud" aria-label="Map camera status">
+                                <span>Camera</span>
+                                <strong id="mapCameraScale">100%</strong>
+                                <small id="mapCameraPosition">X 500 · Y 350</small>
+                                <em id="mapCameraTarget">No target lock</em>
+                            </div>
                             <svg id="galaxyMap" viewBox="0 0 1000 700" role="group" aria-label="Interactive systems and routes" aria-describedby="mapInteractionHint" tabindex="0"></svg>
+                            <aside class="map-navigator" aria-label="Galaxy navigator">
+                                <div class="map-navigator-heading">
+                                    <div>
+                                        <span>Orientation</span>
+                                        <strong>Navigator</strong>
+                                    </div>
+                                    <button id="mapNavigatorReset" type="button" title="Recentre the selected system">Recentre</button>
+                                </div>
+                                <svg id="mapNavigator" viewBox="0 0 1000 700" role="button" tabindex="0" aria-label="Overview map. Select a position to move the camera there."></svg>
+                                <div class="map-recent">
+                                    <span>Recent locks</span>
+                                    <div id="mapRecentSystems" class="map-recent-systems"></div>
+                                </div>
+                            </aside>
                             <div class="map-readout" aria-label="Galaxy summary">
                                 <div id="mapStats" class="map-stats"></div>
                                 <div class="map-legend" aria-label="Map legend">
