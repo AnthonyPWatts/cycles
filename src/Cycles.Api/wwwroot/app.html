@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
-    <link rel="stylesheet" href="styles.css?v=20260714-priority-model-1">
+    <link rel="stylesheet" href="styles.css?v=20260714-galaxy-command-1">
 </head>
 <body>
     <header class="topbar">
@@ -159,8 +159,40 @@
                 <h1 id="galaxyViewTitle" class="visually-hidden" tabindex="-1">Galaxy</h1>
                 <div class="galaxy-layout">
                     <section id="mapPanel" class="map-panel" aria-label="Galaxy map">
+                        <header class="map-command-bar">
+                            <div class="map-title">
+                                <span class="section-kicker">Strategic chart</span>
+                                <strong>Known galaxy</strong>
+                            </div>
+                            <form id="systemSearchForm" class="map-search" role="search">
+                                <label class="visually-hidden" for="systemSearch">Find a system</label>
+                                <input id="systemSearch" type="search" list="systemOptions" placeholder="Find a system" autocomplete="off" required>
+                                <datalist id="systemOptions"></datalist>
+                                <button type="submit">Locate</button>
+                            </form>
+                            <div class="map-zoom" role="group" aria-label="Map zoom controls">
+                                <button id="mapZoomOut" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+                                <button id="mapResetView" type="button" title="Fit the whole galaxy">Fit</button>
+                                <button id="mapZoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+                            </div>
+                        </header>
+                        <div class="map-lens-bar">
+                            <div class="map-lenses" role="group" aria-label="Strategic map lens">
+                                <span>Lens</span>
+                                <button type="button" data-map-lens="overview" aria-pressed="true">Overview</button>
+                                <button type="button" data-map-lens="presence" aria-pressed="false">Presence</button>
+                                <button type="button" data-map-lens="strategy" aria-pressed="false">Strategy</button>
+                                <button type="button" data-map-lens="output" aria-pressed="false">Output</button>
+                                <button type="button" data-map-lens="history" aria-pressed="false">History</button>
+                            </div>
+                            <div class="map-insight" aria-live="polite">
+                                <small id="mapInsightLabel">Overview</small>
+                                <strong id="mapInsight">Loading strategic picture...</strong>
+                            </div>
+                        </div>
                         <div class="map-stage">
-                            <svg id="galaxyMap" viewBox="0 0 1000 700" role="img" aria-label="Systems and routes"></svg>
+                            <p id="mapInteractionHint" class="visually-hidden">Select a system for intelligence. Drag empty space to pan, use the mouse wheel or controls to zoom, and use Fit to restore the whole galaxy.</p>
+                            <svg id="galaxyMap" viewBox="0 0 1000 700" role="group" aria-label="Interactive systems and routes" aria-describedby="mapInteractionHint" tabindex="0"></svg>
                             <div class="map-readout" aria-label="Galaxy summary">
                                 <div id="mapStats" class="map-stats"></div>
                                 <div class="map-legend" aria-label="Map legend">
@@ -176,7 +208,7 @@
                     <aside id="systemSection" class="view-card system-inspector" aria-labelledby="systemHeading">
                         <div class="section-heading">
                             <div>
-                                <span class="section-kicker">Selected position</span>
+                                <span class="section-kicker">Selected system</span>
                                 <h2 id="systemHeading">System</h2>
                             </div>
                         </div>

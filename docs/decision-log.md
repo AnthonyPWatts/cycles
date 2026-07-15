@@ -1342,3 +1342,20 @@ Consequences:
 - Multiple Workers may poll the same active Cycle without turning one due observation into consecutive ticks.
 - Explicit operator or Development tick execution remains an intentional unconditional operation; only the scheduled Worker path applies cadence.
 - A singleton leader is not required solely for duplicate-due prevention. Health, shutdown, supported Cycle topology, operational signals, and deployment monitoring remain in issue #132.
+
+## 2026-07-14: Treat The Galaxy Map As A Strategic Inspection Workspace
+
+Decision: keep the Galaxy view anchored beside a scrollable selected-system inspector and derive interactive strategic lenses, route emphasis, search, zoom, pan, and local-fleet handoff from the existing empire-scoped dashboard data.
+
+Reasoning:
+
+- The existing map exposed the topology but made the player visually decode every system at one fixed scale.
+- Presence, strategic value, output, history, adjacency, and local fleet context already exist in the filtered dashboard responses, so useful comparison and navigation do not require a broader API or new gameplay rules.
+- The map and inspector serve different tasks: the chart preserves spatial context while the inspector carries the detailed, scrollable intelligence.
+
+Consequences:
+
+- The desktop map stage remains pinned to the available Galaxy workspace height while the inspector scrolls independently; narrow layouts stack the same information.
+- Overview, Presence, Strategy, Output, and History lenses change visual emphasis only. They do not reveal data hidden by active-fleet visibility.
+- Selecting or searching for a system highlights its immediate routes. Inspector links can focus adjacent systems or transfer a local player fleet into the existing Fleets command view.
+- The current interaction is proved against the accepted 24-system opening. Larger galaxy rendering remains a conditional scaling risk rather than an implemented claim.

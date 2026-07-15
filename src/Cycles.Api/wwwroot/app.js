@@ -27,6 +27,10 @@ const state = {
     eventQuery: "",
     eventSeverity: "all",
     eventSort: "newest",
+    mapLens: "overview",
+    mapViewBox: { x: 0, y: 0, width: 1000, height: 700 },
+    mapDrag: null,
+    mapDragged: false,
     priorityDraft: null,
     prioritySaving: false
 };
@@ -35,6 +39,14 @@ const viewIds = ["command", "galaxy", "fleets", "history"];
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
 const inactivePriorityKeys = ["industryWeight", "researchWeight"];
 const activePriorityKeys = ["militaryWeight", "expansionWeight"];
+const mapBounds = Object.freeze({ x: 0, y: 0, width: 1000, height: 700 });
+const mapLensLabels = Object.freeze({
+    overview: "Overview",
+    presence: "Presence",
+    strategy: "Strategy",
+    output: "Output",
+    history: "History"
+});
 const viewShortcuts = new Map([
     ["1", "command"],
     ["2", "galaxy"],
@@ -125,8 +137,18 @@ const elements = {
     historyTabs: document.querySelector("#historyTabs"),
     historyTabButtons: [...document.querySelectorAll("[data-history-tab]")],
     historyTabPanels: [...document.querySelectorAll(".history-tab-panel")],
+    systemHeading: document.querySelector("#systemHeading"),
+    systemSearchForm: document.querySelector("#systemSearchForm"),
+    systemSearch: document.querySelector("#systemSearch"),
+    systemOptions: document.querySelector("#systemOptions"),
+    mapLensButtons: [...document.querySelectorAll("[data-map-lens]")],
+    mapInsightLabel: document.querySelector("#mapInsightLabel"),
+    mapInsight: document.querySelector("#mapInsight"),
     galaxyMap: document.querySelector("#galaxyMap"),
     mapStats: document.querySelector("#mapStats"),
+    mapZoomOut: document.querySelector("#mapZoomOut"),
+    mapResetView: document.querySelector("#mapResetView"),
+    mapZoomIn: document.querySelector("#mapZoomIn"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
     turnMessage: document.querySelector("#turnMessage"),
     refreshButton: document.querySelector("#refreshButton"),
@@ -204,6 +226,11 @@ elements.advanceTurnButton.addEventListener("click", async () => {
 });
 
 elements.galaxyMap.addEventListener("click", event => {
+    if (state.mapDragged) {
+        state.mapDragged = false;
+        return;
+    }
+
     const node = event.target.closest(".system-node");
     if (!node) {
         return;
@@ -224,6 +251,114 @@ elements.galaxyMap.addEventListener("keydown", event => {
 
     event.preventDefault();
     selectSystem(node.dataset.systemId);
+});
+
+elements.systemSearchForm.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!state.galaxy) {
+        return;
+    }
+
+    const query = elements.systemSearch.value.trim().toLowerCase();
+    const match = state.galaxy.systems
+        .slice()
+        .sort((left, right) => left.systemName.localeCompare(right.systemName))
+        .find(system => system.systemName.toLowerCase() === query)
+        ?? state.galaxy.systems.find(system => system.systemName.toLowerCase().includes(query));
+
+    if (!match) {
+        elements.systemSearch.setCustomValidity("Choose a known system.");
+        elements.systemSearch.reportValidity();
+        return;
+    }
+
+    elements.systemSearch.setCustomValidity("");
+    selectSystem(match.systemId, { focusMap: true });
+    elements.galaxyMap.focus({ preventScroll: true });
+});
+
+elements.systemSearch.addEventListener("input", () => elements.systemSearch.setCustomValidity(""));
+
+for (const button of elements.mapLensButtons) {
+    button.addEventListener("click", () => setMapLens(button.dataset.mapLens));
+}
+
+elements.mapZoomOut.addEventListener("click", () => zoomMap(1.24));
+elements.mapZoomIn.addEventListener("click", () => zoomMap(0.8));
+elements.mapResetView.addEventListener("click", resetMapView);
+
+elements.galaxyMap.addEventListener("wheel", event => {
+    event.preventDefault();
+    zoomMap(event.deltaY > 0 ? 1.14 : 0.86, mapPointFromEvent(event));
+}, { passive: false });
+
+elements.galaxyMap.addEventListener("pointerdown", event => {
+    if (event.button !== 0 || event.target.closest(".system-node")) {
+        return;
+    }
+
+    state.mapDrag = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        viewBox: { ...state.mapViewBox }
+    };
+    state.mapDragged = false;
+    elements.galaxyMap.classList.add("is-panning");
+    elements.galaxyMap.setPointerCapture(event.pointerId);
+});
+
+elements.galaxyMap.addEventListener("pointermove", event => {
+    if (!state.mapDrag) {
+        return;
+    }
+
+    const rect = elements.galaxyMap.getBoundingClientRect();
+    const deltaX = event.clientX - state.mapDrag.clientX;
+    const deltaY = event.clientY - state.mapDrag.clientY;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 4) {
+        state.mapDragged = true;
+    }
+
+    state.mapViewBox.x = state.mapDrag.viewBox.x - deltaX * state.mapDrag.viewBox.width / rect.width;
+    state.mapViewBox.y = state.mapDrag.viewBox.y - deltaY * state.mapDrag.viewBox.height / rect.height;
+    constrainMapViewBox();
+    applyMapViewBox();
+});
+
+for (const eventName of ["pointerup", "pointercancel"]) {
+    elements.galaxyMap.addEventListener(eventName, event => {
+        if (!state.mapDrag) {
+            return;
+        }
+
+        state.mapDrag = null;
+        elements.galaxyMap.classList.remove("is-panning");
+        if (elements.galaxyMap.hasPointerCapture(event.pointerId)) {
+            elements.galaxyMap.releasePointerCapture(event.pointerId);
+        }
+        if (eventName === "pointercancel") {
+            state.mapDragged = false;
+        } else {
+            window.setTimeout(() => {
+                state.mapDragged = false;
+            }, 0);
+        }
+    });
+}
+
+elements.systemDetails.addEventListener("click", async event => {
+    const systemButton = event.target.closest("[data-focus-system]");
+    if (systemButton) {
+        selectSystem(systemButton.dataset.focusSystem, { focusMap: true });
+        elements.galaxyMap.focus({ preventScroll: true });
+        return;
+    }
+
+    const fleetButton = event.target.closest("[data-command-fleet]");
+    if (fleetButton) {
+        await selectFleet(fleetButton.dataset.commandFleet);
+        activateView("fleets", { updateLocation: true, focusHeading: true });
+    }
 });
 
 elements.fleets.addEventListener("click", event => {
@@ -866,47 +1001,140 @@ function renderOrders() {
 
 function renderSystemDetails() {
     if (!state.galaxy || !state.selectedSystemId) {
+        elements.systemHeading.textContent = "System";
         elements.systemDetails.innerHTML = `<article class="item"><span>No system selected.</span></article>`;
         return;
     }
 
     const system = state.galaxy.systems.find(item => item.systemId === state.selectedSystemId);
     if (!system) {
+        elements.systemHeading.textContent = "System";
         elements.systemDetails.innerHTML = `<article class="item"><span>No system selected.</span></article>`;
         return;
     }
 
     const presence = state.galaxy.presence.find(item => item.systemId === system.systemId)?.effectivePresence ?? {};
-    const presenceRows = Object.entries(presence)
-        .sort((first, second) => Number(second[1]) - Number(first[1]))
+    const presenceEntries = Object.entries(presence)
+        .filter(([, value]) => Number(value) > 0)
+        .sort((first, second) => Number(second[1]) - Number(first[1]));
+    const presenceMaximum = Math.max(1, ...presenceEntries.map(([, value]) => Number(value)));
+    const presenceRows = presenceEntries
         .map(([empireId, value]) => {
-            const label = empireId === state.empire.empireId ? state.empire.empireName : empireId.slice(0, 8);
-            return `<dt>${escapeHtml(label)}</dt><dd>${formatNumber(value)}</dd>`;
+            const isOwn = empireId === state.empire.empireId;
+            const label = isOwn ? state.empire.empireName : `Rival signal ${empireId.slice(0, 5)}`;
+            const width = Math.max(5, Number(value) / presenceMaximum * 100);
+            return `
+                <div class="presence-row${isOwn ? " is-own" : " is-rival"}">
+                    <div><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong></div>
+                    <span class="presence-meter"><i style="width: ${width}%"></i></span>
+                </div>
+            `;
         }).join("");
     const outposts = state.galaxy.colonialOutposts
         .filter(item => item.systemId === system.systemId)
-        .map(item => `<span>${escapeHtml(item.empireName)} | established T${item.establishedTick} | ${item.isProjectingPresence ? "projecting" : "inactive"}</span>`)
-        .join("");
-
-    elements.systemDetails.innerHTML = `
-        <article class="item system-card">
-            <strong>${escapeHtml(system.systemName)}</strong>
-            <span class="item-meta">
-                <span>${system.x}, ${system.y}</span>
-                <span>Strategic ${system.strategicValue}</span>
-                <span>History ${system.historicalSignificance}</span>
+        .map(item => `
+            <span class="outpost-record">
+                <strong>${escapeHtml(item.empireName)}</strong>
+                <small>Established T${item.establishedTick} | ${item.isProjectingPresence ? "projecting presence" : "inactive"}</small>
             </span>
-        </article>
-        <dl class="detail-list">
-            <dt>Industry</dt><dd>${formatNumber(system.industryOutput)}</dd>
-            <dt>Research</dt><dd>${formatNumber(system.researchOutput)}</dd>
-            <dt>Population</dt><dd>${formatNumber(system.populationOutput)}</dd>
-            ${presenceRows || "<dt>Presence</dt><dd>None</dd>"}
-        </dl>
-        <div class="detail-block">
-            <strong>Colonial Outposts</strong>
-            ${outposts || "<span>None established.</span>"}
+        `)
+        .join("");
+    const routes = linkedSystems(system.systemId);
+    const routeButtons = routes.length === 0
+        ? `<span class="system-empty-note">No adjacent routes.</span>`
+        : routes.map(linked => `
+            <button type="button" class="route-jump" data-focus-system="${linked.systemId}">
+                <span>${escapeHtml(linked.systemName)}</span>
+                <small>Strategic ${formatNumber(linked.strategicValue)}</small>
+            </button>
+        `).join("");
+    const localFleets = state.fleets
+        .filter(item => item.fleet.currentSystemId === system.systemId && item.fleet.status === "active" && item.fleet.shipCount > 0)
+        .sort((left, right) => left.fleet.fleetName.localeCompare(right.fleet.fleetName));
+    const fleetButtons = localFleets.length === 0
+        ? `<span class="system-empty-note">No commandable fleet stationed here.</span>`
+        : localFleets.map(item => `
+            <button type="button" class="fleet-jump" data-command-fleet="${item.fleet.fleetId}">
+                <span>${escapeHtml(item.fleet.fleetName)}</span>
+                <small>${formatCount(item.fleet.shipCount, "ship")} | Open command</small>
+            </button>
+        `).join("");
+    const activePresence = presenceEntries.length;
+    const ownPresence = Number(presence[state.empire.empireId] ?? 0);
+    const tags = [
+        system.systemId === state.empire.homeSystem.systemId ? "Home system" : null,
+        activePresence > 1 ? "Contested" : null,
+        system.historicalSignificance > 0 ? "Historic" : null,
+        ownPresence > 0 ? "Active presence" : "No visible presence",
+        formatCount(routes.length, "route")
+    ].filter(Boolean);
+    const yields = [
+        ["Industry", system.industryOutput, "industry"],
+        ["Research", system.researchOutput, "research"],
+        ["Population", system.populationOutput, "population"]
+    ];
+    const maximumYield = Math.max(1, ...yields.map(([, value]) => Number(value)));
+    const yieldCards = yields.map(([label, value, key]) => `
+        <div class="system-yield system-yield-${key}">
+            <span>${label}</span>
+            <strong>${formatNumber(value)}</strong>
+            <i style="--yield-width: ${Math.max(4, Number(value) / maximumYield * 100)}%"></i>
         </div>
+    `).join("");
+
+    elements.systemHeading.textContent = system.systemName;
+    elements.systemDetails.innerHTML = `
+        <section class="system-overview" aria-label="System overview">
+            <div class="system-signature">
+                <span>Grid ${formatNumber(system.x)} / ${formatNumber(system.y)}</span>
+                <button type="button" class="map-focus-action" data-focus-system="${system.systemId}">Focus map</button>
+            </div>
+            <div class="system-rating">
+                <span><small>Strategic value</small><strong>${formatNumber(system.strategicValue)}</strong></span>
+                <span><small>Historical signal</small><strong>${formatNumber(system.historicalSignificance)}</strong></span>
+            </div>
+            <div class="system-tags">${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+        </section>
+
+        <section class="system-intel-block" aria-labelledby="systemOutputHeading">
+            <div class="system-block-heading">
+                <span class="section-kicker">Local capacity</span>
+                <h3 id="systemOutputHeading">System output</h3>
+            </div>
+            <div class="system-yields">${yieldCards}</div>
+        </section>
+
+        <section class="system-intel-block" aria-labelledby="systemPresenceHeading">
+            <div class="system-block-heading">
+                <span class="section-kicker">Visible control</span>
+                <h3 id="systemPresenceHeading">Presence</h3>
+            </div>
+            <div class="presence-chart">${presenceRows || `<span class="system-empty-note">No visible presence.</span>`}</div>
+        </section>
+
+        <section class="system-intel-block" aria-labelledby="systemRoutesHeading">
+            <div class="system-block-heading">
+                <span class="section-kicker">Immediate reach</span>
+                <h3 id="systemRoutesHeading">Linked routes</h3>
+            </div>
+            <div class="route-list">${routeButtons}</div>
+        </section>
+
+        <section class="system-intel-block" aria-labelledby="systemFleetsHeading">
+            <div class="system-block-heading">
+                <span class="section-kicker">Local command</span>
+                <h3 id="systemFleetsHeading">Your fleets</h3>
+            </div>
+            <div class="route-list">${fleetButtons}</div>
+        </section>
+
+        <section class="system-intel-block" aria-labelledby="systemOutpostsHeading">
+            <div class="system-block-heading">
+                <span class="section-kicker">Expansion</span>
+                <h3 id="systemOutpostsHeading">Colonial outposts</h3>
+            </div>
+            <div class="outpost-list">${outposts || `<span class="system-empty-note">None established.</span>`}</div>
+        </section>
     `;
 }
 
@@ -1646,48 +1874,252 @@ function eventSeverityRank(value) {
 
 function renderGalaxy(galaxy, empire) {
     const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
+    const presenceBySystem = new Map(galaxy.presence.map(item => [item.systemId, item.effectivePresence]));
     const homeId = empire.homeSystem.systemId;
+    const selectedId = state.selectedSystemId;
     const lines = galaxy.links.map(link => {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
-        return `<line class="link" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
+        const isSelectedRoute = link.systemAId === selectedId || link.systemBId === selectedId;
+        return `<line class="link${isSelectedRoute ? " selected-route" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
     }).join("");
 
-    const nodes = galaxy.systems.map(system => {
-        const presence = galaxy.presence.find(item => item.systemId === system.systemId)?.effectivePresence ?? {};
+    const lensMetrics = galaxy.systems.map(system => mapLensMetric(
+        system,
+        presenceBySystem.get(system.systemId) ?? {},
+        empire.empireId));
+    const maximumLensMetric = Math.max(1, ...lensMetrics);
+
+    const nodes = galaxy.systems.map((system, index) => {
+        const presence = presenceBySystem.get(system.systemId) ?? {};
         const ownPresence = Number(presence[empire.empireId] ?? 0);
         const activePresence = Object.values(presence).map(Number).filter(value => value > 0);
+        const totalPresence = activePresence.reduce((total, value) => total + value, 0);
         const isContested = activePresence.length > 1;
-        const radius = 7 + Math.min(16, Math.sqrt(ownPresence));
+        const lensMetric = lensMetrics[index];
+        const lensIntensity = lensMetric / maximumLensMetric;
+        const radius = state.mapLens === "overview"
+            ? 8 + Math.min(14, Math.sqrt(ownPresence))
+            : 8 + 16 * Math.sqrt(lensIntensity);
+        const isSelected = system.systemId === selectedId;
+        const isImportant = isSelected || system.systemId === homeId || isContested || system.historicalSignificance > 0;
         const classes = [
             "system",
             system.historicalSignificance > 0 ? "historic" : "",
             system.systemId === homeId ? "home" : "",
             isContested ? "contested" : "",
-            system.systemId === state.selectedSystemId ? "selected" : ""
+            isSelected ? "selected" : ""
         ].filter(Boolean).join(" ");
-        const label = `${system.systemName}: strategic ${system.strategicValue}, presence ${formatNumber(ownPresence)}`;
+        const label = `${system.systemName}: strategic ${system.strategicValue}, your presence ${formatNumber(ownPresence)}, total visible presence ${formatNumber(totalPresence)}, ${mapLensMetricLabel(system, lensMetric)}`;
 
         return `
-            <g class="system-node" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}">
+            <g class="system-node${isImportant ? " is-important" : ""}" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}" style="--lens-intensity: ${lensIntensity}">
                 <title>${escapeHtml(label)}</title>
+                <circle class="system-aura" cx="${system.x}" cy="${system.y}" r="${radius + 11}"></circle>
                 ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
                 ${isContested ? `<circle class="contested-ring" cx="${system.x}" cy="${system.y}" r="${radius + 10}"></circle>` : ""}
+                ${isSelected ? `<circle class="selection-orbit" cx="${system.x}" cy="${system.y}" r="${radius + 16}"></circle>` : ""}
                 <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
-                <text class="system-label" x="${system.x + radius + 6}" y="${system.y + 4}">${escapeHtml(system.systemName)}</text>
+                <circle class="system-core" cx="${system.x}" cy="${system.y}" r="${Math.max(2.8, radius * 0.24)}"></circle>
+                <text class="system-label${isSelected ? " selected-label" : ""}" x="${system.x + radius + 8}" y="${system.y + 5}">${escapeHtml(system.systemName)}</text>
             </g>
         `;
     }).join("");
 
-    elements.galaxyMap.innerHTML = `${lines}${nodes}`;
+    elements.galaxyMap.dataset.mapLens = state.mapLens;
+    elements.galaxyMap.innerHTML = `
+        <defs>
+            <pattern id="chartGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+                <path d="M 50 0 L 0 0 0 50" class="chart-grid-line"></path>
+            </pattern>
+            <radialGradient id="chartField" cx="50%" cy="42%" r="72%">
+                <stop offset="0" stop-color="#193027"></stop>
+                <stop offset="0.48" stop-color="#0d1713"></stop>
+                <stop offset="1" stop-color="#070a09"></stop>
+            </radialGradient>
+        </defs>
+        <rect class="chart-field" x="-80" y="-80" width="1160" height="860"></rect>
+        <rect class="chart-grid" x="-80" y="-80" width="1160" height="860"></rect>
+        <g class="route-layer">${lines}</g>
+        <g class="system-layer">${nodes}</g>
+    `;
+    elements.systemOptions.innerHTML = galaxy.systems
+        .slice()
+        .sort((left, right) => left.systemName.localeCompare(right.systemName))
+        .map(system => `<option value="${escapeHtml(system.systemName)}"></option>`)
+        .join("");
+    const selectedSystem = systems.get(selectedId);
+    if (selectedSystem && document.activeElement !== elements.systemSearch) {
+        elements.systemSearch.value = selectedSystem.systemName;
+    }
+    for (const button of elements.mapLensButtons) {
+        button.setAttribute("aria-pressed", String(button.dataset.mapLens === state.mapLens));
+    }
+    applyMapViewBox();
     renderMapStats(galaxy);
+    renderMapInsight(galaxy, empire, presenceBySystem);
 }
 
-function selectSystem(systemId) {
+function selectSystem(systemId, { focusMap = false } = {}) {
     state.selectedSystemId = systemId;
+    if (focusMap) {
+        focusMapOnSystem(systemId);
+    }
     renderSystemDetails();
     renderGalaxy(state.galaxy, state.empire);
     syncTutorialDisplay();
+}
+
+function setMapLens(lens) {
+    if (!Object.hasOwn(mapLensLabels, lens) || lens === state.mapLens) {
+        return;
+    }
+
+    state.mapLens = lens;
+    renderGalaxy(state.galaxy, state.empire);
+}
+
+function mapLensMetric(system, presence, empireId) {
+    switch (state.mapLens) {
+        case "presence":
+            return Object.values(presence).reduce((total, value) => total + Number(value), 0);
+        case "strategy":
+            return Number(system.strategicValue);
+        case "output":
+            return systemOutput(system);
+        case "history":
+            return Number(system.historicalSignificance);
+        default:
+            return Number(presence[empireId] ?? 0);
+    }
+}
+
+function mapLensMetricLabel(system, lensMetric) {
+    switch (state.mapLens) {
+        case "presence":
+            return `visible presence ${formatNumber(lensMetric)}`;
+        case "strategy":
+            return `strategic value ${formatNumber(lensMetric)}`;
+        case "output":
+            return `combined output ${formatNumber(lensMetric)}`;
+        case "history":
+            return `historical signal ${formatNumber(lensMetric)}`;
+        default:
+            return `combined output ${formatNumber(systemOutput(system))}`;
+    }
+}
+
+function systemOutput(system) {
+    return Number(system.industryOutput) + Number(system.researchOutput) + Number(system.populationOutput);
+}
+
+function renderMapInsight(galaxy, empire, presenceBySystem) {
+    elements.mapInsightLabel.textContent = mapLensLabels[state.mapLens];
+    const selected = galaxy.systems.find(system => system.systemId === state.selectedSystemId);
+    const contested = galaxy.systems.filter(system => {
+        const presence = presenceBySystem.get(system.systemId) ?? {};
+        return Object.values(presence).filter(value => Number(value) > 0).length > 1;
+    });
+
+    if (state.mapLens === "presence") {
+        const held = galaxy.systems.filter(system => Number((presenceBySystem.get(system.systemId) ?? {})[empire.empireId] ?? 0) > 0);
+        const frontier = contested.length === 0
+            ? "No visible system is currently contested."
+            : `${formatCount(contested.length, "visible flashpoint")} led by ${contested[0].systemName}.`;
+        elements.mapInsight.textContent = `${empire.empireName} projects presence into ${formatCount(held.length, "system")}. ${frontier}`;
+        return;
+    }
+
+    if (state.mapLens === "strategy") {
+        const highest = galaxy.systems.slice().sort((left, right) => right.strategicValue - left.strategicValue || left.systemName.localeCompare(right.systemName))[0];
+        elements.mapInsight.textContent = `${highest.systemName} is the strongest visible strategic anchor at ${formatNumber(highest.strategicValue)}.`;
+        return;
+    }
+
+    if (state.mapLens === "output") {
+        const richest = galaxy.systems.slice().sort((left, right) => systemOutput(right) - systemOutput(left) || left.systemName.localeCompare(right.systemName))[0];
+        elements.mapInsight.textContent = `${richest.systemName} leads visible capacity with ${formatNumber(systemOutput(richest))} combined output.`;
+        return;
+    }
+
+    if (state.mapLens === "history") {
+        const historic = galaxy.systems.slice().sort((left, right) => right.historicalSignificance - left.historicalSignificance || left.systemName.localeCompare(right.systemName))[0];
+        elements.mapInsight.textContent = historic.historicalSignificance > 0
+            ? `${historic.systemName} carries the strongest historical signal at ${formatNumber(historic.historicalSignificance)}.`
+            : "No system has accumulated a lasting historical signal yet.";
+        return;
+    }
+
+    if (!selected) {
+        elements.mapInsight.textContent = "Select a system to expose its immediate strategic context.";
+        return;
+    }
+
+    const routeCount = galaxy.links.filter(link => link.systemAId === selected.systemId || link.systemBId === selected.systemId).length;
+    const localFleetCount = state.fleets.filter(item => item.fleet.currentSystemId === selected.systemId && item.fleet.status === "active" && item.fleet.shipCount > 0).length;
+    elements.mapInsight.textContent = `${selected.systemName} opens onto ${formatCount(routeCount, "route")} with ${formatCount(localFleetCount, "friendly fleet")} on station.`;
+}
+
+function resetMapView() {
+    state.mapViewBox = { ...mapBounds };
+    applyMapViewBox();
+}
+
+function focusMapOnSystem(systemId) {
+    const system = state.galaxy?.systems.find(item => item.systemId === systemId);
+    if (!system) {
+        return;
+    }
+
+    const width = 430;
+    const height = width * mapBounds.height / mapBounds.width;
+    state.mapViewBox = {
+        x: system.x - width / 2,
+        y: system.y - height / 2,
+        width,
+        height
+    };
+    constrainMapViewBox();
+}
+
+function zoomMap(factor, anchor = null) {
+    const current = state.mapViewBox;
+    const targetWidth = Math.min(mapBounds.width, Math.max(260, current.width * factor));
+    const scale = targetWidth / current.width;
+    const targetHeight = current.height * scale;
+    const point = anchor ?? {
+        x: current.x + current.width / 2,
+        y: current.y + current.height / 2
+    };
+    state.mapViewBox = {
+        x: point.x - (point.x - current.x) * scale,
+        y: point.y - (point.y - current.y) * scale,
+        width: targetWidth,
+        height: targetHeight
+    };
+    constrainMapViewBox();
+    applyMapViewBox();
+}
+
+function mapPointFromEvent(event) {
+    const rect = elements.galaxyMap.getBoundingClientRect();
+    return {
+        x: state.mapViewBox.x + (event.clientX - rect.left) / rect.width * state.mapViewBox.width,
+        y: state.mapViewBox.y + (event.clientY - rect.top) / rect.height * state.mapViewBox.height
+    };
+}
+
+function constrainMapViewBox() {
+    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(260, state.mapViewBox.width));
+    state.mapViewBox.height = state.mapViewBox.width * mapBounds.height / mapBounds.width;
+    state.mapViewBox.x = Math.min(mapBounds.x + mapBounds.width - state.mapViewBox.width, Math.max(mapBounds.x, state.mapViewBox.x));
+    state.mapViewBox.y = Math.min(mapBounds.y + mapBounds.height - state.mapViewBox.height, Math.max(mapBounds.y, state.mapViewBox.y));
+}
+
+function applyMapViewBox() {
+    const viewBox = state.mapViewBox;
+    elements.galaxyMap.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    elements.mapResetView.classList.toggle("is-zoomed", viewBox.width < mapBounds.width);
 }
 
 async function selectFleet(fleetId) {

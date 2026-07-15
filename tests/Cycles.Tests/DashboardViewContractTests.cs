@@ -23,12 +23,38 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain("class=\"panel-heading\"", html);
         Assert.DoesNotContain("id=\"commandPulse\"", html);
         Assert.DoesNotContain("renderCommandSummary", script);
-        Assert.Equal(4, Regex.Matches(html, "class=\"visually-hidden\" tabindex=\"-1\"").Count);
+        Assert.Equal(4, Regex.Matches(html, "<h1[^>]*class=\"visually-hidden\"[^>]*tabindex=\"-1\"").Count);
 
         Assert.Contains("window.addEventListener(\"hashchange\"", script);
         Assert.Contains("window.history.replaceState(null, \"\", `#${selectedView}`);", script);
         Assert.Contains("link.setAttribute(\"aria-current\", \"page\");", script);
         Assert.Contains("activateView(step.view, { updateLocation: true });", script);
+    }
+
+    [Fact]
+    public void Galaxy_view_keeps_the_chart_anchored_and_supports_strategic_exploration()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"systemSearchForm\"", html);
+        Assert.Equal(5, Regex.Matches(html, "data-map-lens=").Count);
+        Assert.Contains("id=\"mapZoomOut\"", html);
+        Assert.Contains("id=\"mapResetView\"", html);
+        Assert.Contains("id=\"mapZoomIn\"", html);
+        Assert.Contains("aria-describedby=\"mapInteractionHint\"", html);
+
+        Assert.Contains("elements.galaxyMap.addEventListener(\"wheel\"", script);
+        Assert.Contains("function zoomMap", script);
+        Assert.Contains("function renderMapInsight", script);
+        Assert.Contains("selected-route", script);
+        Assert.Contains("data-focus-system", script);
+        Assert.Contains("data-command-fleet", script);
+
+        Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr);", css);
+        Assert.Contains(".map-panel {", css);
+        Assert.Contains("position: sticky;", css);
     }
 
     [Fact]
