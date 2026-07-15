@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 14 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 15 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -21,7 +21,7 @@ Reseed the local SQL database if the opening has already been played:
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening. Explicit dimensions and seed values create a generic galaxy instead.
+Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening in a 16-sector, 280-system galaxy. Explicit non-canonical dimensions create a generic galaxy instead.
 
 For an organised hosted test, use the access code and username supplied by the organiser. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
 
@@ -72,20 +72,16 @@ The dashboard keeps four views available at all times. Browser back and forward 
 
 The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
 
-In **Galaxy**, the map shows every system and route. Select a system to inspect its resource output, strategic value, historical significance, visible influence, and colonial outposts.
-
-![Galaxy view with a selected system and map legend](images/cycles-dashboard-map.png)
-
-*The Galaxy view gives the map most of the workspace and keeps the selected system's details beside it.*
+In **Galaxy**, the overview shows all 16 sectors, inter-sector bridges, gateways, and strategically important systems without giving every one of the 280 systems equal visual weight. Select a sector envelope, gateway, or search result to enter it; **Sector** reveals its local route ring and **Local** tightens the selected-system view. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. The navigator and recent locks recover orientation, and arrow keys move around the sector crown when the navigator has focus.
 
 The map legend marks:
 
+- **Sector**: a named local cluster containing 12–24 systems;
+- **Gateway**: one of the two systems connecting a sector to its neighbours;
 - **Home**: your empire's founding system;
 - **Historic**: a system with recorded historical significance;
 - **Presence**: your effective influence at a system;
 - **Contested**: more than one empire has visible presence there.
-
-The **Held** count means systems where your empire has positive presence. It does not mean permanent ownership.
 
 You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 

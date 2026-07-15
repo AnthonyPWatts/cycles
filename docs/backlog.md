@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -57,7 +57,7 @@ The following do not justify standing implementation tickets without evidence:
 - add focused regression or SQL integration coverage when a specified behaviour exposes a concrete gap;
 - profile retained-history and generic whole-state paths when a measured caller or scenario warrants it;
 - revisit the generic SQL mutation bridge only if profiling shows a high-frequency or scaling-critical problem;
-- revisit dashboard rendering only after an agreed galaxy/player target exceeds the current 24-system, four-empire test;
+- revisit dashboard rendering only after an agreed galaxy/player target exceeds the verified 16-sector, 280-system, four-empire test or requires a materially denser topology;
 - introduce `Cycles.Application`, provider-neutral repositories, or broader typed fact schemas only when a selected feature or measured complexity requires them;
 - continue small correctness, migration-safety, diagnostics, CI, and clean-checkout repairs when concrete friction is observed.
 

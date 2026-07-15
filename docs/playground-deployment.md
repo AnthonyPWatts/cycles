@@ -8,7 +8,7 @@ The hosted playground is a deliberately constrained development environment for 
 - Authoritative state is stored in Azure SQL database `CyclesDb` on logical server `cycles-sql-b366b760` in France Central. The UK regions do not permit this subscription to provision the selected tier.
 - The database uses the Azure SQL free serverless offer: General Purpose Gen5, 2 vCores maximum, 0.5 vCores minimum, the provider-required 60-minute auto-pause, 32 GB maximum data size, locally redundant backup storage, and `AutoPause` when the monthly free allowance is exhausted.
 - `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Advance turn** capability.
-- The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the curated Day One seed.
+- The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the canonical 16-sector, 280-system Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan proxies `https://cycles.anthonypwatts.co.uk` to the App Service origin. The Worker has no bindings, storage, observability, or paid features.
 - Both the custom domain and the direct Azure origin are protected by the same application-level access code. `/health` remains unauthenticated for deployment verification.
@@ -76,7 +76,7 @@ Required GitHub environment variables on the `playground` environment:
 
 `AZURE_WEBAPP_DEPLOY_ENABLED` is a repository variable, set to `true` only while the access-restricted playground is intended to be online. It cannot be environment-scoped because GitHub evaluates the job-level deployment condition before attaching the `playground` environment and its variables.
 
-The workflow publishes `src/Cycles.Api`, signs in to Azure through OpenID Connect, deploys the published output, explicitly starts a stopped app, and verifies `/health`.
+The workflow publishes `src/Cycles.Api` and restores the operator CLI, signs in to Azure through OpenID Connect, then stops the app while it applies pending migrations and the guarded canonical-galaxy upgrade. It deploys the published output, attempts to restart the app even when maintenance or deployment fails, and verifies `/health` after a successful path. The playground database is disposable Development state; a deliberate reseed is acceptable when preserving a played opening is not useful.
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 

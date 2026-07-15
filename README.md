@@ -7,7 +7,7 @@ Cycles is a server-authoritative, tick-based strategy prototype about influence,
 The current pre-alpha development build supports a complete gameplay loop locally and through an access-restricted trusted playground:
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
-- generate a connected galaxy with empires, fleets, resources, and priorities;
+- explore a canonical 16-sector, 280-system galaxy with deliberate gateways, empires, fleets, resources, and priorities;
 - submit durable movement, attack, cancellation, and colonisation orders;
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
 - generate resources from influence and spend military industry on queued ships;
@@ -66,7 +66,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide. Supplying explicit values before `--confirm-replace`, for example `24 4 71421`, creates the generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
+With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide: 16 named sectors, 280 systems, and 296 routes. Every sector contains 12–24 systems and has exactly two inter-sector gateways. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
 
 Run the API and dashboard:
 
@@ -82,6 +82,7 @@ Run one manual tick or inspect the state:
 dotnet run --project src/Cycles.Cli -- tick "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- show "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- diagnostics "sqlserver:$connectionString"
+dotnet run --project src/Cycles.Cli -- galaxy upgrade "sqlserver:$connectionString" --confirm-upgrade
 ```
 
 Run scheduled ticks against the same database:
@@ -110,7 +111,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:Server=localhost,14
 dotnet run --project src/Cycles.Cli -- db status "sqlserver:Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
 ```
 
-The image creates `CyclesDb`, applies ordered migrations, and seeds a smoke-test Cycle. [The database runbook](database/sqldockerdeploykit/README.md) covers application configuration, verification queries, integration tests, and cleanup.
+The image creates `CyclesDb`, applies ordered migrations, and seeds the same canonical opening with runtime-relative Cycle dates. [The database runbook](database/sqldockerdeploykit/README.md) covers application configuration, verification queries, integration tests, and cleanup.
 
 ## Versioned State Transfer
 
@@ -118,11 +119,11 @@ Complete exports are operator artefacts containing identities, audit context, hi
 
 ```powershell
 # One-time bridge for a retired raw runtime file; the input is not modified.
-dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v1.json
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v2.json
 
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v1.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:$connectionString" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v2.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v2.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v2.json "sqlserver:$connectionString" --confirm-import --confirm-replace
 ```
 
 `convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, references, tick/recovery invariants, and retained JSON before it opens the target. It imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.

@@ -34,7 +34,8 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The canonical seed contains 16 sectors, 280 systems, and 296 routes; every sector contains 12–24 systems and the active Cycle ends 90 days after container startup.
 
 ## Connection String
 
@@ -65,9 +66,9 @@ The SQL Server store currently uses the whole prototype `GameState` for generic 
 Use the guarded state-transfer commands for migration, controlled debugging, or reproducible fixtures. A JSON document cannot be placed on disk and used as live game state:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v1.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:<target-connection-string>" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v2.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v2.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v2.json "sqlserver:<target-connection-string>" --confirm-import --confirm-replace
 ```
 
 The export contains player identity and game state. Store it as a sensitive temporary artefact, verify the imported record count, and remove it through the approved secure-file process after the restore or cutover evidence has been retained.

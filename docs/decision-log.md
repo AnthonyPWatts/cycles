@@ -1361,4 +1361,25 @@ Consequences:
 - The Galaxy surface is intentionally allowed to lead the rest of the dashboard's visual ambition. A maximised viewport keeps the chart and inspector together, while named Galaxy, Sector, and Local ranges provide predictable spatial scale.
 - Recovery is a first-class map capability rather than a reset afterthought: players can return to their home system, current target, strongest visible flashpoint, recent system locks, or any position on the overview navigator.
 - Camera telemetry, the overview viewport frame, deterministic star field, target reticle, and animated selected routes are presentation derived entirely from already-visible data; none changes authoritative state or visibility.
-- The current interaction is proved against the accepted 24-system opening. Larger galaxy rendering remains a conditional scaling risk rather than an implemented claim.
+- The original interaction was proved against the 24-system opening. That product boundary was explicitly superseded by the canonical sector-crown decision below.
+
+## 2026-07-15: Adopt A Canonical Sector-Crown Galaxy
+
+Decision: replace the 24-system next-test boundary with a canonical four-empire galaxy containing 16 named sectors, 280 systems, and 296 routes. Give each sector 12–24 systems in a local ring and exactly two distinct gateway systems. Connect the sectors as a crown so every sector has two parent-level neighbours; local routes take one tick and inter-sector bridges take two. Treat sector persistence, upgrade, API semantics, semantic map ranges, and the Galaxy-specific blue-violet/gold palette as one feature.
+
+Reasoning:
+
+- A technically connected scatter of 24 systems did not create a convincing strategic geography or exercise the Galaxy workspace's navigation model.
+- Local rings make movement legible without turning every system into a high-degree hub. Two distinct gateways per sector create chokepoints and alternate strategic directions while preserving full connectivity.
+- A ring at both the system-within-sector and sector-within-galaxy levels is deterministic, easy to validate, and robust enough for the current simulation without pretending to model astrophysics.
+- Rendering all 280 systems at one visual weight would recreate the old clutter at a larger scale. Sector envelopes, bridge routes, gateways, and semantic Galaxy/Sector/Local ranges make scale meaningful rather than merely smaller.
+- The rest of the dashboard already uses green as a dominant identity colour. A scoped navy, blue, violet, and gold cartographic palette gives the Galaxy view its own spatial mode without changing global UI semantics.
+
+Consequences:
+
+- Q125's 2026-07-14 24-system answer is explicitly superseded for the next player test.
+- The curated Core seed, generated Docker fixture, default Development database, SQL profiler default, and 280-system successor Cycles use the sector crown. Existing 24-system curated states can be upgraded in place while retaining their original system identities; disposable Development databases may instead be reseeded.
+- `GalaxySectors` and nullable legacy system membership are introduced by migration `015_add_galaxy_sectors`. Transfer format version 2 persists sectors while continuing to read pre-sector version 1 and legacy runtime documents.
+- The operator upgrade takes both the broad game-state and active-Cycle tick locks. Hosted deployment stops the API, applies migrations, upgrades the map, deploys the new binary, and always attempts to restart the app.
+- The `/galaxy` response includes sectors, gateway membership, and sector adjacency. The client exposes sector/system search, clickable sector envelopes, bridge-route distinction, keyboard-safe focus restoration, crown navigation, and scale-dependent detail without expanding visibility.
+- The canonical scale is verified at 16 sectors and 280 systems. Larger or materially denser maps remain a conditional scaling decision, not an implied capability.

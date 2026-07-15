@@ -27,6 +27,9 @@
     <None Include="..\..\src\Cycles.Api\wwwroot\styles.css"
           Link="Fixtures\Dashboard\styles.css"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\workflows\deploy-playground.yml"
+          Link="Fixtures\deploy-playground.yml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

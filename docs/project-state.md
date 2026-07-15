@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
@@ -8,7 +8,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
-| Galaxy | Deterministic seeded systems, routes, home systems, resources, strategic/history fields, and a curated 24-system, four-empire development opening. | That scale is accepted for the next player test; 50- and 100-system dashboard behaviour is unverified and deliberately deferred. |
+| Galaxy | A deterministic 16-sector crown with 280 systems, 296 routes, 32 distinct gateways, home systems, resources, strategic/history fields, and a curated four-empire development opening. | The canonical 280-system scale is browser- and SQL-verified. Larger or differently shaped galaxies remain unproved rather than an implied client contract. |
 | Tick execution | CLI tick runner, scheduled Worker, SQL-atomic due execution, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, shutdown behaviour, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation are locked at zero until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
@@ -18,7 +18,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development-only username login; non-Development OIDC/cookie authentication; exact issuer/subject invitation mapping; Cycles-owned empire/admin authority and audited bootstrap/grant/revoke; protected dashboard; active-fleet fog-of-war. | A concrete provider registration and deployed proxy/callback configuration are still required; the trusted playground remains on its explicit whole-site Development override pending that production identity boundary. |
 | Persistence | Mandatory SQL Server API/Worker runtime, ordered migrations, transaction locks, focused SQL tick workspace, targeted tick writes, strict versioned JSON transfer, bounded legacy-file conversion, Azure SQL playground cutover, and proved point-in-time restore. | Generic API/admin SQL mutations still use the whole-state bridge. |
-| Client | Public landing page and protected playable dashboard with focused Command, Galaxy, Fleets, and History views, a resumable Day One guide including visibility and Cycle-history teaching, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. |
+| Client | Public landing page and protected playable dashboard with focused Command, Galaxy, Fleets, and History views, sector-aware semantic zoom, a resumable Day One guide including visibility and Cycle-history teaching, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. |
 
 ## Implemented Rules
 
@@ -35,7 +35,8 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ### Curated Development Opening
 
-- A normal SQL CLI seed and a missing Development-host SQL store create the fixed `development-cold-start-v1` scenario. Explicit system, empire, or seed arguments retain generic deterministic generation.
+- A normal SQL CLI seed and a missing Development-host SQL store create the fixed `development-cold-start-v1` scenario. Explicit non-canonical dimensions retain generic deterministic generation.
+- The canonical map contains 16 named sectors of 12–24 systems. Each sector is a local route ring with exactly two distinct gateway systems; the sector-level route graph is itself a connected crown. Local routes take one tick and inter-sector routes take two.
 - The Aurelian player begins with three genuine first-turn opportunities: move the Home Guard from Aster Vale to Nadir Crossing, establish an outpost from the Pale Harbour Survey, and attack the local Khepri force with the Treaty Gate Vanguard.
 - Both principal empires retain 60 starting ships. The Treaty Gate outcome is resolved by the normal combat engine and is important enough to enter the Chronicle; it is not a scripted result.
 - An empire-scoped `OpeningBriefingIssued` fact carries stable objective identifiers so the dashboard guide does not infer intent from display names.
@@ -85,7 +86,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Ordinary production players cannot execute ticks; a trusted admin can still use the protected operational endpoint.
 - Every game-state endpoint derives an authenticated local actor. Outside Development, anonymous `/app.html` requests start OIDC, authenticated identities must be explicitly admitted, and `/` plus `/health` remain public unless the trusted-playground perimeter override is configured.
 - External identities map by exact issuer and subject. Provider email, display name, groups, roles, and invitation state do not grant local admin authority. Explicit configured bootstrap and authenticated grant/revoke operations append high-severity audit records; routine revocation cannot remove the final active admin.
-- The dashboard uses persistent hash-addressable views: **Command** for resources, linked 100-point priority drafting, and pending commitments; **Galaxy** for an anchored interactive chart with system search, zoom and pan, named Galaxy/Sector/Local ranges, strategic lenses, selected-route emphasis, selected-system inspection, and a maximised cartography mode; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records. The Galaxy view preserves orientation through home, selected-system, and strongest-visible-flashpoint recovery actions, a clickable overview navigator, live camera telemetry, and recent system locks. Its inspector links adjacent systems and hands local player fleets directly into their command context without expanding the empire-scoped API or visibility boundary. The Command view keeps saved priority positions visible while a new allocation is being drafted, locks Development and Innovation at zero, transfers points only between Military and Expansion, and persists changes only through an explicit save.
+- The dashboard uses persistent hash-addressable views: **Command** for resources, linked 100-point priority drafting, and pending commitments; **Galaxy** for a blue-violet/gold sector chart with system-and-sector search, semantic Galaxy/Sector/Local ranges, strategic lenses, gateway and bridge-route emphasis, selected-system inspection, and a maximised cartography mode; **Fleets** for a selected-fleet command workspace plus filterable resolved orders; and **History** for separate, filterable **Chronicle** and **Events** records. The Galaxy view preserves orientation through home, selected-system, strongest-visible-flashpoint, adjacent-sector, recent-lock, and overview-navigator controls. Its inspector links adjacent systems and hands local player fleets directly into their command context without expanding the empire-scoped API or visibility boundary. The Command view keeps saved priority positions visible while a new allocation is being drafted, locks Development and Innovation at zero, transfers points only between Military and Expansion, and persists changes only through an explicit save.
 - Desktop and laptop browsers are the primary command surface. The responsive layout retains readable narrow-screen access to the core loop without promising equal mobile optimisation or a touch-first interaction model.
 - Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
@@ -99,7 +100,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Complete exports contain private state across all empires, identities, audit context, and hidden facts. They are sensitive operator/developer artefacts, not player save files or database backups.
 - API and Worker require a Cycles SQL connection unconditionally and fail startup clearly when it is absent. The CLI likewise rejects file paths for gameplay and operator commands. JSON remains bounded to versioned transfer, validation, legacy conversion, inspection, fixtures, and migration evidence.
 - SQL Server migrations are plain ordered scripts under `database/migrations` and are tracked in `dbo.SchemaMigrations`.
-- Migration `014_lock_inactive_priorities` is the latest schema migration.
+- Migration `015_add_galaxy_sectors` is the latest schema migration.
 - Generic SQL `Replace` and `Update` operations synchronise the mapped prototype state with targeted deletes and upserts under the broad `Cycles.GameState` application lock.
 - SQL ticks acquire `Cycles.Tick.{CycleID}`, load a Cycle-scoped workspace, and persist targeted outcome rows without loading or rewriting unrelated history. Scheduled attempts read the latest completed-tick time and evaluate cadence while holding that lock.
 - SQL Server-specific locking and persistence details remain contained in `Cycles.Infrastructure.SqlServer`; `Cycles.Core` and `IGameStateStore` remain independent of database packages.
@@ -119,13 +120,13 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ## Verification
 
-Latest local verification on 2026-07-14 used the normal repository test helper:
+Latest local verification on 2026-07-15 used the normal repository test helper:
 
 ```powershell
 .\eng\test.ps1
 ```
 
-Result: **191 tests passed, 0 failed** in the normal suite. The SQL-backed API journey passed against the dedicated local integration database migrated through `014_lock_inactive_priorities`.
+Result: **219 tests passed, 0 failed** in the normal suite. A further **21 SQL Server integration tests passed** against the disposable proof database. A clean container boot applied all 15 migrations and produced 16 sectors, 280 assigned systems, 296 routes, sector sizes from 12 to 24, and an active Cycle ending 90 days after startup. The maximised Galaxy map was exercised in the browser at the full canonical scale with sector/system navigation, keyboard focus restoration, and no console errors.
 
 The automated coverage includes:
 
