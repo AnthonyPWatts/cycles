@@ -105,6 +105,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         AcquireApplicationLock(connection, transaction);
 
         StrategicPriorityPolicy.Normalize(state);
+        DeleteRowsMissingFromState(connection, transaction, new GameState());
         SaveUnsafe(connection, transaction, state);
         transaction.Commit();
     }

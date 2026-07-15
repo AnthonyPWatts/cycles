@@ -701,6 +701,32 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_replaces_a_retained_empires_home_system_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var original = TestState.CreateSingleEmpireState(includeFleet: false);
+        store.Replace(original);
+
+        var replacement = original.DeepClone();
+        var home = Assert.Single(replacement.Systems);
+        var replacementHomeSystemId = Guid.NewGuid();
+        home.SystemId = replacementHomeSystemId;
+        Assert.Single(replacement.Empires).HomeSystemId = replacementHomeSystemId;
+
+        store.Replace(replacement);
+
+        var loaded = store.LoadOrCreate();
+        Assert.Equal(replacementHomeSystemId, Assert.Single(loaded.Systems).SystemId);
+        Assert.Equal(replacementHomeSystemId, Assert.Single(loaded.Empires).HomeSystemId);
+    }
+
+    [Fact]
     public void Store_replaces_external_identity_when_player_ids_change()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
