@@ -2,6 +2,12 @@ name: Deploy playground
 
 on:
   workflow_dispatch:
+    inputs:
+      reseed:
+        description: Replace the disposable Development state with the canonical opening
+        required: true
+        default: false
+        type: boolean
   workflow_run:
     workflows:
       - CI
@@ -71,7 +77,7 @@ jobs:
           --resource-group rg-cycles-playground-uks
           --name "${{ vars.AZURE_WEBAPP_NAME }}"
 
-      - name: Migrate and upgrade galaxy
+      - name: Migrate and prepare galaxy
         shell: bash
         run: |
           connection_string="$(az webapp config connection-string list \
@@ -95,8 +101,15 @@ jobs:
             echo "Database migration connection attempt $attempt failed; waiting for serverless SQL to wake."
             sleep $((attempt * 15))
           done
-          dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
-            galaxy upgrade "sqlserver:$connection_string" --confirm-upgrade
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.reseed }}" = "true" ]; then
+            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+              seed "sqlserver:$connection_string" --confirm-replace
+            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+              show "sqlserver:$connection_string"
+          else
+            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+              galaxy upgrade "sqlserver:$connection_string" --confirm-upgrade
+          fi
 
       - name: Deploy API
         uses: azure/webapps-deploy@v3
