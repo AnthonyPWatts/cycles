@@ -84,8 +84,17 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$connection_string"
-          dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
-            db migrate "sqlserver:$connection_string"
+          for attempt in 1 2 3; do
+            if dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+              db migrate "sqlserver:$connection_string"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Database migration connection attempt $attempt failed; waiting for serverless SQL to wake."
+            sleep $((attempt * 15))
+          done
           dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
             galaxy upgrade "sqlserver:$connection_string" --confirm-upgrade
 
