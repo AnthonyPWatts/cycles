@@ -122,13 +122,18 @@ try {
         "--urls", $baseAddress.AbsoluteUri.TrimEnd('/')
     )
     $env:CYCLES_SQL_CONNECTION_STRING = $ConnectionString
-    $apiProcess = Start-Process dotnet `
-        -ArgumentList $apiArguments `
-        -WorkingDirectory $repoRoot `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $stdoutPath `
-        -RedirectStandardError $stderrPath `
-        -PassThru
+    $startProcessParameters = @{
+        FilePath = "dotnet"
+        ArgumentList = $apiArguments
+        WorkingDirectory = $repoRoot
+        RedirectStandardOutput = $stdoutPath
+        RedirectStandardError = $stderrPath
+        PassThru = $true
+    }
+    if ($IsWindows) {
+        $startProcessParameters.WindowStyle = "Hidden"
+    }
+    $apiProcess = Start-Process @startProcessParameters
 
     $healthClient = [System.Net.Http.HttpClient]::new()
     $healthClient.BaseAddress = $baseAddress
