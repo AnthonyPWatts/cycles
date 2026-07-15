@@ -110,6 +110,42 @@ public sealed class CanonicalGalaxyTopologyTests
     }
 
     [Fact]
+    public void Topology_upgrade_repairs_canonical_route_drift()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        state.SystemLinks[0].TravelTicks = 99;
+
+        var result = GameSeeder.UpgradeGalaxyTopology(state);
+
+        Assert.True(result.Changed);
+        Assert.Equal(0, result.SectorsAdded);
+        Assert.Equal(0, result.SystemsAdded);
+        Assert.Equal(296, result.LinksAdded);
+        Assert.Equal(296, result.LinksRemoved);
+        Assert.All(state.SystemLinks, link => Assert.Contains(link.TravelTicks, new[] { 1, 2 }));
+        Assert.False(GameSeeder.UpgradeGalaxyTopology(state).Changed);
+    }
+
+    [Fact]
+    public void Topology_upgrade_refuses_route_changes_while_a_fleet_is_in_transit_without_partial_mutation()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        var driftedLink = state.SystemLinks[0];
+        driftedLink.TravelTicks = 99;
+        var fleet = state.Fleets[0];
+        fleet.Status = FleetStatus.InTransit;
+        fleet.DestinationSystemId = state.Systems.First(system => system.SystemId != fleet.CurrentSystemId).SystemId;
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GameSeeder.UpgradeGalaxyTopology(state));
+
+        Assert.Contains("no fleets in transit", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(16, state.Sectors.Count);
+        Assert.Equal(280, state.Systems.Count);
+        Assert.Equal(296, state.SystemLinks.Count);
+        Assert.Equal(99, driftedLink.TravelTicks);
+    }
+
+    [Fact]
     public void Topology_upgrade_refuses_a_custom_galaxy()
     {
         var state = GameSeeder.CreateDefault(systemCount: 12, empireCount: 2, seed: 99, createdAt: TestState.Now);

@@ -168,6 +168,26 @@ public sealed class CycleEndTests
     }
 
     [Fact]
+    public void GenerateNextCycleRetainsCanonicalSectorScale()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+
+        var result = CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 9876);
+
+        var sectors = state.Sectors.Where(sector => sector.CycleId == result.CycleId).ToArray();
+        var systems = state.Systems.Where(system => system.CycleId == result.CycleId).ToArray();
+        Assert.Equal(GameSeeder.CanonicalGalaxySectorCount, sectors.Length);
+        Assert.Equal(GameSeeder.CanonicalGalaxySystemCount, systems.Length);
+        Assert.All(sectors, sector => Assert.InRange(systems.Count(system => system.SectorId == sector.SectorId), 12, 24));
+    }
+
+    [Fact]
     public void GenerateNextCycleRejectsCycleThatIsNotCompleted()
     {
         var state = TestState.CreateSingleEmpireState();

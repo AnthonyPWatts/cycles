@@ -74,6 +74,25 @@ public sealed class GameStateTransferTests
     }
 
     [Fact]
+    public void Legacy_reader_accepts_runtime_state_from_before_sector_persistence()
+    {
+        var root = JsonSerializer.SerializeToNode(
+            GameSeeder.CreateCuratedColdStart(TestState.Now),
+            GameStateJson.Options)!.AsObject();
+        root.Remove("sectors");
+        foreach (var system in root["systems"]!.AsArray().Select(item => item!.AsObject()))
+        {
+            system.Remove("sectorId");
+        }
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString(GameStateJson.Options)));
+        var state = GameStateTransfer.ReadLegacyRuntimeState(stream);
+
+        Assert.Empty(state.Sectors);
+        Assert.All(state.Systems, item => Assert.Equal(Guid.Empty, item.SectorId));
+    }
+
+    [Fact]
     public void Validation_rejects_duplicate_sector_names_within_a_cycle()
     {
         var state = GameSeeder.CreateCuratedColdStart(TestState.Now);

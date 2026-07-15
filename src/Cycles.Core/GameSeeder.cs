@@ -133,28 +133,33 @@ public static class GameSeeder
         }
 
         var cycle = activeCycles[0];
-        if (IsCanonicalGalaxy(state, cycle.CycleId))
+        var assignments = BuildCanonicalAssignments(cycle.CycleId);
+        var hasCanonicalLayout = HasCanonicalGalaxyLayout(state, cycle.CycleId, assignments);
+        if (hasCanonicalLayout && HasCanonicalGalaxyLinks(state, cycle.CycleId, assignments))
         {
             return new GalaxyTopologyUpgradeResult(false, 0, 0, 0, 0);
         }
 
         var cycleSystems = state.Systems.Where(item => item.CycleId == cycle.CycleId).ToArray();
-        var legacyNames = SystemNames.Take(24).ToHashSet(StringComparer.Ordinal);
-        var hasCuratedBriefing = state.Events.Any(item =>
-            item.CycleId == cycle.CycleId
-            && item.EventType == EventType.OpeningBriefingIssued
-            && item.FactJson.Contains(CuratedColdStartScenarioKey, StringComparison.Ordinal));
-        if (cycleSystems.Length != legacyNames.Count
-            || !cycleSystems.Select(item => item.SystemName).ToHashSet(StringComparer.Ordinal).SetEquals(legacyNames)
-            || !hasCuratedBriefing)
+        if (!hasCanonicalLayout)
         {
-            throw new InvalidOperationException(
-                "Galaxy topology upgrade only supports the original 24-system curated Development opening or an already-current canonical galaxy.");
-        }
+            var legacyNames = SystemNames.Take(24).ToHashSet(StringComparer.Ordinal);
+            var hasCuratedBriefing = state.Events.Any(item =>
+                item.CycleId == cycle.CycleId
+                && item.EventType == EventType.OpeningBriefingIssued
+                && item.FactJson.Contains(CuratedColdStartScenarioKey, StringComparison.Ordinal));
+            if (cycleSystems.Length != legacyNames.Count
+                || !cycleSystems.Select(item => item.SystemName).ToHashSet(StringComparer.Ordinal).SetEquals(legacyNames)
+                || !hasCuratedBriefing)
+            {
+                throw new InvalidOperationException(
+                    "Galaxy topology upgrade only supports the original 24-system curated Development opening or the canonical galaxy layout.");
+            }
 
-        if (state.Sectors.Any(item => item.CycleId == cycle.CycleId))
-        {
-            throw new InvalidOperationException("Galaxy topology upgrade found an unrecognised partial sector model and will not guess how to repair it.");
+            if (state.Sectors.Any(item => item.CycleId == cycle.CycleId))
+            {
+                throw new InvalidOperationException("Galaxy topology upgrade found an unrecognised partial sector model and will not guess how to repair it.");
+            }
         }
 
         if (state.Fleets.Any(item => item.CycleId == cycle.CycleId
@@ -165,28 +170,32 @@ public static class GameSeeder
                 "Galaxy topology upgrade requires no fleets in transit and no pending orders. Resolve or cancel them before changing the route network.");
         }
 
-        var assignments = BuildCanonicalAssignments(cycle.CycleId);
-        AddCanonicalSectors(state, cycle.CycleId);
-        var existingByName = cycleSystems.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
+        var sectorsAdded = 0;
         var systemsAdded = 0;
-        var now = DateTimeOffset.UtcNow;
-        foreach (var assignment in assignments)
+        if (!hasCanonicalLayout)
         {
-            if (existingByName.TryGetValue(assignment.SystemName, out var existing))
+            AddCanonicalSectors(state, cycle.CycleId);
+            sectorsAdded = CanonicalGalaxySectorCount;
+            var existingByName = cycleSystems.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
+            var now = DateTimeOffset.UtcNow;
+            foreach (var assignment in assignments)
             {
-                existing.SectorId = assignment.SectorId;
-                existing.X = assignment.X;
-                existing.Y = assignment.Y;
-                continue;
-            }
+                if (existingByName.TryGetValue(assignment.SystemName, out var existing))
+                {
+                    existing.SectorId = assignment.SectorId;
+                    existing.X = assignment.X;
+                    existing.Y = assignment.Y;
+                    continue;
+                }
 
-            state.Systems.Add(CreateCanonicalSystem(cycle.CycleId, assignment, now));
-            systemsAdded++;
+                state.Systems.Add(CreateCanonicalSystem(cycle.CycleId, assignment, now));
+                systemsAdded++;
+            }
         }
 
         var linksRemoved = state.SystemLinks.RemoveAll(item => item.CycleId == cycle.CycleId);
         var linksAdded = AddCanonicalLinks(state, cycle.CycleId, assignments);
-        return new GalaxyTopologyUpgradeResult(true, CanonicalGalaxySectorCount, systemsAdded, linksAdded, linksRemoved);
+        return new GalaxyTopologyUpgradeResult(true, sectorsAdded, systemsAdded, linksAdded, linksRemoved);
     }
 
     private static GameState Create(
@@ -250,7 +259,7 @@ public static class GameSeeder
         DateTimeOffset now,
         Func<Guid> nextId)
     {
-        if (systemCount == CanonicalGalaxySystemCount && seed == CanonicalGalaxySeed)
+        if (systemCount == CanonicalGalaxySystemCount)
         {
             AddCanonicalGalaxy(state, cycle, now);
             return;
@@ -492,9 +501,11 @@ public static class GameSeeder
         return 1;
     }
 
-    private static bool IsCanonicalGalaxy(GameState state, Guid cycleId)
+    private static bool HasCanonicalGalaxyLayout(
+        GameState state,
+        Guid cycleId,
+        IReadOnlyCollection<CanonicalSystemAssignment> assignments)
     {
-        var assignments = BuildCanonicalAssignments(cycleId);
         var expectedByName = assignments.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
         var systems = state.Systems.Where(item => item.CycleId == cycleId).ToArray();
         var sectors = state.Sectors.Where(item => item.CycleId == cycleId).ToArray();
@@ -519,37 +530,60 @@ public static class GameSeeder
             return false;
         }
 
-        var systemNamesById = systems.ToDictionary(item => item.SystemId, item => item.SystemName);
-        var actualPairs = state.SystemLinks
-            .Where(item => item.CycleId == cycleId)
-            .Select(item => NormalizedPair(systemNamesById[item.SystemAId], systemNamesById[item.SystemBId]))
-            .ToHashSet(StringComparer.Ordinal);
-        return actualPairs.SetEquals(ExpectedCanonicalLinkPairs(assignments));
+        return true;
     }
 
-    private static HashSet<string> ExpectedCanonicalLinkPairs(IReadOnlyCollection<CanonicalSystemAssignment> assignments)
+    private static bool HasCanonicalGalaxyLinks(
+        GameState state,
+        Guid cycleId,
+        IReadOnlyCollection<CanonicalSystemAssignment> assignments)
+    {
+        var systems = state.Systems.Where(item => item.CycleId == cycleId).ToArray();
+        var systemNamesById = systems.ToDictionary(item => item.SystemId, item => item.SystemName);
+        var links = state.SystemLinks.Where(item => item.CycleId == cycleId).ToArray();
+        var expectedLinks = ExpectedCanonicalLinks(assignments);
+        if (links.Length != expectedLinks.Count)
+        {
+            return false;
+        }
+
+        foreach (var link in links)
+        {
+            if (!systemNamesById.TryGetValue(link.SystemAId, out var firstName)
+                || !systemNamesById.TryGetValue(link.SystemBId, out var secondName)
+                || !expectedLinks.TryGetValue(NormalizedPair(firstName, secondName), out var expectedTravelTicks)
+                || link.TravelTicks != expectedTravelTicks)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Dictionary<string, int> ExpectedCanonicalLinks(IReadOnlyCollection<CanonicalSystemAssignment> assignments)
     {
         var members = assignments
             .GroupBy(item => item.SectorIndex)
             .OrderBy(group => group.Key)
             .Select(group => group.OrderBy(item => item.LocalIndex).ToArray())
             .ToArray();
-        var pairs = new HashSet<string>(StringComparer.Ordinal);
+        var links = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var sector in members)
         {
             for (var index = 0; index < sector.Length; index++)
             {
-                pairs.Add(NormalizedPair(sector[index].SystemName, sector[(index + 1) % sector.Length].SystemName));
+                links.Add(NormalizedPair(sector[index].SystemName, sector[(index + 1) % sector.Length].SystemName), 1);
             }
         }
 
         for (var index = 0; index < members.Length; index++)
         {
             var next = members[(index + 1) % members.Length];
-            pairs.Add(NormalizedPair(members[index][0].SystemName, next[next.Length / 2].SystemName));
+            links.Add(NormalizedPair(members[index][0].SystemName, next[next.Length / 2].SystemName), 2);
         }
 
-        return pairs;
+        return links;
     }
 
     private static string NormalizedPair(string first, string second) =>
