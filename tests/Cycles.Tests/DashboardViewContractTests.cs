@@ -40,19 +40,27 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("id=\"systemSearchForm\"", html);
         Assert.Equal(5, Regex.Matches(html, "data-map-lens=").Count);
-        Assert.Contains("id=\"mapZoomOut\"", html);
-        Assert.Contains("id=\"mapResetView\"", html);
-        Assert.Contains("id=\"mapZoomIn\"", html);
+        Assert.Contains("id=\"mapToolbar\"", html);
+        Assert.Contains("id=\"mapRangeSwitch\"", html);
+        Assert.Contains("id=\"mapOwnershipStats\"", html);
+        Assert.DoesNotContain("id=\"mapZoomOut\"", html);
+        Assert.DoesNotContain("id=\"mapResetView\"", html);
+        Assert.DoesNotContain("id=\"mapZoomIn\"", html);
+        Assert.DoesNotContain("id=\"mapStats\"", html);
+        Assert.DoesNotContain("class=\"map-legend\"", html);
         Assert.Contains("aria-describedby=\"mapInteractionHint\"", html);
 
-        Assert.Contains("elements.galaxyMap.addEventListener(\"wheel\"", script);
-        Assert.Contains("function zoomMap", script);
+        Assert.DoesNotContain("elements.galaxyMap.addEventListener(\"wheel\"", script);
+        Assert.DoesNotContain("function zoomMap", script);
+        Assert.Contains("function setMapRange", script);
+        Assert.Contains("function mapComposition", script);
+        Assert.Contains("function renderMapOwnershipStats", script);
         Assert.Contains("function renderMapInsight", script);
         Assert.Contains("selected-route", script);
         Assert.Contains("data-focus-system", script);
         Assert.Contains("data-command-fleet", script);
 
-        Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr);", css);
+        Assert.Contains("grid-template-rows: auto minmax(0, 1fr);", css);
         Assert.Contains(".map-panel {", css);
         Assert.Contains("position: sticky;", css);
     }

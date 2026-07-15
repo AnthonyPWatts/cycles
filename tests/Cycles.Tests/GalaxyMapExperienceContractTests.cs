@@ -22,6 +22,8 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function recoverMapToFrontier", script);
         Assert.Contains("function moveMapFromNavigator", script);
         Assert.Contains("function renderRecentMapSystems", script);
+        Assert.Contains("function setMapRange", script);
+        Assert.Contains("function mapComposition", script);
     }
 
     [Fact]
@@ -49,8 +51,9 @@ public sealed class GalaxyMapExperienceContractTests
         var css = ReadDashboardAsset("styles.css");
 
         Assert.Contains("Find a system or sector", html);
-        Assert.Contains("class=\"legend-sector\"", html);
-        Assert.Contains("class=\"legend-gateway\"", html);
+        Assert.Contains("id=\"mapToolbar\"", html);
+        Assert.Contains("id=\"mapOwnershipStats\"", html);
+        Assert.DoesNotContain("class=\"map-legend\"", html);
 
         Assert.Contains("function normaliseGalaxySectors", script);
         Assert.Contains("function mapSectorDisplayName", script);
@@ -58,13 +61,17 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function renderMapSectorLayer", script);
         Assert.Contains("function mapSectorEnvelopePath", script);
         Assert.Contains("function focusMapOnSector", script);
+        Assert.Contains("function directionalMapSector", script);
         Assert.Contains("function syncMapSectorContextToCamera", script);
         Assert.Contains("function focusRenderedMapNode", script);
         Assert.Contains("ArrowRight", script);
         Assert.Contains("is-adjacent-gateway", script);
+        Assert.DoesNotContain("(currentIndex + direction + sectors.length) % sectors.length", script);
+        Assert.DoesNotContain("const immediateSystemIds", script);
 
         Assert.Contains("#galaxyMap[data-map-range=\"galaxy\"] .route-segment.is-local-route", css);
         Assert.Contains("#galaxyMap[data-map-range=\"sector\"] .system-node.is-active-sector .system-label", css);
+        Assert.Contains("#galaxyMap[data-map-range=\"local\"] .system-node:not(.is-local-context)", css);
         Assert.Contains(".sector-hull", css);
         Assert.Contains(".gateway-ring", css);
         Assert.Contains(".navigator-sector", css);
