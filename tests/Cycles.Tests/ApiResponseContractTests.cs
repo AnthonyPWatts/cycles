@@ -15,6 +15,7 @@ public sealed class ApiResponseContractTests
             typeof(LoginResponse),
             typeof(EmpireResponse),
             typeof(GalaxyResponse),
+            typeof(GalaxySectorResponse),
             typeof(SystemPresenceResponse),
             typeof(FleetResponse),
             typeof(FleetDetailResponse),
@@ -55,6 +56,16 @@ public sealed class ApiResponseContractTests
             .ToArray();
 
         Assert.Empty(leaks);
+    }
+
+    [Fact]
+    public void Galaxy_contract_exposes_sector_membership_and_derived_gateway_context()
+    {
+        Assert.Equal(typeof(IReadOnlyCollection<GalaxySectorResponse>), typeof(GalaxyResponse).GetProperty(nameof(GalaxyResponse.Sectors))!.PropertyType);
+        Assert.Equal(typeof(Guid), typeof(GalaxySystemResponse).GetProperty(nameof(GalaxySystemResponse.SectorId))!.PropertyType);
+        Assert.Equal(typeof(bool), typeof(GalaxySystemResponse).GetProperty(nameof(GalaxySystemResponse.IsGateway))!.PropertyType);
+        Assert.Equal(typeof(IReadOnlyCollection<Guid>), typeof(GalaxySectorResponse).GetProperty(nameof(GalaxySectorResponse.GatewaySystemIds))!.PropertyType);
+        Assert.Equal(typeof(IReadOnlyCollection<Guid>), typeof(GalaxySectorResponse).GetProperty(nameof(GalaxySectorResponse.AdjacentSectorIds))!.PropertyType);
     }
 
     [Fact]

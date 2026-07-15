@@ -6,6 +6,7 @@ const state = {
     empire: null,
     galaxy: null,
     selectedSystemId: null,
+    selectedSectorId: null,
     selectedFleetId: null,
     fleetDetail: null,
     fleets: [],
@@ -45,8 +46,8 @@ const activePriorityKeys = ["militaryWeight", "expansionWeight"];
 const mapBounds = Object.freeze({ x: 0, y: 0, width: 1000, height: 700 });
 const mapPresetWidths = Object.freeze({
     galaxy: 1000,
-    sector: 600,
-    local: 320
+    sector: 320,
+    local: 180
 });
 const mapLensLabels = Object.freeze({
     overview: "Overview",
@@ -259,11 +260,16 @@ elements.galaxyMap.addEventListener("click", event => {
     }
 
     const node = event.target.closest(".system-node");
-    if (!node) {
+    if (node) {
+        const entersSector = currentMapRange() === "galaxy" || node.classList.contains("is-adjacent-gateway");
+        selectSystem(node.dataset.systemId, { focusMap: entersSector });
         return;
     }
 
-    selectSystem(node.dataset.systemId);
+    const sector = event.target.closest(".sector-node");
+    if (sector) {
+        focusMapOnSector(sector.dataset.sectorId);
+    }
 });
 
 elements.galaxyMap.addEventListener("keydown", event => {
@@ -272,12 +278,18 @@ elements.galaxyMap.addEventListener("keydown", event => {
     }
 
     const node = event.target.closest(".system-node");
-    if (!node) {
+    if (node) {
+        event.preventDefault();
+        const entersSector = currentMapRange() === "galaxy" || node.classList.contains("is-adjacent-gateway");
+        selectSystem(node.dataset.systemId, { focusMap: entersSector, restoreMapFocus: true });
         return;
     }
 
-    event.preventDefault();
-    selectSystem(node.dataset.systemId);
+    const sector = event.target.closest(".sector-node");
+    if (sector) {
+        event.preventDefault();
+        focusMapOnSector(sector.dataset.sectorId, { restoreMapFocus: true });
+    }
 });
 
 elements.systemSearchForm.addEventListener("submit", event => {
@@ -293,14 +305,24 @@ elements.systemSearchForm.addEventListener("submit", event => {
         .find(system => system.systemName.toLowerCase() === query)
         ?? state.galaxy.systems.find(system => system.systemName.toLowerCase().includes(query));
 
-    if (!match) {
-        elements.systemSearch.setCustomValidity("Choose a known system.");
+    const sectorMatch = normaliseGalaxySectors(state.galaxy)
+        .slice()
+        .sort((left, right) => left.sortOrder - right.sortOrder || left.sectorName.localeCompare(right.sectorName))
+        .find(sector => mapSectorDisplayName(sector).toLowerCase() === query || sector.sectorName.toLowerCase() === query)
+        ?? normaliseGalaxySectors(state.galaxy).find(sector => mapSectorDisplayName(sector).toLowerCase().includes(query));
+
+    if (!match && !sectorMatch) {
+        elements.systemSearch.setCustomValidity("Choose a known system or sector.");
         elements.systemSearch.reportValidity();
         return;
     }
 
     elements.systemSearch.setCustomValidity("");
-    selectSystem(match.systemId, { focusMap: true });
+    if (match) {
+        selectSystem(match.systemId, { focusMap: true });
+    } else {
+        focusMapOnSector(sectorMatch.sectorId);
+    }
     elements.galaxyMap.focus({ preventScroll: true });
 });
 
@@ -332,12 +354,26 @@ elements.mapRecentSystems.addEventListener("click", event => {
 
 elements.mapNavigator.addEventListener("click", moveMapFromNavigator);
 elements.mapNavigator.addEventListener("keydown", event => {
+    const direction = ({ ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 })[event.key];
+    if (direction) {
+        event.preventDefault();
+        const sectors = normaliseGalaxySectors(state.galaxy)
+            .slice()
+            .sort((left, right) => left.sortOrder - right.sortOrder || left.sectorName.localeCompare(right.sectorName));
+        const currentIndex = Math.max(0, sectors.findIndex(sector => sector.sectorId === state.selectedSectorId));
+        const target = sectors[(currentIndex + direction + sectors.length) % sectors.length];
+        if (target) {
+            focusMapOnSector(target.sectorId);
+        }
+        return;
+    }
+
     if (event.key !== "Enter" && event.key !== " ") {
         return;
     }
 
     event.preventDefault();
-    recoverMapToSystem(state.selectedSystemId);
+    focusMapOnSector(state.selectedSectorId);
 });
 
 elements.galaxyMap.addEventListener("wheel", event => {
@@ -346,7 +382,7 @@ elements.galaxyMap.addEventListener("wheel", event => {
 }, { passive: false });
 
 elements.galaxyMap.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || event.target.closest(".system-node")) {
+    if (event.button !== 0 || event.target.closest(".system-node, .sector-node")) {
         return;
     }
 
@@ -393,6 +429,9 @@ for (const eventName of ["pointerup", "pointercancel"]) {
         if (eventName === "pointercancel") {
             state.mapDragged = false;
         } else {
+            if (state.mapDragged) {
+                syncMapSectorContextToCamera();
+            }
             window.setTimeout(() => {
                 state.mapDragged = false;
             }, 0);
@@ -1104,7 +1143,7 @@ function renderSystemDetails() {
         : routes.map(linked => `
             <button type="button" class="route-jump" data-focus-system="${linked.systemId}">
                 <span>${escapeHtml(linked.systemName)}</span>
-                <small>Strategic ${formatNumber(linked.strategicValue)}</small>
+                <small>${linked.sectorId !== system.sectorId ? "Sector gate | " : ""}${formatCount(linked.routeTravelTicks, "tick")} | Strategic ${formatNumber(linked.strategicValue)}</small>
             </button>
         `).join("");
     const localFleets = state.fleets
@@ -1120,7 +1159,11 @@ function renderSystemDetails() {
         `).join("");
     const activePresence = presenceEntries.length;
     const ownPresence = Number(presence[state.empire.empireId] ?? 0);
+    const sector = normaliseGalaxySectors(state.galaxy).find(candidate => candidate.sectorId === system.sectorId);
+    const sectorLabel = sector ? mapSectorDisplayName(sector) : "Uncharted";
     const tags = [
+        sectorLabel,
+        system.isGateway ? "Sector gateway" : null,
         system.systemId === state.empire.homeSystem.systemId ? "Home system" : null,
         activePresence > 1 ? "Contested" : null,
         system.historicalSignificance > 0 ? "Historic" : null,
@@ -1145,7 +1188,7 @@ function renderSystemDetails() {
     elements.systemDetails.innerHTML = `
         <section class="system-overview" aria-label="System overview">
             <div class="system-signature">
-                <span>Grid ${formatNumber(system.x)} / ${formatNumber(system.y)}</span>
+                <span>${escapeHtml(sectorLabel)} | Grid ${formatNumber(system.x)} / ${formatNumber(system.y)}</span>
                 <button type="button" class="map-focus-action" data-focus-system="${system.systemId}">Focus map</button>
             </div>
             <div class="system-rating">
@@ -1933,15 +1976,43 @@ function eventSeverityRank(value) {
 
 function renderGalaxy(galaxy, empire) {
     const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
+    const sectors = normaliseGalaxySectors(galaxy);
+    const sectorsById = new Map(sectors.map(sector => [sector.sectorId, sector]));
     const presenceBySystem = new Map(galaxy.presence.map(item => [item.systemId, item.effectivePresence]));
     const homeId = empire.homeSystem.systemId;
     const selectedId = state.selectedSystemId;
+    const selectedSystem = systems.get(selectedId);
+    if (selectedSystem?.sectorId) {
+        state.selectedSectorId = selectedSystem.sectorId;
+    }
+    if (!state.selectedSectorId || !sectorsById.has(state.selectedSectorId)) {
+        state.selectedSectorId = sectorsById.has(empire.homeSystem.sectorId)
+            ? empire.homeSystem.sectorId
+            : sectors[0]?.sectorId ?? null;
+    }
+
+    const sectorContext = mapSectorContext(galaxy, state.selectedSectorId);
+    const sectorLayer = renderMapSectorLayer(galaxy, sectors, sectorContext);
     const lines = galaxy.links.map(link => {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
+        if (!a || !b) {
+            return "";
+        }
+
         const isSelectedRoute = link.systemAId === selectedId || link.systemBId === selectedId;
+        const isBridge = a.sectorId !== b.sectorId;
+        const isActiveSectorRoute = a.sectorId === state.selectedSectorId && b.sectorId === state.selectedSectorId;
+        const isGatewayContext = isBridge && (a.sectorId === state.selectedSectorId || b.sectorId === state.selectedSectorId);
+        const classes = [
+            "route-segment",
+            isSelectedRoute ? "is-selected" : "",
+            isBridge ? "is-bridge" : "is-local-route",
+            isActiveSectorRoute ? "is-active-sector" : "",
+            isGatewayContext ? "is-gateway-context" : ""
+        ].filter(Boolean).join(" ");
         return `
-            <g class="route-segment${isSelectedRoute ? " is-selected" : ""}">
+            <g class="${classes}">
                 <line class="route-glow" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
                 <line class="link${isSelectedRoute ? " selected-route" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
             </g>
@@ -1963,10 +2034,13 @@ function renderGalaxy(galaxy, empire) {
         const lensMetric = lensMetrics[index];
         const lensIntensity = lensMetric / maximumLensMetric;
         const radius = state.mapLens === "overview"
-            ? 8 + Math.min(14, Math.sqrt(ownPresence))
-            : 8 + 16 * Math.sqrt(lensIntensity);
+            ? 4 + Math.min(7, Math.sqrt(ownPresence) * 0.55)
+            : 4 + 8 * Math.sqrt(lensIntensity);
         const isSelected = system.systemId === selectedId;
         const isImportant = isSelected || system.systemId === homeId || isContested || system.historicalSignificance > 0;
+        const isGateway = Boolean(system.isGateway) || sectorContext.gatewaySystemIds.has(system.systemId);
+        const isActiveSector = system.sectorId === state.selectedSectorId;
+        const isAdjacentGateway = sectorContext.adjacentGatewaySystemIds.has(system.systemId);
         const classes = [
             "system",
             system.historicalSignificance > 0 ? "historic" : "",
@@ -1975,13 +2049,21 @@ function renderGalaxy(galaxy, empire) {
             isSelected ? "selected" : ""
         ].filter(Boolean).join(" ");
         const label = `${system.systemName}: strategic ${system.strategicValue}, your presence ${formatNumber(ownPresence)}, total visible presence ${formatNumber(totalPresence)}, ${mapLensMetricLabel(system, lensMetric)}`;
+        const nodeClasses = [
+            "system-node",
+            isImportant ? "is-important" : "",
+            isGateway ? "is-gateway" : "",
+            isActiveSector ? "is-active-sector" : "",
+            isAdjacentGateway ? "is-adjacent-gateway" : ""
+        ].filter(Boolean).join(" ");
 
         return `
-            <g class="system-node${isImportant ? " is-important" : ""}" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}" style="--lens-intensity: ${lensIntensity}">
+            <g class="${nodeClasses}" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}" style="--lens-intensity: ${lensIntensity}">
                 <title>${escapeHtml(label)}</title>
                 <circle class="system-aura" cx="${system.x}" cy="${system.y}" r="${radius + 11}"></circle>
                 ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
                 ${isContested ? `<circle class="contested-ring" cx="${system.x}" cy="${system.y}" r="${radius + 10}"></circle>` : ""}
+                ${isGateway ? `<circle class="gateway-ring" cx="${system.x}" cy="${system.y}" r="${radius + 7}"></circle>` : ""}
                 ${isSelected ? `
                     <circle class="selection-scan" cx="${system.x}" cy="${system.y}" r="${radius + 29}"></circle>
                     <circle class="selection-orbit" cx="${system.x}" cy="${system.y}" r="${radius + 16}"></circle>
@@ -1989,12 +2071,13 @@ function renderGalaxy(galaxy, empire) {
                 ` : ""}
                 <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
                 <circle class="system-core" cx="${system.x}" cy="${system.y}" r="${Math.max(2.8, radius * 0.24)}"></circle>
-                <text class="system-label${isSelected ? " selected-label" : ""}" x="${system.x + radius + 8}" y="${system.y + 5}">${escapeHtml(system.systemName)}</text>
+                <text class="system-label${isSelected ? " selected-label" : ""}" x="${system.x + radius + 4}" y="${system.y + 2.5}">${escapeHtml(system.systemName)}</text>
             </g>
         `;
     }).join("");
 
     elements.galaxyMap.dataset.mapLens = state.mapLens;
+    elements.galaxyMap.dataset.mapRange = currentMapRange();
     elements.galaxyMap.innerHTML = `
         <defs>
             <pattern id="chartGrid" width="50" height="50" patternUnits="userSpaceOnUse">
@@ -2015,15 +2098,19 @@ function renderGalaxy(galaxy, empire) {
         <rect class="chart-grid" x="-80" y="-80" width="1160" height="860"></rect>
         <g class="starfield-layer">${renderMapStarfield()}</g>
         <ellipse class="galactic-plane" cx="500" cy="350" rx="610" ry="158" transform="rotate(-11 500 350)"></ellipse>
+        <g class="sector-layer">${sectorLayer}</g>
         <g class="route-layer">${lines}</g>
         <g class="system-layer">${nodes}</g>
     `;
-    elements.systemOptions.innerHTML = galaxy.systems
+    const systemOptions = galaxy.systems
         .slice()
         .sort((left, right) => left.systemName.localeCompare(right.systemName))
-        .map(system => `<option value="${escapeHtml(system.systemName)}"></option>`)
-        .join("");
-    const selectedSystem = systems.get(selectedId);
+        .map(system => `<option value="${escapeHtml(system.systemName)}" label="System"></option>`);
+    const sectorOptions = sectors
+        .slice()
+        .sort((left, right) => left.sortOrder - right.sortOrder || left.sectorName.localeCompare(right.sectorName))
+        .map(sector => `<option value="${escapeHtml(mapSectorDisplayName(sector))}" label="Sector"></option>`);
+    elements.systemOptions.innerHTML = [...systemOptions, ...sectorOptions].join("");
     if (selectedSystem && document.activeElement !== elements.systemSearch) {
         elements.systemSearch.value = selectedSystem.systemName;
     }
@@ -2036,6 +2123,163 @@ function renderGalaxy(galaxy, empire) {
     renderMapNavigator(galaxy, empire);
     renderRecentMapSystems();
     renderMapRecoveryState(galaxy, presenceBySystem);
+}
+
+function normaliseGalaxySectors(galaxy) {
+    if (!galaxy) {
+        return [];
+    }
+
+    if (Array.isArray(galaxy.sectors) && galaxy.sectors.length > 0) {
+        return galaxy.sectors;
+    }
+
+    const groupedSystems = groupSystemsBySector(galaxy.systems);
+    return [...groupedSystems.entries()].map(([sectorId, systems], index) => ({
+        sectorId,
+        sectorName: groupedSystems.size === 1 ? "Known Space" : `Sector Y${index}`,
+        centreX: Math.round(systems.reduce((total, system) => total + system.x, 0) / systems.length),
+        centreY: Math.round(systems.reduce((total, system) => total + system.y, 0) / systems.length),
+        sortOrder: index,
+        systemCount: systems.length
+    }));
+}
+
+function groupSystemsBySector(systems) {
+    const groups = new Map();
+    for (const system of systems) {
+        const sectorId = system.sectorId || "legacy-galaxy";
+        const members = groups.get(sectorId) ?? [];
+        members.push(system);
+        groups.set(sectorId, members);
+    }
+    return groups;
+}
+
+function mapSectorDisplayName(sector) {
+    const sortOrder = Number(sector.sortOrder);
+    const code = Number.isFinite(sortOrder)
+        ? `Y${String(sortOrder).padStart(2, "0")}`
+        : "Y??";
+    return `${code} · ${sector.sectorName}`;
+}
+
+function mapSectorContext(galaxy, activeSectorId) {
+    const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
+    const gatewaySystemIds = new Set();
+    const adjacentSectorIds = new Set();
+    const adjacentGatewaySystemIds = new Set();
+
+    for (const link of galaxy.links) {
+        const a = systems.get(link.systemAId);
+        const b = systems.get(link.systemBId);
+        if (!a || !b || a.sectorId === b.sectorId) {
+            continue;
+        }
+
+        gatewaySystemIds.add(a.systemId);
+        gatewaySystemIds.add(b.systemId);
+        if (a.sectorId === activeSectorId) {
+            adjacentSectorIds.add(b.sectorId);
+            adjacentGatewaySystemIds.add(b.systemId);
+        }
+        if (b.sectorId === activeSectorId) {
+            adjacentSectorIds.add(a.sectorId);
+            adjacentGatewaySystemIds.add(a.systemId);
+        }
+    }
+
+    return { gatewaySystemIds, adjacentSectorIds, adjacentGatewaySystemIds };
+}
+
+function renderMapSectorLayer(galaxy, sectors, context) {
+    const systemsBySector = groupSystemsBySector(galaxy.systems);
+    return sectors.map(sector => {
+        const members = systemsBySector.get(sector.sectorId) ?? [];
+        const path = mapSectorEnvelopePath(members, sector);
+        const isActive = sector.sectorId === state.selectedSectorId;
+        const isAdjacent = context.adjacentSectorIds.has(sector.sectorId);
+        const classes = [
+            "sector-node",
+            isActive ? "is-active" : "",
+            isAdjacent ? "is-adjacent" : ""
+        ].filter(Boolean).join(" ");
+        const count = Number(sector.systemCount ?? members.length);
+        const displayName = mapSectorDisplayName(sector);
+        const label = `${displayName}, ${formatCount(count, "system")}`;
+        return `
+            <g class="${classes}" data-sector-id="${escapeHtml(sector.sectorId)}" role="button" tabindex="0" aria-label="${escapeHtml(label)}">
+                <title>${escapeHtml(label)}. Select to enter this sector.</title>
+                <path class="sector-hull" d="${path}"></path>
+                <circle class="sector-hit" cx="${sector.centreX}" cy="${sector.centreY}" r="30"></circle>
+                <circle class="sector-anchor" cx="${sector.centreX}" cy="${sector.centreY}" r="3"></circle>
+                <text class="sector-name" x="${sector.centreX}" y="${sector.centreY - 4}">${escapeHtml(displayName)}</text>
+                <text class="sector-count" x="${sector.centreX}" y="${sector.centreY + 11}">${formatCount(count, "system")}</text>
+            </g>
+        `;
+    }).join("");
+}
+
+function mapSectorEnvelopePath(systems, sector) {
+    const points = systems.map(system => ({ x: Number(system.x), y: Number(system.y) }));
+    if (points.length < 3) {
+        const radius = points.length === 2
+            ? Math.max(38, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) / 2 + 24)
+            : 48;
+        const centreX = Number(sector.centreX);
+        const centreY = Number(sector.centreY);
+        return `M ${centreX - radius} ${centreY} A ${radius} ${radius} 0 1 0 ${centreX + radius} ${centreY} A ${radius} ${radius} 0 1 0 ${centreX - radius} ${centreY} Z`;
+    }
+
+    const hull = convexHull(points);
+    if (hull.length < 3) {
+        const minX = Math.min(...points.map(point => point.x));
+        const maxX = Math.max(...points.map(point => point.x));
+        const minY = Math.min(...points.map(point => point.y));
+        const maxY = Math.max(...points.map(point => point.y));
+        const centreX = (minX + maxX) / 2;
+        const centreY = (minY + maxY) / 2;
+        const radiusX = Math.max(42, (maxX - minX) / 2 + 24);
+        const radiusY = Math.max(36, (maxY - minY) / 2 + 24);
+        return `M ${centreX - radiusX} ${centreY} A ${radiusX} ${radiusY} 0 1 0 ${centreX + radiusX} ${centreY} A ${radiusX} ${radiusY} 0 1 0 ${centreX - radiusX} ${centreY} Z`;
+    }
+    const centre = hull.reduce((total, point) => ({ x: total.x + point.x, y: total.y + point.y }), { x: 0, y: 0 });
+    centre.x /= hull.length;
+    centre.y /= hull.length;
+    const expanded = hull.map(point => {
+        const dx = point.x - centre.x;
+        const dy = point.y - centre.y;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        return { x: point.x + dx / length * 22, y: point.y + dy / length * 22 };
+    });
+    const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const start = midpoint(expanded.at(-1), expanded[0]);
+    const commands = expanded.map((point, index) => {
+        const next = expanded[(index + 1) % expanded.length];
+        const end = midpoint(point, next);
+        return `Q ${point.x.toFixed(1)} ${point.y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+    });
+    return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} ${commands.join(" ")} Z`;
+}
+
+function convexHull(points) {
+    const sorted = points
+        .slice()
+        .sort((left, right) => left.x - right.x || left.y - right.y);
+    const cross = (origin, a, b) => (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+    const buildHalf = source => {
+        const half = [];
+        for (const point of source) {
+            while (half.length >= 2 && cross(half.at(-2), half.at(-1), point) <= 0) {
+                half.pop();
+            }
+            half.push(point);
+        }
+        return half;
+    };
+    const lower = buildHalf(sorted);
+    const upper = buildHalf(sorted.slice().reverse());
+    return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
 function renderMapStarfield() {
@@ -2060,18 +2304,23 @@ function mapSelectionReticle(x, y, radius) {
     `;
 }
 
-function selectSystem(systemId, { focusMap = false } = {}) {
-    if (!state.galaxy?.systems.some(system => system.systemId === systemId)) {
+function selectSystem(systemId, { focusMap = false, restoreMapFocus = false } = {}) {
+    const system = state.galaxy?.systems.find(candidate => candidate.systemId === systemId);
+    if (!system) {
         return;
     }
 
     state.selectedSystemId = systemId;
+    state.selectedSectorId = system.sectorId ?? state.selectedSectorId;
     rememberMapSystem(systemId);
     if (focusMap) {
         focusMapOnSystem(systemId);
     }
     renderSystemDetails();
     renderGalaxy(state.galaxy, state.empire);
+    if (restoreMapFocus) {
+        focusRenderedMapNode(".system-node", "systemId", systemId);
+    }
     syncTutorialDisplay();
 }
 
@@ -2162,7 +2411,9 @@ function renderMapInsight(galaxy, empire, presenceBySystem) {
 
     const routeCount = galaxy.links.filter(link => link.systemAId === selected.systemId || link.systemBId === selected.systemId).length;
     const localFleetCount = state.fleets.filter(item => item.fleet.currentSystemId === selected.systemId && item.fleet.status === "active" && item.fleet.shipCount > 0).length;
-    elements.mapInsight.textContent = `${selected.systemName} opens onto ${formatCount(routeCount, "route")} with ${formatCount(localFleetCount, "friendly fleet")} on station.`;
+    const sector = normaliseGalaxySectors(galaxy).find(candidate => candidate.sectorId === selected.sectorId);
+    const gatewaySignal = selected.isGateway ? " It controls an inter-sector gate." : "";
+    elements.mapInsight.textContent = `${selected.systemName} in ${sector ? mapSectorDisplayName(sector) : "uncharted space"} opens onto ${formatCount(routeCount, "route")} with ${formatCount(localFleetCount, "friendly fleet")} on station.${gatewaySignal}`;
 }
 
 function resetMapView() {
@@ -2177,6 +2428,10 @@ function applyMapPreset(preset) {
     state.mapPreset = preset;
     if (preset === "galaxy") {
         state.mapViewBox = { ...mapBounds };
+    } else if (preset === "sector") {
+        const sectorId = state.selectedSectorId
+            ?? state.galaxy?.systems.find(system => system.systemId === state.selectedSystemId)?.sectorId;
+        setMapViewAroundSector(sectorId);
     } else {
         const targetId = state.selectedSystemId ?? state.empire?.homeSystem.systemId;
         setMapViewAroundSystem(targetId, mapPresetWidths[preset]);
@@ -2186,8 +2441,81 @@ function applyMapPreset(preset) {
 }
 
 function focusMapOnSystem(systemId) {
-    state.mapPreset = "local";
-    setMapViewAroundSystem(systemId, mapPresetWidths.local);
+    const system = state.galaxy?.systems.find(candidate => candidate.systemId === systemId);
+    if (!system) {
+        return;
+    }
+
+    state.selectedSectorId = system.sectorId ?? state.selectedSectorId;
+    state.mapPreset = "sector";
+    setMapViewAroundSector(state.selectedSectorId);
+}
+
+function focusMapOnSector(sectorId, { recenter = true, restoreMapFocus = false } = {}) {
+    if (!normaliseGalaxySectors(state.galaxy).some(sector => sector.sectorId === sectorId)) {
+        return;
+    }
+
+    selectSectorRepresentative(sectorId);
+    if (recenter) {
+        state.mapPreset = "sector";
+        setMapViewAroundSector(sectorId);
+    } else {
+        state.mapPreset = null;
+    }
+    renderSystemDetails();
+    renderGalaxy(state.galaxy, state.empire);
+    if (restoreMapFocus) {
+        focusRenderedMapNode(".sector-node", "sectorId", sectorId);
+    }
+}
+
+function selectSectorRepresentative(sectorId) {
+    state.selectedSectorId = sectorId;
+    const selected = state.galaxy.systems.find(system => system.systemId === state.selectedSystemId);
+    if (selected?.sectorId !== sectorId) {
+        const representative = state.galaxy.systems
+            .filter(system => system.sectorId === sectorId)
+            .sort((left, right) => Number(right.isGateway) - Number(left.isGateway)
+                || right.strategicValue - left.strategicValue
+                || left.systemName.localeCompare(right.systemName))[0];
+        if (representative) {
+            state.selectedSystemId = representative.systemId;
+            rememberMapSystem(representative.systemId);
+        }
+    }
+}
+
+function focusRenderedMapNode(selector, dataName, value) {
+    const node = [...elements.galaxyMap.querySelectorAll(selector)]
+        .find(candidate => candidate.dataset[dataName] === value && candidate.getAttribute("aria-hidden") !== "true");
+    (node ?? elements.galaxyMap).focus({ preventScroll: true });
+}
+
+function setMapViewAroundSector(sectorId) {
+    const sector = normaliseGalaxySectors(state.galaxy).find(candidate => candidate.sectorId === sectorId);
+    const members = state.galaxy?.systems.filter(system => (system.sectorId || "legacy-galaxy") === sectorId) ?? [];
+    if (!sector || members.length === 0) {
+        const targetId = state.selectedSystemId ?? state.empire?.homeSystem.systemId;
+        setMapViewAroundSystem(targetId, mapPresetWidths.sector);
+        return;
+    }
+
+    const minX = Math.min(...members.map(system => system.x));
+    const maxX = Math.max(...members.map(system => system.x));
+    const minY = Math.min(...members.map(system => system.y));
+    const maxY = Math.max(...members.map(system => system.y));
+    const horizontalSpan = maxX - minX + 100;
+    const verticalSpan = (maxY - minY + 100) * mapBounds.width / mapBounds.height;
+    const width = Math.min(520, Math.max(mapPresetWidths.sector, horizontalSpan, verticalSpan));
+    const height = width * mapBounds.height / mapBounds.width;
+    state.mapViewBox = {
+        x: Number(sector.centreX) - width / 2,
+        y: Number(sector.centreY) - height / 2,
+        width,
+        height
+    };
+    constrainMapViewBox();
 }
 
 function setMapViewAroundSystem(systemId, width) {
@@ -2218,7 +2546,9 @@ function recoverMapToSystem(systemId) {
         renderRecentMapSystems();
     }
     state.mapPreset = "sector";
-    setMapViewAroundSystem(systemId, mapPresetWidths.sector);
+    const system = state.galaxy.systems.find(candidate => candidate.systemId === systemId);
+    state.selectedSectorId = system?.sectorId ?? state.selectedSectorId;
+    setMapViewAroundSector(state.selectedSectorId);
     applyMapViewBox();
     elements.galaxyMap.focus({ preventScroll: true });
 }
@@ -2283,24 +2613,38 @@ function renderRecentMapSystems() {
 
 function renderMapNavigator(galaxy, empire) {
     const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
-    const routes = galaxy.links.map(link => {
+    const sectors = normaliseGalaxySectors(galaxy);
+    const routes = galaxy.links.filter(link => {
+        const a = systems.get(link.systemAId);
+        const b = systems.get(link.systemBId);
+        return a && b && a.sectorId !== b.sectorId;
+    }).map(link => {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
         return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
     }).join("");
-    const nodes = galaxy.systems.map(system => {
+    const sectorNodes = sectors.map(sector => {
+        const systemCount = Number(sector.systemCount
+            ?? galaxy.systems.filter(system => system.sectorId === sector.sectorId).length);
         const classes = [
-            "navigator-system",
-            system.systemId === empire.homeSystem.systemId ? "is-home" : "",
-            system.systemId === state.selectedSystemId ? "is-selected" : ""
+            "navigator-sector",
+            sector.sectorId === empire.homeSystem.sectorId ? "is-home" : "",
+            sector.sectorId === state.selectedSectorId ? "is-selected" : ""
         ].filter(Boolean).join(" ");
-        return `<circle class="${classes}" cx="${system.x}" cy="${system.y}" r="10"><title>${escapeHtml(system.systemName)}</title></circle>`;
+        return `<circle class="${classes}" cx="${sector.centreX}" cy="${sector.centreY}" r="22"><title>${escapeHtml(mapSectorDisplayName(sector))}, ${formatCount(systemCount, "system")}</title></circle>`;
     }).join("");
+    const selected = systems.get(state.selectedSystemId);
+    const markers = [empire.homeSystem, selected]
+        .filter(Boolean)
+        .filter((system, index, items) => items.findIndex(candidate => candidate.systemId === system.systemId) === index)
+        .map(system => `<circle class="navigator-system${system.systemId === empire.homeSystem.systemId ? " is-home" : ""}${system.systemId === state.selectedSystemId ? " is-selected" : ""}" cx="${system.x}" cy="${system.y}" r="9"><title>${escapeHtml(system.systemName)}</title></circle>`)
+        .join("");
 
     elements.mapNavigator.innerHTML = `
         <rect class="navigator-field" x="0" y="0" width="1000" height="700"></rect>
         <g class="navigator-routes">${routes}</g>
-        <g class="navigator-systems">${nodes}</g>
+        <g class="navigator-sectors">${sectorNodes}</g>
+        <g class="navigator-systems">${markers}</g>
         <rect id="mapNavigatorViewport" class="navigator-viewport" rx="8"></rect>
     `;
     syncNavigatorViewport();
@@ -2314,16 +2658,15 @@ function moveMapFromNavigator(event) {
 
     const centreX = mapBounds.x + (event.clientX - rect.left) / rect.width * mapBounds.width;
     const centreY = mapBounds.y + (event.clientY - rect.top) / rect.height * mapBounds.height;
-    state.mapPreset = null;
-    state.mapViewBox.x = centreX - state.mapViewBox.width / 2;
-    state.mapViewBox.y = centreY - state.mapViewBox.height / 2;
-    constrainMapViewBox();
-    applyMapViewBox();
+    const sector = nearestMapSector(centreX, centreY);
+    if (sector) {
+        focusMapOnSector(sector.sectorId);
+    }
 }
 
 function zoomMap(factor, anchor = null) {
     const current = state.mapViewBox;
-    const targetWidth = Math.min(mapBounds.width, Math.max(220, current.width * factor));
+    const targetWidth = Math.min(mapBounds.width, Math.max(140, current.width * factor));
     const scale = targetWidth / current.width;
     const targetHeight = current.height * scale;
     const point = anchor ?? {
@@ -2338,7 +2681,35 @@ function zoomMap(factor, anchor = null) {
     };
     state.mapPreset = null;
     constrainMapViewBox();
-    applyMapViewBox();
+    if (!syncMapSectorContextToCamera()) {
+        applyMapViewBox();
+    }
+}
+
+function syncMapSectorContextToCamera() {
+    if (currentMapRange() === "galaxy") {
+        return false;
+    }
+
+    const centreX = state.mapViewBox.x + state.mapViewBox.width / 2;
+    const centreY = state.mapViewBox.y + state.mapViewBox.height / 2;
+    const sector = nearestMapSector(centreX, centreY);
+    if (!sector || sector.sectorId === state.selectedSectorId) {
+        return false;
+    }
+
+    focusMapOnSector(sector.sectorId, { recenter: false });
+    return true;
+}
+
+function nearestMapSector(x, y) {
+    return normaliseGalaxySectors(state.galaxy)
+        .slice()
+        .sort((left, right) => {
+            const leftDistance = Math.hypot(Number(left.centreX) - x, Number(left.centreY) - y);
+            const rightDistance = Math.hypot(Number(right.centreX) - x, Number(right.centreY) - y);
+            return leftDistance - rightDistance || left.sortOrder - right.sortOrder;
+        })[0] ?? null;
 }
 
 function mapPointFromEvent(event) {
@@ -2350,7 +2721,7 @@ function mapPointFromEvent(event) {
 }
 
 function constrainMapViewBox() {
-    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(220, state.mapViewBox.width));
+    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(140, state.mapViewBox.width));
     state.mapViewBox.height = state.mapViewBox.width * mapBounds.height / mapBounds.width;
     state.mapViewBox.x = Math.min(mapBounds.x + mapBounds.width - state.mapViewBox.width, Math.max(mapBounds.x, state.mapViewBox.x));
     state.mapViewBox.y = Math.min(mapBounds.y + mapBounds.height - state.mapViewBox.height, Math.max(mapBounds.y, state.mapViewBox.y));
@@ -2359,6 +2730,8 @@ function constrainMapViewBox() {
 function applyMapViewBox() {
     const viewBox = state.mapViewBox;
     elements.galaxyMap.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    elements.galaxyMap.dataset.mapRange = currentMapRange();
+    syncMapSemanticFocus();
     elements.mapResetView.classList.toggle("is-zoomed", viewBox.width < mapBounds.width);
     for (const button of elements.mapPresetButtons) {
         button.setAttribute("aria-pressed", String(button.dataset.mapPreset === state.mapPreset));
@@ -2367,14 +2740,52 @@ function applyMapViewBox() {
     syncNavigatorViewport();
 }
 
+function syncMapSemanticFocus() {
+    const range = elements.galaxyMap.dataset.mapRange;
+    for (const node of elements.galaxyMap.querySelectorAll(".system-node")) {
+        const isAvailable = range === "galaxy"
+            ? node.classList.contains("is-gateway") || node.classList.contains("is-important")
+            : node.classList.contains("is-active-sector") || node.classList.contains("is-adjacent-gateway");
+        node.setAttribute("tabindex", isAvailable ? "0" : "-1");
+        node.setAttribute("aria-hidden", String(!isAvailable));
+    }
+
+    for (const node of elements.galaxyMap.querySelectorAll(".sector-node")) {
+        const isAvailable = range === "galaxy"
+            || node.classList.contains("is-active")
+            || node.classList.contains("is-adjacent");
+        node.setAttribute("tabindex", isAvailable ? "0" : "-1");
+        node.setAttribute("aria-hidden", String(!isAvailable));
+    }
+}
+
+function currentMapRange() {
+    if (state.mapPreset) {
+        return state.mapPreset;
+    }
+
+    if (state.mapViewBox.width >= 700) {
+        return "galaxy";
+    }
+    if (state.mapViewBox.width >= 250) {
+        return "sector";
+    }
+    return "local";
+}
+
 function updateMapCameraHud() {
     const viewBox = state.mapViewBox;
     const centreX = Math.round(viewBox.x + viewBox.width / 2);
     const centreY = Math.round(viewBox.y + viewBox.height / 2);
     const selected = state.galaxy?.systems.find(system => system.systemId === state.selectedSystemId);
+    const sector = normaliseGalaxySectors(state.galaxy).find(candidate => candidate.sectorId === state.selectedSectorId);
     elements.mapCameraScale.textContent = `${Math.round(mapBounds.width / viewBox.width * 100)}%`;
     elements.mapCameraPosition.textContent = `X ${centreX} · Y ${centreY}`;
-    elements.mapCameraTarget.textContent = selected ? `Lock · ${selected.systemName}` : "No target lock";
+    elements.mapCameraTarget.textContent = selected
+        ? `Lock · ${selected.systemName} / ${sector ? mapSectorDisplayName(sector) : "Uncharted"}`
+        : sector
+            ? `Sector · ${mapSectorDisplayName(sector)}`
+            : "No target lock";
 }
 
 function syncNavigatorViewport() {
@@ -2420,7 +2831,12 @@ function linkedSystems(systemId) {
     const systems = new Map(state.galaxy.systems.map(system => [system.systemId, system]));
     return state.galaxy.links
         .filter(link => link.systemAId === systemId || link.systemBId === systemId)
-        .map(link => systems.get(link.systemAId === systemId ? link.systemBId : link.systemAId))
+        .map(link => {
+            const destination = systems.get(link.systemAId === systemId ? link.systemBId : link.systemAId);
+            return destination
+                ? { ...destination, routeDistance: link.distance, routeTravelTicks: link.travelTicks }
+                : null;
+        })
         .filter(Boolean)
         .sort((a, b) => a.systemName.localeCompare(b.systemName));
 }
@@ -2612,11 +3028,12 @@ function resourceCard(label, value, maxResource, generated, spent) {
 function renderMapStats(galaxy) {
     const contested = galaxy.presence.filter(item =>
         Object.values(item.effectivePresence).map(Number).filter(value => value > 0).length > 1).length;
-    const owned = galaxy.presence.filter(item => Number(item.effectivePresence[state.empire.empireId] ?? 0) > 0).length;
+    const gateways = galaxy.systems.filter(system => system.isGateway).length;
     elements.mapStats.innerHTML = `
+        ${statChip("Sectors", normaliseGalaxySectors(galaxy).length)}
         ${statChip("Systems", galaxy.systems.length)}
+        ${statChip("Gateways", gateways)}
         ${statChip("Routes", galaxy.links.length)}
-        ${statChip("Held", owned)}
         ${statChip("Contested", contested)}
     `;
 }

@@ -161,8 +161,52 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var domainSystems = state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderBy(system => system.SystemName).ToArray();
-        var systems = domainSystems.Select(ToGalaxySystemResponse).ToArray();
-        var links = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).Select(ToSystemLinkResponse).ToArray();
+        var domainLinks = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).ToArray();
+        var domainSectors = state.Sectors.Where(sector => sector.CycleId == cycle.CycleId).ToArray();
+        var systemsById = domainSystems.ToDictionary(system => system.SystemId);
+        var gatewaySystemIds = new HashSet<Guid>();
+        var adjacentSectorIds = domainSectors.ToDictionary(sector => sector.SectorId, _ => new HashSet<Guid>());
+        var sectorSortOrders = domainSectors.ToDictionary(sector => sector.SectorId, sector => sector.SortOrder);
+        foreach (var link in domainLinks)
+        {
+            if (!systemsById.TryGetValue(link.SystemAId, out var systemA)
+                || !systemsById.TryGetValue(link.SystemBId, out var systemB)
+                || systemA.SectorId == systemB.SectorId)
+            {
+                continue;
+            }
+
+            gatewaySystemIds.Add(systemA.SystemId);
+            gatewaySystemIds.Add(systemB.SystemId);
+            if (adjacentSectorIds.TryGetValue(systemA.SectorId, out var systemAAdjacentSectors)
+                && adjacentSectorIds.TryGetValue(systemB.SectorId, out var systemBAdjacentSectors))
+            {
+                systemAAdjacentSectors.Add(systemB.SectorId);
+                systemBAdjacentSectors.Add(systemA.SectorId);
+            }
+        }
+
+        var systems = domainSystems.Select(system => ToGalaxySystemResponse(system, gatewaySystemIds.Contains(system.SystemId))).ToArray();
+        var links = domainLinks.Select(ToSystemLinkResponse).ToArray();
+        var sectors = domainSectors
+            .OrderBy(sector => sector.SortOrder)
+            .ThenBy(sector => sector.SectorName)
+            .Select(sector => new GalaxySectorResponse(
+                sector.SectorId,
+                sector.CycleId,
+                sector.SectorName,
+                sector.CentreX,
+                sector.CentreY,
+                sector.SortOrder,
+                domainSystems.Count(system => system.SectorId == sector.SectorId),
+                gatewaySystemIds
+                    .Where(systemId => systemsById[systemId].SectorId == sector.SectorId)
+                    .OrderBy(systemId => systemsById[systemId].SystemName)
+                    .ToArray(),
+                adjacentSectorIds[sector.SectorId]
+                    .OrderBy(sectorId => sectorSortOrders[sectorId])
+                    .ToArray()))
+            .ToArray();
         var presence = domainSystems.Select(system =>
         {
             var effectivePresence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
@@ -181,7 +225,7 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
             .Select(item => ToColonialOutpostResponse(state, item))
             .ToArray();
 
-        return new GalaxyResponse(ToCycleResponse(cycle), systems, links, presence, outposts);
+        return new GalaxyResponse(ToCycleResponse(cycle), sectors, systems, links, presence, outposts);
     }));
 
 app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
@@ -385,6 +429,14 @@ static LoginResponse ToLoginResponse(GameState state, Player player, Empire empi
 static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 {
     var home = state.Systems.Single(system => system.SystemId == empire.HomeSystemId);
+    var systemsById = state.Systems
+        .Where(system => system.CycleId == empire.CycleId)
+        .ToDictionary(system => system.SystemId);
+    var homeIsGateway = state.SystemLinks.Any(link =>
+        link.CycleId == empire.CycleId
+        && (link.SystemAId == home.SystemId || link.SystemBId == home.SystemId)
+        && systemsById.TryGetValue(link.SystemAId == home.SystemId ? link.SystemBId : link.SystemAId, out var destination)
+        && destination.SectorId != home.SectorId);
     var resources = state.EmpireResources.Single(resource => resource.EmpireId == empire.EmpireId);
     var priorities = state.EmpirePriorities.Single(priority => priority.EmpireId == empire.EmpireId);
 
@@ -392,7 +444,7 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
         empire.EmpireId,
         empire.PlayerId,
         empire.EmpireName,
-        ToGalaxySystemResponse(home),
+        ToGalaxySystemResponse(home, homeIsGateway),
         ToEmpireResourceResponse(resources),
         ToEmpirePriorityResponse(priorities),
         state.Fleets.Count(fleet => fleet.EmpireId == empire.EmpireId && fleet.Status != FleetStatus.Destroyed));
@@ -507,13 +559,15 @@ static CycleResponse ToCycleResponse(Cycle cycle) =>
         cycle.Status,
         cycle.CreatedAt);
 
-static GalaxySystemResponse ToGalaxySystemResponse(GalaxySystem system) =>
+static GalaxySystemResponse ToGalaxySystemResponse(GalaxySystem system, bool isGateway = false) =>
     new(
         system.SystemId,
         system.CycleId,
         system.SystemName,
         system.X,
         system.Y,
+        system.SectorId,
+        isGateway,
         system.IndustryOutput,
         system.ResearchOutput,
         system.PopulationOutput,
@@ -835,12 +889,24 @@ public sealed record EmpireResponse(
 
 public sealed record GalaxyResponse(
     CycleResponse Cycle,
+    IReadOnlyCollection<GalaxySectorResponse> Sectors,
     IReadOnlyCollection<GalaxySystemResponse> Systems,
     IReadOnlyCollection<SystemLinkResponse> Links,
     IReadOnlyCollection<SystemPresenceResponse> Presence,
     IReadOnlyCollection<ColonialOutpostResponse> ColonialOutposts);
 
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
+
+public sealed record GalaxySectorResponse(
+    Guid SectorId,
+    Guid CycleId,
+    string SectorName,
+    int CentreX,
+    int CentreY,
+    int SortOrder,
+    int SystemCount,
+    IReadOnlyCollection<Guid> GatewaySystemIds,
+    IReadOnlyCollection<Guid> AdjacentSectorIds);
 
 public sealed record FleetResponse(
     FleetDataResponse Fleet,
@@ -962,6 +1028,8 @@ public sealed record GalaxySystemResponse(
     string SystemName,
     int X,
     int Y,
+    Guid SectorId,
+    bool IsGateway,
     decimal IndustryOutput,
     decimal ResearchOutput,
     decimal PopulationOutput,
