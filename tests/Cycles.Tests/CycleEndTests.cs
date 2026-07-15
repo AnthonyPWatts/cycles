@@ -142,6 +142,7 @@ public sealed class CycleEndTests
             seed: 9876);
 
         var nextCycle = state.Cycles.Single(cycle => cycle.CycleId == result.CycleId);
+        var nextSectors = state.Sectors.Where(sector => sector.CycleId == nextCycle.CycleId).ToArray();
         var nextSystems = state.Systems.Where(system => system.CycleId == nextCycle.CycleId).ToArray();
         var nextEmpires = state.Empires.Where(empire => empire.CycleId == nextCycle.CycleId).ToArray();
         var preservedSystem = Assert.Single(result.PreservedSystems);
@@ -152,6 +153,8 @@ public sealed class CycleEndTests
         Assert.Equal(9876, result.Seed);
         Assert.Equal(2, nextEmpires.Length);
         Assert.Equal(2, result.SuccessorEmpires.Count);
+        Assert.NotEmpty(nextSectors);
+        Assert.All(nextSystems, system => Assert.Contains(nextSectors, sector => sector.SectorId == system.SectorId));
         Assert.Contains(nextEmpires, empire => empire.PlayerId == firstEmpire.PlayerId && empire.EmpireName == "First Legacy");
         Assert.Contains(nextEmpires, empire => empire.PlayerId == secondEmpire.PlayerId && empire.EmpireName == "Second Remnant");
         Assert.Equal(sourceSystem.SystemId, preservedSystem.SourceSystemId);

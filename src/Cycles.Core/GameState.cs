@@ -20,6 +20,7 @@ public sealed class GameState
     public List<DiplomaticRelationship> DiplomaticRelationships { get; set; } = [];
     public List<Admiral> Admirals { get; set; } = [];
     public List<AdmiralBattleHistory> AdmiralBattleHistories { get; set; } = [];
+    public List<GalaxySector> Sectors { get; set; } = [];
     public List<GalaxySystem> Systems { get; set; } = [];
     public List<SystemLink> SystemLinks { get; set; } = [];
     public List<Fleet> Fleets { get; set; } = [];
@@ -53,6 +54,7 @@ public sealed class GameState
             DiplomaticRelationships = DiplomaticRelationships.Select(Clone).ToList(),
             Admirals = Admirals.Select(Clone).ToList(),
             AdmiralBattleHistories = AdmiralBattleHistories.Select(Clone).ToList(),
+            Sectors = Sectors.Select(Clone).ToList(),
             Systems = Systems.Select(Clone).ToList(),
             SystemLinks = SystemLinks.Select(Clone).ToList(),
             Fleets = Fleets.Select(Clone).ToList(),
@@ -81,6 +83,7 @@ public sealed class GameState
             CycleRankings = CycleRankings,
             CycleMajorEvents = CycleMajorEvents,
             SystemHistoricalSignals = SystemHistoricalSignals,
+            Sectors = Sectors,
             Systems = Systems,
             SystemLinks = SystemLinks,
 
@@ -129,6 +132,7 @@ public sealed class GameState
         DiplomaticRelationships = other.DiplomaticRelationships;
         Admirals = other.Admirals;
         AdmiralBattleHistories = other.AdmiralBattleHistories;
+        Sectors = other.Sectors;
         Systems = other.Systems;
         SystemLinks = other.SystemLinks;
         Fleets = other.Fleets;
@@ -330,10 +334,21 @@ public sealed class GameState
         CreatedAt = item.CreatedAt
     };
 
+    private static GalaxySector Clone(GalaxySector item) => new()
+    {
+        SectorId = item.SectorId,
+        CycleId = item.CycleId,
+        SectorName = item.SectorName,
+        CentreX = item.CentreX,
+        CentreY = item.CentreY,
+        SortOrder = item.SortOrder
+    };
+
     private static GalaxySystem Clone(GalaxySystem item) => new()
     {
         SystemId = item.SystemId,
         CycleId = item.CycleId,
+        SectorId = item.SectorId,
         SystemName = item.SystemName,
         X = item.X,
         Y = item.Y,
@@ -603,10 +618,21 @@ public sealed class SystemHistoricalSignal
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class GalaxySector
+{
+    public Guid SectorId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public string SectorName { get; set; } = "";
+    public int CentreX { get; set; }
+    public int CentreY { get; set; }
+    public int SortOrder { get; set; }
+}
+
 public sealed class GalaxySystem
 {
     public Guid SystemId { get; set; } = Guid.NewGuid();
     public Guid CycleId { get; set; }
+    public Guid SectorId { get; set; }
     public string SystemName { get; set; } = "";
     public int X { get; set; }
     public int Y { get; set; }

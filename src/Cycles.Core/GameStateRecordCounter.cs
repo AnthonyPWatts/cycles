@@ -16,6 +16,7 @@ public static class GameStateRecordCounter
         return state.Players.Count(item => playerIds.Contains(item.PlayerId))
                + state.AdminRoleAuditRecords.Count(item => playerIds.Contains(item.TargetPlayerId))
                + state.Cycles.Count(item => item.CycleId == cycleId)
+               + state.Sectors.Count(item => item.CycleId == cycleId)
                + state.Systems.Count(item => item.CycleId == cycleId)
                + state.SystemLinks.Count(item => item.CycleId == cycleId)
                + state.Empires.Count(item => item.CycleId == cycleId)

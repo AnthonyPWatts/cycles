@@ -16,7 +16,7 @@ public sealed record GameStateValidationResult(IReadOnlyList<string> Errors)
 
 public static class GameStateTransfer
 {
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
 
     private static readonly JsonSerializerOptions TransferJsonOptions = CreateJsonOptions();
     private static readonly PropertyInfo[] PersistedCollections = typeof(GameState)
@@ -67,9 +67,9 @@ public static class GameStateTransfer
                 throw new InvalidOperationException("The state transfer formatVersion must be an integer.");
             }
 
-            if (formatVersion != CurrentFormatVersion)
+            if (formatVersion is < 1 or > CurrentFormatVersion)
             {
-                throw new InvalidOperationException($"Unsupported state transfer formatVersion {formatVersion}; this CLI supports version {CurrentFormatVersion}.");
+                throw new InvalidOperationException($"Unsupported state transfer formatVersion {formatVersion}; this CLI supports versions 1 through {CurrentFormatVersion}.");
             }
 
             _ = RequireProperty(root, "exportedAt");
@@ -82,6 +82,13 @@ public static class GameStateTransfer
             foreach (var property in PersistedCollections)
             {
                 var jsonName = JsonNamingPolicy.CamelCase.ConvertName(property.Name);
+                if (formatVersion == 1
+                    && property.Name == nameof(GameState.Sectors)
+                    && !stateElement.TryGetProperty(jsonName, out _))
+                {
+                    continue;
+                }
+
                 var collection = RequireProperty(stateElement, jsonName);
                 if (collection.ValueKind != JsonValueKind.Array)
                 {
@@ -135,6 +142,11 @@ public static class GameStateTransfer
             foreach (var property in PersistedCollections)
             {
                 var jsonName = JsonNamingPolicy.CamelCase.ConvertName(property.Name);
+                if (property.Name == nameof(GameState.Sectors) && !root.TryGetProperty(jsonName, out _))
+                {
+                    continue;
+                }
+
                 var collection = RequireProperty(root, jsonName);
                 if (collection.ValueKind != JsonValueKind.Array)
                 {
@@ -209,6 +221,7 @@ public static class GameStateTransfer
         Unique(state.DiplomaticRelationships, item => item.DiplomaticRelationshipId, "diplomaticRelationships", errors);
         Unique(state.Admirals, item => item.AdmiralId, "admirals", errors);
         Unique(state.AdmiralBattleHistories, item => item.AdmiralBattleHistoryId, "admiralBattleHistories", errors);
+        Unique(state.Sectors, item => item.SectorId, "sectors", errors);
         Unique(state.Systems, item => item.SystemId, "systems", errors);
         Unique(state.SystemLinks, item => item.SystemLinkId, "systemLinks", errors);
         Unique(state.Fleets, item => item.FleetId, "fleets", errors);
@@ -290,16 +303,55 @@ public static class GameStateTransfer
         var playerIds = state.Players.Select(item => item.PlayerId).ToHashSet();
         var cycleIds = state.Cycles.Select(item => item.CycleId).ToHashSet();
         var empireIds = state.Empires.Select(item => item.EmpireId).ToHashSet();
+        var sectorsById = state.Sectors.GroupBy(item => item.SectorId).ToDictionary(group => group.Key, group => group.First());
         var systemsById = state.Systems.GroupBy(item => item.SystemId).ToDictionary(group => group.Key, group => group.First());
         var fleetsById = state.Fleets.GroupBy(item => item.FleetId).ToDictionary(group => group.Key, group => group.First());
         var admiralsById = state.Admirals.GroupBy(item => item.AdmiralId).ToDictionary(group => group.Key, group => group.First());
         var battleIds = state.BattleRecords.Select(item => item.BattleId).ToHashSet();
         var eventIds = state.Events.Select(item => item.EventId).ToHashSet();
 
+        foreach (var sector in state.Sectors)
+        {
+            Reference(cycleIds, sector.CycleId, $"Sector {sector.SectorId} Cycle", errors);
+            Required(sector.SectorName, $"Sector {sector.SectorId} has no name.", errors);
+            if (sector.SortOrder < 0)
+            {
+                errors.Add($"Sector {sector.SectorId} has a negative sort order.");
+            }
+        }
+
+        foreach (var duplicate in state.Sectors.GroupBy(item => (item.CycleId, item.SortOrder)).Where(group => group.Count() > 1))
+        {
+            errors.Add($"Cycle {duplicate.Key.CycleId} has more than one sector at sort order {duplicate.Key.SortOrder}.");
+        }
+
+        foreach (var cycleSectors in state.Sectors.GroupBy(item => item.CycleId))
+        {
+            foreach (var duplicate in cycleSectors
+                         .GroupBy(item => item.SectorName.Trim(), StringComparer.OrdinalIgnoreCase)
+                         .Where(group => group.Count() > 1))
+            {
+                errors.Add($"Cycle {cycleSectors.Key} has more than one sector named '{duplicate.Key}'.");
+            }
+        }
+
         foreach (var system in state.Systems)
         {
             Reference(cycleIds, system.CycleId, $"System {system.SystemId} Cycle", errors);
             Required(system.SystemName, $"System {system.SystemId} has no name.", errors);
+            var cycleHasSectors = state.Sectors.Any(item => item.CycleId == system.CycleId);
+            if (cycleHasSectors)
+            {
+                Reference(sectorsById.Keys, system.SectorId, $"System {system.SystemId} sector", errors);
+                if (sectorsById.TryGetValue(system.SectorId, out var sector) && sector.CycleId != system.CycleId)
+                {
+                    errors.Add($"System {system.SystemId} and its sector belong to different Cycles.");
+                }
+            }
+            else if (system.SectorId != Guid.Empty)
+            {
+                errors.Add($"System {system.SystemId} references a sector but its Cycle has no sectors.");
+            }
         }
 
         foreach (var empire in state.Empires)

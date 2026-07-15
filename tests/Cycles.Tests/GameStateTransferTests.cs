@@ -3,6 +3,7 @@ using System.Collections;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Cycles.Tests;
 
@@ -47,6 +48,41 @@ public sealed class GameStateTransferTests
             """);
         var partialException = Assert.Throws<InvalidOperationException>(() => GameStateTransfer.Read(partial));
         Assert.Contains("adminRoleAuditRecords", partialException.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Reader_accepts_version_one_documents_from_before_sector_persistence()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        var root = JsonSerializer.SerializeToNode(
+            new GameStateTransferDocument(1, TestState.Now, state),
+            GameStateJson.Options)!.AsObject();
+        root["formatVersion"] = 1;
+        var stateNode = root["state"]!.AsObject();
+        stateNode.Remove("sectors");
+        foreach (var system in stateNode["systems"]!.AsArray().Select(item => item!.AsObject()))
+        {
+            system.Remove("sectorId");
+        }
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString(GameStateJson.Options)));
+        var document = GameStateTransfer.Read(stream);
+
+        Assert.Equal(1, document.FormatVersion);
+        Assert.Empty(document.State.Sectors);
+        Assert.All(document.State.Systems, item => Assert.Equal(Guid.Empty, item.SectorId));
+    }
+
+    [Fact]
+    public void Validation_rejects_duplicate_sector_names_within_a_cycle()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        state.Sectors[1].SectorName = $"  {state.Sectors[0].SectorName.ToUpperInvariant()}  ";
+
+        var validation = GameStateTransfer.Validate(state);
+
+        Assert.False(validation.IsValid);
+        Assert.Contains(validation.Errors, error => error.Contains("more than one sector named", StringComparison.Ordinal));
     }
 
     [Fact]
