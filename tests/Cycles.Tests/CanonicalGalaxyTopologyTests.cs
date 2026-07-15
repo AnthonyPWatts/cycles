@@ -83,8 +83,9 @@ public sealed class CanonicalGalaxyTopologyTests
         var sectorDegrees = sectors
             .Select(sector => AdjacentSectors(sector.SectorId, crossLinks, sectorBySystem).Count)
             .ToArray();
-        Assert.All(sectorDegrees, degree => Assert.InRange(degree, 2, 5));
-        Assert.Equal([2, 3, 4, 5], sectorDegrees.Distinct().Order().ToArray());
+        Assert.All(sectorDegrees, degree => Assert.InRange(degree, 2, 4));
+        Assert.Equal([2, 3, 4], sectorDegrees.Distinct().Order().ToArray());
+        Assert.DoesNotContain(5, sectorDegrees);
         Assert.Equal(sectors.Length, ReachableSectorIds(sectors[0].SectorId, crossLinks, sectorBySystem).Count);
         Assert.Equal(systems.Length, ReachableSystemIds(systems[0].SystemId, links).Count);
 
@@ -98,12 +99,7 @@ public sealed class CanonicalGalaxyTopologyTests
             system => system.SystemId,
             system => links.Count(link => link.SystemAId == system.SystemId || link.SystemBId == system.SystemId));
         var superconnected = systems.Where(system => graphDegrees[system.SystemId] >= 5).ToArray();
-        Assert.NotEmpty(superconnected);
-        Assert.All(superconnected, system =>
-        {
-            Assert.True(system.StrategicValue >= 35);
-            Assert.True(system.HistoricalSignificance >= 2);
-        });
+        Assert.Empty(superconnected);
 
         var treatyGate = systems.Single(item => item.SystemName == "Treaty Gate");
         Assert.Contains(crossLinks, link => link.SystemAId == treatyGate.SystemId || link.SystemBId == treatyGate.SystemId);
@@ -167,6 +163,27 @@ public sealed class CanonicalGalaxyTopologyTests
         Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, result.LinksAdded);
         Assert.Equal(GameSeeder.CanonicalGalaxyRouteCount, result.LinksRemoved);
         Assert.All(state.SystemLinks, link => Assert.Contains(link.TravelTicks, new[] { 1, 2 }));
+        Assert.False(GameSeeder.UpgradeGalaxyTopology(state).Changed);
+    }
+
+    [Fact]
+    public void Topology_upgrade_repairs_the_previous_canonical_composition_without_changing_identities()
+    {
+        var state = GameSeeder.CreateCuratedColdStart(TestState.Now);
+        var systemIds = state.Systems.ToDictionary(item => item.SystemName, item => item.SystemId, StringComparer.Ordinal);
+        var sectorIds = state.Sectors.ToDictionary(item => item.SectorName, item => item.SectorId, StringComparer.Ordinal);
+        state.Systems.Single(item => item.SystemName == "Aster Vale").X = 1;
+        state.Sectors.Single(item => item.SectorName == "Aster Reach").CentreX = 1;
+
+        var result = GameSeeder.UpgradeGalaxyTopology(state);
+
+        Assert.True(result.Changed);
+        Assert.Equal(0, result.SectorsAdded);
+        Assert.Equal(0, result.SystemsAdded);
+        Assert.Equal(systemIds, state.Systems.ToDictionary(item => item.SystemName, item => item.SystemId, StringComparer.Ordinal));
+        Assert.Equal(sectorIds, state.Sectors.ToDictionary(item => item.SectorName, item => item.SectorId, StringComparer.Ordinal));
+        Assert.NotEqual(1, state.Systems.Single(item => item.SystemName == "Aster Vale").X);
+        Assert.NotEqual(1, state.Sectors.Single(item => item.SectorName == "Aster Reach").CentreX);
         Assert.False(GameSeeder.UpgradeGalaxyTopology(state).Changed);
     }
 

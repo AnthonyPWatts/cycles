@@ -11,8 +11,8 @@ public static class GameSeeder
     public const string CanonicalGalaxyTopologyKey = "territorial-graph-v2";
     public const int CanonicalGalaxySectorCount = 8;
     public const int CanonicalGalaxySystemCount = 64;
-    public const int CanonicalGalaxyBridgeCount = 13;
-    public const int CanonicalGalaxyRouteCount = 93;
+    public const int CanonicalGalaxyBridgeCount = 11;
+    public const int CanonicalGalaxyRouteCount = 91;
 
     private const int CanonicalGalaxySeed = 71421;
 
@@ -20,77 +20,79 @@ public static class GameSeeder
     [
         new(
             "Aster Reach",
-            500,
-            325,
+            700,
+            340,
             ["Treaty Gate", "Aster Vale", "Nadir Crossing", "Pale Harbour", "Yanaka's Reach", "Pseudopolis", "Brightfall", "Dawnward"],
-            [(-61, -18), (-31, -53), (18, -45), (55, -21), (63, 27), (25, 58), (-24, 51), (-56, 22)]),
+            [(-64, -30), (-2, -47), (53, -22), (15, -3), (54, 37), (-22, 33), (-65, 36), (-47, 4)]),
         new(
             "Cinder March",
-            278,
-            116,
+            160,
+            340,
             ["Cinderhome", "Ebon Strait", "Glass Meridian", "Keystone", "Ashen Gate", "Cinder Relay", "Pyre Anchorage", "Ember Watch"],
-            [(-58, -8), (-29, -49), (12, -57), (54, -25), (65, 17), (31, 53), (-17, 60), (-51, 29)]),
+            [(-65, -10), (-42, -48), (-15, -22), (-48, 15), (50, -50), (20, 5), (55, 20), (40, 52)]),
         new(
             "Hollow Crown",
-            722,
-            112,
+            500,
+            120,
             ["Hollow Crown", "Juniper Rift", "Hollow Lantern", "Crown Meridian", "Hollow Bastion", "Vigil Cairn", "Glass Refuge", "Silent Array"],
-            [(-66, 3), (-38, -43), (7, -60), (51, -34), (68, 11), (39, 55), (-10, 58), (-52, 35)]),
+            [(-58, -35), (-20, -25), (20, -35), (55, -10), (50, 32), (10, 35), (5, 58), (-48, 45)]),
         new(
             "Lacuna Verge",
-            866,
-            329,
+            830,
+            155,
             ["Lacuna", "Mournstar", "Lacuna Shoal", "Penumbral Span", "Mourn Relay", "Deep Vault", "Lacuna Beacon", "Far Meridian"],
-            [(-55, -32), (-15, -58), (31, -49), (65, -13), (54, 35), (13, 61), (-34, 52), (-63, 13)]),
+            [(-60, 0), (-35, -40), (5, -55), (45, -35), (60, 5), (35, 45), (-5, 60), (-45, 38)]),
         new(
             "Orison Fold",
-            696,
-            574,
+            800,
+            555,
             ["Orison", "Quietus", "Orison Lantern", "Pale Coil", "Orison Anchorage", "Quiet Harbour", "Fold Meridian", "Pilgrim's Wake"],
-            [(-63, -21), (-25, -56), (23, -53), (61, -18), (58, 31), (18, 61), (-31, 49), (-59, 17)]),
+            [(-50, -45), (-8, -40), (40, -42), (47, 0), (40, 35), (25, 55), (-40, 57), (0, 0)]),
         new(
             "Red Lattice",
-            337,
-            568,
+            490,
+            555,
             ["Red Lattice", "Sable Point", "Ternary", "Crimson Needle", "Crimson Relay", "Sable Vault", "Ternary Watch", "Red Haven"],
-            [(-57, -29), (-19, -62), (29, -48), (67, -8), (51, 39), (8, 59), (-38, 48), (-66, 8)]),
+            [(-45, -45), (-23, -16), (32, -45), (55, 0), (55, 48), (-14, 35), (-45, 17), (13, 2)]),
         new(
             "Umbral Marches",
-            126,
-            339,
+            180,
+            555,
             ["Umbral Way", "Verdant Coil", "Umbral Lantern", "Shadow Cairn", "Umbral Bastion", "Viridian Refuge", "Night Span", "Marcher Beacon"],
-            [(-52, -38), (-7, -60), (39, -44), (66, -4), (49, 42), (4, 63), (-43, 43), (-64, 4)]),
+            [(-60, 48), (-30, 35), (-5, -10), (20, 35), (55, -45), (40, 10), (30, -48), (62, -15)]),
         new(
             "Warden Line",
-            493,
-            100,
+            170,
+            125,
             ["Warden's Line", "Xanthe", "Yarrow", "Warden Watch", "Zenith Yard", "Sentinel Spur", "High Anchorage", "Northstar Gate"],
-            [(-62, -5), (-36, -41), (3, -55), (48, -37), (66, 5), (37, 47), (-5, 59), (-51, 36)])
+            [(-55, -45), (-14, -35), (34, -20), (-45, -2), (44, 16), (-25, 32), (10, 50), (55, 50)])
     ];
 
-    private static readonly (int FirstLocalIndex, int SecondLocalIndex)[] CanonicalLocalRoutes =
+    private static readonly (int FirstLocalIndex, int SecondLocalIndex)[][] CanonicalLocalRoutesBySector =
     [
-        (0, 1), (1, 2), (2, 3), (3, 0),
-        (3, 4),
-        (4, 5), (5, 6), (6, 7), (7, 4),
-        (1, 6)
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 0), (1, 3), (3, 5)],
+        [(0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6), (6, 7), (7, 4), (1, 6), (3, 4)],
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 0), (1, 6), (3, 5)],
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 0), (1, 3), (5, 7)],
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 0), (3, 7), (5, 7)],
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 0), (1, 5), (2, 6)],
+        [(0, 1), (1, 2), (2, 0), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 3), (1, 7)],
+        [(0, 1), (1, 2), (2, 4), (4, 7), (7, 6), (6, 5), (5, 3), (3, 0), (1, 3), (3, 4)]
     ];
 
     private static readonly BridgeDefinition[] CanonicalBridges =
     [
-        new(7, 4, 2, 0),
+        new(7, 0, 2, 0),
+        new(7, 7, 1, 0),
         new(2, 4, 3, 0),
-        new(3, 4, 4, 0),
-        new(4, 4, 5, 0),
-        new(5, 4, 6, 0),
-        new(6, 4, 1, 0),
-        new(1, 4, 7, 0),
-        new(0, 0, 7, 4),
-        new(0, 4, 2, 0),
-        new(0, 4, 3, 0),
-        new(0, 4, 4, 0),
-        new(0, 0, 5, 0),
-        new(6, 0, 7, 0)
+        new(2, 4, 0, 0),
+        new(3, 4, 0, 0),
+        new(1, 4, 6, 0),
+        new(1, 0, 5, 0),
+        new(6, 4, 5, 0),
+        new(5, 4, 0, 4),
+        new(5, 4, 4, 6),
+        new(0, 4, 4, 2)
     ];
 
     private static readonly string[] SystemNames =
@@ -185,13 +187,14 @@ public static class GameSeeder
         var cycle = activeCycles[0];
         var assignments = BuildCanonicalAssignments(cycle.CycleId);
         var hasCanonicalLayout = HasCanonicalGalaxyLayout(state, cycle.CycleId, assignments);
+        var hasCanonicalIdentity = HasCanonicalGalaxyIdentity(state, cycle.CycleId, assignments);
         if (hasCanonicalLayout && HasCanonicalGalaxyLinks(state, cycle.CycleId, assignments))
         {
             return new GalaxyTopologyUpgradeResult(false, 0, 0, 0, 0);
         }
 
         var cycleSystems = state.Systems.Where(item => item.CycleId == cycle.CycleId).ToArray();
-        if (!hasCanonicalLayout)
+        if (!hasCanonicalLayout && !hasCanonicalIdentity)
         {
             var legacyNames = SystemNames.Take(24).ToHashSet(StringComparer.Ordinal);
             var hasCuratedBriefing = state.Events.Any(item =>
@@ -224,22 +227,29 @@ public static class GameSeeder
         var systemsAdded = 0;
         if (!hasCanonicalLayout)
         {
-            AddCanonicalSectors(state, cycle.CycleId);
-            sectorsAdded = CanonicalGalaxySectorCount;
-            var existingByName = cycleSystems.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
-            var now = DateTimeOffset.UtcNow;
-            foreach (var assignment in assignments)
+            if (hasCanonicalIdentity)
             {
-                if (existingByName.TryGetValue(assignment.SystemName, out var existing))
+                ApplyCanonicalLayout(state, cycle.CycleId, assignments);
+            }
+            else
+            {
+                AddCanonicalSectors(state, cycle.CycleId);
+                sectorsAdded = CanonicalGalaxySectorCount;
+                var existingByName = cycleSystems.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
+                var now = DateTimeOffset.UtcNow;
+                foreach (var assignment in assignments)
                 {
-                    existing.SectorId = assignment.SectorId;
-                    existing.X = assignment.X;
-                    existing.Y = assignment.Y;
-                    continue;
-                }
+                    if (existingByName.TryGetValue(assignment.SystemName, out var existing))
+                    {
+                        existing.SectorId = assignment.SectorId;
+                        existing.X = assignment.X;
+                        existing.Y = assignment.Y;
+                        continue;
+                    }
 
-                state.Systems.Add(CreateCanonicalSystem(cycle.CycleId, assignment, now));
-                systemsAdded++;
+                    state.Systems.Add(CreateCanonicalSystem(cycle.CycleId, assignment, now));
+                    systemsAdded++;
+                }
             }
         }
 
@@ -391,10 +401,11 @@ public static class GameSeeder
         for (var sectorIndex = 0; sectorIndex < CanonicalSectors.Length; sectorIndex++)
         {
             var definition = CanonicalSectors[sectorIndex];
+            var localRoutes = CanonicalLocalRoutesBySector[sectorIndex];
             for (var localIndex = 0; localIndex < definition.SystemNames.Length; localIndex++)
             {
                 var coordinates = definition.LocalCoordinates[localIndex];
-                var localDegree = CanonicalLocalRoutes.Count(route =>
+                var localDegree = localRoutes.Count(route =>
                     route.FirstLocalIndex == localIndex || route.SecondLocalIndex == localIndex);
                 var bridgeDegree = CanonicalBridges.Count(bridge =>
                     (bridge.FirstSectorIndex == sectorIndex && bridge.FirstLocalIndex == localIndex)
@@ -424,15 +435,36 @@ public static class GameSeeder
             throw new InvalidOperationException("Canonical territorial sectors must define eight uniquely named systems each.");
         }
 
-        if (CanonicalLocalRoutes.Length != 10
+        if (CanonicalLocalRoutesBySector.Length != CanonicalGalaxySectorCount
+            || CanonicalLocalRoutesBySector.Any(routes => routes.Length != 10)
             || CanonicalBridges.Length != CanonicalGalaxyBridgeCount
-            || (CanonicalSectors.Length * CanonicalLocalRoutes.Length) + CanonicalBridges.Length != CanonicalGalaxyRouteCount)
+            || CanonicalLocalRoutesBySector.Sum(routes => routes.Length) + CanonicalBridges.Length != CanonicalGalaxyRouteCount)
         {
             throw new InvalidOperationException("Canonical territorial route definitions do not match the public topology counts.");
         }
 
         for (var sectorIndex = 0; sectorIndex < CanonicalSectors.Length; sectorIndex++)
         {
+            var localRoutes = CanonicalLocalRoutesBySector[sectorIndex];
+            var normalisedRoutes = localRoutes
+                .Select(route => route.FirstLocalIndex < route.SecondLocalIndex
+                    ? (route.FirstLocalIndex, route.SecondLocalIndex)
+                    : (route.SecondLocalIndex, route.FirstLocalIndex))
+                .ToArray();
+            var localDegrees = Enumerable.Range(0, 8)
+                .Select(localIndex => localRoutes.Count(route =>
+                    route.FirstLocalIndex == localIndex || route.SecondLocalIndex == localIndex))
+                .ToArray();
+            if (localRoutes.Any(route => route.FirstLocalIndex is < 0 or >= 8
+                                         || route.SecondLocalIndex is < 0 or >= 8
+                                         || route.FirstLocalIndex == route.SecondLocalIndex)
+                || normalisedRoutes.Distinct().Count() != localRoutes.Length
+                || localDegrees.Any(degree => degree is < 2 or > 4)
+                || ReachableLocalSystemCount(localRoutes) != 8)
+            {
+                throw new InvalidOperationException($"Sector {CanonicalSectors[sectorIndex].Name} must define one connected, bounded ten-route composition.");
+            }
+
             var gatewayDegrees = Enumerable.Range(0, 8)
                 .Select(localIndex => CanonicalBridges.Count(bridge =>
                     (bridge.FirstSectorIndex == sectorIndex && bridge.FirstLocalIndex == localIndex)
@@ -444,6 +476,26 @@ public static class GameSeeder
                 throw new InvalidOperationException($"Sector {CanonicalSectors[sectorIndex].Name} must expose exactly two bounded gateways.");
             }
         }
+    }
+
+    private static int ReachableLocalSystemCount(
+        IReadOnlyCollection<(int FirstLocalIndex, int SecondLocalIndex)> routes)
+    {
+        var visited = new HashSet<int> { 0 };
+        var queue = new Queue<int>();
+        queue.Enqueue(0);
+        while (queue.TryDequeue(out var current))
+        {
+            foreach (var adjacent in routes
+                         .Where(route => route.FirstLocalIndex == current || route.SecondLocalIndex == current)
+                         .Select(route => route.FirstLocalIndex == current ? route.SecondLocalIndex : route.FirstLocalIndex)
+                         .Where(visited.Add))
+            {
+                queue.Enqueue(adjacent);
+            }
+        }
+
+        return visited.Count;
     }
 
     private static GalaxySystem CreateCanonicalSystem(
@@ -497,9 +549,10 @@ public static class GameSeeder
             .ToArray();
         var added = 0;
 
-        foreach (var members in sectorMembers)
+        for (var sectorIndex = 0; sectorIndex < sectorMembers.Length; sectorIndex++)
         {
-            foreach (var route in CanonicalLocalRoutes)
+            var members = sectorMembers[sectorIndex];
+            foreach (var route in CanonicalLocalRoutesBySector[sectorIndex])
             {
                 added += AddCanonicalLink(
                     state,
@@ -582,6 +635,56 @@ public static class GameSeeder
         return true;
     }
 
+    private static bool HasCanonicalGalaxyIdentity(
+        GameState state,
+        Guid cycleId,
+        IReadOnlyCollection<CanonicalSystemAssignment> assignments)
+    {
+        var systems = state.Systems.Where(item => item.CycleId == cycleId).ToArray();
+        var sectors = state.Sectors.Where(item => item.CycleId == cycleId).ToArray();
+        if (systems.Length != CanonicalGalaxySystemCount || sectors.Length != CanonicalGalaxySectorCount)
+        {
+            return false;
+        }
+
+        var expectedSystems = assignments.ToDictionary(item => item.SystemName, StringComparer.Ordinal);
+        return systems.All(system =>
+                   expectedSystems.TryGetValue(system.SystemName, out var expected)
+                   && system.SystemId == CreateTopologyId(cycleId, "system", expected.SystemName))
+               && sectors.All(sector => CanonicalSectors.Any(definition =>
+                   sector.SectorId == CreateTopologyId(cycleId, "sector", definition.Name)));
+    }
+
+    private static void ApplyCanonicalLayout(
+        GameState state,
+        Guid cycleId,
+        IReadOnlyCollection<CanonicalSystemAssignment> assignments)
+    {
+        var sectorsById = state.Sectors
+            .Where(item => item.CycleId == cycleId)
+            .ToDictionary(item => item.SectorId);
+        for (var sectorIndex = 0; sectorIndex < CanonicalSectors.Length; sectorIndex++)
+        {
+            var definition = CanonicalSectors[sectorIndex];
+            var sector = sectorsById[CreateTopologyId(cycleId, "sector", definition.Name)];
+            sector.SectorName = definition.Name;
+            sector.CentreX = definition.CentreX;
+            sector.CentreY = definition.CentreY;
+            sector.SortOrder = sectorIndex;
+        }
+
+        var systemsByName = state.Systems
+            .Where(item => item.CycleId == cycleId)
+            .ToDictionary(item => item.SystemName, StringComparer.Ordinal);
+        foreach (var assignment in assignments)
+        {
+            var system = systemsByName[assignment.SystemName];
+            system.SectorId = assignment.SectorId;
+            system.X = assignment.X;
+            system.Y = assignment.Y;
+        }
+    }
+
     private static bool HasCanonicalGalaxyLinks(
         GameState state,
         Guid cycleId,
@@ -618,9 +721,10 @@ public static class GameSeeder
             .Select(group => group.OrderBy(item => item.LocalIndex).ToArray())
             .ToArray();
         var links = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var sector in members)
+        for (var sectorIndex = 0; sectorIndex < members.Length; sectorIndex++)
         {
-            foreach (var route in CanonicalLocalRoutes)
+            var sector = members[sectorIndex];
+            foreach (var route in CanonicalLocalRoutesBySector[sectorIndex])
             {
                 links.Add(
                     NormalizedPair(

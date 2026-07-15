@@ -1,9 +1,26 @@
+using System.Buffers.Binary;
 using System.Text.RegularExpressions;
 
 namespace Cycles.Tests;
 
 public sealed class GalaxyMapExperienceContractTests
 {
+    [Fact]
+    public void Authored_atlas_contains_one_galaxy_and_eight_full_resolution_sector_charts()
+    {
+        var atlasDirectory = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dashboard", "assets", "galaxy");
+        var assets = Directory.GetFiles(atlasDirectory, "*.png");
+
+        Assert.Equal(9, assets.Length);
+        Assert.Contains(assets, path => Path.GetFileName(path) == "galaxy-overview.png");
+        foreach (var asset in assets)
+        {
+            var header = File.ReadAllBytes(asset).AsSpan(0, 24);
+            Assert.InRange(BinaryPrimitives.ReadInt32BigEndian(header[16..20]), 1585, 1586);
+            Assert.Equal(992, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
+        }
+    }
+
     [Fact]
     public void Galaxy_map_exposes_named_ranges_and_orientation_recovery()
     {
@@ -24,6 +41,9 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function renderRecentMapSystems", script);
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
+        Assert.Contains("const authoredGalaxyAtlas", script);
+        Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.png\"", script);
+        Assert.Equal(8, Regex.Matches(script, "asset: \"/assets/galaxy/sector-").Count);
     }
 
     [Fact]
@@ -59,20 +79,31 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function mapSectorDisplayName", script);
         Assert.Contains("function mapSectorContext", script);
         Assert.Contains("function renderMapSectorLayer", script);
-        Assert.Contains("function mapSectorEnvelopePath", script);
+        Assert.Contains("function mapAtlasSectorPosition", script);
+        Assert.Contains("function mapAtlasSystemPosition", script);
+        Assert.Contains("galaxyRoutes: [", script);
+        Assert.Contains("function mapAtlasSectorRoutePath", script);
+        Assert.Contains("<image class=\"atlas-background\"", script);
+        Assert.Contains("<path class=\"link", script);
+        Assert.DoesNotContain("<line class=\"link", script);
+        Assert.DoesNotContain("(firstPosition.x + secondPosition.x) / 2", script);
+        Assert.Contains("selected-route", script);
+        Assert.Equal(8, Regex.Matches(script, @"\n\s+routes: \[").Count);
         Assert.Contains("function focusMapOnSector", script);
         Assert.Contains("function directionalMapSector", script);
-        Assert.Contains("function syncMapSectorContextToCamera", script);
         Assert.Contains("function focusRenderedMapNode", script);
         Assert.Contains("ArrowRight", script);
-        Assert.Contains("is-adjacent-gateway", script);
         Assert.DoesNotContain("(currentIndex + direction + sectors.length) % sectors.length", script);
         Assert.DoesNotContain("const immediateSystemIds", script);
+        Assert.DoesNotContain("elements.galaxyMap.addEventListener(\"pointerdown\"", script);
+        Assert.DoesNotContain("mapViewBox", script);
+        Assert.DoesNotContain("`Y${String(sortOrder)", script);
 
-        Assert.Contains("#galaxyMap[data-map-range=\"galaxy\"] .route-segment.is-local-route", css);
+        Assert.Contains(".atlas-background", css);
+        Assert.Contains(".atlas-route-overlay", css);
         Assert.Contains("#galaxyMap[data-map-range=\"sector\"] .system-node.is-active-sector .system-label", css);
         Assert.Contains("#galaxyMap[data-map-range=\"local\"] .system-node:not(.is-local-context)", css);
-        Assert.Contains(".sector-hull", css);
+        Assert.Contains(".sector-focus", css);
         Assert.Contains(".gateway-ring", css);
         Assert.Contains(".navigator-sector", css);
 

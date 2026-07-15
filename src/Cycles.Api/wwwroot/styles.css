@@ -835,13 +835,9 @@ select {
     height: 100%;
     min-height: 0;
     background: #050711;
-    cursor: grab;
-    touch-action: none;
+    cursor: default;
+    touch-action: manipulation;
     user-select: none;
-}
-
-#galaxyMap.is-panning {
-    cursor: grabbing;
 }
 
 #galaxyMap:focus-visible {
@@ -901,7 +897,7 @@ select {
 #mapNavigator {
     display: block;
     width: 100%;
-    aspect-ratio: 10 / 7;
+    aspect-ratio: 793 / 496;
     border: 1px solid rgba(126, 160, 218, 0.22);
     background: #060916;
     cursor: crosshair;
@@ -913,12 +909,17 @@ select {
 }
 
 .navigator-field {
-    fill: #070b19;
+    fill: rgba(3, 6, 14, 0.36);
 }
 
-.navigator-routes line {
-    stroke: rgba(223, 186, 104, 0.48);
-    stroke-width: 5;
+.navigator-atlas {
+    opacity: 0.72;
+}
+
+.navigator-routes path {
+    fill: none;
+    stroke: rgba(223, 186, 104, 0.58);
+    stroke-width: 7;
     stroke-dasharray: 10 8;
 }
 
@@ -2424,6 +2425,35 @@ dd {
     transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
 }
 
+.atlas-background,
+.atlas-vignette,
+.atlas-local-wash {
+    pointer-events: none;
+}
+
+.atlas-background {
+    filter: saturate(0.92) contrast(1.04) brightness(0.84);
+}
+
+.atlas-vignette {
+    fill: rgba(2, 4, 10, 0.08);
+    stroke: rgba(5, 8, 17, 0.72);
+    stroke-width: 34;
+}
+
+.atlas-local-wash {
+    fill: rgba(3, 5, 12, 0.18);
+}
+
+.sector-focus {
+    fill: rgba(95, 131, 201, 0.035);
+    stroke: rgba(144, 179, 239, 0.28);
+    stroke-width: 2;
+    stroke-dasharray: 8 12;
+    pointer-events: none;
+    transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
+}
+
 .sector-hit {
     fill: transparent;
     pointer-events: none;
@@ -2462,6 +2492,15 @@ dd {
     stroke-width: 2.2;
 }
 
+.sector-node:hover .sector-focus,
+.sector-node:focus .sector-focus,
+.sector-node.is-active .sector-focus {
+    fill: rgba(111, 151, 226, 0.1);
+    stroke: var(--accent);
+    stroke-dasharray: none;
+    stroke-width: 4;
+}
+
 .sector-anchor {
     fill: var(--gold);
     opacity: 0.72;
@@ -2480,7 +2519,7 @@ dd {
 }
 
 .sector-name {
-    font-size: 13px;
+    font-size: 24px;
     letter-spacing: 0.045em;
     stroke-width: 5px;
     text-transform: uppercase;
@@ -2488,7 +2527,7 @@ dd {
 
 .sector-count {
     fill: #8497ba;
-    font-size: 8px;
+    font-size: 14px;
     letter-spacing: 0.08em;
     stroke-width: 3px;
     text-transform: uppercase;
@@ -2499,6 +2538,7 @@ dd {
 }
 
 .route-glow {
+    fill: none;
     stroke: rgba(137, 174, 235, 0.08);
     stroke-width: 8;
     pointer-events: none;
@@ -2508,7 +2548,26 @@ dd {
     pointer-events: none;
 }
 
+.atlas-route-overlay .link {
+    stroke: rgba(215, 171, 92, 0.5);
+    stroke-width: 4;
+    stroke-dasharray: 6 12;
+    opacity: 0.34;
+}
+
+.atlas-route-overlay .route-glow {
+    stroke: rgba(223, 186, 104, 0.06);
+    stroke-width: 22;
+}
+
+.atlas-route-overlay.is-selected-sector-route .link {
+    stroke: #f1cb7b;
+    stroke-width: 6;
+    opacity: 0.82;
+}
+
 .link {
+    fill: none;
     stroke: #52637f;
     stroke-width: 2;
     opacity: 0.46;
@@ -2548,6 +2607,11 @@ dd {
     fill: var(--accent);
     opacity: calc(0.035 + var(--lens-intensity) * 0.22);
     pointer-events: none;
+}
+
+.system-hit {
+    fill: transparent;
+    pointer-events: all;
 }
 
 #galaxyMap[data-map-lens="strategy"] .system-aura,
@@ -2645,12 +2709,12 @@ dd {
 
 .system-label {
     fill: var(--text);
-    font-size: 14px;
-    font-weight: 650;
-    opacity: 0.74;
+    font-size: 21px;
+    font-weight: 750;
+    opacity: 0.88;
     paint-order: stroke;
     stroke: #050711;
-    stroke-width: 5px;
+    stroke-width: 7px;
     stroke-linejoin: round;
     pointer-events: none;
     transition: fill 150ms ease, opacity 150ms ease;
@@ -2691,8 +2755,7 @@ dd {
 }
 
 #galaxyMap .route-segment:not(.is-in-composition),
-#galaxyMap .sector-node:not(.is-in-composition),
-#galaxyMap .system-node:not(.is-in-composition) {
+#galaxyMap .sector-node:not(.is-in-composition) {
     opacity: 0;
     pointer-events: none;
 }
@@ -2708,7 +2771,7 @@ dd {
 }
 
 #galaxyMap[data-map-range="galaxy"] .sector-name {
-    font-size: 15px;
+    font-size: 24px;
 }
 
 #galaxyMap[data-map-range="galaxy"] .route-segment.is-bridge .link {
@@ -2740,7 +2803,7 @@ dd {
 }
 
 #galaxyMap[data-map-range="local"] .system-node:not(.is-local-context) {
-    opacity: 0;
+    opacity: 0.22;
     pointer-events: none;
 }
 
@@ -2756,13 +2819,13 @@ dd {
 }
 
 #galaxyMap[data-map-range="sector"] .system-label {
-    font-size: 7px;
-    stroke-width: 2.8px;
+    font-size: 21px;
+    stroke-width: 7px;
 }
 
 #galaxyMap[data-map-range="local"] .system-label {
-    font-size: 4px;
-    stroke-width: 1.7px;
+    font-size: 21px;
+    stroke-width: 7px;
 }
 
 #galaxyMap[data-map-range="sector"] .sector-name,
@@ -2780,6 +2843,42 @@ dd {
 #galaxyMap[data-map-range="local"] .sector-name,
 #galaxyMap[data-map-range="local"] .sector-count {
     opacity: 0;
+}
+
+.atlas-sector-caption {
+    pointer-events: none;
+}
+
+.atlas-sector-kicker,
+.atlas-sector-title,
+.atlas-sector-context {
+    paint-order: stroke;
+    stroke: rgba(3, 5, 12, 0.94);
+    stroke-linejoin: round;
+}
+
+.atlas-sector-kicker {
+    fill: var(--gold);
+    font-size: 16px;
+    font-weight: 850;
+    letter-spacing: 0.14em;
+    stroke-width: 5px;
+}
+
+.atlas-sector-title {
+    fill: #f4f7ff;
+    font-size: 36px;
+    font-weight: 850;
+    letter-spacing: 0.035em;
+    stroke-width: 9px;
+    text-transform: uppercase;
+}
+
+.atlas-sector-context {
+    fill: #b0bfd8;
+    font-size: 17px;
+    font-weight: 650;
+    stroke-width: 6px;
 }
 
 @keyframes map-orbit {

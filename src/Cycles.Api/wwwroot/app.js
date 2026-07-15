@@ -30,9 +30,6 @@ const state = {
     eventSort: "newest",
     mapLens: "overview",
     mapPreset: "galaxy",
-    mapViewBox: { x: 0, y: 0, width: 1000, height: 700 },
-    mapDrag: null,
-    mapDragged: false,
     mapRecentSystemIds: [],
     mapMaximised: false,
     priorityDraft: null,
@@ -43,11 +40,145 @@ const viewIds = ["command", "galaxy", "fleets", "history"];
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
 const inactivePriorityKeys = ["industryWeight", "researchWeight"];
 const activePriorityKeys = ["militaryWeight", "expansionWeight"];
-const mapBounds = Object.freeze({ x: 0, y: 0, width: 1000, height: 700 });
-const mapPresetWidths = Object.freeze({
-    galaxy: 1000,
-    sector: 320,
-    local: 180
+const mapBounds = Object.freeze({ x: 0, y: 0, width: 1586, height: 992 });
+const mapRanges = new Set(["galaxy", "sector", "local"]);
+const authoredGalaxyAtlas = Object.freeze({
+    galaxyAsset: "/assets/galaxy/galaxy-overview.png",
+    galaxyRoutes: [
+        ["Warden Line", "Hollow Crown", "M 515 200 C 585 210 625 210 700 200"],
+        ["Warden Line", "Cinder March", "M 320 300 C 315 335 315 355 320 385"],
+        ["Hollow Crown", "Lacuna Verge", "M 1040 200 C 1100 210 1130 210 1185 200"],
+        ["Hollow Crown", "Aster Reach", "M 960 270 C 1000 310 1020 350 1040 390"],
+        ["Lacuna Verge", "Aster Reach", "M 1330 330 C 1330 380 1300 430 1260 455"],
+        ["Cinder March", "Umbral Marches", "M 270 585 C 275 650 265 680 265 710"],
+        ["Cinder March", "Red Lattice", "M 405 485 C 520 500 600 580 650 665"],
+        ["Umbral Marches", "Red Lattice", "M 390 795 C 440 800 470 800 515 795"],
+        ["Red Lattice", "Aster Reach", "M 810 710 C 900 610 960 560 1020 540"],
+        ["Red Lattice", "Orison Fold", "M 850 800 C 950 825 1050 820 1120 790"],
+        ["Aster Reach", "Orison Fold", "M 1170 575 C 1170 650 1190 690 1220 710"]
+    ],
+    sectors: Object.freeze({
+        "Aster Reach": {
+            asset: "/assets/galaxy/sector-aster-reach.png",
+            galaxy: [1115, 472],
+            systems: {
+                "Treaty Gate": [292, 300], "Aster Vale": [782, 221], "Nadir Crossing": [1217, 361], "Pale Harbour": [910, 480],
+                "Yanaka's Reach": [1220, 744], "Pseudopolis": [619, 716], "Brightfall": [274, 736], "Dawnward": [423, 524]
+            },
+            routes: [
+                ["Treaty Gate", "Aster Vale", [520, 230]], ["Aster Vale", "Nadir Crossing", [1000, 235]],
+                ["Nadir Crossing", "Pale Harbour", [1090, 420]], ["Pale Harbour", "Yanaka's Reach", [1040, 620]],
+                ["Yanaka's Reach", "Pseudopolis", [930, 830]], ["Pseudopolis", "Brightfall", [450, 755]],
+                ["Brightfall", "Dawnward", [330, 650]], ["Dawnward", "Treaty Gate", [335, 410]],
+                ["Aster Vale", "Pale Harbour", [820, 350]], ["Pale Harbour", "Pseudopolis", [740, 590]]
+            ]
+        },
+        "Cinder March": {
+            asset: "/assets/galaxy/sector-cinder-march.png",
+            galaxy: [268, 468],
+            systems: {
+                "Cinderhome": [287, 467], "Ebon Strait": [458, 204], "Glass Meridian": [687, 223], "Keystone": [607, 364],
+                "Ashen Gate": [1186, 208], "Cinder Relay": [938, 518], "Pyre Anchorage": [1235, 615], "Ember Watch": [895, 763]
+            },
+            routes: [
+                ["Cinderhome", "Ebon Strait", [350, 300]], ["Ebon Strait", "Glass Meridian", [575, 190]],
+                ["Glass Meridian", "Keystone", [700, 300]], ["Keystone", "Cinderhome", [450, 350]],
+                ["Ashen Gate", "Cinder Relay", [1160, 390]], ["Cinder Relay", "Pyre Anchorage", [1110, 530]],
+                ["Pyre Anchorage", "Ember Watch", [1110, 760]], ["Ember Watch", "Ashen Gate", [1120, 450]],
+                ["Ebon Strait", "Pyre Anchorage", [850, 270]], ["Keystone", "Ashen Gate", [900, 320]]
+            ]
+        },
+        "Hollow Crown": {
+            asset: "/assets/galaxy/sector-hollow-crown.png",
+            galaxy: [808, 178],
+            systems: {
+                "Hollow Crown": [303, 223], "Juniper Rift": [518, 274], "Hollow Lantern": [719, 307], "Crown Meridian": [943, 275],
+                "Hollow Bastion": [1305, 372], "Vigil Cairn": [1125, 677], "Glass Refuge": [767, 832], "Silent Array": [400, 749]
+            },
+            routes: [
+                ["Hollow Crown", "Juniper Rift", [410, 235]], ["Juniper Rift", "Hollow Lantern", [620, 270]],
+                ["Hollow Lantern", "Crown Meridian", [830, 280]], ["Crown Meridian", "Hollow Bastion", [1130, 285]],
+                ["Hollow Bastion", "Vigil Cairn", [1290, 550]], ["Vigil Cairn", "Glass Refuge", [940, 800]],
+                ["Glass Refuge", "Silent Array", [580, 840]], ["Silent Array", "Hollow Crown", [250, 500]],
+                ["Juniper Rift", "Glass Refuge", [590, 520]], ["Crown Meridian", "Vigil Cairn", [1050, 470]]
+            ]
+        },
+        "Lacuna Verge": {
+            asset: "/assets/galaxy/sector-lacuna-verge.png",
+            galaxy: [1300, 182],
+            systems: {
+                "Lacuna": [357, 190], "Mournstar": [551, 277], "Lacuna Shoal": [795, 219], "Penumbral Span": [1005, 278],
+                "Mourn Relay": [1234, 778], "Deep Vault": [997, 699], "Lacuna Beacon": [763, 780], "Far Meridian": [459, 489]
+            },
+            routes: [
+                ["Lacuna", "Mournstar", [450, 220]], ["Mournstar", "Lacuna Shoal", [670, 230]],
+                ["Lacuna Shoal", "Penumbral Span", [900, 230]], ["Penumbral Span", "Mourn Relay", [1160, 450]],
+                ["Mourn Relay", "Deep Vault", [1120, 750]], ["Deep Vault", "Lacuna Beacon", [875, 760]],
+                ["Lacuna Beacon", "Far Meridian", [600, 720]], ["Far Meridian", "Lacuna", [350, 360]],
+                ["Mournstar", "Penumbral Span", [780, 300]], ["Deep Vault", "Far Meridian", [760, 590]]
+            ]
+        },
+        "Orison Fold": {
+            asset: "/assets/galaxy/sector-orison-fold.png",
+            galaxy: [1230, 782],
+            systems: {
+                "Orison": [408, 239], "Quietus": [718, 248], "Orison Lantern": [1128, 225], "Pale Coil": [1130, 472],
+                "Orison Anchorage": [1120, 677], "Quiet Harbour": [969, 807], "Fold Meridian": [472, 793], "Pilgrim's Wake": [749, 489]
+            },
+            routes: [
+                ["Orison", "Quietus", [560, 210]], ["Quietus", "Orison Lantern", [920, 300]],
+                ["Orison Lantern", "Pale Coil", [1180, 340]], ["Pale Coil", "Orison Anchorage", [1090, 580]],
+                ["Orison Anchorage", "Quiet Harbour", [1080, 760]], ["Quiet Harbour", "Fold Meridian", [720, 860]],
+                ["Fold Meridian", "Pilgrim's Wake", [620, 650]], ["Pilgrim's Wake", "Orison", [470, 440]],
+                ["Pale Coil", "Pilgrim's Wake", [950, 450]], ["Quiet Harbour", "Pilgrim's Wake", [880, 650]]
+            ]
+        },
+        "Red Lattice": {
+            asset: "/assets/galaxy/sector-red-lattice.png",
+            galaxy: [696, 778],
+            systems: {
+                "Red Lattice": [367, 177], "Sable Point": [593, 382], "Ternary": [1041, 225], "Crimson Needle": [1222, 500],
+                "Crimson Relay": [1215, 785], "Sable Vault": [676, 744], "Ternary Watch": [420, 627], "Red Haven": [891, 510]
+            },
+            routes: [
+                ["Red Lattice", "Sable Point", [500, 260]], ["Sable Point", "Ternary", [800, 260]],
+                ["Ternary", "Crimson Needle", [1200, 330]], ["Crimson Needle", "Crimson Relay", [1180, 650]],
+                ["Crimson Relay", "Sable Vault", [920, 820]], ["Sable Vault", "Ternary Watch", [540, 700]],
+                ["Ternary Watch", "Red Haven", [620, 520]], ["Red Haven", "Red Lattice", [650, 300]],
+                ["Sable Point", "Sable Vault", [520, 560]], ["Ternary", "Ternary Watch", [750, 380]]
+            ]
+        },
+        "Umbral Marches": {
+            asset: "/assets/galaxy/sector-umbral-marches.png",
+            galaxy: [255, 784],
+            systems: {
+                "Umbral Way": [280, 837], "Verdant Coil": [555, 778], "Umbral Lantern": [769, 421], "Shadow Cairn": [1097, 586],
+                "Umbral Bastion": [1245, 202], "Viridian Refuge": [1154, 389], "Night Span": [971, 191], "Marcher Beacon": [940, 760]
+            },
+            routes: [
+                ["Umbral Way", "Verdant Coil", [400, 800]], ["Verdant Coil", "Umbral Lantern", [650, 620]],
+                ["Umbral Lantern", "Umbral Way", [500, 600]], ["Umbral Lantern", "Shadow Cairn", [950, 440]],
+                ["Shadow Cairn", "Umbral Bastion", [1180, 390]], ["Umbral Bastion", "Viridian Refuge", [1250, 300]],
+                ["Viridian Refuge", "Night Span", [1080, 260]], ["Night Span", "Marcher Beacon", [900, 480]],
+                ["Marcher Beacon", "Shadow Cairn", [1020, 690]], ["Verdant Coil", "Marcher Beacon", [730, 850]]
+            ]
+        },
+        "Warden Line": {
+            asset: "/assets/galaxy/sector-warden-line.png",
+            galaxy: [286, 178],
+            systems: {
+                "Warden's Line": [340, 180], "Xanthe": [680, 255], "Yarrow": [1068, 328], "Warden Watch": [433, 449],
+                "Zenith Yard": [1127, 589], "Sentinel Spur": [594, 675], "High Anchorage": [880, 756], "Northstar Gate": [1248, 757]
+            },
+            routes: [
+                ["Warden's Line", "Xanthe", [500, 220]], ["Xanthe", "Yarrow", [880, 250]],
+                ["Yarrow", "Zenith Yard", [1150, 450]], ["Zenith Yard", "Northstar Gate", [1190, 680]],
+                ["Northstar Gate", "High Anchorage", [1080, 820]], ["High Anchorage", "Sentinel Spur", [730, 760]],
+                ["Sentinel Spur", "Warden Watch", [510, 590]], ["Warden Watch", "Warden's Line", [390, 310]],
+                ["Xanthe", "Warden Watch", [570, 360]], ["Warden Watch", "Zenith Yard", [800, 480]]
+            ]
+        }
+    })
 });
 const mapLensLabels = Object.freeze({
     overview: "Overview",
@@ -248,11 +379,6 @@ elements.advanceTurnButton.addEventListener("click", async () => {
 });
 
 elements.galaxyMap.addEventListener("click", event => {
-    if (state.mapDragged) {
-        state.mapDragged = false;
-        return;
-    }
-
     const node = event.target.closest(".system-node");
     if (node) {
         const entersSector = currentMapRange() === "galaxy" || node.classList.contains("is-adjacent-gateway");
@@ -361,63 +487,6 @@ elements.mapNavigator.addEventListener("keydown", event => {
     event.preventDefault();
     focusMapOnSector(state.selectedSectorId);
 });
-
-elements.galaxyMap.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || event.target.closest(".system-node, .sector-node")) {
-        return;
-    }
-
-    state.mapDrag = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        viewBox: { ...state.mapViewBox }
-    };
-    state.mapDragged = false;
-    elements.galaxyMap.classList.add("is-panning");
-    elements.galaxyMap.setPointerCapture(event.pointerId);
-});
-
-elements.galaxyMap.addEventListener("pointermove", event => {
-    if (!state.mapDrag) {
-        return;
-    }
-
-    const rect = elements.galaxyMap.getBoundingClientRect();
-    const deltaX = event.clientX - state.mapDrag.clientX;
-    const deltaY = event.clientY - state.mapDrag.clientY;
-    if (Math.abs(deltaX) + Math.abs(deltaY) > 4) {
-        state.mapDragged = true;
-    }
-
-    state.mapViewBox.x = state.mapDrag.viewBox.x - deltaX * state.mapDrag.viewBox.width / rect.width;
-    state.mapViewBox.y = state.mapDrag.viewBox.y - deltaY * state.mapDrag.viewBox.height / rect.height;
-    constrainMapViewBox();
-    applyMapViewBox();
-});
-
-for (const eventName of ["pointerup", "pointercancel"]) {
-    elements.galaxyMap.addEventListener(eventName, event => {
-        if (!state.mapDrag) {
-            return;
-        }
-
-        state.mapDrag = null;
-        elements.galaxyMap.classList.remove("is-panning");
-        if (elements.galaxyMap.hasPointerCapture(event.pointerId)) {
-            elements.galaxyMap.releasePointerCapture(event.pointerId);
-        }
-        if (eventName === "pointercancel") {
-            state.mapDragged = false;
-        } else {
-            if (state.mapDragged) {
-                syncMapSectorContextToCamera();
-            }
-            window.setTimeout(() => {
-                state.mapDragged = false;
-            }, 0);
-        }
-    });
-}
 
 elements.systemDetails.addEventListener("click", async event => {
     const systemButton = event.target.closest("[data-focus-system]");
@@ -1971,44 +2040,23 @@ function renderGalaxy(galaxy, empire) {
             : sectors[0]?.sectorId ?? null;
     }
 
+    const range = currentMapRange();
+    const activeSector = sectorsById.get(state.selectedSectorId) ?? sectors[0];
+    const activeMembers = galaxy.systems.filter(system => system.sectorId === activeSector?.sectorId);
     const sectorContext = mapSectorContext(galaxy, state.selectedSectorId);
     const composition = mapComposition(galaxy);
     const sectorLayer = renderMapSectorLayer(galaxy, sectors, sectorContext, composition);
-    const lines = galaxy.links.map(link => {
-        const a = systems.get(link.systemAId);
-        const b = systems.get(link.systemBId);
-        if (!a || !b) {
-            return "";
-        }
+    const lines = range === "galaxy"
+        ? renderAtlasGalaxyRoutes(galaxy, systems, sectorsById)
+        : renderAtlasSectorRoutes(galaxy, systems, activeSector, activeMembers, composition, selectedId);
 
-        const isSelectedRoute = link.systemAId === selectedId || link.systemBId === selectedId;
-        const isBridge = a.sectorId !== b.sectorId;
-        const isActiveSectorRoute = a.sectorId === state.selectedSectorId && b.sectorId === state.selectedSectorId;
-        const isGatewayContext = isBridge && (a.sectorId === state.selectedSectorId || b.sectorId === state.selectedSectorId);
-        const isInComposition = composition.linkIds.has(mapLinkKey(link));
-        const classes = [
-            "route-segment",
-            isInComposition ? "is-in-composition" : "",
-            isSelectedRoute ? "is-selected" : "",
-            isBridge ? "is-bridge" : "is-local-route",
-            isActiveSectorRoute ? "is-active-sector" : "",
-            isGatewayContext ? "is-gateway-context" : ""
-        ].filter(Boolean).join(" ");
-        return `
-            <g class="${classes}">
-                <line class="route-glow" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
-                <line class="link${isSelectedRoute ? " selected-route" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
-            </g>
-        `;
-    }).join("");
-
-    const lensMetrics = galaxy.systems.map(system => mapLensMetric(
+    const lensMetrics = activeMembers.map(system => mapLensMetric(
         system,
         presenceBySystem.get(system.systemId) ?? {},
         empire.empireId));
-    const maximumLensMetric = Math.max(1, ...lensMetrics.filter((_, index) => composition.systemIds.has(galaxy.systems[index].systemId)));
+    const maximumLensMetric = Math.max(1, ...lensMetrics);
 
-    const nodes = galaxy.systems.map((system, index) => {
+    const nodes = range === "galaxy" ? "" : activeMembers.map((system, index) => {
         const presence = presenceBySystem.get(system.systemId) ?? {};
         const ownPresence = Number(presence[empire.empireId] ?? 0);
         const activePresence = Object.values(presence).map(Number).filter(value => value > 0);
@@ -2017,15 +2065,18 @@ function renderGalaxy(galaxy, empire) {
         const lensMetric = lensMetrics[index];
         const lensIntensity = lensMetric / maximumLensMetric;
         const radius = state.mapLens === "overview"
-            ? 4 + Math.min(7, Math.sqrt(ownPresence) * 0.55)
-            : 4 + 8 * Math.sqrt(lensIntensity);
+            ? 12 + Math.min(8, Math.sqrt(ownPresence) * 0.7)
+            : 12 + 10 * Math.sqrt(lensIntensity);
         const isSelected = system.systemId === selectedId;
         const isImportant = isSelected || system.systemId === homeId || isContested || system.historicalSignificance > 0;
         const isGateway = Boolean(system.isGateway) || sectorContext.gatewaySystemIds.has(system.systemId);
         const isActiveSector = system.sectorId === state.selectedSectorId;
-        const isAdjacentGateway = sectorContext.adjacentGatewaySystemIds.has(system.systemId);
         const isInComposition = composition.systemIds.has(system.systemId);
         const isLocalContext = composition.localContextSystemIds.has(system.systemId);
+        const position = mapAtlasSystemPosition(system, activeSector, activeMembers);
+        const labelOnLeft = position.x > mapBounds.width * 0.72;
+        const labelX = position.x + (labelOnLeft ? -radius - 9 : radius + 9);
+        const labelAnchor = labelOnLeft ? "end" : "start";
         const classes = [
             "system",
             system.historicalSignificance > 0 ? "historic" : "",
@@ -2041,50 +2092,38 @@ function renderGalaxy(galaxy, empire) {
             isImportant ? "is-important" : "",
             isGateway ? "is-gateway" : "",
             isActiveSector ? "is-active-sector" : "",
-            isAdjacentGateway ? "is-adjacent-gateway" : ""
+            !isInComposition && range === "local" ? "is-context-muted" : ""
         ].filter(Boolean).join(" ");
 
         return `
             <g class="${nodeClasses}" data-system-id="${system.systemId}" role="button" tabindex="0" aria-label="${escapeHtml(label)}" style="--lens-intensity: ${lensIntensity}">
                 <title>${escapeHtml(label)}</title>
-                <circle class="system-aura" cx="${system.x}" cy="${system.y}" r="${radius + 11}"></circle>
-                ${ownPresence > 0 ? `<circle class="presence" cx="${system.x}" cy="${system.y}" r="${radius + 5}"></circle>` : ""}
-                ${isContested ? `<circle class="contested-ring" cx="${system.x}" cy="${system.y}" r="${radius + 10}"></circle>` : ""}
-                ${isGateway ? `<circle class="gateway-ring" cx="${system.x}" cy="${system.y}" r="${radius + 7}"></circle>` : ""}
+                <circle class="system-hit" cx="${position.x}" cy="${position.y}" r="${Math.max(34, radius + 14)}"></circle>
+                <circle class="system-aura" cx="${position.x}" cy="${position.y}" r="${radius + 18}"></circle>
+                ${ownPresence > 0 ? `<circle class="presence" cx="${position.x}" cy="${position.y}" r="${radius + 8}"></circle>` : ""}
+                ${isContested ? `<circle class="contested-ring" cx="${position.x}" cy="${position.y}" r="${radius + 13}"></circle>` : ""}
+                ${isGateway ? `<circle class="gateway-ring" cx="${position.x}" cy="${position.y}" r="${radius + 10}"></circle>` : ""}
                 ${isSelected ? `
-                    <circle class="selection-scan" cx="${system.x}" cy="${system.y}" r="${radius + 29}"></circle>
-                    <circle class="selection-orbit" cx="${system.x}" cy="${system.y}" r="${radius + 16}"></circle>
-                    ${mapSelectionReticle(system.x, system.y, radius + 23)}
+                    <circle class="selection-scan" cx="${position.x}" cy="${position.y}" r="${radius + 40}"></circle>
+                    <circle class="selection-orbit" cx="${position.x}" cy="${position.y}" r="${radius + 24}"></circle>
+                    ${mapSelectionReticle(position.x, position.y, radius + 31)}
                 ` : ""}
-                <circle class="${classes}" cx="${system.x}" cy="${system.y}" r="${radius}"></circle>
-                <circle class="system-core" cx="${system.x}" cy="${system.y}" r="${Math.max(2.8, radius * 0.24)}"></circle>
-                <text class="system-label${isSelected ? " selected-label" : ""}" x="${system.x + radius + 4}" y="${system.y + 2.5}">${escapeHtml(system.systemName)}</text>
+                <circle class="${classes}" cx="${position.x}" cy="${position.y}" r="${radius}"></circle>
+                <circle class="system-core" cx="${position.x}" cy="${position.y}" r="${Math.max(4, radius * 0.27)}"></circle>
+                <text class="system-label${isSelected ? " selected-label" : ""}" x="${labelX}" y="${position.y + 6}" text-anchor="${labelAnchor}">${escapeHtml(system.systemName)}</text>
             </g>
         `;
     }).join("");
 
     elements.galaxyMap.dataset.mapLens = state.mapLens;
-    elements.galaxyMap.dataset.mapRange = currentMapRange();
+    elements.galaxyMap.dataset.mapRange = range;
+    const atlasAsset = range === "galaxy"
+        ? authoredGalaxyAtlas.galaxyAsset
+        : mapAtlasSectorEntry(activeSector)?.asset ?? authoredGalaxyAtlas.galaxyAsset;
     elements.galaxyMap.innerHTML = `
-        <defs>
-            <pattern id="chartGrid" width="50" height="50" patternUnits="userSpaceOnUse">
-                <path d="M 50 0 L 0 0 0 50" class="chart-grid-line"></path>
-            </pattern>
-            <radialGradient id="chartField" cx="50%" cy="42%" r="72%">
-                <stop offset="0" stop-color="#18213a"></stop>
-                <stop offset="0.48" stop-color="#0b1020"></stop>
-                <stop offset="1" stop-color="#050711"></stop>
-            </radialGradient>
-            <linearGradient id="galacticPlane" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#5875aa" stop-opacity="0"></stop>
-                <stop offset="0.5" stop-color="#6f83b4" stop-opacity="0.12"></stop>
-                <stop offset="1" stop-color="#d4a85b" stop-opacity="0"></stop>
-            </linearGradient>
-        </defs>
-        <rect class="chart-field" x="-80" y="-80" width="1160" height="860"></rect>
-        <rect class="chart-grid" x="-80" y="-80" width="1160" height="860"></rect>
-        <g class="starfield-layer">${renderMapStarfield()}</g>
-        <ellipse class="galactic-plane" cx="500" cy="350" rx="610" ry="158" transform="rotate(-11 500 350)"></ellipse>
+        <image class="atlas-background" href="${atlasAsset}" x="0" y="0" width="${mapBounds.width}" height="${mapBounds.height}" preserveAspectRatio="xMidYMid slice"></image>
+        <rect class="atlas-vignette" x="0" y="0" width="${mapBounds.width}" height="${mapBounds.height}"></rect>
+        ${range === "local" ? `<rect class="atlas-local-wash" x="0" y="0" width="${mapBounds.width}" height="${mapBounds.height}"></rect>` : ""}
         <g class="sector-layer">${sectorLayer}</g>
         <g class="route-layer">${lines}</g>
         <g class="system-layer">${nodes}</g>
@@ -2112,6 +2151,105 @@ function renderGalaxy(galaxy, empire) {
     renderMapRecoveryState(galaxy, presenceBySystem);
 }
 
+function renderAtlasGalaxyRoutes(galaxy, systems, sectorsById) {
+    const linkedSectorPairs = new Set(galaxy.links.map(link => {
+        const first = systems.get(link.systemAId);
+        const second = systems.get(link.systemBId);
+        const firstSector = sectorsById.get(first?.sectorId);
+        const secondSector = sectorsById.get(second?.sectorId);
+        return firstSector && secondSector && firstSector.sectorId !== secondSector.sectorId
+            ? mapAtlasRouteKey(firstSector.sectorName, secondSector.sectorName)
+            : null;
+    }).filter(Boolean));
+
+    return authoredGalaxyAtlas.galaxyRoutes.map(([firstName, secondName, path]) => {
+        if (!linkedSectorPairs.has(mapAtlasRouteKey(firstName, secondName))) {
+            return "";
+        }
+        const firstSector = [...sectorsById.values()].find(sector => sector.sectorName === firstName);
+        const secondSector = [...sectorsById.values()].find(sector => sector.sectorName === secondName);
+        const isContextRoute = firstSector?.sectorId === state.selectedSectorId || secondSector?.sectorId === state.selectedSectorId;
+        return `
+            <g class="atlas-route-overlay is-bridge${isContextRoute ? " is-selected-sector-route" : ""}">
+                <path class="route-glow" d="${path}"></path>
+                <path class="link" d="${path}"></path>
+            </g>
+        `;
+    }).join("");
+}
+
+function renderAtlasSectorRoutes(galaxy, systems, sector, members, composition, selectedId) {
+    if (!sector) {
+        return "";
+    }
+
+    return galaxy.links.map(link => {
+        const first = systems.get(link.systemAId);
+        const second = systems.get(link.systemBId);
+        if (!first || !second || first.sectorId !== sector.sectorId || second.sectorId !== sector.sectorId) {
+            return "";
+        }
+
+        const firstPosition = mapAtlasSystemPosition(first, sector, members);
+        const secondPosition = mapAtlasSystemPosition(second, sector, members);
+        const path = mapAtlasSectorRoutePath(sector, first.systemName, second.systemName, firstPosition, secondPosition);
+        if (!path) {
+            return "";
+        }
+
+        const isSelectedRoute = first.systemId === selectedId || second.systemId === selectedId;
+        const isInComposition = composition.linkIds.has(mapLinkKey(link));
+        return `
+            <g class="route-segment is-local-route is-active-sector${isInComposition ? " is-in-composition" : ""}${isSelectedRoute ? " is-selected" : ""}">
+                <path class="route-glow" d="${path}"></path>
+                <path class="link${isSelectedRoute ? " selected-route" : ""}" d="${path}"></path>
+            </g>
+        `;
+    }).join("");
+}
+
+function mapAtlasRouteKey(first, second) {
+    return [first, second].sort().join("\n");
+}
+
+function mapAtlasSectorRoutePath(sector, firstName, secondName, firstPosition, secondPosition) {
+    const trace = mapAtlasSectorEntry(sector)?.routes?.find(route =>
+        mapAtlasRouteKey(route[0], route[1]) === mapAtlasRouteKey(firstName, secondName));
+    if (!trace) {
+        return null;
+    }
+
+    const control = trace[2];
+    return `M ${firstPosition.x} ${firstPosition.y} Q ${control[0]} ${control[1]} ${secondPosition.x} ${secondPosition.y}`;
+}
+
+function mapAtlasSectorEntry(sector) {
+    return sector ? authoredGalaxyAtlas.sectors[sector.sectorName] ?? null : null;
+}
+
+function mapAtlasSectorPosition(sector) {
+    const position = mapAtlasSectorEntry(sector)?.galaxy;
+    return position
+        ? { x: position[0], y: position[1] }
+        : { x: Number(sector?.centreX ?? 500) * mapBounds.width / 1000, y: Number(sector?.centreY ?? 350) * mapBounds.height / 700 };
+}
+
+function mapAtlasSystemPosition(system, sector, members) {
+    const position = mapAtlasSectorEntry(sector)?.systems?.[system.systemName];
+    if (position) {
+        return { x: position[0], y: position[1] };
+    }
+
+    const minX = Math.min(...members.map(member => Number(member.x)));
+    const maxX = Math.max(...members.map(member => Number(member.x)));
+    const minY = Math.min(...members.map(member => Number(member.y)));
+    const maxY = Math.max(...members.map(member => Number(member.y)));
+    return {
+        x: 250 + (Number(system.x) - minX) / Math.max(1, maxX - minX) * (mapBounds.width - 500),
+        y: 170 + (Number(system.y) - minY) / Math.max(1, maxY - minY) * (mapBounds.height - 340)
+    };
+}
+
 function normaliseGalaxySectors(galaxy) {
     if (!galaxy) {
         return [];
@@ -2124,7 +2262,7 @@ function normaliseGalaxySectors(galaxy) {
     const groupedSystems = groupSystemsBySector(galaxy.systems);
     return [...groupedSystems.entries()].map(([sectorId, systems], index) => ({
         sectorId,
-        sectorName: groupedSystems.size === 1 ? "Known Space" : `Sector Y${index}`,
+        sectorName: groupedSystems.size === 1 ? "Known Space" : `Region ${index + 1}`,
         centreX: Math.round(systems.reduce((total, system) => total + system.x, 0) / systems.length),
         centreY: Math.round(systems.reduce((total, system) => total + system.y, 0) / systems.length),
         sortOrder: index,
@@ -2144,11 +2282,7 @@ function groupSystemsBySector(systems) {
 }
 
 function mapSectorDisplayName(sector) {
-    const sortOrder = Number(sector.sortOrder);
-    const code = Number.isFinite(sortOrder)
-        ? `Y${String(sortOrder).padStart(2, "0")}`
-        : "Y??";
-    return `${code} · ${sector.sectorName}`;
+    return sector.sectorName;
 }
 
 function mapSectorContext(galaxy, activeSectorId) {
@@ -2270,12 +2404,28 @@ function mapLinkKey(link) {
 
 function renderMapSectorLayer(galaxy, sectors, context, composition = mapComposition(galaxy)) {
     const systemsBySector = groupSystemsBySector(galaxy.systems);
+    if (currentMapRange() !== "galaxy") {
+        const sector = sectors.find(candidate => candidate.sectorId === state.selectedSectorId) ?? sectors[0];
+        const count = Number(sector?.systemCount ?? systemsBySector.get(sector?.sectorId)?.length ?? 0);
+        const selected = galaxy.systems.find(system => system.systemId === state.selectedSystemId);
+        const contextLabel = currentMapRange() === "local" && selected
+            ? `Local routes from ${selected.systemName}`
+            : `${formatCount(count, "system")} · ${context.adjacentSectorIds.size} neighbouring sectors`;
+        return sector ? `
+            <g class="atlas-sector-caption" aria-hidden="true">
+                <text class="atlas-sector-kicker" x="72" y="74">${currentMapRange() === "local" ? "LOCAL CHART" : "SECTOR CHART"}</text>
+                <text class="atlas-sector-title" x="72" y="118">${escapeHtml(mapSectorDisplayName(sector))}</text>
+                <text class="atlas-sector-context" x="74" y="151">${escapeHtml(contextLabel)}</text>
+            </g>
+        ` : "";
+    }
+
     return sectors.map(sector => {
         const members = systemsBySector.get(sector.sectorId) ?? [];
-        const path = mapSectorEnvelopePath(members, sector);
         const isActive = sector.sectorId === state.selectedSectorId;
         const isAdjacent = context.adjacentSectorIds.has(sector.sectorId);
         const isInComposition = composition.sectorIds.has(sector.sectorId);
+        const position = mapAtlasSectorPosition(sector);
         const classes = [
             "sector-node",
             isInComposition ? "is-in-composition" : "",
@@ -2288,11 +2438,11 @@ function renderMapSectorLayer(galaxy, sectors, context, composition = mapComposi
         return `
             <g class="${classes}" data-sector-id="${escapeHtml(sector.sectorId)}" role="button" tabindex="0" aria-label="${escapeHtml(label)}">
                 <title>${escapeHtml(label)}. Select to enter this sector.</title>
-                <path class="sector-hull" d="${path}"></path>
-                <circle class="sector-hit" cx="${sector.centreX}" cy="${sector.centreY}" r="30"></circle>
-                <circle class="sector-anchor" cx="${sector.centreX}" cy="${sector.centreY}" r="3"></circle>
-                <text class="sector-name" x="${sector.centreX}" y="${sector.centreY - 4}">${escapeHtml(displayName)}</text>
-                <text class="sector-count" x="${sector.centreX}" y="${sector.centreY + 11}">${formatCount(count, "system")}</text>
+                <ellipse class="sector-hit" cx="${position.x}" cy="${position.y}" rx="128" ry="92"></ellipse>
+                <ellipse class="sector-focus" cx="${position.x}" cy="${position.y}" rx="112" ry="78"></ellipse>
+                <circle class="sector-anchor" cx="${position.x}" cy="${position.y}" r="5"></circle>
+                <text class="sector-name" x="${position.x}" y="${position.y + 104}">${escapeHtml(displayName)}</text>
+                <text class="sector-count" x="${position.x}" y="${position.y + 129}">${formatCount(count, "system")}</text>
             </g>
         `;
     }).join("");
@@ -2499,23 +2649,11 @@ function applyMapPreset(preset) {
 }
 
 function setMapRange(range) {
-    const preset = range;
-    if (!Object.hasOwn(mapPresetWidths, preset)) {
+    if (!mapRanges.has(range)) {
         return;
     }
 
-    state.mapPreset = preset;
-    if (preset === "galaxy") {
-        state.mapViewBox = { ...mapBounds };
-    } else if (preset === "sector") {
-        const sectorId = state.selectedSectorId
-            ?? state.galaxy?.systems.find(system => system.systemId === state.selectedSystemId)?.sectorId;
-        setMapViewAroundSector(sectorId);
-    } else {
-        const targetId = state.selectedSystemId ?? state.empire?.homeSystem.systemId;
-        setMapViewAroundSystem(targetId, mapPresetWidths[preset]);
-    }
-    constrainMapViewBox();
+    state.mapPreset = range;
     if (state.galaxy && state.empire) {
         renderGalaxy(state.galaxy, state.empire);
     } else {
@@ -2531,7 +2669,6 @@ function focusMapOnSystem(systemId) {
 
     state.selectedSectorId = system.sectorId ?? state.selectedSectorId;
     state.mapPreset = "sector";
-    setMapViewAroundSector(state.selectedSectorId);
 }
 
 function focusMapOnSector(sectorId, { recenter = true, restoreMapFocus = false } = {}) {
@@ -2542,7 +2679,6 @@ function focusMapOnSector(sectorId, { recenter = true, restoreMapFocus = false }
     selectSectorRepresentative(sectorId);
     if (recenter) {
         state.mapPreset = "sector";
-        setMapViewAroundSector(sectorId);
     }
     renderSystemDetails();
     renderGalaxy(state.galaxy, state.empire);
@@ -2573,64 +2709,21 @@ function focusRenderedMapNode(selector, dataName, value) {
     (node ?? elements.galaxyMap).focus({ preventScroll: true });
 }
 
-function setMapViewAroundSector(sectorId) {
-    const sector = normaliseGalaxySectors(state.galaxy).find(candidate => candidate.sectorId === sectorId);
-    const members = state.galaxy?.systems.filter(system => (system.sectorId || "legacy-galaxy") === sectorId) ?? [];
-    if (!sector || members.length === 0) {
-        const targetId = state.selectedSystemId ?? state.empire?.homeSystem.systemId;
-        setMapViewAroundSystem(targetId, mapPresetWidths.sector);
-        return;
-    }
-
-    const minX = Math.min(...members.map(system => system.x));
-    const maxX = Math.max(...members.map(system => system.x));
-    const minY = Math.min(...members.map(system => system.y));
-    const maxY = Math.max(...members.map(system => system.y));
-    const horizontalSpan = maxX - minX + 100;
-    const verticalSpan = (maxY - minY + 100) * mapBounds.width / mapBounds.height;
-    const width = Math.min(520, Math.max(mapPresetWidths.sector, horizontalSpan, verticalSpan));
-    const height = width * mapBounds.height / mapBounds.width;
-    state.mapViewBox = {
-        x: Number(sector.centreX) - width / 2,
-        y: Number(sector.centreY) - height / 2,
-        width,
-        height
-    };
-    constrainMapViewBox();
-}
-
-function setMapViewAroundSystem(systemId, width) {
-    const system = state.galaxy?.systems.find(item => item.systemId === systemId);
-    if (!system) {
-        return;
-    }
-
-    const height = width * mapBounds.height / mapBounds.width;
-    state.mapViewBox = {
-        x: system.x - width / 2,
-        y: system.y - height / 2,
-        width,
-        height
-    };
-    constrainMapViewBox();
-}
-
 function recoverMapToSystem(systemId) {
     if (!systemId || !state.galaxy?.systems.some(system => system.systemId === systemId)) {
         return;
     }
 
+    state.mapPreset = "sector";
     if (state.selectedSystemId !== systemId) {
         selectSystem(systemId);
     } else {
         rememberMapSystem(systemId);
         renderRecentMapSystems();
+        renderGalaxy(state.galaxy, state.empire);
     }
-    state.mapPreset = "sector";
     const system = state.galaxy.systems.find(candidate => candidate.systemId === systemId);
     state.selectedSectorId = system?.sectorId ?? state.selectedSectorId;
-    setMapViewAroundSector(state.selectedSectorId);
-    applyMapViewBox();
     elements.galaxyMap.focus({ preventScroll: true });
 }
 
@@ -2695,15 +2788,20 @@ function renderRecentMapSystems() {
 function renderMapNavigator(galaxy, empire) {
     const systems = new Map(galaxy.systems.map(system => [system.systemId, system]));
     const sectors = normaliseGalaxySectors(galaxy);
-    const routes = galaxy.links.filter(link => {
+    const sectorsById = new Map(sectors.map(sector => [sector.sectorId, sector]));
+    const linkedSectorPairs = new Set(galaxy.links.filter(link => {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
         return a && b && a.sectorId !== b.sectorId;
     }).map(link => {
         const a = systems.get(link.systemAId);
         const b = systems.get(link.systemBId);
-        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>`;
-    }).join("");
+        return mapAtlasRouteKey(sectorsById.get(a.sectorId).sectorName, sectorsById.get(b.sectorId).sectorName);
+    }));
+    const routes = authoredGalaxyAtlas.galaxyRoutes
+        .filter(route => linkedSectorPairs.has(mapAtlasRouteKey(route[0], route[1])))
+        .map(route => `<path d="${route[2]}"></path>`)
+        .join("");
     const sectorNodes = sectors.map(sector => {
         const systemCount = Number(sector.systemCount
             ?? galaxy.systems.filter(system => system.sectorId === sector.sectorId).length);
@@ -2712,23 +2810,16 @@ function renderMapNavigator(galaxy, empire) {
             sector.sectorId === empire.homeSystem.sectorId ? "is-home" : "",
             sector.sectorId === state.selectedSectorId ? "is-selected" : ""
         ].filter(Boolean).join(" ");
-        return `<circle class="${classes}" cx="${sector.centreX}" cy="${sector.centreY}" r="22"><title>${escapeHtml(mapSectorDisplayName(sector))}, ${formatCount(systemCount, "system")}</title></circle>`;
+        const position = mapAtlasSectorPosition(sector);
+        return `<circle class="${classes}" cx="${position.x}" cy="${position.y}" r="34"><title>${escapeHtml(mapSectorDisplayName(sector))}, ${formatCount(systemCount, "system")}</title></circle>`;
     }).join("");
-    const selected = systems.get(state.selectedSystemId);
-    const markers = [empire.homeSystem, selected]
-        .filter(Boolean)
-        .filter((system, index, items) => items.findIndex(candidate => candidate.systemId === system.systemId) === index)
-        .map(system => `<circle class="navigator-system${system.systemId === empire.homeSystem.systemId ? " is-home" : ""}${system.systemId === state.selectedSystemId ? " is-selected" : ""}" cx="${system.x}" cy="${system.y}" r="9"><title>${escapeHtml(system.systemName)}</title></circle>`)
-        .join("");
 
     elements.mapNavigator.innerHTML = `
-        <rect class="navigator-field" x="0" y="0" width="1000" height="700"></rect>
+        <image class="navigator-atlas" href="${authoredGalaxyAtlas.galaxyAsset}" x="0" y="0" width="${mapBounds.width}" height="${mapBounds.height}" preserveAspectRatio="xMidYMid slice"></image>
+        <rect class="navigator-field" x="0" y="0" width="${mapBounds.width}" height="${mapBounds.height}"></rect>
         <g class="navigator-routes">${routes}</g>
         <g class="navigator-sectors">${sectorNodes}</g>
-        <g class="navigator-systems">${markers}</g>
-        <rect id="mapNavigatorViewport" class="navigator-viewport" rx="8"></rect>
     `;
-    syncNavigatorViewport();
 }
 
 function moveMapFromNavigator(event) {
@@ -2745,28 +2836,14 @@ function moveMapFromNavigator(event) {
     }
 }
 
-function syncMapSectorContextToCamera() {
-    if (currentMapRange() === "galaxy") {
-        return false;
-    }
-
-    const centreX = state.mapViewBox.x + state.mapViewBox.width / 2;
-    const centreY = state.mapViewBox.y + state.mapViewBox.height / 2;
-    const sector = nearestMapSector(centreX, centreY);
-    if (!sector || sector.sectorId === state.selectedSectorId) {
-        return false;
-    }
-
-    focusMapOnSector(sector.sectorId, { recenter: false });
-    return true;
-}
-
 function nearestMapSector(x, y) {
     return normaliseGalaxySectors(state.galaxy)
         .slice()
         .sort((left, right) => {
-            const leftDistance = Math.hypot(Number(left.centreX) - x, Number(left.centreY) - y);
-            const rightDistance = Math.hypot(Number(right.centreX) - x, Number(right.centreY) - y);
+            const leftPosition = mapAtlasSectorPosition(left);
+            const rightPosition = mapAtlasSectorPosition(right);
+            const leftDistance = Math.hypot(leftPosition.x - x, leftPosition.y - y);
+            const rightDistance = Math.hypot(rightPosition.x - x, rightPosition.y - y);
             return leftDistance - rightDistance || left.sortOrder - right.sortOrder;
         })[0] ?? null;
 }
@@ -2788,8 +2865,10 @@ function directionalMapSector(sectorId, key) {
     return sectors
         .filter(sector => sector.sectorId !== current.sectorId)
         .map(sector => {
-            const deltaX = Number(sector.centreX) - Number(current.centreX);
-            const deltaY = Number(sector.centreY) - Number(current.centreY);
+            const sectorPosition = mapAtlasSectorPosition(sector);
+            const currentPosition = mapAtlasSectorPosition(current);
+            const deltaX = sectorPosition.x - currentPosition.x;
+            const deltaY = sectorPosition.y - currentPosition.y;
             const distance = Math.hypot(deltaX, deltaY);
             const projection = deltaX * direction.x + deltaY * direction.y;
             return {
@@ -2805,22 +2884,13 @@ function directionalMapSector(sectorId, key) {
             || left.sector.sortOrder - right.sector.sortOrder)[0]?.sector ?? null;
 }
 
-function constrainMapViewBox() {
-    state.mapViewBox.width = Math.min(mapBounds.width, Math.max(140, state.mapViewBox.width));
-    state.mapViewBox.height = state.mapViewBox.width * mapBounds.height / mapBounds.width;
-    state.mapViewBox.x = Math.min(mapBounds.x + mapBounds.width - state.mapViewBox.width, Math.max(mapBounds.x, state.mapViewBox.x));
-    state.mapViewBox.y = Math.min(mapBounds.y + mapBounds.height - state.mapViewBox.height, Math.max(mapBounds.y, state.mapViewBox.y));
-}
-
 function applyMapViewBox() {
-    const viewBox = state.mapViewBox;
-    elements.galaxyMap.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    elements.galaxyMap.setAttribute("viewBox", `${mapBounds.x} ${mapBounds.y} ${mapBounds.width} ${mapBounds.height}`);
     elements.galaxyMap.dataset.mapRange = currentMapRange();
     syncMapSemanticFocus();
     for (const button of elements.mapPresetButtons) {
         button.setAttribute("aria-pressed", String(button.dataset.mapPreset === state.mapPreset));
     }
-    syncNavigatorViewport();
 }
 
 function syncMapSemanticFocus() {
@@ -2843,18 +2913,6 @@ function syncMapSemanticFocus() {
 
 function currentMapRange() {
     return state.mapPreset ?? "galaxy";
-}
-
-function syncNavigatorViewport() {
-    const viewport = elements.mapNavigator.querySelector("#mapNavigatorViewport");
-    if (!viewport) {
-        return;
-    }
-
-    viewport.setAttribute("x", state.mapViewBox.x);
-    viewport.setAttribute("y", state.mapViewBox.y);
-    viewport.setAttribute("width", state.mapViewBox.width);
-    viewport.setAttribute("height", state.mapViewBox.height);
 }
 
 function setMapMaximised(maximised) {

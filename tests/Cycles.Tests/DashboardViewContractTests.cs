@@ -51,9 +51,12 @@ public sealed class DashboardViewContractTests
         Assert.Contains("aria-describedby=\"mapInteractionHint\"", html);
 
         Assert.DoesNotContain("elements.galaxyMap.addEventListener(\"wheel\"", script);
+        Assert.DoesNotContain("elements.galaxyMap.addEventListener(\"pointerdown\"", script);
         Assert.DoesNotContain("function zoomMap", script);
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
+        Assert.Contains("authoredGalaxyAtlas", script);
+        Assert.Contains("viewBox=\"0 0 1586 992\"", html);
         Assert.Contains("function renderMapOwnershipStats", script);
         Assert.Contains("function renderMapInsight", script);
         Assert.Contains("selected-route", script);

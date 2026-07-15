@@ -1388,6 +1388,8 @@ Consequences:
 
 Decision: supersede the 16-sector crown with a canonical four-empire galaxy containing 8 sectors, 64 systems, and 93 routes. Limit both hierarchy levels to 8 children. Give every sector an irregular connected 8-system, 10-route graph and exactly two gateway systems. Connect sectors through 13 bridges, allowing selected gateway systems to serve several lanes. Present the topology through three curated Galaxy, Sector, and Local compositions rather than continuous camera zoom.
 
+Status: the 8×8 territorial scale and 10-route sector rule remain current. The exact 93-route/13-bridge graph is superseded by the authored-atlas decision below, which makes the visible 91-route/11-bridge chart authoritative.
+
 Reasoning:
 
 - Degree-two graphs can only form paths and cycles, so the former route limit mathematically forced the necklace appearance at both levels.
@@ -1399,8 +1401,27 @@ Reasoning:
 Consequences:
 
 - `territorial-graph-v2` is the canonical seed for the Core, generated Docker fixture, normal Development seed, successor Cycles, and trusted playground.
-- The sector graph is connected with degree 2–5. Each sector remains internally connected with local system degree 2–4; gateway bridge degree is 1–3.
+- The sector graph is connected with degree 2–4. Each sector remains internally connected with local system degree 2–4; gateway bridge degree is 1–2.
 - The deployed Development database is deliberately reseeded rather than migrated from the intermediate 280-system crown. The deployment workflow requires an explicit manual `reseed` input for this destructive path and retains guarded upgrades for normal deployments.
 - The `/galaxy` contract and sector schema do not change shape. Gateway and adjacency data remain derived from links, including gateway fan-out.
 - Galaxy range shows regional strategy, Sector range shows eight local systems and their outbound bridge lanes, and Local range shows the selected neighbourhood. Continuous free zoom and raw bottom-of-map totals are removed.
 - Scale beyond 8 sectors or 64 systems remains an explicit product and rendering decision, not an implied capability.
+
+## 2026-07-15: Adopt A Fixed Authored Galaxy Atlas
+
+Decision: make the canonical 8-sector and 8-system-per-sector distribution a designed spatial contract. Use one full-resolution galaxy chart and eight full-resolution sector charts as stable map layers, with position-aware SVG overlays for live labels, hit targets, selection, strategic lenses, route emphasis, visibility-safe intelligence, keyboard access, and command handoff.
+
+Reasoning:
+
+- The canonical map is deliberately finite. Procedurally redrawing the same fixed geography added rendering complexity without adding player value.
+- Authored compositions can carry visual hierarchy, depth, atmosphere, and recognisable shapes more effectively than a generic layout algorithm while the overlays preserve real interaction and current data.
+- A central hub made the galaxy strategically and visually monotonous. The 11 visible bridges form a connected partial mesh with sector degree 2–4, and the eight sector graphs use different 10-route compositions.
+- Internal construction references such as `Y00` were useful during design but are not player-facing names.
+
+Consequences:
+
+- Galaxy, Sector, and Local are discrete authored compositions rather than positions on a freely pannable camera. Local retains the selected sector chart for orientation and subdues systems outside the selected neighbourhood.
+- The image files contain no gameplay text. All names, status, ownership, metrics, focus states and accessible controls remain runtime overlays sourced from the existing empire-scoped response. Every route has an authored SVG trace so live colour and animation follow the painted curve instead of drawing a straight endpoint chord.
+- No client rendering dependency is added. The existing SVG interaction layer hosts the atlas images and overlays.
+- Canonical system and sector identifiers remain stable under `territorial-graph-v2`. The guarded topology upgrade can repair the previous canonical coordinates and route network in place when there are no fleets in transit and no pending orders.
+- The generated SQL development fixture and normal seed use the visible 80-local-route plus 11-bridge graph. Hosted state is not changed merely by merging the client and seed update; deployment remains a separate guarded operation.
