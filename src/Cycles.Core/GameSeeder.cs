@@ -78,19 +78,19 @@ public static class GameSeeder
 
     private static readonly BridgeDefinition[] CanonicalBridges =
     [
-        new(0, 0, 1, 0),
+        new(7, 4, 2, 0),
+        new(2, 4, 3, 0),
+        new(3, 4, 4, 0),
+        new(4, 4, 5, 0),
+        new(5, 4, 6, 0),
+        new(6, 4, 1, 0),
+        new(1, 4, 7, 0),
+        new(0, 0, 7, 4),
         new(0, 4, 2, 0),
-        new(0, 0, 3, 0),
+        new(0, 4, 3, 0),
         new(0, 4, 4, 0),
         new(0, 0, 5, 0),
-        new(1, 0, 2, 0),
-        new(1, 4, 3, 0),
-        new(1, 4, 6, 0),
-        new(2, 4, 4, 0),
-        new(2, 4, 5, 0),
-        new(3, 4, 7, 0),
-        new(4, 4, 7, 4),
-        new(5, 4, 6, 4)
+        new(6, 0, 7, 0)
     ];
 
     private static readonly string[] SystemNames =
@@ -460,7 +460,7 @@ public static class GameSeeder
         var strategicValue = ((industry + research + population) / 5)
                              + (isGateway ? 12 : 0)
                              + (Math.Max(0, assignment.BridgeDegree - 1) * 5);
-        if (totalDegree >= 5)
+        if (totalDegree >= 5 || assignment.BridgeDegree >= 2)
         {
             strategicValue = Math.Max(35, strategicValue);
         }

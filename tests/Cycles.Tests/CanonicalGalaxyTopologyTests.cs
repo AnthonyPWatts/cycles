@@ -68,6 +68,18 @@ public sealed class CanonicalGalaxyTopologyTests
         Assert.All(gatewayBridgeDegrees, degree => Assert.InRange(degree, 1, 3));
         Assert.Contains(1, gatewayBridgeDegrees);
         Assert.Contains(gatewayBridgeDegrees, degree => degree > 1);
+        var multiBridgeGateways = crossLinks
+            .SelectMany(link => new[] { link.SystemAId, link.SystemBId })
+            .GroupBy(item => item)
+            .Where(group => group.Count() > 1)
+            .Select(group => systems.Single(system => system.SystemId == group.Key))
+            .ToArray();
+        Assert.NotEmpty(multiBridgeGateways);
+        Assert.All(multiBridgeGateways, system =>
+        {
+            Assert.True(system.StrategicValue >= 35);
+            Assert.True(system.HistoricalSignificance >= 2);
+        });
         var sectorDegrees = sectors
             .Select(sector => AdjacentSectors(sector.SectorId, crossLinks, sectorBySystem).Count)
             .ToArray();
