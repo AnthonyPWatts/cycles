@@ -40,6 +40,7 @@ public sealed class SqlServerMigratorTests
         var diplomaticRelationships = Assert.Single(migrations, migration => migration.MigrationId == "012_add_diplomatic_relationships");
         var externalIdentityAndAdminAudit = Assert.Single(migrations, migration => migration.MigrationId == "013_add_external_identity_and_admin_audit");
         var inactivePriorities = Assert.Single(migrations, migration => migration.MigrationId == "014_lock_inactive_priorities");
+        var galaxySectors = Assert.Single(migrations, migration => migration.MigrationId == "015_add_galaxy_sectors");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -61,5 +62,12 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CREATE TABLE dbo.AdminRoleAuditRecords", externalIdentityAndAdminAudit.Script, StringComparison.Ordinal);
         Assert.Contains("CK_EmpirePriorities_ActiveProgrammes", inactivePriorities.Script, StringComparison.Ordinal);
         Assert.Contains("CAST(MilitaryWeight AS BIGINT) + ExpansionWeight = 100", inactivePriorities.Script, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE dbo.GalaxySectors", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("ADD SectorID UNIQUEIDENTIFIER NULL", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("FK_Systems_GalaxySectors", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("sys.foreign_keys", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("IX_Systems_SectorID", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("BEGIN TRANSACTION", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("COMMIT TRANSACTION", galaxySectors.Script, StringComparison.Ordinal);
     }
 }

@@ -9,6 +9,33 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     private const string ConnectionStringEnvironmentVariable = "CYCLES_SQL_INTEGRATION_CONNECTION_STRING";
 
     [Fact]
+    public void Store_round_trips_legacy_systems_without_sector_membership_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateMovementState(linkSystems: true);
+        state.Sectors.Clear();
+        foreach (var system in state.Systems)
+        {
+            system.SectorId = Guid.Empty;
+        }
+
+        Assert.Empty(state.Sectors);
+        Assert.All(state.Systems, item => Assert.Equal(Guid.Empty, item.SectorId));
+
+        store.Replace(state);
+
+        var loaded = store.LoadOrCreate();
+        Assert.Empty(loaded.Sectors);
+        Assert.All(loaded.Systems, item => Assert.Equal(Guid.Empty, item.SectorId));
+    }
+
+    [Fact]
     public void Store_round_trips_and_updates_state_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -90,6 +117,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var loaded = store.LoadOrCreate();
         Assert.Equal(cycle.CycleId, loaded.GetActiveCycle()?.CycleId);
         Assert.Equal(8, loaded.Systems.Count);
+        Assert.NotEmpty(loaded.Sectors);
+        Assert.All(loaded.Systems, item => Assert.Contains(loaded.Sectors, sector => sector.SectorId == item.SectorId));
         Assert.Equal(2, loaded.Empires.Count);
         Assert.Equal(2, loaded.Admirals.Count);
         Assert.All(loaded.Fleets, fleet => Assert.NotNull(fleet.AdmiralId));
@@ -538,6 +567,29 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_active_cycle_update_uses_the_cycle_tick_lock_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        store.Replace(state);
+
+        var cycleLockName = $"Cycles.Tick.{cycle.CycleId:D}";
+        using (HoldSqlApplicationLock(connectionString, cycleLockName))
+        {
+            var exception = Assert.Throws<TimeoutException>(() => store.UpdateActiveCycleExclusively(current => current.Systems.Count));
+
+            Assert.Contains(cycleLockName, exception.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public async Task Store_run_tick_if_due_advances_cycle_once_across_concurrent_workers()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -646,6 +698,66 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.DoesNotContain(replaced.Cycles, item => item.CycleId == cycle.CycleId);
         Assert.Single(replaced.Cycles);
         Assert.Equal(6, replaced.Systems.Count);
+    }
+
+    [Fact]
+    public void Store_replaces_external_identity_when_player_ids_change()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var original = GameSeeder.CreateDefault(systemCount: 6, empireCount: 1, seed: 901);
+        original.Players[0].ExternalIssuer = "https://identity.example";
+        original.Players[0].ExternalSubject = "subject-1";
+        store.Replace(original);
+
+        var replacement = GameSeeder.CreateDefault(systemCount: 6, empireCount: 1, seed: 902);
+        replacement.Players[0].ExternalIssuer = "https://identity.example";
+        replacement.Players[0].ExternalSubject = "subject-1";
+        store.Replace(replacement);
+
+        var loaded = store.LoadOrCreate();
+        var player = Assert.Single(loaded.Players);
+        Assert.Equal(replacement.Players[0].PlayerId, player.PlayerId);
+        Assert.Equal("subject-1", player.ExternalSubject);
+    }
+
+    [Fact]
+    public void Store_replaces_sector_ids_without_violating_cycle_uniqueness()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = GameSeeder.CreateDefault(systemCount: 8, empireCount: 2, seed: 903);
+        store.Replace(state);
+
+        var replacement = state.DeepClone();
+        var replacementIds = replacement.Sectors.ToDictionary(sector => sector.SectorId, _ => Guid.NewGuid());
+        foreach (var sector in replacement.Sectors)
+        {
+            sector.SectorId = replacementIds[sector.SectorId];
+        }
+
+        foreach (var system in replacement.Systems)
+        {
+            system.SectorId = replacementIds[system.SectorId];
+        }
+
+        store.Replace(replacement);
+
+        var loaded = store.LoadOrCreate();
+        Assert.Equal(
+            replacement.Sectors.Select(sector => sector.SectorId).Order(),
+            loaded.Sectors.Select(sector => sector.SectorId).Order());
+        Assert.All(loaded.Systems, system => Assert.Contains(loaded.Sectors, sector => sector.SectorId == system.SectorId));
     }
 
     [Fact]
@@ -853,6 +965,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Equal(2, updated.Cycles.Count);
         Assert.Equal(2, updated.CycleRankings.Count(item => item.CycleId == sourceCycle.CycleId));
         Assert.Equal(sourcePlayers, successorEmpires.Select(empire => empire.PlayerId).Order().ToArray());
+        Assert.Single(updated.Sectors, sector => sector.CycleId == successor.CycleId);
         Assert.Equal(8, updated.Systems.Count(system => system.CycleId == successor.CycleId));
         Assert.Contains(updated.Events, item => item.CycleId == successor.CycleId && item.EventType == EventType.CycleSeeded);
     }
@@ -862,6 +975,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         {
             Players = states.SelectMany(state => state.Players).ToList(),
             Cycles = states.SelectMany(state => state.Cycles).ToList(),
+            Sectors = states.SelectMany(state => state.Sectors).ToList(),
             Systems = states.SelectMany(state => state.Systems).ToList(),
             Empires = states.SelectMany(state => state.Empires).ToList(),
             EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),

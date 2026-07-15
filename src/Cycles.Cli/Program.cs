@@ -1,5 +1,6 @@
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
+using System.Text;
 
 var command = args.ElementAtOrDefault(0)?.ToLowerInvariant() ?? "show";
 
@@ -23,6 +24,11 @@ try
     if (command == "cycle")
     {
         return RunCycleCommand(args);
+    }
+
+    if (command == "galaxy")
+    {
+        return RunGalaxyCommand(args);
     }
 
     if (command == "balance")
@@ -607,7 +613,7 @@ static int RunDatabaseCommand(string[] args)
 
             migrator.Migrate();
             var profileOptions = new SqlServerStateProfileOptions(
-                SystemCount: ParseOptionalInt(args, 3, 24),
+                SystemCount: ParseOptionalInt(args, 3, GameSeeder.CanonicalGalaxySystemCount),
                 EmpireCount: ParseOptionalInt(args, 4, 4),
                 HistoryTicks: ParseOptionalInt(args, 5, 0),
                 Iterations: ParseOptionalInt(args, 6, 3),
@@ -622,6 +628,88 @@ static int RunDatabaseCommand(string[] args)
 
             Console.WriteLine($"Average | - | {profile.AverageReplaceMilliseconds:0.00} | {profile.AverageLoadMilliseconds:0.00} | {profile.AverageGenericUpdateMilliseconds:0.00} | {profile.AverageFocusedTickMilliseconds:0.00}");
             return 0;
+
+        default:
+            PrintUsage();
+            return 2;
+    }
+}
+
+static int RunGalaxyCommand(string[] args)
+{
+    var subcommand = args.ElementAtOrDefault(1)?.ToLowerInvariant();
+    switch (subcommand)
+    {
+        case "upgrade":
+        {
+            if (!args.Contains("--confirm-upgrade", StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Galaxy topology upgrade changes the active Cycle map in place. Review the target and re-run with --confirm-upgrade.");
+            }
+
+            var connectionString = ParseRequiredSqlServerConnectionString(args, 2);
+            EnsureDatabaseSchemaCurrent(connectionString);
+            var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+            var result = store.UpdateActiveCycleExclusively(state =>
+            {
+                var activeCycles = state.Cycles.Where(item => item.Status == CycleStatus.Active).ToArray();
+                if (activeCycles.Length != 1)
+                {
+                    throw new InvalidOperationException($"Galaxy topology upgrade requires exactly one active Cycle; found {activeCycles.Length}.");
+                }
+
+                if (state.Cycles.Any(item => item.Status == CycleStatus.RecoveryRequired)
+                    || state.TickLogs.Any(item => item.Status == TickLogStatus.Running))
+                {
+                    throw new InvalidOperationException("Galaxy topology upgrade is unavailable while a Cycle or tick attempt requires recovery.");
+                }
+
+                return GameSeeder.UpgradeGalaxyTopology(state);
+            });
+
+            if (!result.Changed)
+            {
+                Console.WriteLine($"Galaxy topology is already current in {store.Description}.");
+                return 0;
+            }
+
+            Console.WriteLine($"Upgraded galaxy topology in {store.Description}.");
+            Console.WriteLine($"Added {result.SectorsAdded} sector(s), {result.SystemsAdded} system(s), and {result.LinksAdded} route(s); removed {result.LinksRemoved} superseded route(s).");
+            return 0;
+        }
+
+        case "write-seed-script":
+        {
+            var outputPath = Path.GetFullPath(ParseRequiredArgument(args, 2, "output SQL path"));
+            var confirmOverwrite = args.Contains("--confirm-overwrite", StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(outputPath) && !confirmOverwrite)
+            {
+                throw new InvalidOperationException($"Output file '{outputPath}' already exists. Re-run with --confirm-overwrite to replace it.");
+            }
+
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var tempPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                File.WriteAllText(tempPath, SqlServerDevelopmentSeedScript.Generate(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                File.Move(tempPath, outputPath, overwrite: confirmOverwrite);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+
+            Console.WriteLine($"Wrote the canonical curated SQL seed to '{outputPath}'.");
+            return 0;
+        }
 
         default:
             PrintUsage();
@@ -775,7 +863,7 @@ static void EnsureDatabaseSchemaCurrent(string connectionString)
     var status = new SqlServerMigrator(connectionString).GetStatus();
     if (!status.DatabaseExists || status.PendingMigrations.Count > 0)
     {
-        throw new InvalidOperationException("The source SQL database is missing or has pending migrations. Run 'db migrate' before exporting.");
+        throw new InvalidOperationException("The SQL database is missing or has pending migrations. Run 'db migrate' first.");
     }
 }
 
@@ -905,6 +993,8 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- balance compare [tickCount] [systemCount] [empireCount] [seed]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle end <sqlserver:connectionString> [cycleId]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- cycle next <sqlserver:connectionString> [completedCycleId] [seed]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- galaxy upgrade <sqlserver:connectionString> --confirm-upgrade");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- galaxy write-seed-script <output.sql> [--confirm-overwrite]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery details <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <sqlserver:connectionString> <cycleId> --operator <name> --reason <reason>");

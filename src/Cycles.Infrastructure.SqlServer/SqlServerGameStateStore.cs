@@ -69,6 +69,24 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         return result;
     }
 
+    public T UpdateActiveCycleExclusively<T>(Func<GameState, T> update)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+        AcquireApplicationLock(connection, transaction);
+
+        var activeCycleId = ReadActiveCycleIdUnsafe(connection, transaction)
+            ?? throw new InvalidOperationException("No active cycle exists.");
+        AcquireCycleTickLock(connection, transaction, activeCycleId);
+
+        var state = LoadUnsafe(connection, transaction);
+        StrategicPriorityPolicy.Normalize(state);
+        var result = update(state);
+        SaveUnsafe(connection, transaction, state);
+        transaction.Commit();
+        return result;
+    }
+
     public TickResult RunTick(DateTimeOffset now) =>
         RunTick(cycleId: null, now, requireDue: false)
         ?? throw new InvalidOperationException("The requested tick was not executed.");
@@ -201,6 +219,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             Players = ReadRows(connection, transaction, "SELECT * FROM dbo.Players", ReadPlayer),
             AdminRoleAuditRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.AdminRoleAuditRecords", ReadAdminRoleAuditRecord),
             Cycles = ReadRows(connection, transaction, "SELECT * FROM dbo.Cycles", ReadCycle),
+            Sectors = ReadRows(connection, transaction, "SELECT * FROM dbo.GalaxySectors", ReadSector),
             Systems = ReadRows(connection, transaction, "SELECT * FROM dbo.Systems", ReadSystem),
             Empires = ReadRows(connection, transaction, "SELECT * FROM dbo.Empires", ReadEmpire),
             EmpireResources = ReadRows(connection, transaction, "SELECT * FROM dbo.EmpireResources", ReadEmpireResource),
@@ -232,6 +251,12 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 "SELECT * FROM dbo.Cycles WHERE CycleID = @CycleID",
                 command => AddGuid(command, "@CycleID", cycleId),
                 ReadCycle),
+            Sectors = ReadRows(
+                connection,
+                transaction,
+                "SELECT * FROM dbo.GalaxySectors WHERE CycleID = @CycleID",
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadSector),
             Systems = ReadRows(
                 connection,
                 transaction,
@@ -361,6 +386,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertCycle(connection, transaction, item);
         }
 
+        foreach (var item in state.Sectors)
+        {
+            UpsertSector(connection, transaction, item);
+        }
+
         foreach (var item in state.Systems)
         {
             UpsertSystem(connection, transaction, item);
@@ -460,6 +490,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         {
             UpsertChronicleEntry(connection, transaction, item);
         }
+
     }
 
     private static void SaveTickOutcomeUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state, Guid cycleId)
@@ -583,10 +614,21 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
+    private static GalaxySector ReadSector(SqlDataReader reader) => new()
+    {
+        SectorId = GetGuid(reader, "SectorID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        SectorName = GetString(reader, "SectorName"),
+        CentreX = GetInt(reader, "CentreX"),
+        CentreY = GetInt(reader, "CentreY"),
+        SortOrder = GetInt(reader, "SortOrder")
+    };
+
     private static GalaxySystem ReadSystem(SqlDataReader reader) => new()
     {
         SystemId = GetGuid(reader, "SystemID"),
         CycleId = GetGuid(reader, "CycleID"),
+        SectorId = GetNullableGuid(reader, "SectorID") ?? Guid.Empty,
         SystemName = GetString(reader, "SystemName"),
         X = GetInt(reader, "X"),
         Y = GetInt(reader, "Y"),
@@ -975,10 +1017,36 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertSector(SqlConnection connection, SqlTransaction transaction, GalaxySector item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.GalaxySectors
+            SET CycleID = @CycleID,
+                SectorName = @SectorName,
+                CentreX = @CentreX,
+                CentreY = @CentreY,
+                SortOrder = @SortOrder
+            WHERE SectorID = @SectorID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.GalaxySectors(SectorID, CycleID, SectorName, CentreX, CentreY, SortOrder)
+            VALUES (@SectorID, @CycleID, @SectorName, @CentreX, @CentreY, @SortOrder);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@SectorID", item.SectorId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddString(command, "@SectorName", item.SectorName, 120);
+            AddInt(command, "@CentreX", item.CentreX);
+            AddInt(command, "@CentreY", item.CentreY);
+            AddInt(command, "@SortOrder", item.SortOrder);
+        });
+
     private static void UpsertSystem(SqlConnection connection, SqlTransaction transaction, GalaxySystem item) =>
         Execute(connection, transaction, """
             UPDATE dbo.Systems
             SET CycleID = @CycleID,
+                SectorID = @SectorID,
                 SystemName = @SystemName,
                 X = @X,
                 Y = @Y,
@@ -992,13 +1060,14 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Systems(SystemID, CycleID, SystemName, X, Y, IndustryOutput, ResearchOutput, PopulationOutput, StrategicValue, HistoricalSignificance, CreatedAt)
-            VALUES (@SystemID, @CycleID, @SystemName, @X, @Y, @IndustryOutput, @ResearchOutput, @PopulationOutput, @StrategicValue, @HistoricalSignificance, @CreatedAt);
+            INSERT INTO dbo.Systems(SystemID, CycleID, SectorID, SystemName, X, Y, IndustryOutput, ResearchOutput, PopulationOutput, StrategicValue, HistoricalSignificance, CreatedAt)
+            VALUES (@SystemID, @CycleID, @SectorID, @SystemName, @X, @Y, @IndustryOutput, @ResearchOutput, @PopulationOutput, @StrategicValue, @HistoricalSignificance, @CreatedAt);
             END;
             """, command =>
         {
             AddGuid(command, "@SystemID", item.SystemId);
             AddGuid(command, "@CycleID", item.CycleId);
+            AddNullableGuid(command, "@SectorID", item.SectorId == Guid.Empty ? null : item.SectorId);
             AddString(command, "@SystemName", item.SystemName, 120);
             AddInt(command, "@X", item.X);
             AddInt(command, "@Y", item.Y);
@@ -1670,8 +1739,31 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.EmpireResources", "EmpireResourceID", state.EmpireResources.Select(item => item.EmpireResourceId));
         DeleteMissingRows(connection, transaction, "dbo.Empires", "EmpireID", state.Empires.Select(item => item.EmpireId));
         DeleteMissingRows(connection, transaction, "dbo.Systems", "SystemID", state.Systems.Select(item => item.SystemId));
+        ClearReferencesToMissingSectors(connection, transaction, state.Sectors.Select(item => item.SectorId));
+        DeleteMissingRows(connection, transaction, "dbo.GalaxySectors", "SectorID", state.Sectors.Select(item => item.SectorId));
         DeleteMissingRows(connection, transaction, "dbo.Cycles", "CycleID", state.Cycles.Select(item => item.CycleId));
         DeleteMissingRows(connection, transaction, "dbo.Players", "PlayerID", state.Players.Select(item => item.PlayerId));
+    }
+
+    private static void ClearReferencesToMissingSectors(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<Guid> retainedSectorIds)
+    {
+        var retainedIdSet = retainedSectorIds.ToHashSet();
+        foreach (var existingId in ReadIds(connection, transaction, "dbo.GalaxySectors", "SectorID"))
+        {
+            if (retainedIdSet.Contains(existingId))
+            {
+                continue;
+            }
+
+            Execute(
+                connection,
+                transaction,
+                "UPDATE dbo.Systems SET SectorID = NULL WHERE SectorID = @SectorID;",
+                command => AddGuid(command, "@SectorID", existingId));
+        }
     }
 
     private static void DeleteMissingRows(

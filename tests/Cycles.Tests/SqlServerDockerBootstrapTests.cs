@@ -1,4 +1,5 @@
 using Cycles.Core;
+using Cycles.Infrastructure.SqlServer;
 
 namespace Cycles.Tests;
 
@@ -28,6 +29,13 @@ public sealed class SqlServerDockerBootstrapTests
         {
             Assert.Contains(option, script, StringComparison.Ordinal);
         }
+
+        Assert.Contains("SET XACT_ABORT ON;", script, StringComparison.Ordinal);
+        Assert.Contains("BEGIN TRANSACTION;", script, StringComparison.Ordinal);
+        Assert.Contains("COMMIT TRANSACTION;", script, StringComparison.Ordinal);
+        Assert.Contains("DECLARE @SeededAt DATETIMEOFFSET = SYSDATETIMEOFFSET();", script, StringComparison.Ordinal);
+        Assert.Contains("DATEADD(DAY, 90, @SeededAt)", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("2026-07-15", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -39,12 +47,24 @@ public sealed class SqlServerDockerBootstrapTests
             "002_seed_cycles_data.sql");
         var script = File.ReadAllText(scriptPath);
 
-        Assert.Contains("(NEWID(), @EmpireOneID, 0, 0, 67, 33, @Now)", script, StringComparison.Ordinal);
-        Assert.Contains("(NEWID(), @EmpireTwoID, 0, 0, 67, 33, @Now)", script, StringComparison.Ordinal);
+        Assert.Equal(4, script.Split(", 0, 0, 67, 33, @SeededAt", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
-    public void Seed_script_does_not_add_a_second_active_cycle()
+    public void Seed_script_matches_the_canonical_curated_cold_start()
+    {
+        var scriptPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Fixtures",
+            "002_seed_cycles_data.sql");
+        var checkedInScript = File.ReadAllText(scriptPath).ReplaceLineEndings("\n");
+        var generatedScript = SqlServerDevelopmentSeedScript.Generate().ReplaceLineEndings("\n");
+
+        Assert.Equal(generatedScript, checkedInScript);
+    }
+
+    [Fact]
+    public void Seed_script_runs_only_for_an_empty_cycles_database()
     {
         var scriptPath = Path.Combine(
             AppContext.BaseDirectory,
@@ -52,7 +72,8 @@ public sealed class SqlServerDockerBootstrapTests
             "002_seed_cycles_data.sql");
         var script = File.ReadAllText(scriptPath);
 
-        Assert.Contains("WHERE Status = N'Active'", script, StringComparison.Ordinal);
+        Assert.Contains("IF NOT EXISTS (SELECT 1 FROM dbo.Cycles)", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("WHERE Status = N'Active'", script, StringComparison.Ordinal);
         Assert.DoesNotContain("WHERE CycleID = @CycleID", script, StringComparison.Ordinal);
     }
 

@@ -4,7 +4,7 @@ using Cycles.Core;
 namespace Cycles.Infrastructure.SqlServer;
 
 public sealed record SqlServerStateProfileOptions(
-    int SystemCount = 24,
+    int SystemCount = GameSeeder.CanonicalGalaxySystemCount,
     int EmpireCount = 4,
     int HistoryTicks = 0,
     int Iterations = 3,

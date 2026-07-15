@@ -1,9 +1,18 @@
 using Cycles.Infrastructure.SqlServer;
+using Cycles.Core;
 
 namespace Cycles.Tests;
 
 public sealed class SqlServerStateProfilerTests
 {
+    [Fact]
+    public void ProfileDefaultsToTheCanonicalGalaxyScale()
+    {
+        var options = new SqlServerStateProfileOptions();
+
+        Assert.Equal(GameSeeder.CanonicalGalaxySystemCount, options.SystemCount);
+    }
+
     [Fact]
     public void ProfileOptionsAcceptBoundedValidDimensions()
     {
