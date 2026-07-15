@@ -184,7 +184,9 @@ public sealed class CycleEndTests
         var systems = state.Systems.Where(system => system.CycleId == result.CycleId).ToArray();
         Assert.Equal(GameSeeder.CanonicalGalaxySectorCount, sectors.Length);
         Assert.Equal(GameSeeder.CanonicalGalaxySystemCount, systems.Length);
-        Assert.All(sectors, sector => Assert.InRange(systems.Count(system => system.SectorId == sector.SectorId), 12, 24));
+        Assert.All(sectors, sector => Assert.Equal(
+            GameSeeder.CanonicalGalaxySystemCount / GameSeeder.CanonicalGalaxySectorCount,
+            systems.Count(system => system.SectorId == sector.SectorId)));
     }
 
     [Fact]
