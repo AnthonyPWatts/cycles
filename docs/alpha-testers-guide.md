@@ -21,7 +21,7 @@ Reseed the local SQL database if the opening has already been played:
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening in a 16-sector, 280-system galaxy. Explicit non-canonical dimensions create a generic galaxy instead.
+Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening in an 8-sector, 64-system galaxy. Explicit non-canonical dimensions create a generic galaxy instead.
 
 For an organised hosted test, use the access code and username supplied by the organiser. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
 
@@ -72,11 +72,11 @@ The dashboard keeps four views available at all times. Browser back and forward 
 
 The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
 
-In **Galaxy**, the overview shows all 16 sectors, inter-sector bridges, gateways, and strategically important systems without giving every one of the 280 systems equal visual weight. Select a sector envelope, gateway, or search result to enter it; **Sector** reveals its local route ring and **Local** tightens the selected-system view. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. The navigator and recent locks recover orientation, and arrow keys move around the sector crown when the navigator has focus.
+In **Galaxy**, the overview shows all 8 sectors and their inter-sector bridges. Select a sector, gateway, or search result to enter it; **Sector** reveals that sector's 8-system territorial graph and outbound bridge lanes, while **Local** reduces the chart to the selected system and its immediate routes. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. Multi-bridge gateways are valuable hubs: losing one can change access to several regions, and their initial historical signal marks them as places likely to matter. The navigator and recent locks recover orientation. The toolbar's Reach, Presence, Forces, and Pressure counts describe the signed-in empire rather than repeating raw galaxy totals.
 
-The map legend marks:
+The map's visual language marks:
 
-- **Sector**: a named local cluster containing 12–24 systems;
+- **Sector**: a named local cluster containing 8 systems;
 - **Gateway**: one of the two systems connecting a sector to its neighbours;
 - **Home**: your empire's founding system;
 - **Historic**: a system with recorded historical significance;

@@ -8,7 +8,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 | Area | Implemented now | Important limit |
 | --- | --- | --- |
-| Galaxy | A deterministic 16-sector crown with 280 systems, 296 routes, 32 distinct gateways, home systems, resources, strategic/history fields, and a curated four-empire development opening. | The canonical 280-system scale is browser- and SQL-verified. Larger or differently shaped galaxies remain unproved rather than an implied client contract. |
+| Galaxy | A deterministic 8-sector territorial graph with 64 systems, 93 routes, 16 gateway systems, uneven gateway fan-out, home systems, resources, strategic/history fields, and a curated four-empire development opening. | The canonical 64-system scale is browser- and SQL-verified. Larger or differently shaped galaxies remain unproved rather than an implied client contract. |
 | Tick execution | CLI tick runner, scheduled Worker, SQL-atomic due execution, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, shutdown behaviour, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation are locked at zero until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
 | Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
@@ -36,7 +36,8 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### Curated Development Opening
 
 - A normal SQL CLI seed and a missing Development-host SQL store create the fixed `development-cold-start-v1` scenario. Explicit non-canonical dimensions retain generic deterministic generation.
-- The canonical map contains 16 named sectors of 12–24 systems. Each sector is a local route ring with exactly two distinct gateway systems; the sector-level route graph is itself a connected crown. Local routes take one tick and inter-sector routes take two.
+- The canonical map contains 8 named sectors of 8 systems. Each sector is a connected, irregular 10-route territorial graph with exactly two gateway systems. The sector-level graph has 13 bridges and uneven degree: selected gateways connect to several other gateways, creating hubs while ordinary gateways carry one bridge. Local routes take one tick and inter-sector bridges take two.
+- Highly connected gateways receive additional strategic value and an initial historical signal, making topological hubs tactically desirable and more likely to become notable places.
 - The Aurelian player begins with three genuine first-turn opportunities: move the Home Guard from Aster Vale to Nadir Crossing, establish an outpost from the Pale Harbour Survey, and attack the local Khepri force with the Treaty Gate Vanguard.
 - Both principal empires retain 60 starting ships. The Treaty Gate outcome is resolved by the normal combat engine and is important enough to enter the Chronicle; it is not a scripted result.
 - An empire-scoped `OpeningBriefingIssued` fact carries stable objective identifiers so the dashboard guide does not infer intent from display names.
@@ -110,7 +111,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - `Cycles.Api` targets .NET 10 LTS and is deployed to an Azure App Service F1 Free plan for invited Development play-testing.
 - GitHub Actions publishes a successful `main` build through workload identity federation; no long-lived Azure credential is stored in the repository or GitHub environment.
 - The hosted process reads and writes Azure SQL database `CyclesDb` in France Central through the sole App Service connection string, `Cycles`. No state-path or SQL-activation setting remains. The final stopped JSON file is retained only as sensitive cutover evidence and is not a rollback or recovery path.
-- The 15 July 2026 deployment applied migration 015 and upgraded the preserved tick-3 opening in place. The live protected `/galaxy` contract reports 16 sectors, 280 systems, 296 routes, 32 distinct gateways, sector sizes from 12 to 24, exactly two inter-sector routes per sector, and no gateway carrying more than one bridge. The deployment retries the initial migration connection while serverless Azure SQL wakes from auto-pause, always attempts to restart the app after maintenance, and passed both direct-origin and custom-domain health checks.
+- The 15 July 2026 sector-schema deployment applied migration 015 and upgraded the preserved tick-3 opening in place. That intermediate crown was later superseded by the disposable Development reseed to the compact territorial graph. The deployment retries the initial migration connection while serverless Azure SQL wakes from auto-pause and always attempts to restart the app after maintenance.
 - The database uses the Azure SQL free serverless offer with a 2-vCore maximum, 0.5-vCore minimum, 32 GB maximum, provider-default 60-minute auto-pause, local backup storage, seven-day point-in-time retention, and automatic pause rather than billing when the free allowance is exhausted.
 - No `Cycles.Worker` process is deployed. Invited players use the accepted Development-only **Advance turn** capability.
 - The hosting scope is protected by a read-only App Service plan lock and an Azure Policy deny list for unapproved platform resources. The policy deliberately permits the approved Azure SQL server/database; F1 quotas and SQL free-limit exhaustion behaviour are the enforced spend boundaries, while budget notifications are not treated as a hard cap.
@@ -127,7 +128,9 @@ Latest local verification on 2026-07-15 used the normal repository test helper:
 .\eng\test.ps1
 ```
 
-Result: **219 tests passed, 0 failed** in the normal suite. A further **21 SQL Server integration tests passed** against the disposable proof database. A clean container boot applied all 15 migrations and produced 16 sectors, 280 assigned systems, 296 routes, sector sizes from 12 to 24, and an active Cycle ending 90 days after startup. The maximised Galaxy map was exercised in the browser at the full canonical scale with sector/system navigation, keyboard focus restoration, and no console errors.
+Result: **220 tests passed, 0 failed** in the normal suite. A further **22 SQL Server state-store integration tests passed** against a disposable database, and all **6 generated Docker seed checks passed**. The end-to-end Development gameplay smoke passed login, priorities, pending movement, turn advancement, processed movement, resources, events, and the 8-sector/64-system topology assertions.
+
+The canonical territorial contract is covered at 8 sectors, 64 assigned systems, 80 local routes, 13 inter-sector bridges, exactly two gateway systems per sector, uneven gateway fan-out, connected local/sector graphs, and an active Cycle ending 90 days after startup. Browser verification exercised the three ranges at 1918x1041 and the compact desktop layout at 1280x800: Galaxy rendered 8 sectors and 13 bridges, Sector rendered 8 systems, Local rendered 4 systems around Aster Vale, ownership counts remained player-specific, there was no page overflow, and the console was clean. Territory selection, spatial keyboard navigation, maximise, and Escape restore also passed.
 
 The automated coverage includes:
 

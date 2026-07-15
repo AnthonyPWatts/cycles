@@ -35,7 +35,7 @@ Expected result:
 
 - `CycleCount` is `1`.
 - The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
-- The canonical seed contains 16 sectors, 280 systems, and 296 routes; every sector contains 12–24 systems and the active Cycle ends 90 days after container startup.
+- The canonical seed contains 8 sectors, 64 systems, and 93 routes; every sector contains 8 systems, exactly two gateway systems, and the active Cycle ends 90 days after container startup.
 
 ## Connection String
 

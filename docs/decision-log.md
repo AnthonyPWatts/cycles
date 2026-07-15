@@ -1383,3 +1383,24 @@ Consequences:
 - The operator upgrade takes both the broad game-state and active-Cycle tick locks. Hosted deployment stops the API, applies migrations, upgrades the map, deploys the new binary, and always attempts to restart the app.
 - The `/galaxy` response includes sectors, gateway membership, and sector adjacency. The client exposes sector/system search, clickable sector envelopes, bridge-route distinction, keyboard-safe focus restoration, crown navigation, and scale-dependent detail without expanding visibility.
 - The canonical scale is verified at 16 sectors and 280 systems. Larger or materially denser maps remain a conditional scaling decision, not an implied capability.
+
+## 2026-07-15: Replace The Crown With A Compact Territorial Graph
+
+Decision: supersede the 16-sector crown with a canonical four-empire galaxy containing 8 sectors, 64 systems, and 93 routes. Limit both hierarchy levels to 8 children. Give every sector an irregular connected 8-system, 10-route graph and exactly two gateway systems. Connect sectors through 13 bridges, allowing selected gateway systems to serve several lanes. Present the topology through three curated Galaxy, Sector, and Local compositions rather than continuous camera zoom.
+
+Reasoning:
+
+- Degree-two graphs can only form paths and cycles, so the former route limit mathematically forced the necklace appearance at both levels.
+- Risk-style territorial maps depend on partial meshes: alternate routes, dead ends, chokepoints, and occasional hubs make position strategically legible.
+- The 12–24 child counts made label and route clutter unavoidable. An eight-child ceiling lets each map range be composed rather than merely filtered.
+- Two exit systems still give every sector a readable boundary. Allowing either exit to fan out creates rare, valuable hubs without turning every local system into an inter-sector gateway.
+- Connectivity should create game value. Multi-bridge and high-degree gateways therefore receive additional strategic value and an initial historical signal.
+
+Consequences:
+
+- `territorial-graph-v2` is the canonical seed for the Core, generated Docker fixture, normal Development seed, successor Cycles, and trusted playground.
+- The sector graph is connected with degree 2–5. Each sector remains internally connected with local system degree 2–4; gateway bridge degree is 1–3.
+- The deployed Development database is deliberately reseeded rather than migrated from the intermediate 280-system crown. The deployment workflow requires an explicit manual `reseed` input for this destructive path and retains guarded upgrades for normal deployments.
+- The `/galaxy` contract and sector schema do not change shape. Gateway and adjacency data remain derived from links, including gateway fan-out.
+- Galaxy range shows regional strategy, Sector range shows eight local systems and their outbound bridge lanes, and Local range shows the selected neighbourhood. Continuous free zoom and raw bottom-of-map totals are removed.
+- Scale beyond 8 sectors or 64 systems remains an explicit product and rendering decision, not an implied capability.

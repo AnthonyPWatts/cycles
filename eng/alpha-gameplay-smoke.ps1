@@ -101,7 +101,7 @@ try {
 
     $seedArguments = $runArguments + @(
         "--project", (Join-Path $repoRoot "src/Cycles.Cli"),
-        "--", "seed", $storeSpecifier, "8", "2", "90210", "--confirm-replace"
+        "--", "seed", $storeSpecifier, "--confirm-replace"
     )
     & dotnet @seedArguments
     if ($LASTEXITCODE -ne 0) {
@@ -125,6 +125,7 @@ try {
     $apiProcess = Start-Process dotnet `
         -ArgumentList $apiArguments `
         -WorkingDirectory $repoRoot `
+        -WindowStyle Hidden `
         -RedirectStandardOutput $stdoutPath `
         -RedirectStandardError $stderrPath `
         -PassThru
@@ -172,6 +173,19 @@ try {
     $empireBefore = Get-Json $playerClient "/empire"
     $fleetsBefore = @(Get-Json $playerClient "/fleets")
     $galaxy = Get-Json $playerClient "/galaxy"
+    Assert-Condition (@($galaxy.sectors).Count -eq 8) "The canonical gameplay smoke galaxy did not contain 8 sectors."
+    Assert-Condition (@($galaxy.systems).Count -eq 64) "The canonical gameplay smoke galaxy did not contain 64 systems."
+    Assert-Condition (@($galaxy.links).Count -eq 93) "The canonical gameplay smoke galaxy did not contain 93 routes."
+    Assert-Condition (@($galaxy.sectors | Where-Object { $_.systemCount -ne 8 }).Count -eq 0) "A canonical sector did not contain 8 systems."
+    Assert-Condition (@($galaxy.sectors | ForEach-Object { $_.gatewaySystemIds } | Sort-Object -Unique).Count -eq 16) "The canonical galaxy did not expose 16 distinct gateway systems."
+    $systemsById = @{}
+    foreach ($system in $galaxy.systems) {
+        $systemsById[$system.systemId] = $system
+    }
+    $bridgeCount = @($galaxy.links | Where-Object {
+        $systemsById[$_.systemAId].sectorId -ne $systemsById[$_.systemBId].sectorId
+    }).Count
+    Assert-Condition ($bridgeCount -eq 13) "The canonical gameplay smoke galaxy did not contain 13 inter-sector bridges."
     $fleet = $fleetsBefore[0].fleet
     Assert-Condition ($null -ne $fleet) "The development player did not receive a fleet."
 
