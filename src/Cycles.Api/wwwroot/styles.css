@@ -3448,6 +3448,7 @@ select {
 .app-header-controls {
     display: grid;
     grid-template-columns: minmax(190px, 0.85fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+    align-items: stretch;
     gap: 0;
 }
 
@@ -3456,7 +3457,8 @@ select {
 .next-turn-instrument {
     position: relative;
     display: grid;
-    align-content: center;
+    align-content: start;
+    row-gap: 2px;
     min-width: 0;
     min-height: 54px;
     padding: 4px 18px;
@@ -3486,7 +3488,7 @@ select {
 }
 
 .command-home {
-    margin-top: 2px;
+    margin-top: 0;
     color: #8f9694;
     font-size: 0.66rem;
     letter-spacing: 0.04em;
@@ -3494,7 +3496,7 @@ select {
 
 .cycle-instrument p {
     gap: 8px;
-    margin-top: 5px;
+    margin-top: 0;
 }
 
 .cycle-name {
@@ -3510,7 +3512,7 @@ select {
 }
 
 .next-turn-instrument {
-    gap: 4px;
+    gap: 2px;
 }
 
 .next-turn-instrument strong {
@@ -3529,7 +3531,7 @@ select {
     display: block;
     width: 100%;
     height: 2px;
-    margin-top: 4px;
+    margin-top: 0;
     background: linear-gradient(90deg, rgba(217, 179, 93, 0.7), rgba(143, 180, 244, 0.22));
 }
 
@@ -3548,6 +3550,7 @@ select {
 
 .app-header-controls .toolbar-actions {
     align-items: center;
+    align-self: center;
     flex-wrap: nowrap;
     gap: 6px;
     margin-left: 14px;
