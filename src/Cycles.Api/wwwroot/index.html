@@ -7,11 +7,11 @@
     <meta name="description" content="Cycles is a persistent galactic strategy game where influence shapes the present and history survives every reset.">
     <title>Cycles | Command the Present. Become Part of the Past.</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="site.css?v=20260711-7">
+    <link rel="preload" as="image" href="/media/promo/concept-gateway-transit.png">
+    <link rel="stylesheet" href="site.css?v=20260716-1">
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <canvas id="heroScene" class="hero-scene" aria-hidden="true"></canvas>
 
     <header class="site-nav">
         <nav aria-label="Primary navigation">
@@ -43,6 +43,7 @@
                 <li>Authoritative hourly ticks</li>
                 <li>History survives the reset</li>
             </ul>
+            <p class="hero-visual-label">Concept dramatisation</p>
         </section>
 
         <section id="film" class="section-band film-band" aria-labelledby="film-title">
@@ -103,23 +104,16 @@
         </section>
 
         <section id="systems" class="section-band signal-band">
-            <figure class="signal-panel">
-                <div class="signal-map" aria-hidden="true">
-                    <span class="route route-a"></span>
-                    <span class="route route-b"></span>
-                    <span class="route route-c"></span>
-                    <span class="star star-home">Pseudopolis</span>
-                    <span class="star star-frontier">Treaty Gate</span>
-                    <span class="star star-archive">Archive Nine</span>
-                    <span class="star star-wound">Red Meridian</span>
-                </div>
-                <figcaption class="signal-feed">
-                    <strong>Illustrative opening scenario</strong>
-                    <ul>
-                        <li>Priority orders resolved.</li>
-                        <li>An outpost was established at Treaty Gate.</li>
-                        <li>The Battle of Red Meridian entered the Chronicle.</li>
-                    </ul>
+            <figure class="concept-panel">
+                <img src="/media/promo/concept-treaty-gate-battle.png"
+                     alt=""
+                     width="1672"
+                     height="941"
+                     loading="lazy">
+                <figcaption>
+                    <span>Concept dramatisation</span>
+                    <strong>Orders become consequences at Treaty Gate.</strong>
+                    <p>The authoritative tick resolves movement, combat losses, and history. The film imagines those facts at cinematic scale.</p>
                 </figcaption>
             </figure>
             <div class="section-copy">
@@ -160,6 +154,5 @@
         <span>Development build</span>
     </footer>
 
-    <script src="site.js?v=20260711-6"></script>
 </body>
 </html>
