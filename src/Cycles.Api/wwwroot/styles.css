@@ -3614,8 +3614,12 @@ select {
 }
 
 .view-nav a[aria-current="page"]::before {
-    filter: grayscale(0) saturate(0.92) contrast(1.06) brightness(0.88);
-    opacity: 0.94;
+    background-image:
+        linear-gradient(180deg, rgba(5, 9, 11, 0.04), rgba(5, 9, 11, 0.56) 88%),
+        linear-gradient(90deg, rgba(5, 9, 11, 0.3), transparent 46%, rgba(5, 9, 11, 0.28)),
+        var(--view-background);
+    filter: grayscale(0) saturate(1.08) contrast(1.08) brightness(1.06);
+    opacity: 1;
 }
 
 .view-nav a[aria-current="page"]::after {
