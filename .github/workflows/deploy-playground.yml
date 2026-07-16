@@ -129,9 +129,33 @@ jobs:
         run: |
           health_url="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
           for attempt in {1..12}; do
-            if curl --fail --silent --show-error "$health_url"; then
+            status_code="$(curl --silent --show-error --output health-response.txt --write-out '%{http_code}' "$health_url" || true)"
+            if [ "$status_code" = "200" ]; then
+              cat health-response.txt
               exit 0
             fi
+            if [ "$status_code" = "403" ]; then
+              app_state="$(az webapp show \
+                --resource-group rg-cycles-playground-uks \
+                --name "${{ vars.AZURE_WEBAPP_NAME }}" \
+                --query state \
+                --output tsv)"
+              if [ "$app_state" = "QuotaExceeded" ]; then
+                plan_id="$(az webapp show \
+                  --resource-group rg-cycles-playground-uks \
+                  --name "${{ vars.AZURE_WEBAPP_NAME }}" \
+                  --query serverFarmId \
+                  --output tsv)"
+                echo "::error::Azure stopped the playground because an App Service F1 quota was exceeded."
+                az rest \
+                  --method get \
+                  --url "${plan_id}/usages?api-version=2022-03-01" \
+                  --query "value[?limit >= \`0\` && currentValue > limit].{quota:name.localizedValue,current:currentValue,limit:limit,unit:unit,nextResetTime:nextResetTime}" \
+                  --output table
+                exit 1
+              fi
+            fi
+            echo "Health attempt ${attempt} returned HTTP ${status_code}."
             sleep 10
           done
           exit 1

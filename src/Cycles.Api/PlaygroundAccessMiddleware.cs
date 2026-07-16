@@ -105,14 +105,17 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
             && CryptographicOperations.FixedTimeEquals(expectedBytes, candidateBytes);
     }
 
-    private static bool IsPublicPath(PathString path) =>
-        path.Equals("/", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("/site.css", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("/health", StringComparison.OrdinalIgnoreCase)
+    internal static bool IsPublicStaticAsset(PathString path) =>
+        path.Equals("/site.css", StringComparison.OrdinalIgnoreCase)
         || path.Equals("/media/cycles-promo-30s.mp4", StringComparison.OrdinalIgnoreCase)
         || path.Equals("/media/cycles-promo-poster.jpg", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/media/promo", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPublicPath(PathString path) =>
+        path.Equals("/", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/health", StringComparison.OrdinalIgnoreCase)
+        || IsPublicStaticAsset(path);
 
     private static async Task WriteSignInPageAsync(HttpContext context, string? error)
     {
