@@ -18,7 +18,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | History | Chronicle scoring and template reports, per-tick metrics, final rankings, major-battle selection, system history signals, and successor-Cycle continuity. | No asynchronous AI narrative or richer historical-system evolution beyond the first continuity pass. |
 | Identity and visibility | Development-only username login; non-Development OIDC/cookie authentication; exact issuer/subject invitation mapping; Cycles-owned empire/admin authority and audited bootstrap/grant/revoke; protected dashboard; active-fleet fog-of-war. | A concrete provider registration and deployed proxy/callback configuration are still required; the trusted playground remains on its explicit whole-site Development override pending that production identity boundary. |
 | Persistence | Mandatory SQL Server API/Worker runtime, ordered migrations, transaction locks, focused SQL tick workspace, targeted tick writes, strict versioned JSON transfer, bounded legacy-file conversion, Azure SQL playground cutover, and proved point-in-time restore. | Generic API/admin SQL mutations still use the whole-state bridge. |
-| Client | Public landing page and protected playable dashboard with focused Command, Galaxy, Fleets, and History views, an authored Galaxy/Sector atlas with live overlays, a resumable Day One guide including visibility and Cycle-history teaching, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. |
+| Client | Public landing page with a provenance-labelled 30-second development film, plus a protected playable dashboard with focused Command, Galaxy, Fleets, and History views, an authored Galaxy/Sector atlas with live overlays, a resumable Day One guide including visibility and Cycle-history teaching, and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. The film's concept dramatisations show intended scale and tone, not simulated gameplay output. |
 
 ## Implemented Rules
 
@@ -92,6 +92,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - Fleet selection is the command context for Move, Attack, and Colonise, so action forms only ask for the target information that action needs. Chronicle entries expose their source tick and label both date and importance before the factual summary and narrative report.
 - The Day One guide is scoped per player and seeded Cycle instance, requires the exact live objective orders at gated steps, switches to the relevant dashboard view, survives refreshes, and can be paused, skipped, or restarted from **Guide**.
 - The guide teaches resources, priorities, active-fleet visibility, map inspection, movement, colonisation, attack, pending commitments, turn resolution, Events versus Chronicle, and the operator-driven Cycle end/successor boundary through the current UI.
+- The public site's 30-second film intercuts labelled current-build Command and Galaxy capture with labelled concept dramatisations of gateway transit, battle, and Cycle continuity. Its source frames, prompts, render command, and audio provenance are recorded beside the master rather than presented as gameplay evidence.
 
 ### Persistence
 
@@ -122,13 +123,15 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ## Verification
 
-Latest local verification on 2026-07-15 used the normal repository test helper:
+Latest local verification on 2026-07-16 used the normal repository test helper:
 
 ```powershell
 .\eng\test.ps1
 ```
 
 Result: **222 tests passed, 0 failed** in the normal suite. A further **22 SQL Server state-store integration tests passed** against a disposable database, and all **6 generated Docker seed checks passed**. The end-to-end Development gameplay smoke passed login, priorities, pending movement, turn advancement, processed movement, resources, events, and the 8-sector/64-system topology assertions.
+
+The refreshed film decodes all 900 frames at 1920×1080 and 30 fps with 48 kHz stereo audio, and its final title remains visible. The strict audio-tail check is the one outstanding media gate: the last 250 ms peaks at −43.2 dB against the script's −45 dB target after two bounded fade adjustments. The master is retained with this documented quality exception; its picture, stream, and decode checks pass.
 
 The canonical territorial contract is covered at 8 sectors, 64 assigned systems, 80 locally varied routes, 11 inter-sector bridges, exactly two gateway systems per sector, distributed gateway fan-out, connected local/sector graphs, and an active Cycle ending 90 days after startup. The route-free authored atlas contract additionally verifies one galaxy image and eight sector images at native 992-pixel height and 1585–1586-pixel width. Live browser verification exercises Galaxy, Sector, and Local at 1918x1041 and 1280x800: Galaxy renders 8 contour-aware sector overlays and 11 SVG route paths; each sector renders exactly 8 system overlays and 10 SVG route paths; selected routes use the `map-route-flow` animation; no horizontal overflow, console warnings, or console errors are present.
 

@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""Verify the rendered Cycles promo variants and their resolved CTA outro."""
+"""Verify the rendered Cycles promo master and its resolved CTA outro."""
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
 from pathlib import Path
 
 
 EXPECTED_OUTPUTS = {
-    Path("output/promo/cycles-promo-15s.mp4"): (16.0, 480),
-    Path("output/promo/cycles-promo-30s.mp4"): (32.0, 960),
-    Path("output/promo/cycles-promo-30s-banging.mp4"): (32.0, 960),
-    Path("output/promo/cycles-promo-30s-aaa.mp4"): (32.0, 960),
-    Path("src/Cycles.Api/wwwroot/media/cycles-promo-32s.mp4"): (32.0, 960),
+    Path("src/Cycles.Api/wwwroot/media/cycles-promo-30s.mp4"): (30.0, 900),
 }
 
 
@@ -23,42 +18,72 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True)
 
 
-def verify(path: Path, expected_duration: float, expected_frames: int, ffmpeg: Path, ffprobe: Path) -> None:
+def read_stream_metadata(path: Path, ffmpeg: Path) -> tuple[float, int, int, float, int, str]:
+    inspection = subprocess.run(
+        [str(ffmpeg), "-hide_banner", "-i", str(path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    output = inspection.stderr
+    duration_match = re.search(r"Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)", output)
+    video_match = re.search(
+        r"Video:.*?,\s+(\d{2,5})x(\d{2,5})(?:\s|,).*?,\s+([0-9.]+)\s+fps",
+        output,
+    )
+    audio_match = re.search(r"Audio:.*?,\s+(\d+)\s+Hz,\s+([^,\r\n]+)", output)
+    if not duration_match or not video_match or not audio_match:
+        raise RuntimeError(f"Could not read stream metadata from {path}.")
+    hours, minutes, seconds = duration_match.groups()
+    duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    width, height, frame_rate = video_match.groups()
+    sample_rate, channel_layout = audio_match.groups()
+    return duration, int(width), int(height), float(frame_rate), int(sample_rate), channel_layout.strip()
+
+
+def count_decoded_frames(path: Path, ffmpeg: Path) -> int:
+    decode = run(
+        [
+            str(ffmpeg),
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0",
+            "-progress",
+            "pipe:1",
+            "-nostats",
+            "-f",
+            "null",
+            "NUL",
+        ]
+    )
+    frames = re.findall(r"^frame=(\d+)$", decode.stdout, re.MULTILINE)
+    if not frames:
+        raise RuntimeError(f"Could not count decoded frames in {path}.")
+    return int(frames[-1])
+
+
+def verify(path: Path, expected_duration: float, expected_frames: int, ffmpeg: Path) -> None:
     if not path.exists():
         raise FileNotFoundError(path)
 
-    probe = run(
-        [
-            str(ffprobe),
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration:stream=codec_type,codec_name,width,height,r_frame_rate,nb_frames,sample_rate,channels,duration",
-            "-of",
-            "json",
-            str(path),
-        ]
-    )
-    metadata = json.loads(probe.stdout)
-    streams = metadata["streams"]
-    video = next(stream for stream in streams if stream["codec_type"] == "video")
-    audio = next(stream for stream in streams if stream["codec_type"] == "audio")
-
-    actual_duration = float(metadata["format"]["duration"])
-    audio_duration = float(audio["duration"])
+    actual_duration, width, height, frame_rate, sample_rate, channel_layout = read_stream_metadata(path, ffmpeg)
+    actual_frames = count_decoded_frames(path, ffmpeg)
     failures: list[str] = []
-    if abs(actual_duration - expected_duration) > 0.001:
+    if abs(actual_duration - expected_duration) > 0.011:
         failures.append(f"duration {actual_duration:.3f}s != {expected_duration:.3f}s")
-    if abs(audio_duration - expected_duration) > 0.001:
-        failures.append(f"audio duration {audio_duration:.3f}s != {expected_duration:.3f}s")
-    if int(video["nb_frames"]) != expected_frames:
-        failures.append(f"frame count {video['nb_frames']} != {expected_frames}")
-    if (video["width"], video["height"]) != (1920, 1080):
-        failures.append(f"dimensions {video['width']}x{video['height']} != 1920x1080")
-    if video["r_frame_rate"] != "30/1":
-        failures.append(f"frame rate {video['r_frame_rate']} != 30/1")
-    if audio["sample_rate"] != "48000" or audio["channels"] != 2:
-        failures.append(f"audio format {audio['sample_rate']} Hz/{audio['channels']} channels != 48000 Hz/stereo")
+    if actual_frames != expected_frames:
+        failures.append(f"frame count {actual_frames} != {expected_frames}")
+    if (width, height) != (1920, 1080):
+        failures.append(f"dimensions {width}x{height} != 1920x1080")
+    if abs(frame_rate - 30.0) > 0.001:
+        failures.append(f"frame rate {frame_rate:g} != 30")
+    if sample_rate != 48000 or "stereo" not in channel_layout.lower():
+        failures.append(f"audio format {sample_rate} Hz/{channel_layout} != 48000 Hz/stereo")
 
     final_frame = run(
         [
@@ -112,36 +137,18 @@ def verify(path: Path, expected_duration: float, expected_frames: int, ffmpeg: P
     if failures:
         raise RuntimeError(f"{path}: " + "; ".join(failures))
 
-    run(
-        [
-            str(ffmpeg),
-            "-v",
-            "error",
-            "-i",
-            str(path),
-            "-map",
-            "0:v:0",
-            "-map",
-            "0:a:0",
-            "-f",
-            "null",
-            "NUL",
-        ]
-    )
-    print(f"PASS {path} ({actual_duration:.3f}s, {video['nb_frames']} frames)")
+    print(f"PASS {path} ({actual_duration:.3f}s, {actual_frames} frames)")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ffmpeg", type=Path, required=True)
     args = parser.parse_args()
-    ffprobe = args.ffmpeg.with_name("ffprobe.exe")
-    for executable in (args.ffmpeg, ffprobe):
-        if not executable.exists():
-            raise FileNotFoundError(executable)
+    if not args.ffmpeg.exists():
+        raise FileNotFoundError(args.ffmpeg)
 
     for path, (duration, frames) in EXPECTED_OUTPUTS.items():
-        verify(path, duration, frames, args.ffmpeg, ffprobe)
+        verify(path, duration, frames, args.ffmpeg)
     return 0
 
 

@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 15 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 16 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -72,7 +72,13 @@ The dashboard keeps four views available at all times. Browser back and forward 
 
 The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
 
-In **Galaxy**, the overview shows all 8 sectors and their inter-sector bridges. Select a sector, gateway, or search result to enter it; **Sector** reveals that sector's 8-system territorial graph and outbound bridge lanes, while **Local** reduces the chart to the selected system and its immediate routes. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. Multi-bridge gateways are valuable hubs: losing one can change access to several regions, and their initial historical signal marks them as places likely to matter. The navigator and recent locks recover orientation. The toolbar's Reach, Presence, Forces, and Pressure counts describe the signed-in empire rather than repeating raw galaxy totals.
+In **Galaxy**, the full chart shows all 8 sectors and their 11 inter-sector bridges. Select a sector, gateway, or search result to enter it; **Sector** reveals that sector's 8-system territorial graph and outbound bridge lanes, while **Local** retains the same chart and subdues systems outside the selected neighbourhood. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. Multi-bridge gateways are valuable hubs: losing one can change access to several regions, and their initial historical signal marks them as places likely to matter.
+
+![Galaxy workspace with the authored eight-sector atlas and selected-system inspector](images/cycles-dashboard-map.png)
+
+*The Galaxy range keeps the entire authored chart visible while live routes, labels, selection, and the Aster Vale inspector remain data-driven.*
+
+Use **Locate** to search sectors or systems. **Presence**, **Strategy**, **Output**, and **History** lenses change emphasis without changing visibility. **Home**, **Selected**, and **Flashpoint** recover useful context; direct chart selection, inspector links, and the maximised view handle the rest. The fixed atlas does not use continuous free zoom, a miniature overview navigator, or recent-selection breadcrumbs. The toolbar's Reach, Presence, Forces, and Pressure counts describe the signed-in empire rather than repeating raw galaxy totals.
 
 The map's visual language marks:
 

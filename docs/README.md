@@ -22,6 +22,7 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 | [Simulation Reference](simulation-reference.md) | Determinism, final ranking, and repeatable balance-scenario contracts. |
 | [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
 | [Trusted Playground Deployment](playground-deployment.md) | Free-tier hosted play-testing, CI deployment, and enforced cost guardrails. |
+| [Promo Film Production Notes](../src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) | The current 30-second master, shot provenance, concept-image prompts, render command, and verification boundary. |
 | [SQL Server Runbook](../database/sqldockerdeploykit/README.md) | Local database image, connection, migration, integration-test, and cleanup instructions. |
 
 These references support the core documents but are not separate roadmaps or status reports.
@@ -48,3 +49,4 @@ These Word files preserve source intent and historical product prompts. The Mark
 - Keep commands in the root README, Operations, or the SQL Server runbook according to audience.
 - Keep maintained documentation aligned with current `main`. Do not fork docs per gameplay Cycle or ad hoc test build; record the deployed commit/build in test evidence and use Git tags, commits, or release notes when a historical snapshot is required.
 - Keep screenshots in player-facing tutorials rather than using them as behavioural proof. Regenerate the maintained captures in the Gameplay Guide when a UI change makes their controls or layout misleading.
+- Keep promotional footage honest about provenance. Label current-build capture and concept dramatisation in the film, and update the production notes whenever its assets, prompts, timing, or audio sources change.

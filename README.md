@@ -7,7 +7,7 @@ Cycles is a server-authoritative, tick-based strategy prototype about influence,
 The current pre-alpha development build supports a complete gameplay loop locally and through an access-restricted trusted playground:
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
-- explore a canonical 8-sector, 64-system galaxy through a fixed authored atlas with distributed gateways, empires, fleets, resources, and priorities;
+- explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;
 - submit durable movement, attack, cancellation, and colonisation orders;
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
 - generate resources from influence and spend military industry on queued ships;
@@ -22,6 +22,7 @@ This is a working development MVP, not an alpha release or production game servi
 ## Start Here
 
 - [Gameplay Guide](docs/alpha-testers-guide.md) explains the curated opening and current gameplay loop.
+- [Promo Film Production Notes](src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) identify current-build footage, concept dramatisations, source imagery, and the reproducible render command for the 30-second film.
 - [Trusted Playground Deployment](docs/playground-deployment.md) records the hosted test boundary and cost guardrails.
 - [Project State](docs/project-state.md) records implemented behaviour, verification, and known limits.
 - [Documentation Index](docs/README.md) defines the purpose and ownership of every maintained document.
@@ -75,6 +76,8 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Connection
 ```
 
 Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Log in as the prefilled `player-1` to receive the curated Aurelian opening. The development login creates or finds a local player and issues an HttpOnly cookie; **Sign out** removes that cookie and returns to the login prompt. This flow is suitable only for trusted local testing.
+
+The Galaxy workspace uses three authored ranges rather than a free camera. **Galaxy** shows the eight-sector partial mesh, **Sector** shows one eight-system territorial chart and its outbound bridges, and **Local** subdues systems outside the selected neighbourhood. Search, strategic lenses, Home/Selected/Flashpoint focus controls, direct chart selection, a maximised view, and the adjacent-system inspector recover context without covering the map with a duplicate navigator.
 
 Run one manual tick or inspect the state:
 

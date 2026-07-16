@@ -17,11 +17,11 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 30
-DURATION = 32.0
+DURATION = 30.0
 FRAME_COUNT = int(FPS * DURATION)
 SAMPLE_RATE = 48_000
-FINAL_HIT_TIME = 30.0
-AUDIO_FADE_START = 31.55
+FINAL_HIT_TIME = 28.0
+AUDIO_FADE_START = 28.0
 
 INK = "#0A0D0B"
 INK_2 = "#111611"
@@ -697,37 +697,287 @@ def scene_end(frame: Image.Image, t: float, opacity: float) -> None:
 
 
 class PromoRenderer:
-    def __init__(self, background_path: Path, dashboard_path: Path | None) -> None:
-        source = Image.open(background_path).convert("RGB")
-        self.background = ImageOps.fit(
-            source,
-            (int(WIDTH * 1.24), int(HEIGHT * 1.24)),
-            method=Image.Resampling.LANCZOS,
-        )
+    def __init__(
+        self,
+        gateway_path: Path,
+        command_path: Path,
+        galaxy_path: Path,
+        sector_path: Path,
+        battle_path: Path,
+        legacy_path: Path,
+    ) -> None:
+        self.gateway = Image.open(gateway_path).convert("RGB")
+        self.command = Image.open(command_path).convert("RGB")
+        self.galaxy = Image.open(galaxy_path).convert("RGB")
+        self.sector = Image.open(sector_path).convert("RGB")
+        self.battle = Image.open(battle_path).convert("RGB")
+        self.legacy = Image.open(legacy_path).convert("RGB")
         self.vignette = create_vignette()
         self.left_gradient = create_left_gradient()
         self.grid = create_grid()
         self.grain = create_grain_variants()
-        self.dashboard_card: Image.Image | None = None
-        if dashboard_path and dashboard_path.exists():
-            self.dashboard_card = rounded_card(Image.open(dashboard_path), (1250, 703), 18)
+
+    @staticmethod
+    def cinematic_crop(
+        source: Image.Image,
+        progress: float,
+        start_zoom: float,
+        end_zoom: float,
+        direction: float,
+    ) -> Image.Image:
+        progress = smooth(progress)
+        zoom = start_zoom + (end_zoom - start_zoom) * progress
+        size = (max(WIDTH, int(WIDTH * zoom)), max(HEIGHT, int(HEIGHT * zoom)))
+        fitted = ImageOps.fit(source, size, method=Image.Resampling.LANCZOS)
+        spare_x = fitted.width - WIDTH
+        spare_y = fitted.height - HEIGHT
+        x_bias = clamp(0.5 + direction * (progress - 0.5) * 0.72)
+        y_bias = clamp(0.5 - direction * (progress - 0.5) * 0.16)
+        left = int(spare_x * x_bias)
+        top = int(spare_y * y_bias)
+        return fitted.crop((left, top, left + WIDTH, top + HEIGHT)).convert("RGBA")
+
+    def composite_scene(
+        self,
+        frame: Image.Image,
+        source: Image.Image,
+        t: float,
+        start: float,
+        fade_in: float,
+        fade_out_start: float,
+        end: float,
+        start_zoom: float,
+        end_zoom: float,
+        direction: float,
+        shade: int,
+    ) -> float:
+        opacity = scene_opacity(t, start, fade_in, fade_out_start, end)
+        if opacity <= 0:
+            return 0.0
+        progress = clamp((t - start) / max(end - start, 0.001))
+        visual = self.cinematic_crop(source, progress, start_zoom, end_zoom, direction)
+        if shade:
+            visual.alpha_composite(Image.new("RGBA", visual.size, rgba(INK, shade)))
+        visual.putalpha(visual.getchannel("A").point(lambda alpha: int(alpha * opacity)))
+        frame.alpha_composite(visual)
+        return opacity
+
+    @staticmethod
+    def scene_copy(
+        frame: Image.Image,
+        opacity: float,
+        eyebrow: str,
+        headline: tuple[str, ...],
+        detail: str,
+        badge: str,
+        y: int = 116,
+    ) -> None:
+        if opacity <= 0:
+            return
+        layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+        draw.rounded_rectangle(
+            (112, y - 20, 1000, y + 232 + 104 * (len(headline) - 1)),
+            radius=18,
+            fill=rgba(INK, 154, opacity),
+            outline=rgba(TEXT, 30, opacity),
+            width=1,
+        )
+        draw_tracked(draw, (148, y + 10), eyebrow, FONTS["label"], rgba(GOLD, 245, opacity), 3.5)
+        text_y = y + 52
+        for line in headline:
+            draw_glow_text(
+                layer,
+                (144, text_y),
+                line,
+                FONTS["headline_small"],
+                TEXT if line != headline[-1] else GOLD,
+                opacity,
+                -0.3,
+                blur=14,
+            )
+            text_y += 100
+        draw_tracked(draw, (148, text_y + 10), detail, FONTS["label_small"], rgba(MUTED, 230, opacity), 1.2)
+        badge_width = tracked_width(badge, FONTS["label_small"], 1.3) + 44
+        draw.rounded_rectangle(
+            (WIDTH - badge_width - 58, 56, WIDTH - 58, 104),
+            radius=24,
+            fill=rgba(INK, 178, opacity),
+            outline=rgba(GOLD if "CONCEPT" in badge else GREEN, 130, opacity),
+            width=1,
+        )
+        draw_tracked(
+            draw,
+            (WIDTH - badge_width / 2 - 58, 69),
+            badge,
+            FONTS["label_small"],
+            rgba(GOLD if "CONCEPT" in badge else GREEN, 245, opacity),
+            1.3,
+            "center",
+        )
+        frame.alpha_composite(layer)
+
+    def scene_transit(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.gateway, t, 0.0, 0.22, 7.55, 8.15, 1.0, 1.115, 1.0, 38
+        )
+        if opacity <= 0:
+            return
+        title_opacity = opacity * scene_opacity(t, 0.0, 0.45, 2.75, 3.35)
+        layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+        if title_opacity > 0:
+            draw_tracked(
+                ImageDraw.Draw(layer),
+                (124, 240),
+                "A PERSISTENT GALACTIC STRATEGY GAME",
+                FONTS["label_small"],
+                rgba(GOLD, 245, title_opacity),
+                3.0,
+            )
+            draw_glow_text(layer, (116, 290), "CYCLES", FONTS["hero"], TEXT, title_opacity, -4.0, blur=24)
+            draw_tracked(
+                ImageDraw.Draw(layer),
+                (124, 596),
+                "COMMAND THE PRESENT.",
+                FONTS["subhead"],
+                rgba(PAPER, 250, title_opacity),
+                1.2,
+            )
+        frame.alpha_composite(layer)
+        movement_opacity = opacity * scene_opacity(t, 3.0, 0.5, 7.45, 8.05)
+        self.scene_copy(
+            frame,
+            movement_opacity,
+            "01 / MOVEMENT",
+            ("CROSS REAL", "DISTANCE."),
+            "Orders become routes, arrivals and exposure.",
+            "CONCEPT DRAMATISATION",
+            132,
+        )
+
+    def scene_command(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.command, t, 7.45, 0.5, 10.95, 11.55, 1.0, 1.045, -0.45, 46
+        )
+        self.scene_copy(
+            frame,
+            opacity,
+            "02 / COMMAND",
+            ("COMMIT YOUR", "INTENT."),
+            "Set priorities. Issue orders. Advance the turn.",
+            "CURRENT BUILD",
+            108,
+        )
+
+    def scene_galaxy(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.galaxy, t, 10.95, 0.5, 14.45, 15.05, 1.0, 1.035, 0.35, 26
+        )
+        self.scene_copy(
+            frame,
+            opacity,
+            "03 / GALAXY RANGE",
+            ("READ THE", "WHOLE GALAXY."),
+            "8 sectors  /  64 systems  /  91 live routes",
+            "CURRENT BUILD",
+            570,
+        )
+
+    def scene_sector(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.sector, t, 14.45, 0.5, 17.65, 18.25, 1.0, 1.105, -0.65, 52
+        )
+        self.scene_copy(
+            frame,
+            opacity,
+            "04 / SECTOR RANGE",
+            ("FIND THE", "CHOKEPOINT."),
+            "Eight local systems. Two gateways. Every route matters.",
+            "CURRENT BUILD · AUTHORED ATLAS",
+            120,
+        )
+
+    def scene_battle(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.battle, t, 17.65, 0.52, 21.85, 22.45, 1.0, 1.12, 0.8, 30
+        )
+        self.scene_copy(
+            frame,
+            opacity,
+            "05 / AUTHORITATIVE TICK",
+            ("EVERY ORDER", "BECOMES A FACT."),
+            "Movement  /  growth  /  combat  /  consequence",
+            "CONCEPT DRAMATISATION",
+            126,
+        )
+
+    def scene_legacy(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.legacy, t, 21.85, 0.52, 25.65, 26.25, 1.0, 1.1, -0.75, 34
+        )
+        self.scene_copy(
+            frame,
+            opacity,
+            "06 / THE CHRONICLE",
+            ("THE GALAXY RESETS.", "HISTORY REMAINS."),
+            "The simulation writes the facts. The next Cycle inherits the record.",
+            "CONCEPT DRAMATISATION",
+            116,
+        )
+
+    def scene_final(self, frame: Image.Image, t: float) -> None:
+        opacity = self.composite_scene(
+            frame, self.legacy, t, 25.65, 0.55, DURATION, DURATION, 1.08, 1.14, 0.0, 188
+        )
+        if opacity <= 0:
+            return
+        layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+        local = ease_out((t - 25.75) / 0.7)
+        draw_glow_text(layer, (WIDTH / 2, 226), "CYCLES", FONTS["hero_small"], TEXT, opacity * local, -2.5, "center", 22)
+        draw_tracked(
+            ImageDraw.Draw(layer),
+            (WIDTH / 2, 470),
+            "COMMAND THE PRESENT.",
+            FONTS["subhead"],
+            rgba(PAPER, 250, opacity * smooth((t - 26.35) / 0.55)),
+            1.2,
+            "center",
+        )
+        draw_tracked(
+            ImageDraw.Draw(layer),
+            (WIDTH / 2, 544),
+            "BECOME PART OF THE PAST.",
+            FONTS["subhead"],
+            rgba(GOLD, 250, opacity * smooth((t - 26.75) / 0.55)),
+            1.2,
+            "center",
+        )
+        cta_alpha = opacity * smooth((t - 27.25) / 0.55)
+        draw = ImageDraw.Draw(layer)
+        draw.rounded_rectangle((765, 688, 1155, 772), radius=8, fill=rgba(PAPER, 245, cta_alpha))
+        draw_tracked(draw, (960, 711), "ENTER THE BUILD", FONTS["label"], rgba(INK, 255, cta_alpha), 2.2, "center")
+        draw_tracked(
+            draw,
+            (WIDTH / 2, 830),
+            "PLAYABLE DEVELOPMENT BUILD",
+            FONTS["label_small"],
+            rgba(MUTED, 225, cta_alpha),
+            3.0,
+            "center",
+        )
+        draw_frame_corners(layer, opacity)
+        frame.alpha_composite(layer)
 
     def render(self, t: float, frame_index: int) -> Image.Image:
-        frame = crop_background(self.background, t)
-        grid_alpha = 0.58 + 0.16 * math.sin(t * 0.36)
-        grid = self.grid.copy()
-        grid.putalpha(grid.getchannel("A").point(lambda a: int(a * grid_alpha)))
-        frame.alpha_composite(grid)
-        frame.alpha_composite(self.left_gradient)
+        frame = Image.new("RGBA", (WIDTH, HEIGHT), rgba(INK))
+        self.scene_transit(frame, t)
+        self.scene_command(frame, t)
+        self.scene_galaxy(frame, t)
+        self.scene_sector(frame, t)
+        self.scene_battle(frame, t)
+        self.scene_legacy(frame, t)
+        self.scene_final(frame, t)
         frame.alpha_composite(self.vignette)
-
-        scene_logo(frame, t, scene_opacity(t, 0.0, 0.7, 4.0, 4.6))
-        scene_influence(frame, t, scene_opacity(t, 4.0, 0.55, 9.35, 9.95))
-        scene_commands(frame, t, scene_opacity(t, 9.35, 0.6, 15.9, 16.55), self.dashboard_card)
-        scene_tick(frame, t, scene_opacity(t, 15.9, 0.58, 20.95, 21.6))
-        scene_history(frame, t, scene_opacity(t, 20.95, 0.58, 25.45, 26.05))
-        scene_end(frame, t, scene_opacity(t, 25.45, 0.62, DURATION, DURATION))
-
         frame.alpha_composite(self.grain[frame_index % len(self.grain)])
         return frame.convert("RGB")
 
@@ -1379,7 +1629,7 @@ def render_video(
         for index in range(FRAME_COUNT):
             t = index / FPS
             frame = renderer.render(t, index)
-            if index == int(28.4 * FPS):
+            if index == int(27.8 * FPS):
                 frame.save(poster_path, quality=95)
             process.stdin.write(frame.tobytes())
             if index % FPS == 0:
@@ -1395,8 +1645,12 @@ def render_video(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--background", type=Path, required=True)
-    parser.add_argument("--dashboard", type=Path)
+    parser.add_argument("--gateway", type=Path, required=True)
+    parser.add_argument("--command", type=Path, required=True)
+    parser.add_argument("--galaxy", type=Path, required=True)
+    parser.add_argument("--sector", type=Path, required=True)
+    parser.add_argument("--battle", type=Path, required=True)
+    parser.add_argument("--legacy", type=Path, required=True)
     parser.add_argument("--ffmpeg", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--poster", type=Path, required=True)
@@ -1405,10 +1659,26 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    for path, label in ((args.background, "background"), (args.ffmpeg, "FFmpeg")):
+    required_paths = (
+        (args.gateway, "gateway concept frame"),
+        (args.command, "command gameplay frame"),
+        (args.galaxy, "galaxy gameplay frame"),
+        (args.sector, "sector atlas frame"),
+        (args.battle, "battle concept frame"),
+        (args.legacy, "legacy concept frame"),
+        (args.ffmpeg, "FFmpeg"),
+    )
+    for path, label in required_paths:
         if not path.exists():
             raise FileNotFoundError(f"Missing {label}: {path}")
-    renderer = PromoRenderer(args.background, args.dashboard)
+    renderer = PromoRenderer(
+        args.gateway,
+        args.command,
+        args.galaxy,
+        args.sector,
+        args.battle,
+        args.legacy,
+    )
     audio_path = args.out.with_suffix(".render-audio.wav")
     print("Creating original soundtrack", flush=True)
     create_soundtrack(audio_path)

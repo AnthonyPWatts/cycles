@@ -1458,3 +1458,20 @@ Consequences:
 - The authored chart owns the complete map stage without a permanent overlay in its lower-left corner.
 - No recent-map breadcrumb state, navigator rendering, navigator event handling, or navigator-only CSS remains in the client.
 - Home, Selected, and Flashpoint continue to recover useful context without changing authoritative state, visibility, routes, or map data.
+
+## 2026-07-16: Label Promo Imagery By Provenance
+
+Decision: make the public-site film a deliberate mix of current-build capture and generated concept dramatisation. Label both forms on screen, retain the source frames and prompts, and keep the distinction in the landing-page caption and production notes.
+
+Reasoning:
+
+- Dashboard footage proves the current command and map experience, but it cannot carry the full dramatic scale of gateway transit, fleet combat, or a galaxy surviving into its successor Cycle.
+- Generated cinematic frames can express those core concepts without pretending that they are simulation output or an implemented battle renderer.
+- Reproducible prompts and explicit labels preserve provenance while allowing the film to operate as a trailer rather than a screen recording.
+
+Consequences:
+
+- The 30-second master identifies Command, Galaxy, and authored-sector imagery as **Current build**.
+- Gateway transit, Treaty Gate combat, and Cycle continuity are identified as **Concept dramatisation**.
+- The film uses an original generated score and sound design, with no third-party audio in the current master.
+- Current film assets, prompt text, timing, render inputs, and verification command are maintained in `src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md`.
