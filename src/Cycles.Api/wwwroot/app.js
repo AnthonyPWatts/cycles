@@ -99,11 +99,16 @@ const authoredGalaxyAtlas = Object.freeze({
                 "Hollow Bastion": [1305, 372], "Vigil Cairn": [1125, 677], "Glass Refuge": [767, 832], "Silent Array": [400, 749]
             },
             routes: [
-                ["Hollow Crown", "Juniper Rift", [410, 235]], ["Juniper Rift", "Hollow Lantern", [620, 270]],
-                ["Hollow Lantern", "Crown Meridian", [830, 280]], ["Crown Meridian", "Hollow Bastion", [1130, 285]],
-                ["Hollow Bastion", "Vigil Cairn", [1290, 550]], ["Vigil Cairn", "Glass Refuge", [940, 800]],
-                ["Glass Refuge", "Silent Array", [580, 840]], ["Silent Array", "Hollow Crown", [250, 500]],
-                ["Juniper Rift", "Glass Refuge", [590, 520]], ["Crown Meridian", "Vigil Cairn", [1050, 470]]
+                ["Hollow Crown", "Juniper Rift", "M 303 223 C 358 226 431 274 518 274"],
+                ["Juniper Rift", "Hollow Lantern", "M 518 274 C 577 273 651 310 719 307"],
+                ["Hollow Lantern", "Crown Meridian", "M 719 307 C 792 273 871 261 943 275"],
+                ["Crown Meridian", "Hollow Bastion", "M 943 275 C 1078 260 1195 307 1305 372"],
+                ["Hollow Bastion", "Vigil Cairn", "M 1305 372 C 1330 482 1268 620 1125 677"],
+                ["Vigil Cairn", "Glass Refuge", "M 1125 677 C 1010 744 892 824 767 832"],
+                ["Glass Refuge", "Silent Array", "M 767 832 C 641 847 521 771 400 749"],
+                ["Silent Array", "Hollow Crown", "M 400 749 C 263 641 220 408 303 223"],
+                ["Juniper Rift", "Glass Refuge", "M 518 274 C 543 462 648 704 767 832"],
+                ["Crown Meridian", "Vigil Cairn", "M 943 275 C 982 421 1119 519 1125 677"]
             ]
         },
         "Lacuna Verge": {
@@ -179,11 +184,16 @@ const authoredGalaxyAtlas = Object.freeze({
                 "Zenith Yard": [1127, 589], "Sentinel Spur": [594, 675], "High Anchorage": [880, 756], "Northstar Gate": [1248, 757]
             },
             routes: [
-                ["Warden's Line", "Xanthe", [500, 220]], ["Xanthe", "Yarrow", [880, 250]],
-                ["Yarrow", "Zenith Yard", [1150, 450]], ["Zenith Yard", "Northstar Gate", [1190, 680]],
-                ["Northstar Gate", "High Anchorage", [1080, 820]], ["High Anchorage", "Sentinel Spur", [730, 760]],
-                ["Sentinel Spur", "Warden Watch", [510, 590]], ["Warden Watch", "Warden's Line", [390, 310]],
-                ["Xanthe", "Warden Watch", [570, 360]], ["Warden Watch", "Zenith Yard", [800, 480]]
+                ["Warden's Line", "Xanthe", "M 340 180 C 455 208 565 280 680 255"],
+                ["Xanthe", "Yarrow", "M 680 255 C 804 309 933 354 1068 328"],
+                ["Yarrow", "Zenith Yard", "M 1068 328 C 1121 405 1145 510 1127 589"],
+                ["Zenith Yard", "Northstar Gate", "M 1127 589 C 1162 652 1192 718 1248 757"],
+                ["Northstar Gate", "High Anchorage", "M 1248 757 C 1131 756 1008 801 880 756"],
+                ["High Anchorage", "Sentinel Spur", "M 880 756 C 770 731 680 690 594 675"],
+                ["Sentinel Spur", "Warden Watch", "M 594 675 C 528 618 466 540 433 449"],
+                ["Warden Watch", "Warden's Line", "M 433 449 C 409 337 432 257 340 180"],
+                ["Xanthe", "Warden Watch", "M 680 255 C 554 326 476 385 433 449"],
+                ["Warden Watch", "Zenith Yard", "M 433 449 C 648 426 923 445 1127 589"]
             ]
         }
     })
@@ -2225,6 +2235,10 @@ function mapAtlasSectorRoutePath(sector, firstName, secondName, firstPosition, s
         mapAtlasRouteKey(route[0], route[1]) === mapAtlasRouteKey(firstName, secondName));
     if (!trace) {
         return null;
+    }
+
+    if (typeof trace[2] === "string") {
+        return trace[2];
     }
 
     const control = trace[2];

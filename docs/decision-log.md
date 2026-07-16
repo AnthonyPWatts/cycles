@@ -1425,3 +1425,20 @@ Consequences:
 - No client rendering dependency is added. The existing SVG interaction layer hosts the atlas images and overlays.
 - Canonical system and sector identifiers remain stable under `territorial-graph-v2`. The guarded topology upgrade can repair the previous canonical coordinates and route network in place when there are no fleets in transit and no pending orders.
 - The generated SQL development fixture and normal seed use the visible 80-local-route plus 11-bridge graph. Hosted state is not changed merely by merging the client and seed update; deployment remains a separate guarded operation.
+
+## 2026-07-16: Keep Route Topology Out Of Atlas Artwork
+
+Decision: remove inter-sector corridors and internal system routes from the nine master atlas images. Keep the fixed territory silhouettes and node positions in the artwork, but make the SVG overlay the sole visual and interactive source of route topology.
+
+Reasoning:
+
+- Baked routes forced live state to trace image-generation curves exactly. Small deviations produced doubled lines and made an otherwise polished chart look imprecise.
+- Route topology is gameplay data and may change during development. Separating it from the fixed geography allows routes to be recoloured, animated, rebalanced, or reconfigured without regenerating the atlas.
+- Territory atmosphere and system placement benefit from authored imagery; route clarity benefits from deterministic vector geometry.
+
+Consequences:
+
+- The galaxy background retains exactly eight territory contours, and every sector background retains exactly eight fixed system nodes, but no connecting corridor pixels.
+- All 11 inter-sector bridges and 80 internal routes are rendered from the canonical link graph. Selected routes use a narrow animated signal treatment; dormant routes remain calm gold vectors.
+- Hover and selected-sector states use authored irregular contour paths rather than generic ovals.
+- The existing topology upgrade, identities, API contract, pathfinding and movement rules are unchanged.

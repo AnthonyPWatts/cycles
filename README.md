@@ -66,7 +66,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide: 8 named sectors, 64 systems, and 91 routes. Every sector contains 8 systems in its own connected 10-route composition and has exactly two gateway systems. The 11 inter-sector bridges form the partial mesh traced by the authored galaxy chart, with no central hub. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
+With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide: 8 named sectors, 64 systems, and 91 routes. Every sector contains 8 systems in its own connected 10-route composition and has exactly two gateway systems. The 11 inter-sector bridges form a partial mesh with no central hub and are drawn as live SVG over the route-free authored chart. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
 
 Run the API and dashboard:
 
