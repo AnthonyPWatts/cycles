@@ -8,9 +8,10 @@ public sealed class DashboardCommandOverviewContractTests
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("id=\"resourcesSection\" class=\"view-card summary command-resources\"", html);
+        Assert.Contains("id=\"strategicWatchSummary\" class=\"strategic-watch-list\"", html);
+        Assert.Contains("id=\"resourcesSection\" class=\"command-resources\"", html);
         Assert.Contains("id=\"homeSystemName\"", html);
-        Assert.Contains("id=\"prioritySection\" class=\"view-card priority-console\"", html);
+        Assert.Contains("id=\"prioritySection\" class=\"priority-console\"", html);
         Assert.Contains("data-priority-key=\"industryWeight\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"0\" aria-describedby=\"priorityModelNote\" disabled", html);
         Assert.Contains("data-priority-key=\"researchWeight\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"0\" aria-describedby=\"priorityModelNote\" disabled", html);
         Assert.Contains("data-priority-key=\"militaryWeight\" type=\"range\"", html);

@@ -32,6 +32,22 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Parent_shell_presents_cycle_state_and_authored_workspace_navigation()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("class=\"brand-orbit\"", html);
+        Assert.Contains("id=\"nextTurnStatus\"", html);
+        Assert.Equal(4, Regex.Matches(html, "class=\"view-nav-chapter\"").Count);
+        Assert.Contains("Triage the Cycle", html);
+        Assert.Contains("Read the frontier", html);
+        Assert.Contains("Commit intentions", html);
+        Assert.Contains("Consult the record", html);
+        Assert.Contains("elements.nextTurnStatus.textContent", script);
+    }
+
+    [Fact]
     public void Galaxy_view_keeps_the_chart_anchored_and_supports_strategic_exploration()
     {
         var html = ReadDashboardAsset("app.html");
@@ -83,6 +99,16 @@ public sealed class DashboardViewContractTests
         Assert.Contains("orders.filter(order => order.status === \"pending\")", script);
         Assert.Contains("state.orders.filter(order => order.status !== \"pending\")", script);
         Assert.Contains("state.orderHistoryLimit += 20;", script);
+        Assert.Contains("id=\"councilAgenda\"", html);
+        Assert.Contains("id=\"frontierSchematic\"", html);
+        Assert.Contains("id=\"commandStream\"", html);
+        Assert.Contains("id=\"strategicWatchSummary\"", html);
+        Assert.Contains("Order Queue &amp; Turn Calendar", html);
+        Assert.Contains("function renderCommandWorkspace", script);
+        Assert.Contains("function commandAgendaItems", script);
+        Assert.Contains("function renderFrontierSchematic", script);
+        Assert.Contains("class=\"calendar-turn", script);
+        Assert.Contains("data-cancel-order-id", script);
     }
 
     [Fact]

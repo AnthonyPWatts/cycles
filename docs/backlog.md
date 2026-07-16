@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -14,6 +14,8 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
+
+The dashboard shell currently exposes the four implemented Command, Galaxy, Fleets, and History workspaces. Command owns cross-workspace triage and next-turn commitments; specialised work remains in its dedicated view. The navigation can grow when a bounded player-facing Strategy or Diplomacy workspace exists, but decision-gated systems do not receive empty or disabled tabs in advance.
 
 ## Actionable Issue Index
 

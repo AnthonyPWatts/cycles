@@ -246,8 +246,16 @@ const elements = {
     fleetsViewBadge: document.querySelector("#fleetsViewBadge"),
     historyViewBadge: document.querySelector("#historyViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
+    nextTurnStatus: document.querySelector("#nextTurnStatus"),
     empireName: document.querySelector("#empireName"),
     homeSystemName: document.querySelector("#homeSystemName"),
+    commandView: document.querySelector("#commandView"),
+    commandAgendaCount: document.querySelector("#commandAgendaCount"),
+    commandPendingCount: document.querySelector("#commandPendingCount"),
+    councilAgenda: document.querySelector("#councilAgenda"),
+    frontierSchematic: document.querySelector("#frontierSchematic"),
+    commandStream: document.querySelector("#commandStream"),
+    strategicWatchSummary: document.querySelector("#strategicWatchSummary"),
     resources: document.querySelector("#resources"),
     systemDetails: document.querySelector("#systemDetails"),
     prioritySection: document.querySelector("#prioritySection"),
@@ -310,6 +318,7 @@ const elements = {
     mapFocusFrontier: document.querySelector("#mapFocusFrontier"),
     mapMaximise: document.querySelector("#mapMaximise"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
+    commandAdvanceTurnButton: document.querySelector("#commandAdvanceTurnButton"),
     turnMessage: document.querySelector("#turnMessage"),
     refreshButton: document.querySelector("#refreshButton"),
     tutorialButton: document.querySelector("#tutorialButton"),
@@ -332,6 +341,8 @@ elements.loginForm.addEventListener("submit", async event => {
 elements.signOutButton.addEventListener("click", signOut);
 
 elements.refreshButton.addEventListener("click", refresh);
+
+elements.commandAdvanceTurnButton.addEventListener("click", () => elements.advanceTurnButton.click());
 
 elements.tutorialButton.addEventListener("click", startOrResumeTutorial);
 elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
@@ -381,6 +392,7 @@ elements.advanceTurnButton.addEventListener("click", async () => {
     }
 
     elements.advanceTurnButton.disabled = true;
+    elements.commandAdvanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
         setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}.`);
@@ -389,6 +401,45 @@ elements.advanceTurnButton.addEventListener("click", async () => {
         setTurnMessage(error.message);
     } finally {
         elements.advanceTurnButton.disabled = false;
+        elements.commandAdvanceTurnButton.disabled = false;
+    }
+});
+
+elements.commandView.addEventListener("click", async event => {
+    const prioritiesButton = event.target.closest("[data-focus-priorities]");
+    if (prioritiesButton) {
+        elements.prioritySection.scrollIntoView({ behavior: "smooth", block: "center" });
+        requestAnimationFrame(() => document.querySelector("#militaryWeight")?.focus({ preventScroll: true }));
+        return;
+    }
+
+    const fleetButton = event.target.closest("[data-command-fleet]");
+    if (fleetButton) {
+        await selectFleet(fleetButton.dataset.commandFleet);
+        if (fleetButton.dataset.commandAction) {
+            activateFleetAction(fleetButton.dataset.commandAction);
+        }
+        activateView("fleets", { updateLocation: true, focusHeading: true });
+        return;
+    }
+
+    const systemButton = event.target.closest("[data-focus-system]");
+    if (systemButton) {
+        selectSystem(systemButton.dataset.focusSystem, { focusMap: true });
+        activateView("galaxy", { updateLocation: true, focusHeading: true });
+        requestAnimationFrame(() => elements.galaxyMap.focus({ preventScroll: true }));
+    }
+});
+
+elements.commandView.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    const systemButton = event.target.closest("[data-focus-system]");
+    if (systemButton) {
+        event.preventDefault();
+        systemButton.click();
     }
 });
 
@@ -753,6 +804,7 @@ function applySession(login) {
     state.canAdvanceTurn = login.canAdvanceTurn;
     state.empire = login.empire;
     elements.advanceTurnButton.hidden = !login.canAdvanceTurn;
+    elements.commandAdvanceTurnButton.hidden = !login.canAdvanceTurn;
     elements.sessionUsername.textContent = login.username;
     elements.loginForm.hidden = true;
     elements.sessionSummary.hidden = false;
@@ -826,6 +878,7 @@ async function refresh() {
     renderChronicle(chronicle);
     renderGalaxy(galaxy, empire);
     renderViewBadges();
+    renderCommandWorkspace();
     syncTutorialAfterRefresh();
 }
 
@@ -948,6 +1001,7 @@ function renderCycle(cycle) {
         <span class="cycle-pill">T${cycle.currentTickNumber}</span>
         ${statusChip(cycle.status)}
     `;
+    elements.nextTurnStatus.textContent = `T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
 }
 
 function renderEmpire(empire) {
@@ -972,11 +1026,279 @@ function renderViewBadges() {
     setViewBadge(elements.galaxyViewBadge, state.galaxy?.systems.length ?? 0, `${formatCount(state.galaxy?.systems.length ?? 0, "system")}`);
     setViewBadge(elements.fleetsViewBadge, activeFleets, `${formatCount(activeFleets, "active fleet")}`);
     setViewBadge(elements.historyViewBadge, visibleEvents + chronicleEntries, `${formatCount(visibleEvents + chronicleEntries, "historical record")}`);
+    elements.commandPendingCount.textContent = formatNumber(pendingOrders);
 }
 
 function setViewBadge(element, value, label) {
     element.textContent = formatNumber(value);
     element.setAttribute("aria-label", label);
+}
+
+function renderCommandWorkspace() {
+    const agenda = commandAgendaItems().slice(0, 3);
+    elements.commandAgendaCount.textContent = formatNumber(agenda.length);
+    elements.councilAgenda.innerHTML = agenda.map((item, index) => `
+        <article class="agenda-item agenda-tone-${item.tone}">
+            <span class="agenda-index">${String(index + 1).padStart(2, "0")}</span>
+            <span class="agenda-sigil" aria-hidden="true">${item.sigil}</span>
+            <div class="agenda-copy">
+                <small>${escapeHtml(item.category)}</small>
+                <strong>${escapeHtml(item.title)}</strong>
+                <span>${escapeHtml(item.detail)}</span>
+            </div>
+            <div class="agenda-timing">
+                <small>Consequence</small>
+                <span>${escapeHtml(item.consequence)}</span>
+                <small>Timing</small>
+                <span>${escapeHtml(item.timing)}</span>
+            </div>
+            ${item.action}
+        </article>
+    `).join("");
+
+    renderFrontierSchematic();
+    renderCommandStream();
+    renderStrategicWatch();
+}
+
+function commandAgendaItems() {
+    const briefing = state.openingBriefing;
+    if (state.cycle?.currentTickNumber === 0
+        && briefing?.objectives?.move
+        && briefing.objectives.colonise
+        && briefing.objectives.attack) {
+        return [
+            commandObjectiveAgendaItem({
+                category: "Fleet command",
+                orderType: "attack",
+                fleetId: briefing.objectives.attack.fleetId,
+                targetSystemId: briefing.objectives.attack.systemId,
+                targetEmpireId: briefing.objectives.attack.targetEmpireId,
+                detail: "Hostile force in local space",
+                consequence: "Engagement resolves",
+                sigil: "X"
+            }),
+            commandObjectiveAgendaItem({
+                category: "Fleet movement",
+                orderType: "moveFleet",
+                fleetId: briefing.objectives.move.fleetId,
+                targetSystemId: briefing.objectives.move.targetSystemId,
+                detail: "Frontier station requires reinforcement",
+                consequence: "Fleet changes station",
+                sigil: "N"
+            }),
+            commandObjectiveAgendaItem({
+                category: "Expansion",
+                orderType: "colonise",
+                fleetId: briefing.objectives.colonise.fleetId,
+                targetSystemId: briefing.objectives.colonise.systemId,
+                detail: "Population-funded outpost opportunity",
+                consequence: "100 population committed",
+                sigil: "O"
+            })
+        ];
+    }
+
+    const pendingOrders = state.orders.filter(order => order.status === "pending");
+    const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0);
+    const committedFleetIds = new Set(pendingOrders.map(order => order.fleetId));
+    const uncommittedFleets = activeFleets.filter(item => !committedFleetIds.has(item.fleet.fleetId));
+    const nextTick = (state.cycle?.currentTickNumber ?? 0) + 1;
+    const priorities = state.empire?.priorities ?? { militaryWeight: 0, expansionWeight: 0 };
+
+    return [
+        {
+            category: "Order queue",
+            title: pendingOrders.length === 0 ? "Turn uncommitted" : formatCount(pendingOrders.length, "commitment"),
+            detail: pendingOrders.length === 0 ? "No intentions are queued for resolution" : "Review timing or cancel before resolution",
+            consequence: pendingOrders.length === 0 ? "Fleets retain position" : `Processes from T${nextTick}`,
+            timing: `T${state.cycle?.currentTickNumber ?? 0} → T${nextTick}`,
+            tone: pendingOrders.length === 0 ? "urgent" : "queued",
+            sigil: pendingOrders.length === 0 ? "!" : "Q",
+            action: `<a class="agenda-action" href="#fleets">${pendingOrders.length === 0 ? "Issue orders" : "Review queue"}</a>`
+        },
+        {
+            category: "Fleet readiness",
+            title: formatCount(uncommittedFleets.length, "fleet awaits direction", "fleets await direction"),
+            detail: `${formatCount(activeFleets.length, "active fleet")} available to command`,
+            consequence: uncommittedFleets.length === 0 ? "All active fleets committed" : "Uncommitted fleets hold",
+            timing: `Before T${nextTick}`,
+            tone: uncommittedFleets.length === 0 ? "resolved" : "watch",
+            sigil: "F",
+            action: `<a class="agenda-action" href="#fleets">Open fleets</a>`
+        },
+        {
+            category: "Strategic programmes",
+            title: `Military ${priorities.militaryWeight} · Expansion ${priorities.expansionWeight}`,
+            detail: "The active allocation applies at the next turn",
+            consequence: `Applies at T${nextTick}`,
+            timing: `T${state.cycle?.currentTickNumber ?? 0} → T${nextTick}`,
+            tone: "programme",
+            sigil: "S",
+            action: `<button class="agenda-action" type="button" data-focus-priorities>Review allocation</button>`
+        }
+    ];
+}
+
+function commandObjectiveAgendaItem({ category, orderType, fleetId, targetSystemId, targetEmpireId = null, detail, consequence, sigil }) {
+    const order = state.orders
+        .filter(candidate => candidate.fleetId === fleetId && String(candidate.orderType).toLowerCase() === orderType.toLowerCase())
+        .filter(candidate => !targetSystemId || !candidate.targetSystemId || candidate.targetSystemId === targetSystemId)
+        .filter(candidate => !targetEmpireId || !candidate.targetEmpireId || candidate.targetEmpireId === targetEmpireId)
+        .sort((left, right) => Number(right.status === "pending") - Number(left.status === "pending")
+            || Number(right.executeAfterTick ?? 0) - Number(left.executeAfterTick ?? 0))[0];
+    const status = String(order?.status ?? "").toLowerCase();
+    const queued = status === "pending";
+    const resolved = status === "processed" || status === "completed";
+    const nextTick = (state.cycle?.currentTickNumber ?? 0) + 1;
+    const targetName = commandSystemName(targetSystemId) ?? commandFleetName(fleetId);
+    const actionLabel = queued ? "Review order" : resolved ? "Review history" : `Issue ${formatOrderType(orderType).toLowerCase()}`;
+    const action = resolved
+        ? `<a class="agenda-action" href="#history">${actionLabel}</a>`
+        : `<button class="agenda-action" type="button" data-command-fleet="${fleetId}" data-command-action="${orderType === "moveFleet" ? "move" : orderType}">${actionLabel}</button>`;
+
+    return {
+        category,
+        title: targetName,
+        detail: queued ? `Queued: ${commandFleetName(fleetId)}` : resolved ? `Resolved: ${commandFleetName(fleetId)}` : detail,
+        consequence: queued ? `Processes from T${order.executeAfterTick}` : resolved ? `Recorded at T${order.processedTick ?? "?"}` : consequence,
+        timing: `T${state.cycle?.currentTickNumber ?? 0} → T${nextTick}`,
+        tone: queued ? "queued" : resolved ? "resolved" : "urgent",
+        sigil,
+        action
+    };
+}
+
+function commandFleetName(fleetId) {
+    return state.fleets.find(item => item.fleet.fleetId === fleetId)?.fleet.fleetName ?? "Fleet objective";
+}
+
+function commandSystemName(systemId) {
+    return state.galaxy?.systems.find(system => system.systemId === systemId)?.systemName ?? null;
+}
+
+function renderFrontierSchematic() {
+    const systems = commandFrontierSystems();
+    if (systems.length === 0) {
+        elements.frontierSchematic.innerHTML = `<p class="command-empty">No frontier systems are available.</p>`;
+        return;
+    }
+
+    const positions = [
+        { x: 320, y: 72 },
+        { x: 118, y: 272 },
+        { x: 522, y: 272 },
+        { x: 320, y: 318 }
+    ];
+    const plotted = systems.map((system, index) => ({ ...system, ...positions[index] }));
+    const plottedById = new Map(plotted.map(system => [system.systemId, system]));
+    const routes = (state.galaxy?.links ?? [])
+        .filter(link => plottedById.has(link.systemAId) && plottedById.has(link.systemBId))
+        .map(link => {
+            const start = plottedById.get(link.systemAId);
+            const end = plottedById.get(link.systemBId);
+            return `<path class="schematic-route${commandRouteHasPendingOrder(link) ? " is-queued" : ""}" d="M ${start.x} ${start.y} L ${end.x} ${end.y}"></path>`;
+        }).join("");
+    const attackSystemId = state.openingBriefing?.objectives?.attack?.systemId;
+    const pendingTargets = new Set(state.orders.filter(order => order.status === "pending").map(order => order.targetSystemId).filter(Boolean));
+    const nodes = plotted.map(system => {
+        const isHome = system.systemId === state.empire?.homeSystem.systemId;
+        const tone = isHome ? "home" : system.systemId === attackSystemId ? "threat" : pendingTargets.has(system.systemId) ? "queued" : "frontier";
+        const labelY = system.y < 120 ? system.y - 34 : system.y + 48;
+        return `
+            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Galaxy">
+                <circle class="schematic-node-orbit" cx="${system.x}" cy="${system.y}" r="28"></circle>
+                <circle class="schematic-node-core" cx="${system.x}" cy="${system.y}" r="9"></circle>
+                <circle class="schematic-node-point" cx="${system.x}" cy="${system.y}" r="3"></circle>
+                <text x="${system.x}" y="${labelY}" text-anchor="middle">${escapeHtml(system.systemName)}</text>
+            </g>
+        `;
+    }).join("");
+
+    elements.frontierSchematic.innerHTML = `
+        <svg viewBox="0 0 640 380" role="group" aria-label="Current command frontier">
+            <g class="schematic-grid" aria-hidden="true">
+                <path d="M 0 95 H 640 M 0 190 H 640 M 0 285 H 640"></path>
+                <path d="M 160 0 V 380 M 320 0 V 380 M 480 0 V 380"></path>
+            </g>
+            <g class="schematic-routes">${routes}</g>
+            <g class="schematic-nodes">${nodes}</g>
+        </svg>
+        <div class="schematic-legend" aria-hidden="true">
+            <span class="legend-home">Home</span>
+            <span class="legend-queued">Queued route</span>
+            <span class="legend-threat">Unresolved objective</span>
+        </div>
+    `;
+}
+
+function commandFrontierSystems() {
+    const systemIds = [];
+    const add = value => {
+        if (value && !systemIds.includes(value)) {
+            systemIds.push(value);
+        }
+    };
+    add(state.empire?.homeSystem.systemId);
+    add(state.openingBriefing?.objectives?.move?.targetSystemId);
+    add(state.openingBriefing?.objectives?.colonise?.systemId);
+    add(state.openingBriefing?.objectives?.attack?.systemId);
+    for (const order of state.orders.filter(order => order.status === "pending")) {
+        add(order.targetSystemId);
+    }
+    if (systemIds.length < 4 && state.empire?.homeSystem.systemId) {
+        for (const system of linkedSystems(state.empire.homeSystem.systemId)) {
+            add(system.systemId);
+        }
+    }
+
+    const systemsById = new Map((state.galaxy?.systems ?? []).map(system => [system.systemId, system]));
+    return systemIds.slice(0, 4).map(systemId => systemsById.get(systemId)).filter(Boolean);
+}
+
+function commandRouteHasPendingOrder(link) {
+    return state.orders.some(order => order.status === "pending"
+        && order.targetSystemId
+        && (order.targetSystemId === link.systemAId || order.targetSystemId === link.systemBId));
+}
+
+function renderCommandStream() {
+    const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0).length;
+    const pendingOrders = state.orders.filter(order => order.status === "pending").length;
+    const latestEvents = state.events
+        .slice()
+        .sort((left, right) => right.tickNumber - left.tickNumber || String(right.createdAt).localeCompare(String(left.createdAt)))
+        .slice(0, 2)
+        .map(event => ({ marker: `T${event.tickNumber}`, text: event.displayText, tone: statusClass(event.severity) }));
+    const rows = [
+        ...latestEvents,
+        { marker: "F", text: formatCount(activeFleets, "active fleet") + " ready", tone: "fleet" },
+        { marker: "Q", text: formatCount(pendingOrders, "order") + " pending", tone: pendingOrders > 0 ? "queued" : "quiet" }
+    ].slice(0, 4);
+
+    elements.commandStream.innerHTML = rows.map(row => `
+        <div class="command-stream-entry stream-tone-${row.tone}">
+            <span>${escapeHtml(row.marker)}</span>
+            <p>${escapeHtml(row.text)}</p>
+        </div>
+    `).join("");
+}
+
+function renderStrategicWatch() {
+    const resources = state.empire?.resources;
+    const priorities = state.empire?.priorities;
+    const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0).length;
+    const totalFleets = state.fleets.length;
+    const outposts = state.galaxy?.colonialOutposts?.filter(outpost => outpost.empireId === state.empire?.empireId).length ?? 0;
+    const research = Number(resources?.research ?? 0);
+    const researchProgress = Math.min(100, Math.round((research / 200) * 100));
+
+    elements.strategicWatchSummary.innerHTML = `
+        <div><dt>Programme</dt><dd>Military ${formatNumber(priorities?.militaryWeight ?? 0)} · Expansion ${formatNumber(priorities?.expansionWeight ?? 0)}</dd></div>
+        <div><dt>Doctrine</dt><dd>Survey Projection · ${formatNumber(research)} / 200 Research <span>${researchProgress}%</span></dd></div>
+        <div><dt>Fleet posture</dt><dd>${formatNumber(activeFleets)} active · ${formatNumber(totalFleets)} recorded</dd></div>
+        <div><dt>Expansion</dt><dd>${formatCount(outposts, "outpost")} · ${formatNumber(resources?.population ?? 0)} Population</dd></div>
+    `;
 }
 
 function renderPriorities(priorities) {
@@ -1276,11 +1598,45 @@ function renderSystemDetails() {
 
 function renderOrderQueue(orders) {
     const pendingOrders = orders.filter(order => order.status === "pending");
-    elements.orders.innerHTML = pendingOrders.length === 0
-        ? `<article class="item empty-state"><strong>No pending orders</strong><span>Issue an order when you are ready to commit the next turn.</span></article>`
-        : pendingOrders.map(order => orderCard(order, true)).join("");
+    const currentTick = state.cycle?.currentTickNumber ?? 0;
+    const finalTick = Math.max(currentTick + 5, ...pendingOrders.map(order => Number(order.executeAfterTick ?? currentTick + 1)));
+    const turns = Array.from({ length: finalTick - currentTick + 1 }, (_, index) => currentTick + index);
+    elements.orders.innerHTML = turns.map(tick => {
+        const turnOrders = pendingOrders
+            .filter(order => Number(order.executeAfterTick ?? currentTick + 1) === tick)
+            .sort((left, right) => left.fleetName.localeCompare(right.fleetName));
+        const isCurrent = tick === currentTick;
+        const isNext = tick === currentTick + 1;
+        const content = turnOrders.length > 0
+            ? turnOrders.map(orderCalendarCard).join("")
+            : `<p class="calendar-empty">${isCurrent ? "Current turn is resolving state." : "No orders queued"}</p>`;
+        return `
+            <section class="calendar-turn${isCurrent ? " is-current" : ""}${isNext ? " is-next" : ""}" aria-label="Turn ${tick}">
+                <header>
+                    <strong>T${tick}</strong>
+                    <span>${isCurrent ? "Now" : isNext ? "Next" : "Forecast"}</span>
+                </header>
+                <div class="calendar-turn-orders">${content}</div>
+            </section>
+        `;
+    }).join("");
 
     renderOrderHistory();
+}
+
+function orderCalendarCard(order) {
+    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    const glyph = ({ moveFleet: "M", attack: "X", colonise: "O", hold: "H" })[order.orderType] ?? "·";
+    return `
+        <article class="calendar-order order-${statusClass(order.status)}">
+            <span class="calendar-order-glyph" aria-hidden="true">${glyph}</span>
+            <div>
+                <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
+                <span>${escapeHtml(target)} · Earliest T${formatNumber(order.executeAfterTick)}</span>
+            </div>
+            <button type="button" class="inline-action" data-cancel-order-id="${order.fleetOrderId}">Cancel</button>
+        </article>
+    `;
 }
 
 function renderOrderHistory() {

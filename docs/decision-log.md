@@ -1475,3 +1475,21 @@ Consequences:
 - Gateway transit, Treaty Gate combat, and Cycle continuity are identified as **Concept dramatisation**.
 - The film uses an original generated score and sound design, with no third-party audio in the current master.
 - Current film assets, prompt text, timing, render inputs, and verification command are maintained in `src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md`.
+
+## 2026-07-16: Make Command The Cross-Workspace Triage Hub
+
+Decision: treat Command as the place to understand what needs attention and what is already committed for the next turn, not as a container for every specialised action. Place the four implemented workspaces inside an authored empire/Cycle shell with illustrated navigation, and keep future Strategy or Diplomacy destinations out of the navigation until they have bounded player-facing behaviour.
+
+Reasoning:
+
+- Galaxy already owns strategic spatial inspection, Fleets owns fleet detail and order planning, and History owns the factual and Chronicle record. Repeating those full tools in Command would create a second, weaker version of each workspace.
+- A council agenda, command stream, strategic watch, frontier schematic, and order queue paired with a turn calendar let a player dip into the game, identify unfinished decisions, and commit the next turn without pretending Command is another specialist surface.
+- The former flat application bar and generic navigation hierarchy communicated framework structure more strongly than game identity. Empire identity, Cycle state, authored destination imagery, and restrained archival instruments make the parent shell part of the game world without turning it into a decorative HUD.
+- Strategy and Diplomacy are plausible future workspaces, but their remaining product gates do not justify dead tabs or invented controls now.
+
+Consequences:
+
+- The parent shell presents empire, home system, current Cycle, next-turn cadence, guide, refresh, and permitted turn advancement as consequential game state rather than account metadata.
+- Command derives its agenda, frontier, stream, watch, resource, programme, and calendar content from the existing visibility-filtered opening briefing, fleet, order, event, empire, and galaxy contracts. It introduces no new gameplay authority or API shape.
+- Agenda and frontier actions hand off to the existing Fleets, Galaxy, and History workspaces. Priority saving, pending-order cancellation, and development turn advancement retain their existing server-authoritative paths.
+- The responsive shell preserves the four real destinations and can expand later without changing the current navigation contract.
