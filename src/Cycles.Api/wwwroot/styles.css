@@ -2297,8 +2297,7 @@ dd {
 
 .atlas-vignette {
     fill: rgba(2, 4, 10, 0.08);
-    stroke: rgba(5, 8, 17, 0.72);
-    stroke-width: 34;
+    stroke: none;
 }
 
 .atlas-local-wash {
