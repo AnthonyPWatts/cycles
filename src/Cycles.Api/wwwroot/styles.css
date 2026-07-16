@@ -2445,13 +2445,26 @@ dd {
     fill: rgba(3, 5, 12, 0.18);
 }
 
+.sector-lens,
 .sector-focus {
-    fill: rgba(95, 131, 201, 0.035);
-    stroke: rgba(144, 179, 239, 0.28);
-    stroke-width: 2;
-    stroke-dasharray: 8 12;
     pointer-events: none;
-    transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
+    vector-effect: non-scaling-stroke;
+    transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease, filter 180ms ease;
+}
+
+.sector-lens {
+    fill: rgba(116, 151, 220, 0.025);
+    stroke: none;
+    opacity: 0;
+    mix-blend-mode: screen;
+}
+
+.sector-focus {
+    fill: none;
+    stroke: rgba(151, 186, 241, 0.34);
+    stroke-width: 1.5;
+    stroke-dasharray: 9 13;
+    opacity: 0;
 }
 
 .sector-hit {
@@ -2495,10 +2508,29 @@ dd {
 .sector-node:hover .sector-focus,
 .sector-node:focus .sector-focus,
 .sector-node.is-active .sector-focus {
-    fill: rgba(111, 151, 226, 0.1);
-    stroke: var(--accent);
-    stroke-dasharray: none;
-    stroke-width: 4;
+    stroke: rgba(173, 204, 255, 0.92);
+    stroke-width: 2.4;
+    opacity: 1;
+    filter: drop-shadow(0 0 7px rgba(113, 158, 232, 0.72));
+}
+
+.sector-node:hover .sector-lens,
+.sector-node:focus .sector-lens,
+.sector-node.is-active .sector-lens {
+    fill: rgba(108, 151, 226, 0.11);
+    opacity: 1;
+    filter: drop-shadow(0 0 18px rgba(105, 151, 225, 0.44));
+}
+
+.sector-node:hover .sector-focus,
+.sector-node:focus .sector-focus {
+    stroke-dasharray: 5 11;
+}
+
+.sector-node.is-active .sector-focus {
+    stroke: #a8caff;
+    stroke-dasharray: 16 9;
+    animation: map-sector-contour-flow 5.4s linear infinite;
 }
 
 .sector-anchor {
@@ -2890,6 +2922,12 @@ dd {
 @keyframes map-route-flow {
     to {
         stroke-dashoffset: -34;
+    }
+}
+
+@keyframes map-sector-contour-flow {
+    to {
+        stroke-dashoffset: -50;
     }
 }
 
@@ -3441,6 +3479,7 @@ dd {
     .selection-orbit,
     .selection-scan,
     .selection-reticle,
+    .sector-node.is-active .sector-focus,
     .link.selected-route,
     .chart-star:nth-child(11n) {
         animation: none;
