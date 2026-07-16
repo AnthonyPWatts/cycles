@@ -7,8 +7,15 @@ public sealed class PlaygroundAccessMiddlewareTests
 {
     private const string AccessCode = "correct-horse-battery-staple-2026";
 
-    [Fact]
-    public async Task Health_RemainsAvailableWithoutAPlaygroundCookie()
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/index.html")]
+    [InlineData("/site.css")]
+    [InlineData("/media/cycles-promo-30s.mp4")]
+    [InlineData("/media/cycles-promo-poster.jpg")]
+    [InlineData("/media/promo/gameplay-galaxy.png")]
+    [InlineData("/health")]
+    public async Task PublicLandingRequest_RemainsAvailableWithoutAPlaygroundCookie(string path)
     {
         var nextCalled = false;
         var middleware = new PlaygroundAccessMiddleware(_ =>
@@ -16,18 +23,25 @@ public sealed class PlaygroundAccessMiddlewareTests
             nextCalled = true;
             return Task.CompletedTask;
         }, AccessCode);
-        var context = CreateContext("GET", "/health");
+        var context = CreateContext("GET", path);
 
         await middleware.InvokeAsync(context);
 
         Assert.True(nextCalled);
     }
 
-    [Fact]
-    public async Task UnauthenticatedRequest_ShowsTheAccessForm()
+    [Theory]
+    [InlineData("/app.html")]
+    [InlineData("/app.js")]
+    [InlineData("/styles.css")]
+    [InlineData("/assets/galaxy/galaxy-overview.png")]
+    [InlineData("/media/navigation-backgrounds/command.png")]
+    [InlineData("/auth/login")]
+    [InlineData("/galaxy")]
+    public async Task UnauthenticatedApplicationRequest_ShowsTheAccessForm(string path)
     {
         var middleware = new PlaygroundAccessMiddleware(_ => Task.CompletedTask, AccessCode);
-        var context = CreateContext("GET", "/");
+        var context = CreateContext("GET", path);
 
         await middleware.InvokeAsync(context);
 
@@ -48,7 +62,7 @@ public sealed class PlaygroundAccessMiddlewareTests
         await middleware.InvokeAsync(context);
 
         Assert.Equal(StatusCodes.Status303SeeOther, context.Response.StatusCode);
-        Assert.Equal("/", context.Response.Headers.Location);
+        Assert.Equal("/app.html", context.Response.Headers.Location);
         var setCookie = Assert.Single(context.Response.Headers.SetCookie);
         Assert.Contains(PlaygroundAccessMiddleware.CookieName, setCookie);
         Assert.Contains("secure", setCookie, StringComparison.OrdinalIgnoreCase);
@@ -66,7 +80,7 @@ public sealed class PlaygroundAccessMiddlewareTests
             nextCalled = true;
             return Task.CompletedTask;
         }, AccessCode);
-        var context = CreateContext("GET", "/");
+        var context = CreateContext("GET", "/app.html");
         var token = PlaygroundAccessMiddleware.CreateCookieToken(AccessCode);
         context.Request.Headers.Cookie = $"{PlaygroundAccessMiddleware.CookieName}={token}";
 

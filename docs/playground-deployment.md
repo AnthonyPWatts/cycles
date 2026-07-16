@@ -11,7 +11,7 @@ The hosted playground is a deliberately constrained development environment for 
 - The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the canonical 8-sector, 64-system Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan proxies `https://cycles.anthonypwatts.co.uk` to the App Service origin. The Worker has no bindings, storage, observability, or paid features.
-- Both the custom domain and the direct Azure origin are protected by the same application-level access code. `/health` remains unauthenticated for deployment verification.
+- The landing page, its stylesheet and promotional media remain public on both the custom domain and direct Azure origin. The shared application-level access code protects the dashboard, application assets, authentication routes, and game APIs. `/health` also remains unauthenticated for deployment verification.
 
 App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
 
@@ -90,6 +90,8 @@ The Cloudflare proxy is defined under `deploy/cloudflare`. It is deliberately se
 
 `CYCLES_PLAYGROUND_ACCESS_CODE` enables the access gate. Keep the generated value only in the Azure App Service setting and a password manager; never commit it or add it to GitHub. Anthony and Will use the same code and receive separate seven-day, secure, HTTP-only browser cookies. Rotate the setting to revoke every existing playground cookie.
 
+Anonymous visitors may read the public landing page and promotional media. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard, application asset, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`.
+
 This shared-code gate is a trusted-playground exception, not production identity. Cloudflare Zero Trust was considered but not activated because its checkout required a payment card and offered authorisation for usage over the free allowance. The hard-spend requirement takes precedence over per-email sign-in for this environment.
 
 ## Cost Guardrails
@@ -100,7 +102,7 @@ This shared-code gate is a trusted-playground exception, not production identity
 - Treat Azure budgets as notifications only; the F1 quotas and Azure SQL free-limit exhaustion setting are the enforced spend controls.
 - Keep the `cycles-f1-read-only` resource lock on the App Service plan. Remove it only for an intentional, reviewed plan change or teardown.
 - Keep the `cycles-playground-free-only` policy assignment enforced on the resource group. It permits the approved Azure SQL resources but continues to deny Container Apps, container registry, Application Insights, and Log Analytics resources in this scope.
-- Keep access restricted at the edge. This environment uses development authentication and is not suitable for untrusted public access.
+- Keep the playable application surface restricted. This environment uses development authentication and is not suitable for untrusted application access even though its non-sensitive landing page is public.
 - The database cutover and restore gate is complete; later tester scope remains governed by the guided-play, Worker-operation, and security gates in the project backlog.
 - Keep temporary restore-rehearsal databases isolated and delete them as soon as their recorded evidence is complete. No restore-proof database should remain during normal playground operation.
 - Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
@@ -145,4 +147,4 @@ az policy assignment show `
   --query '{enforcementMode:enforcementMode,scope:scope}'
 ```
 
-The checks must continue to report `F1`/`Free`; an online or auto-paused `GP_S_Gen5` `CyclesDb` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; no leftover restore-proof user database; seven retention days; a single `Cycles` connection-string name without displaying its value; no obsolete state-path or SQL-activation setting; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/health`, `401` from an unauthenticated request to the root, and `200` after exchanging the access code for the secure cookie.
+The checks must continue to report `F1`/`Free`; an online or auto-paused `GP_S_Gen5` `CyclesDb` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; no leftover restore-proof user database; seven retention days; a single `Cycles` connection-string name without displaying its value; no obsolete state-path or SQL-activation setting; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from both `https://cycles.anthonypwatts.co.uk/` and `/health`, `401` from an unauthenticated request to `/app.html`, and `200` from `/app.html` after exchanging the access code for the secure cookie.

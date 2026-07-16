@@ -1493,3 +1493,20 @@ Consequences:
 - Command derives its agenda, frontier, stream, watch, resource, programme, and calendar content from the existing visibility-filtered opening briefing, fleet, order, event, empire, and galaxy contracts. It introduces no new gameplay authority or API shape.
 - Agenda and frontier actions hand off to the existing Fleets, Galaxy, and History workspaces. Priority saving, pending-order cancellation, and development turn advancement retain their existing server-authoritative paths.
 - The responsive shell preserves the four real destinations and can expand later without changing the current navigation contract.
+
+## 2026-07-16: Keep The Trusted Playground Landing Page Public
+
+Decision: remove the trusted playground's whole-site access-code override. Keep `/`, `index.html`, the landing stylesheet, promotional media, and `/health` public. Require the shared playground code before serving `/app.html`, application assets, authentication routes, or game APIs.
+
+Reasoning:
+
+- The public landing page is the deliberate explanation and entry surface already selected under Q115; hiding it behind the playground code defeats that boundary.
+- The Development application still requires a perimeter because username login is not suitable for untrusted access. Protecting the dashboard alone would leave its login and game APIs reachable directly.
+- A small public allowlist keeps unknown routes protected by default and avoids duplicating every current and future application endpoint in the middleware.
+
+Consequences:
+
+- Anonymous visitors can view the landing page, film, and promotional imagery on both the custom domain and direct Azure origin.
+- **Enter the Build** reaches the playground access form. A successful code exchange redirects to `/app.html`.
+- Dashboard HTML, scripts, styles, authored atlas assets, authentication routes, and game APIs remain behind the shared code before their normal route-specific authentication and authorisation checks.
+- The earlier permission to use a whole-site perimeter remains available for a distinct deployment that must not be publicly discoverable, but it is no longer active on the trusted playground.

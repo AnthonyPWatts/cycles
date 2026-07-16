@@ -29,7 +29,7 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.Equals("/health", StringComparison.OrdinalIgnoreCase))
+        if (IsPublicPath(context.Request.Path))
         {
             await next(context);
             return;
@@ -89,7 +89,7 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
             IsEssential = true
         });
         context.Response.StatusCode = StatusCodes.Status303SeeOther;
-        context.Response.Headers.Location = "/";
+        context.Response.Headers.Location = "/app.html";
     }
 
     private bool HasValidCookie(HttpRequest request)
@@ -104,6 +104,15 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
         return expectedBytes.Length == candidateBytes.Length
             && CryptographicOperations.FixedTimeEquals(expectedBytes, candidateBytes);
     }
+
+    private static bool IsPublicPath(PathString path) =>
+        path.Equals("/", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/site.css", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/health", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/media/cycles-promo-30s.mp4", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/media/cycles-promo-poster.jpg", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/media/promo", StringComparison.OrdinalIgnoreCase);
 
     private static async Task WriteSignInPageAsync(HttpContext context, string? error)
     {
