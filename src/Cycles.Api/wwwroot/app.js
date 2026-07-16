@@ -1021,17 +1021,37 @@ function renderViewBadges() {
     const activeFleets = state.fleets.filter(item => item.fleet.status === "active" && item.fleet.shipCount > 0).length;
     const visibleEvents = state.events.length;
     const chronicleEntries = state.chronicle.length;
+    const agenda = commandAgendaItems();
+    const unaddressedAgendaItems = agenda.filter(item => item.tone === "urgent" || item.tone === "watch").length;
+    const totalSystems = state.galaxy?.systems.length ?? 0;
+    const controlledSystems = countControlledSystems(state.galaxy, state.empire?.empireId);
 
-    setViewBadge(elements.commandViewBadge, pendingOrders, `${formatCount(pendingOrders, "pending order")}`);
-    setViewBadge(elements.galaxyViewBadge, state.galaxy?.systems.length ?? 0, `${formatCount(state.galaxy?.systems.length ?? 0, "system")}`);
+    setViewBadge(elements.commandViewBadge, unaddressedAgendaItems, `${formatCount(unaddressedAgendaItems, "unaddressed council agenda item")}`);
+    setViewBadge(elements.galaxyViewBadge, controlledSystems, `${formatNumber(controlledSystems)} of ${formatCount(totalSystems, "system")} controlled`, `${formatNumber(controlledSystems)}/${formatNumber(totalSystems)}`);
     setViewBadge(elements.fleetsViewBadge, activeFleets, `${formatCount(activeFleets, "active fleet")}`);
     setViewBadge(elements.historyViewBadge, visibleEvents + chronicleEntries, `${formatCount(visibleEvents + chronicleEntries, "historical record")}`);
     elements.commandPendingCount.textContent = formatNumber(pendingOrders);
 }
 
-function setViewBadge(element, value, label) {
-    element.textContent = formatNumber(value);
+function setViewBadge(element, value, label, displayValue = formatNumber(value)) {
+    element.textContent = displayValue;
     element.setAttribute("aria-label", label);
+}
+
+function countControlledSystems(galaxy, empireId) {
+    if (!galaxy || !empireId) {
+        return 0;
+    }
+
+    const presenceBySystem = new Map(galaxy.presence.map(item => [item.systemId, item.effectivePresence]));
+    return galaxy.systems.filter(system => {
+        const presence = presenceBySystem.get(system.systemId) ?? {};
+        const ownPresence = Number(presence[empireId] ?? 0);
+        const strongestRivalPresence = Math.max(0, ...Object.entries(presence)
+            .filter(([candidateEmpireId]) => candidateEmpireId !== empireId)
+            .map(([, value]) => Number(value ?? 0)));
+        return ownPresence > strongestRivalPresence;
+    }).length;
 }
 
 function renderCommandWorkspace() {
