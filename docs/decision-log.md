@@ -1442,3 +1442,19 @@ Consequences:
 - All 11 inter-sector bridges and 80 internal routes are rendered from the canonical link graph. Selected routes use a narrow animated signal treatment; dormant routes remain calm gold vectors.
 - Hover and selected-sector states use authored irregular contour paths rather than generic ovals.
 - The existing topology upgrade, identities, API contract, pathfinding and movement rules are unchanged.
+
+## 2026-07-16: Remove The Galaxy Overview Navigator
+
+Decision: remove the floating overview navigator, recenter action, and recent-system lock history from the Galaxy map. Retain the compact Home, Selected, and Flashpoint focus controls, system-and-sector search, named map ranges, direct chart selection, and maximised map mode.
+
+Reasoning:
+
+- The fixed authored atlas already provides the orientation context that the miniature duplicated at lower fidelity.
+- The 226×237-pixel floating card covered artwork that was not composed around it and added visual awkwardness at every desktop map range.
+- Recent locks repeated selections that remain directly available through the chart, search, inspector links, and the three useful focus shortcuts.
+
+Consequences:
+
+- The authored chart owns the complete map stage without a permanent overlay in its lower-left corner.
+- No recent-map breadcrumb state, navigator rendering, navigator event handling, or navigator-only CSS remains in the client.
+- Home, Selected, and Flashpoint continue to recover useful context without changing authoritative state, visibility, routes, or map data.

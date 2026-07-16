@@ -22,7 +22,7 @@ public sealed class GalaxyMapExperienceContractTests
     }
 
     [Fact]
-    public void Galaxy_map_exposes_named_ranges_and_orientation_recovery()
+    public void Galaxy_map_exposes_named_ranges_and_compact_focus_recovery()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -31,14 +31,16 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("id=\"mapFocusHome\"", html);
         Assert.Contains("id=\"mapFocusSelected\"", html);
         Assert.Contains("id=\"mapFocusFrontier\"", html);
-        Assert.Contains("id=\"mapNavigator\"", html);
-        Assert.Contains("id=\"mapRecentSystems\"", html);
+        Assert.DoesNotContain("id=\"mapNavigator\"", html);
+        Assert.DoesNotContain("id=\"mapNavigatorReset\"", html);
+        Assert.DoesNotContain("id=\"mapRecentSystems\"", html);
 
         Assert.Contains("function applyMapPreset", script);
         Assert.Contains("function recoverMapToSystem", script);
         Assert.Contains("function recoverMapToFrontier", script);
-        Assert.Contains("function moveMapFromNavigator", script);
-        Assert.Contains("function renderRecentMapSystems", script);
+        Assert.DoesNotContain("function moveMapFromNavigator", script);
+        Assert.DoesNotContain("function renderRecentMapSystems", script);
+        Assert.DoesNotContain("mapRecentSystemIds", script);
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
         Assert.Contains("const authoredGalaxyAtlas", script);
@@ -90,9 +92,7 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("selected-route", script);
         Assert.Equal(8, Regex.Matches(script, @"\n\s+routes: \[").Count);
         Assert.Contains("function focusMapOnSector", script);
-        Assert.Contains("function directionalMapSector", script);
         Assert.Contains("function focusRenderedMapNode", script);
-        Assert.Contains("ArrowRight", script);
         Assert.DoesNotContain("(currentIndex + direction + sectors.length) % sectors.length", script);
         Assert.DoesNotContain("const immediateSystemIds", script);
         Assert.DoesNotContain("elements.galaxyMap.addEventListener(\"pointerdown\"", script);
@@ -105,7 +105,8 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("#galaxyMap[data-map-range=\"local\"] .system-node:not(.is-local-context)", css);
         Assert.Contains(".sector-focus", css);
         Assert.Contains(".gateway-ring", css);
-        Assert.Contains(".navigator-sector", css);
+        Assert.DoesNotContain(".map-navigator", css);
+        Assert.DoesNotContain(".navigator-sector", css);
 
         var galaxyPalette = Regex.Match(css, @"\.galaxy-layout\s*\{(?<rules>.*?)\}", RegexOptions.Singleline).Groups["rules"].Value;
         Assert.Contains("--accent: #8fb4f4", galaxyPalette);
