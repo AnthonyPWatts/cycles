@@ -1325,7 +1325,7 @@ function renderFrontierSchematic() {
         const tone = isHome ? "home" : system.systemId === attackSystemId ? "threat" : pendingTargets.has(system.systemId) ? "queued" : "frontier";
         const labelY = system.y < 120 ? system.y - 34 : system.y + 48;
         return `
-            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Galaxy">
+            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Map">
                 <circle class="schematic-node-orbit" cx="${system.x}" cy="${system.y}" r="28"></circle>
                 <circle class="schematic-node-core" cx="${system.x}" cy="${system.y}" r="9"></circle>
                 <circle class="schematic-node-point" cx="${system.x}" cy="${system.y}" r="3"></circle>
@@ -1335,7 +1335,7 @@ function renderFrontierSchematic() {
     }).join("");
 
     elements.frontierSchematic.innerHTML = `
-        <svg viewBox="0 0 640 380" role="group" aria-label="Current command frontier">
+        <svg viewBox="0 0 640 380" preserveAspectRatio="xMidYMin meet" role="group" aria-label="Current command frontier">
             <g class="schematic-grid" aria-hidden="true">
                 <path d="M 0 95 H 640 M 0 190 H 640 M 0 285 H 640"></path>
                 <path d="M 160 0 V 380 M 320 0 V 380 M 480 0 V 380"></path>
