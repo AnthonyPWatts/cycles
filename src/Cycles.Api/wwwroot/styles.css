@@ -3003,6 +3003,14 @@ dd {
         border-radius: 10px 10px 0 0;
     }
 
+    .tutorial-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        padding-top: 12px;
+        background: linear-gradient(180deg, rgba(17, 22, 19, 0), rgba(17, 22, 19, 0.98) 12px);
+    }
+
     .tutorial-target {
         scroll-margin-block: 130px 45dvh;
     }
@@ -3299,7 +3307,7 @@ dd {
     }
 
     .tutorial-actions {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .tutorial-actions span {

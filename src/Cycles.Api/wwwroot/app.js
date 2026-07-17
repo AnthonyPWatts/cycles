@@ -1879,6 +1879,10 @@ function renderTutorial({ focusHeading }) {
     if (step.historyTab) {
         activateHistoryTab(step.historyTab);
     }
+    if (step.mapSystemId && state.galaxy && state.empire) {
+        focusMapOnSystem(step.mapSystemId);
+        renderGalaxy(state.galaxy, state.empire);
+    }
 
     clearTutorialTarget();
     elements.tutorialPanel.hidden = false;
@@ -2009,6 +2013,7 @@ function tutorialSteps() {
         {
             id: "map",
             view: "galaxy",
+            mapSystemId: focusSystemId,
             title: curated ? "Find the flashpoint" : "Read the galaxy",
             body: curated
                 ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`

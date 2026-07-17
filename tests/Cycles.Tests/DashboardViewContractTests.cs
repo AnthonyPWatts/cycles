@@ -181,6 +181,20 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Day_one_guide_focuses_system_steps_and_keeps_narrow_actions_visible()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("mapSystemId: focusSystemId", script);
+        Assert.Contains("focusMapOnSystem(step.mapSystemId);", script);
+        Assert.Matches(
+            new Regex(@"\.tutorial-actions\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0;", RegexOptions.Singleline),
+            css);
+        Assert.Contains("grid-template-columns: repeat(3, minmax(0, 1fr));", css);
+    }
+
+    [Fact]
     public void Dashboard_displays_safe_error_messages_and_retains_machine_codes()
     {
         var script = ReadDashboardAsset("app.js");
