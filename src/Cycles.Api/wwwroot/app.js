@@ -326,6 +326,7 @@ const elements = {
     tutorialButton: document.querySelector("#tutorialButton"),
     tutorialPanel: document.querySelector("#tutorialPanel"),
     tutorialProgress: document.querySelector("#tutorialProgress"),
+    tutorialResetButton: document.querySelector("#tutorialResetButton"),
     tutorialAdmiralPortrait: document.querySelector("#tutorialAdmiralPortrait"),
     tutorialAdmiralRole: document.querySelector("#tutorialAdmiralRole"),
     tutorialAdmiralName: document.querySelector("#tutorialAdmiralName"),
@@ -350,6 +351,7 @@ elements.refreshButton.addEventListener("click", refresh);
 elements.commandAdvanceTurnButton.addEventListener("click", () => elements.advanceTurnButton.click());
 
 elements.tutorialButton.addEventListener("click", startOrResumeTutorial);
+elements.tutorialResetButton.addEventListener("click", resetTutorial);
 elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
 elements.tutorialSkipButton.addEventListener("click", skipTutorial);
 elements.tutorialBackButton.addEventListener("click", previousTutorialStep);
@@ -1889,6 +1891,21 @@ function startOrResumeTutorial() {
     renderTutorial();
 }
 
+function resetTutorial() {
+    if (!tutorial.storageKey || !state.cycle) {
+        return;
+    }
+
+    tutorial.status = "active";
+    tutorial.active = true;
+    tutorial.stepIndex = 0;
+    tutorial.initialTick = state.cycle.currentTickNumber;
+    tutorial.completedActions = new Set();
+    tutorial.briefing = state.openingBriefing ?? tutorial.briefing;
+    saveTutorialState();
+    renderTutorial();
+}
+
 function pauseTutorial() {
     if (!tutorial.active) {
         return;
@@ -1990,8 +2007,9 @@ function renderTutorial() {
     }
 
     clearTutorialTarget();
+    const target = step.target?.();
     renderTutorialAdmiral();
-    elements.tutorialPanel.classList.toggle("is-right", step.panelPlacement === "right");
+    elements.tutorialPanel.classList.toggle("is-right", tutorialPanelShouldSitOnRight(step, target));
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
     elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
@@ -2006,10 +2024,21 @@ function renderTutorial() {
         ? "Start"
         : tutorial.stepIndex === steps.length - 1 ? "Finish" : satisfied ? "Next" : "Complete this step";
 
-    const target = step.target?.();
     if (target) {
         applyTutorialTarget(target);
     }
+}
+
+function tutorialPanelShouldSitOnRight(step, target) {
+    if (step.panelPlacement) {
+        return step.panelPlacement === "right";
+    }
+    if (!target || window.innerWidth <= 900) {
+        return false;
+    }
+
+    const bounds = target.getBoundingClientRect();
+    return bounds.left + (bounds.width / 2) < window.innerWidth / 2;
 }
 
 function hideTutorial() {

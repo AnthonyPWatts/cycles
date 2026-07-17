@@ -206,12 +206,26 @@ public sealed class DashboardViewContractTests
         var command = script.IndexOf("id: \"command-introduction\"", StringComparison.Ordinal);
         var map = script.IndexOf("id: \"map-introduction\"", StringComparison.Ordinal);
         Assert.True(welcome >= 0 && welcome < command && command < map);
-        Assert.Contains("classList.toggle(\"is-right\", step.panelPlacement === \"right\")", script);
+        Assert.Contains("classList.toggle(\"is-right\", tutorialPanelShouldSitOnRight(step, target))", script);
         Assert.Contains("panelPlacement: \"right\"", script);
+        Assert.Contains("target.getBoundingClientRect()", script);
         Assert.DoesNotContain("tutorialTitle.focus", script);
         Assert.DoesNotContain("renderTutorial({ focusHeading", script);
         Assert.Contains(".tutorial-panel.is-right", css);
         Assert.Contains(".tutorial-admiral-frame", css);
+    }
+
+    [Fact]
+    public void Day_one_guide_can_reset_its_progress_without_adding_another_toolbar_action()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("id=\"tutorialResetButton\"", html);
+        Assert.Contains(">Reset guide</button>", html);
+        Assert.Contains("tutorialResetButton.addEventListener(\"click\", resetTutorial)", script);
+        Assert.Contains("function resetTutorial()", script);
+        Assert.DoesNotContain("<button id=\"tutorialResetButton\"", html[..html.IndexOf("<main", StringComparison.Ordinal)]);
     }
 
     [Fact]

@@ -725,6 +725,12 @@ select {
     gap: 8px 12px;
 }
 
+.tutorial-heading-row > .tutorial-heading-actions {
+    justify-content: end;
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
 .tutorial-kicker,
 .tutorial-progress {
     color: var(--gold);
@@ -819,12 +825,14 @@ select {
 }
 
 .tutorial-pause,
+.tutorial-reset,
 .tutorial-actions button {
     min-height: 44px;
     padding-inline: 14px;
 }
 
 .tutorial-pause,
+.tutorial-reset,
 .tutorial-actions .secondary-action {
     border-color: var(--line);
     background: #121714;
