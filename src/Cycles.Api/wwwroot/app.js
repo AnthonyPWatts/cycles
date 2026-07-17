@@ -1886,7 +1886,7 @@ function startOrResumeTutorial() {
     }
 
     saveTutorialState();
-    renderTutorial({ focusHeading: true });
+    renderTutorial();
 }
 
 function pauseTutorial() {
@@ -1921,7 +1921,7 @@ function previousTutorialStep() {
 
     tutorial.stepIndex--;
     saveTutorialState();
-    renderTutorial({ focusHeading: true });
+    renderTutorial();
 }
 
 function nextTutorialStep() {
@@ -1942,7 +1942,7 @@ function nextTutorialStep() {
 
     tutorial.stepIndex++;
     saveTutorialState();
-    renderTutorial({ focusHeading: true });
+    renderTutorial();
 }
 
 function completeTutorialAction(action) {
@@ -1958,7 +1958,7 @@ function completeTutorialAction(action) {
 function syncTutorialDisplay() {
     updateTutorialButton();
     if (tutorial.active) {
-        renderTutorial({ focusHeading: elements.tutorialPanel.hidden });
+        renderTutorial();
     } else {
         elements.tutorialPanel.hidden = true;
         document.body.classList.remove("tutorial-active");
@@ -1966,7 +1966,7 @@ function syncTutorialDisplay() {
     }
 }
 
-function renderTutorial({ focusHeading }) {
+function renderTutorial() {
     const steps = tutorialSteps();
     tutorial.stepIndex = Math.min(tutorial.stepIndex, steps.length - 1);
     const step = steps[tutorial.stepIndex];
@@ -2009,10 +2009,6 @@ function renderTutorial({ focusHeading }) {
     const target = step.target?.();
     if (target) {
         applyTutorialTarget(target);
-    }
-
-    if (focusHeading) {
-        requestAnimationFrame(() => elements.tutorialTitle.focus({ preventScroll: true }));
     }
 }
 

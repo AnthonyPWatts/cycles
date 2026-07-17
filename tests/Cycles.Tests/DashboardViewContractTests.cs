@@ -194,6 +194,8 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("id=\"tutorialAdmiralPortrait\"", html);
         Assert.Contains("id=\"tutorialAdmiralName\"", html);
+        Assert.Contains("role=\"region\" aria-live=\"polite\"", html);
+        Assert.DoesNotContain("id=\"tutorialTitle\" tabindex", html);
         Assert.DoesNotContain("id=\"tutorialAdmiralPortrait\" src=", html);
         Assert.Contains("astrolabe-gold-human-01", script);
         Assert.Contains("item.fleet.empireId === state.empire?.empireId && item.admiral", script);
@@ -206,6 +208,8 @@ public sealed class DashboardViewContractTests
         Assert.True(welcome >= 0 && welcome < command && command < map);
         Assert.Contains("classList.toggle(\"is-right\", step.panelPlacement === \"right\")", script);
         Assert.Contains("panelPlacement: \"right\"", script);
+        Assert.DoesNotContain("tutorialTitle.focus", script);
+        Assert.DoesNotContain("renderTutorial({ focusHeading", script);
         Assert.Contains(".tutorial-panel.is-right", css);
         Assert.Contains(".tutorial-admiral-frame", css);
     }
