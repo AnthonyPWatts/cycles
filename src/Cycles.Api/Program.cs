@@ -1,12 +1,15 @@
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+var trustedPlayerSelectionEnabled = builder.Configuration.GetValue<bool?>("Cycles:TrustedPlayerSelection:Enabled")
+    ?? builder.Environment.IsDevelopment();
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
@@ -24,9 +27,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     ApiJson.Configure(options.SerializerOptions);
 });
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+builder.Services.AddDataProtection();
 
 ExternalAuthenticationOptions? externalAuthentication = null;
-if (!builder.Environment.IsDevelopment())
+if (!builder.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
 {
     externalAuthentication = builder.Services.AddExternalCyclesAuthentication(builder.Configuration);
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -45,24 +49,27 @@ if (!builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+var playgroundAccessCode = TrustedPlayerSelectionConfiguration.ResolvePlaygroundAccessCode(
+    trustedPlayerSelectionEnabled,
+    app.Environment.IsDevelopment(),
+    Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE"),
+    builder.Configuration["Cycles:PlaygroundAccessCode"]);
 
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
 {
     app.UseForwardedHeaders();
 }
 
 app.UseEdgeAssetRedirect(builder.Configuration["Cycles:EdgeAssetOrigin"]);
-app.UsePlaygroundAccess(
-    Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE")
-        ?? builder.Configuration["Cycles:PlaygroundAccessCode"]);
+app.UsePlaygroundAccess(playgroundAccessCode);
 app.UseMiddleware<ApiErrorMiddleware>();
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
 {
     app.UseAuthentication();
     app.UseAuthorization();
 }
 
-app.UsePrivateDashboard(app.Environment.IsDevelopment());
+app.UsePrivateDashboard(app.Environment.IsDevelopment() || trustedPlayerSelectionEnabled);
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -85,8 +92,16 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-if (app.Environment.IsDevelopment())
+if (trustedPlayerSelectionEnabled)
 {
+    app.MapGet("/auth/trusted-players", (IGameStateStore store) =>
+        TryResult(() =>
+        {
+            var state = store.LoadOrCreate();
+            var cycle = GetActiveCycle(state);
+            return TrustedPlayerSelection.List(state, cycle);
+        }));
+
     app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
         TryResult(() => store.Update(state => Login(state, request, httpContext, DateTimeOffset.UtcNow))));
 
@@ -130,7 +145,7 @@ app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var empire = actor.Empire
             ?? throw new InvalidOperationException("Admin requests must identify an empire.");
-        return ToLoginResponse(state, actor.Player, empire, app.Environment.IsDevelopment());
+        return ToLoginResponse(state, actor.Player, empire, trustedPlayerSelectionEnabled);
     }));
 
 app.MapGet("/cycles/current", (HttpContext httpContext, IGameStateStore store) =>
@@ -232,6 +247,11 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
                 system.SystemId,
                 ApiVisibility.FilterPresence(actor, visibleSystemIds, system.SystemId, effectivePresence));
         }).ToArray();
+        var factions = state.Factions
+            .Where(item => item.CycleId == cycle.CycleId)
+            .OrderBy(item => item.FactionName)
+            .Select(item => new FactionResponse(item.FactionId, item.EmpireId, item.FactionName, item.Kind, item.Status))
+            .ToArray();
 
         var outposts = state.ColonialOutposts
             .Where(item => item.CycleId == cycle.CycleId)
@@ -243,7 +263,7 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
             .Select(item => ToColonialOutpostResponse(state, item))
             .ToArray();
 
-        return new GalaxyResponse(ToCycleResponse(cycle), sectors, systems, links, presence, outposts);
+        return new GalaxyResponse(ToCycleResponse(cycle), sectors, systems, links, presence, factions, outposts);
     }));
 
 app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
@@ -328,7 +348,7 @@ app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpCont
     ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
 
 app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
-    ApiAdminEndpoints.RunTick(httpContext, store, app.Environment.IsDevelopment()));
+    ApiAdminEndpoints.RunTick(httpContext, store, trustedPlayerSelectionEnabled));
 
 app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (Guid targetPlayerId, AdminRoleChangeRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, store));
@@ -406,43 +426,30 @@ static LoginResponse Login(
     HttpContext httpContext,
     DateTimeOffset now)
 {
-    var username = string.IsNullOrWhiteSpace(request.Username) ? "player-1" : request.Username.Trim();
-    var player = state.Players.FirstOrDefault(item => string.Equals(item.Username, username, StringComparison.OrdinalIgnoreCase));
-    if (player is null)
-    {
-        player = new Player
-        {
-            Username = username,
-            Email = $"{username}@cycles.local",
-            PasswordHash = "prototype",
-            Role = request.IsAdmin ? PlayerRole.Admin : PlayerRole.Player,
-            CreatedAt = now,
-            LastLoginAt = now,
-            Status = PlayerStatus.Active
-        };
-        state.Players.Add(player);
-    }
-    else if (request.IsAdmin)
-    {
-        player.Role = PlayerRole.Admin;
-    }
-
-    player.LastLoginAt = now;
     var cycle = GetActiveCycle(state);
-    var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.PlayerId == player.PlayerId)
-        ?? PlayerProvisioning.AddEmpireForPlayer(state, cycle, player, request.EmpireName, now);
+    var selection = TrustedPlayerSelection.Resolve(state, cycle, request.PlayerId);
+    var player = selection.Player;
+    var participant = selection.Participant;
+    var empire = selection.Empire;
+    player.LastLoginAt = now;
+    PlayerProvisioning.RepairLegacyStartingAdmiralName(state, empire, player, now);
 
     DevelopmentAuth.SignIn(httpContext, player);
-    return ToLoginResponse(state, player, empire, isDevelopment: true);
+    return ToLoginResponse(state, player, empire, trustedPlayerSelectionEnabled: true);
 }
 
-static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool isDevelopment) =>
+static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool trustedPlayerSelectionEnabled)
+{
+    var participant = state.GetParticipant(empire.CycleId, player.PlayerId)
+        ?? throw new InvalidOperationException("The player is not participating in the Empire's Cycle.");
+    return
     new(
         player.PlayerId,
         player.Username,
         player.Role,
-        player.Role == PlayerRole.Admin || isDevelopment,
+        TrustedPlayerSelection.CanAdvanceTurn(player, participant, empire, trustedPlayerSelectionEnabled),
         ToEmpireResponse(state, empire));
+}
 
 static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 {
@@ -460,6 +467,7 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 
     return new EmpireResponse(
         empire.EmpireId,
+        state.GetEmpireFaction(empire.EmpireId).FactionId,
         empire.PlayerId,
         empire.EmpireName,
         ToGalaxySystemResponse(home, homeIsGateway),
@@ -470,7 +478,6 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 
 static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
 {
-    var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
     var currentSystem = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
     var destination = fleet.DestinationSystemId.HasValue
         ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value)
@@ -478,7 +485,7 @@ static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
 
     return new FleetResponse(
         ToFleetDataResponse(fleet),
-        empire.EmpireName,
+        FleetContractMapping.GetOwnerName(state, fleet),
         currentSystem.SystemName,
         destination?.SystemName,
         ToAdmiralSummary(state, fleet.AdmiralId));
@@ -491,7 +498,6 @@ static FleetDetailResponse ToFleetDetailResponse(
     DevelopmentActor actor,
     IReadOnlySet<Guid> visibleSystemIds)
 {
-    var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
     var currentSystem = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
     var destination = fleet.DestinationSystemId.HasValue
         ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value)
@@ -523,16 +529,17 @@ static FleetDetailResponse ToFleetDetailResponse(
                            && item.FleetId != fleet.FleetId
                            && item.CurrentSystemId == fleet.CurrentSystemId
                            && item.Status == FleetStatus.Active)
-            .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+            .OrderBy(item => state.Factions.Single(factionItem => factionItem.FactionId == item.FactionId).FactionName)
             .ThenBy(item => item.FleetName)
             .Select(item =>
             {
-                var otherEmpire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+                var otherFaction = state.Factions.Single(factionItem => factionItem.FactionId == item.FactionId);
                 return new FleetAtSystemResponse(
                     item.FleetId,
                     item.FleetName,
-                    item.EmpireId,
-                    otherEmpire.EmpireName,
+                    otherFaction.EmpireId,
+                    otherFaction.FactionId,
+                    otherFaction.FactionName,
                     item.ShipCount,
                     item.Status,
                     ToAdmiralSummary(state, item.AdmiralId));
@@ -544,8 +551,9 @@ static FleetDetailResponse ToFleetDetailResponse(
         fleet.FleetId,
         fleet.CycleId,
         fleet.EmpireId,
+        fleet.FactionId,
         fleet.FleetName,
-        empire.EmpireName,
+        FleetContractMapping.GetOwnerName(state, fleet),
         fleet.ShipCount,
         fleet.Status,
         ToAdmiralSummary(state, fleet.AdmiralId),
@@ -626,6 +634,7 @@ static FleetDataResponse ToFleetDataResponse(Fleet fleet) =>
         fleet.FleetId,
         fleet.CycleId,
         fleet.EmpireId,
+        fleet.FactionId,
         fleet.AdmiralId,
         fleet.FleetName,
         fleet.CurrentSystemId,
@@ -717,9 +726,9 @@ static SystemDetailResponse ToSystemDetailResponse(
         .OrderByDescending(item => item.Value)
         .Select(item =>
         {
-            var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.Key);
+            var faction = state.Factions.Single(factionItem => factionItem.FactionId == item.Key);
             var share = totalPresence == 0 ? 0 : decimal.Round(item.Value / totalPresence * 100, 2);
-            return new SystemInfluenceResponse(empire.EmpireId, empire.EmpireName, item.Value, share);
+            return new SystemInfluenceResponse(faction.EmpireId, faction.FactionId, faction.FactionName, item.Value, share);
         })
         .ToArray();
 
@@ -728,16 +737,17 @@ static SystemDetailResponse ToSystemDetailResponse(
             .Where(item => item.CycleId == cycle.CycleId
                            && item.CurrentSystemId == system.SystemId
                            && item.Status == FleetStatus.Active)
-            .OrderBy(item => state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId).EmpireName)
+            .OrderBy(item => state.Factions.Single(factionItem => factionItem.FactionId == item.FactionId).FactionName)
             .ThenBy(item => item.FleetName)
             .Select(item =>
             {
-                var empire = state.Empires.Single(empireItem => empireItem.EmpireId == item.EmpireId);
+                var faction = state.Factions.Single(factionItem => factionItem.FactionId == item.FactionId);
                 return new FleetAtSystemResponse(
                     item.FleetId,
                     item.FleetName,
-                    item.EmpireId,
-                    empire.EmpireName,
+                    faction.EmpireId,
+                    faction.FactionId,
+                    faction.FactionName,
                     item.ShipCount,
                     item.Status,
                     ToAdmiralSummary(state, item.AdmiralId));
@@ -794,6 +804,9 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
     var targetEmpire = order.TargetEmpireId.HasValue
         ? state.Empires.SingleOrDefault(item => item.EmpireId == order.TargetEmpireId.Value)
         : null;
+    var targetFaction = order.TargetFactionId.HasValue
+        ? state.Factions.SingleOrDefault(item => item.FactionId == order.TargetFactionId.Value)
+        : null;
 
     return new FleetOrderResponse(
         order.FleetOrderId,
@@ -807,9 +820,10 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         order.SupersededByOrderId,
         order.TargetSystemId,
         order.TargetEmpireId,
+        order.TargetFactionId,
         fleet?.FleetName ?? "Unknown fleet",
         targetSystem?.SystemName,
-        targetEmpire?.EmpireName);
+        targetFaction?.FactionName ?? targetEmpire?.EmpireName);
 }
 
 static AdmiralSummaryResponse? ToAdmiralSummary(GameState state, Guid? admiralId)
@@ -888,7 +902,16 @@ static LastTickSummaryResponse ToLastTickSummaryResponse(
         chronicleEntries.Select(entry => ToChronicleEntryResponse(entry, eventTicksById, battleTicksById)).ToArray());
 }
 
-public sealed record LoginRequest(string Username, string? EmpireName, bool IsAdmin = false);
+public sealed record LoginRequest(
+    string? Username = null,
+    string? EmpireName = null,
+    bool IsAdmin = false,
+    Guid? PlayerId = null);
+
+public sealed record TrustedPlayerResponse(
+    Guid PlayerId,
+    string PlayerName,
+    MatchParticipantStatus ParticipantStatus);
 
 public sealed record LoginResponse(
     Guid PlayerId,
@@ -899,6 +922,7 @@ public sealed record LoginResponse(
 
 public sealed record EmpireResponse(
     Guid EmpireId,
+    Guid FactionId,
     Guid PlayerId,
     string EmpireName,
     GalaxySystemResponse HomeSystem,
@@ -912,9 +936,17 @@ public sealed record GalaxyResponse(
     IReadOnlyCollection<GalaxySystemResponse> Systems,
     IReadOnlyCollection<SystemLinkResponse> Links,
     IReadOnlyCollection<SystemPresenceResponse> Presence,
+    IReadOnlyCollection<FactionResponse> Factions,
     IReadOnlyCollection<ColonialOutpostResponse> ColonialOutposts);
 
 public sealed record SystemPresenceResponse(Guid SystemId, IReadOnlyDictionary<Guid, decimal> EffectivePresence);
+
+public sealed record FactionResponse(
+    Guid FactionId,
+    Guid? EmpireId,
+    string FactionName,
+    FactionKind Kind,
+    FactionStatus Status);
 
 public sealed record GalaxySectorResponse(
     Guid SectorId,
@@ -938,6 +970,7 @@ public sealed record FleetDetailResponse(
     Guid FleetId,
     Guid CycleId,
     Guid EmpireId,
+    Guid FactionId,
     string FleetName,
     string EmpireName,
     int ShipCount,
@@ -982,16 +1015,18 @@ public sealed record ColonialOutpostResponse(
     bool IsProjectingPresence);
 
 public sealed record SystemInfluenceResponse(
-    Guid EmpireId,
-    string EmpireName,
+    Guid? EmpireId,
+    Guid FactionId,
+    string FactionName,
     decimal EffectivePresence,
     decimal InfluencePercent);
 
 public sealed record FleetAtSystemResponse(
     Guid FleetId,
     string FleetName,
-    Guid EmpireId,
-    string EmpireName,
+    Guid? EmpireId,
+    Guid FactionId,
+    string FactionName,
     int ShipCount,
     FleetStatus Status,
     AdmiralSummaryResponse? Admiral);
@@ -1014,9 +1049,10 @@ public sealed record FleetOrderResponse(
     Guid? SupersededByOrderId,
     Guid? TargetSystemId,
     Guid? TargetEmpireId,
+    Guid? TargetFactionId,
     string FleetName,
     string? TargetSystemName,
-    string? TargetEmpireName);
+    string? TargetFactionName);
 
 public sealed record LastTickSummaryResponse(
     Guid CycleId,
@@ -1092,6 +1128,7 @@ public sealed record FleetDataResponse(
     Guid FleetId,
     Guid CycleId,
     Guid EmpireId,
+    Guid FactionId,
     Guid? AdmiralId,
     string FleetName,
     Guid CurrentSystemId,
@@ -1148,7 +1185,11 @@ public sealed record ChronicleEntryResponse(
 
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId, Guid? ReplacesOrderId = null);
 
-public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId, Guid? ReplacesOrderId = null);
+public sealed record AttackFleetRequest(
+    Guid FleetId,
+    Guid? TargetEmpireId,
+    Guid? ReplacesOrderId = null,
+    Guid? TargetFactionId = null);
 
 public sealed record ColoniseFleetRequest(Guid FleetId, Guid? ReplacesOrderId = null);
 

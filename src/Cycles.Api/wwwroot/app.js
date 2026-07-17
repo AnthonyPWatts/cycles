@@ -341,7 +341,7 @@ const elements = {
 
 elements.loginForm.addEventListener("submit", async event => {
     event.preventDefault();
-    await login(elements.username.value.trim());
+    await login(elements.username.value);
 });
 
 elements.signOutButton.addEventListener("click", signOut);
@@ -693,6 +693,7 @@ elements.moveForm.addEventListener("submit", async event => {
         orderType: "moveFleet",
         targetSystemId,
         targetEmpireId: null,
+        targetFactionId: null,
         summary: `Move to ${targetName}`
     });
     if (!replacement) {
@@ -719,7 +720,7 @@ elements.moveForm.addEventListener("submit", async event => {
 elements.attackForm.addEventListener("submit", async event => {
     event.preventDefault();
     const fleetId = state.selectedFleetId;
-    const targetEmpireId = elements.targetEmpireSelect.value || null;
+    const targetFactionId = elements.targetEmpireSelect.value || null;
     if (!fleetId) {
         setMessage("Select an active fleet before attacking.");
         return;
@@ -729,7 +730,8 @@ elements.attackForm.addEventListener("submit", async event => {
     const replacement = confirmOrderReplacement(fleetId, {
         orderType: "attack",
         targetSystemId: null,
-        targetEmpireId,
+        targetEmpireId: null,
+        targetFactionId,
         summary: `Attack ${targetName}`
     });
     if (!replacement) {
@@ -742,7 +744,7 @@ elements.attackForm.addEventListener("submit", async event => {
     }
 
     try {
-        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId, replacesOrderId: replacement.replacesOrderId });
+        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId: null, targetFactionId, replacesOrderId: replacement.replacesOrderId });
         setMessage(replacement.replacesOrderId ? "Attack order replaced." : "Attack order queued.");
         await refresh();
     } catch (error) {
@@ -767,6 +769,7 @@ elements.coloniseForm.addEventListener("submit", async event => {
         orderType: "colonise",
         targetSystemId,
         targetEmpireId: null,
+        targetFactionId: null,
         summary: `Colonise ${targetName}`
     });
     if (!replacement) {
@@ -814,11 +817,12 @@ function confirmOrderReplacement(fleetId, proposedOrder) {
 function orderMatchesIntent(order, proposedOrder) {
     return order.orderType === proposedOrder.orderType
         && (order.targetSystemId ?? null) === (proposedOrder.targetSystemId ?? null)
-        && (order.targetEmpireId ?? null) === (proposedOrder.targetEmpireId ?? null);
+        && (order.targetEmpireId ?? null) === (proposedOrder.targetEmpireId ?? null)
+        && (order.targetFactionId ?? null) === (proposedOrder.targetFactionId ?? null);
 }
 
 function formatOrderIntent(order) {
-    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    const target = order.targetSystemName ?? order.targetFactionName ?? "nearest hostile";
     return `${formatOrderType(order.orderType)} ${target}`;
 }
 
@@ -842,12 +846,12 @@ elements.orderHistory.addEventListener("click", event => {
 });
 
 async function boot() {
-    elements.username.value = readStoredValue("cycles.username") || elements.username.value;
     try {
         const session = await getJson("/auth/session");
         applySession(session);
     } catch (error) {
-        showLogin("Enter your player name to continue.");
+        await loadTrustedPlayers();
+        showLogin("Choose a player to continue.");
         elements.username.focus();
         return;
     }
@@ -859,9 +863,18 @@ async function boot() {
     }
 }
 
-async function login(username) {
-    if (!username) {
-        showLogin("Enter your player name to continue.");
+async function loadTrustedPlayers() {
+    const players = await getJson("/auth/trusted-players");
+    const storedPlayerId = readStoredValue("cycles.playerId");
+    fillSelect(elements.username, players, item => item.playerId, item => item.playerName);
+    if (storedPlayerId && players.some(item => item.playerId === storedPlayerId)) {
+        elements.username.value = storedPlayerId;
+    }
+}
+
+async function login(playerId) {
+    if (!playerId) {
+        showLogin("Choose a player to continue.");
         elements.username.focus();
         return;
     }
@@ -870,10 +883,10 @@ async function login(username) {
     elements.loginMessage.textContent = "Signing in...";
 
     try {
-        const login = await postJson("/auth/login", { username, empireName: null });
+        const login = await postJson("/auth/login", { playerId });
         applySession(login);
         writeStoredValue("cycles.username", login.username);
-        removeStoredValue("cycles.playerId");
+        writeStoredValue("cycles.playerId", login.playerId);
         await refresh();
     } catch (error) {
         showLogin(error.message);
@@ -1193,6 +1206,7 @@ function commandAgendaItems() {
                 fleetId: briefing.objectives.attack.fleetId,
                 targetSystemId: briefing.objectives.attack.systemId,
                 targetEmpireId: briefing.objectives.attack.targetEmpireId,
+                targetFactionId: briefing.objectives.attack.targetFactionId,
                 detail: "Hostile force in local space",
                 consequence: "Engagement resolves",
                 sigil: "X"
@@ -1259,11 +1273,12 @@ function commandAgendaItems() {
     ];
 }
 
-function commandObjectiveAgendaItem({ category, orderType, fleetId, targetSystemId, targetEmpireId = null, detail, consequence, sigil }) {
+function commandObjectiveAgendaItem({ category, orderType, fleetId, targetSystemId, targetEmpireId = null, targetFactionId = null, detail, consequence, sigil }) {
     const order = state.orders
         .filter(candidate => candidate.fleetId === fleetId && String(candidate.orderType).toLowerCase() === orderType.toLowerCase())
         .filter(candidate => !targetSystemId || !candidate.targetSystemId || candidate.targetSystemId === targetSystemId)
         .filter(candidate => !targetEmpireId || !candidate.targetEmpireId || candidate.targetEmpireId === targetEmpireId)
+        .filter(candidate => !targetFactionId || !candidate.targetFactionId || candidate.targetFactionId === targetFactionId)
         .sort((left, right) => Number(right.status === "pending") - Number(left.status === "pending")
             || Number(right.executeAfterTick ?? 0) - Number(left.executeAfterTick ?? 0))[0];
     const status = String(order?.status ?? "").toLowerCase();
@@ -1325,7 +1340,7 @@ function renderFrontierSchematic() {
         const tone = isHome ? "home" : system.systemId === attackSystemId ? "threat" : pendingTargets.has(system.systemId) ? "queued" : "frontier";
         const labelY = system.y < 120 ? system.y - 34 : system.y + 48;
         return `
-            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Galaxy">
+            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Map">
                 <circle class="schematic-node-orbit" cx="${system.x}" cy="${system.y}" r="28"></circle>
                 <circle class="schematic-node-core" cx="${system.x}" cy="${system.y}" r="9"></circle>
                 <circle class="schematic-node-point" cx="${system.x}" cy="${system.y}" r="3"></circle>
@@ -1335,7 +1350,7 @@ function renderFrontierSchematic() {
     }).join("");
 
     elements.frontierSchematic.innerHTML = `
-        <svg viewBox="0 0 640 380" role="group" aria-label="Current command frontier">
+        <svg viewBox="0 0 640 380" preserveAspectRatio="xMidYMin meet" role="group" aria-label="Current command frontier">
             <g class="schematic-grid" aria-hidden="true">
                 <path d="M 0 95 H 640 M 0 190 H 640 M 0 285 H 640"></path>
                 <path d="M 160 0 V 380 M 320 0 V 380 M 480 0 V 380"></path>
@@ -1480,7 +1495,7 @@ function renderFleetDetails() {
         : detail.activeFleetsInSystem.map(fleet => {
             const admiral = fleet.admiral ? ` | ${formatAdmiral(fleet.admiral)}` : "";
             return `
-            <span>${escapeHtml(fleet.fleetName)} | ${escapeHtml(fleet.empireName)} | ${fleet.shipCount} ships${escapeHtml(admiral)}</span>
+            <span>${escapeHtml(fleet.fleetName)} | ${escapeHtml(fleet.factionName)} | ${fleet.shipCount} ships${escapeHtml(admiral)}</span>
         `;
         }).join("");
 
@@ -1498,7 +1513,7 @@ function renderFleetDetails() {
     const orders = pendingOrders.length === 0
         ? `<span>No pending intention. This fleet is ready for a command.</span>`
         : pendingOrders.map(order => {
-            const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+            const target = order.targetSystemName ?? order.targetFactionName ?? "nearest hostile";
             const timing = formatOrderTiming(order);
             return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
         }).join("");
@@ -1546,8 +1561,8 @@ function renderOrders() {
         elements.destinationSelect.innerHTML = `<option value="">No linked destinations</option>`;
     }
 
-    const targetEmpires = collectTargetEmpires(selectedFleet);
-    fillSelect(elements.targetEmpireSelect, targetEmpires, item => item.empireId, item => item.empireName, true);
+    const targetFactions = collectTargetFactions(selectedFleet);
+    fillSelect(elements.targetEmpireSelect, targetFactions, item => item.factionId, item => item.factionName, true);
 
     const fleetReady = Boolean(selectedFleet);
     const awayFromHome = fleetReady && selectedFleet.fleet.currentSystemId !== state.empire.homeSystem.systemId;
@@ -1562,9 +1577,9 @@ function renderOrders() {
             : `${formatCount(destinations.length, "adjacent destination")} available from ${selectedFleet.currentSystemName}.`;
     elements.attackActionHint.textContent = !fleetReady
         ? "Select an active fleet to prepare an attack."
-        : targetEmpires.length === 0
-            ? "No visible local rival; the order will target the nearest hostile empire."
-            : `${formatCount(targetEmpires.length, "visible local rival")} available, or choose nearest hostile.`;
+        : targetFactions.length === 0
+            ? "No visible local rival; the order will target the nearest hostile faction."
+            : `${formatCount(targetFactions.length, "visible local rival")} available, or choose nearest hostile.`;
     elements.coloniseActionHint.textContent = !fleetReady
         ? "Select an active fleet to assess colonisation."
         : !awayFromHome
@@ -1592,9 +1607,10 @@ function renderSystemDetails() {
         .sort((first, second) => Number(second[1]) - Number(first[1]));
     const presenceMaximum = Math.max(1, ...presenceEntries.map(([, value]) => Number(value)));
     const presenceRows = presenceEntries
-        .map(([empireId, value]) => {
-            const isOwn = empireId === state.empire.empireId;
-            const label = isOwn ? state.empire.empireName : `Rival signal ${empireId.slice(0, 5)}`;
+        .map(([factionId, value]) => {
+            const isOwn = factionId === state.empire.factionId;
+            const faction = (state.galaxy.factions ?? []).find(item => item.factionId === factionId);
+            const label = isOwn ? state.empire.empireName : faction?.factionName ?? `Rival signal ${factionId.slice(0, 5)}`;
             const width = Math.max(5, Number(value) / presenceMaximum * 100);
             return `
                 <div class="presence-row${isOwn ? " is-own" : " is-rival"}">
@@ -1633,7 +1649,7 @@ function renderSystemDetails() {
             </button>
         `).join("");
     const activePresence = presenceEntries.length;
-    const ownPresence = Number(presence[state.empire.empireId] ?? 0);
+    const ownPresence = Number(presence[state.empire.factionId] ?? 0);
     const sector = normaliseGalaxySectors(state.galaxy).find(candidate => candidate.sectorId === system.sectorId);
     const sectorLabel = sector ? mapSectorDisplayName(sector) : "Uncharted";
     const tags = [
@@ -1744,7 +1760,7 @@ function renderOrderQueue(orders) {
 }
 
 function orderCalendarCard(order) {
-    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    const target = order.targetSystemName ?? order.targetFactionName ?? "nearest hostile";
     const glyph = ({ moveFleet: "M", attack: "X", colonise: "O", hold: "H" })[order.orderType] ?? "·";
     return `
         <article class="calendar-order order-${statusClass(order.status)}">
@@ -1787,7 +1803,7 @@ function orderHistoryTick(order) {
 }
 
 function orderCard(order, allowCancel) {
-    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    const target = order.targetSystemName ?? order.targetFactionName ?? "nearest hostile";
     const timing = formatOrderTiming(order);
     const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
     const replacement = order.supersededByOrderId
@@ -2068,11 +2084,30 @@ function applyTutorialTarget(target) {
     target.setAttribute("aria-describedby", [...describedBy].join(" "));
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(() => target.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-        inline: "nearest"
-    }));
+    requestAnimationFrame(() => {
+        if (!tutorialTargetNeedsScroll(target)) {
+            return;
+        }
+
+        target.scrollIntoView({
+            behavior: reducedMotion ? "auto" : "smooth",
+            block: "center",
+            inline: "nearest"
+        });
+    });
+}
+
+function tutorialTargetNeedsScroll(target) {
+    const bounds = target.getBoundingClientRect();
+    const viewBounds = target.closest(".app-view")?.getBoundingClientRect();
+    const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0);
+    let visibleBottom = Math.min(bounds.bottom, viewBounds?.bottom ?? window.innerHeight);
+    if (window.innerWidth <= 900 && !elements.tutorialPanel.hidden) {
+        visibleBottom = Math.min(visibleBottom, elements.tutorialPanel.getBoundingClientRect().top);
+    }
+
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    return visibleHeight < Math.min(bounds.height, 120);
 }
 
 function clearTutorialTarget() {
@@ -2256,7 +2291,7 @@ function tutorialSteps() {
             view: "fleets",
             fleetTab: "command",
             fleetAction: "move",
-            title: curated ? "Secure Nadir Crossing" : "Commit a movement order",
+            title: curated ? `Secure ${tutorialSystemName(moveTargetId)}` : "Commit a movement order",
             body: curated
                 ? `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order. The server validates the intention again when the turn resolves.`
                 : `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order for the next authoritative turn.`,
@@ -2276,13 +2311,13 @@ function tutorialSteps() {
                 view: "fleets",
                 fleetTab: "command",
                 fleetAction: "colonise",
-                title: "Establish the Pale Harbour outpost",
+                title: "Establish the frontier outpost",
                 body: `Select ${tutorialFleetName(colonise.fleetId)} in the roster. This guide opens Colonise; queue the outpost from that fleet. It costs 100 population and succeeds because the fleet has the leading local influence.`,
                 target: () => state.selectedFleetId === colonise.fleetId
                     ? document.querySelector("#coloniseForm")
                     : document.querySelector(`[data-fleet-id="${colonise.fleetId}"]`),
                 required: true,
-                requirement: "Queue the Pale Harbour outpost.",
+                requirement: "Queue the highlighted outpost.",
                 isSatisfied: () => tutorialOrderExists("colonise", colonise.fleetId)
             },
             {
@@ -2290,14 +2325,14 @@ function tutorialSteps() {
                 view: "fleets",
                 fleetTab: "command",
                 fleetAction: "attack",
-                title: "Answer the Khepri challenge",
-                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster. This guide opens Attack; choose the local Khepri force, then queue the order. Combat is deterministic from persisted facts, but victory is not scripted. Treaty Gate is important enough that the result will enter the Chronicle.`,
+                title: "Answer the local challenge",
+                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster. This guide opens Attack; choose the local Free Captains, then queue the order. Combat is deterministic from persisted facts, but victory is not scripted. The result will enter the Chronicle if it becomes important enough.`,
                 target: () => state.selectedFleetId === attack.fleetId
                     ? document.querySelector("#attackForm")
                     : document.querySelector(`[data-fleet-id="${attack.fleetId}"]`),
                 required: true,
-                requirement: "Queue the Treaty Gate attack.",
-                isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetEmpireId", attack.targetEmpireId)
+                requirement: "Queue the highlighted attack.",
+                isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetFactionId", attack.targetFactionId)
             }
         );
     }
@@ -2342,7 +2377,7 @@ function tutorialSteps() {
         historyTab: "chronicle",
         title: "See what became history",
         body: curated
-            ? "The Chronicle preserves exceptional events, not every routine action. Treaty Gate appears here because its battle crossed the importance threshold using real losses, strategy, and prior history."
+            ? "The Chronicle preserves exceptional events, not every routine action. A battle appears here only when real losses, strategy, and prior history carry it across the importance threshold."
             : "The Chronicle is selective history, not a second audit log. Only visible events important enough to cross the historical threshold appear here.",
         target: () => document.querySelector("#chronicleSection"),
         required: false
@@ -2398,8 +2433,8 @@ function curatedObjectiveOrdersReady() {
         {
             orderType: "attack",
             fleetId: objectives.attack.fleetId,
-            targetProperty: "targetEmpireId",
-            targetId: objectives.attack.targetEmpireId
+            targetProperty: objectives.attack.targetFactionId ? "targetFactionId" : "targetEmpireId",
+            targetId: objectives.attack.targetFactionId ?? objectives.attack.targetEmpireId
         }
     ];
 
@@ -2484,7 +2519,7 @@ function removeStoredValue(key) {
     }
 }
 
-function collectTargetEmpires(selectedFleet) {
+function collectTargetFactions(selectedFleet) {
     if (!selectedFleet || !state.galaxy) {
         return [];
     }
@@ -2495,15 +2530,17 @@ function collectTargetEmpires(selectedFleet) {
         return [];
     }
 
-    const empireIds = Object.keys(presence.effectivePresence)
-        .filter(id => id !== state.empire.empireId);
+    const factionIds = Object.keys(presence.effectivePresence)
+        .filter(id => id !== state.empire.factionId);
 
-    const visibleEmpireNames = new Map(
-        (state.fleetDetail?.activeFleetsInSystem ?? []).map(fleet => [fleet.empireId, fleet.empireName]));
+    const visibleFactionNames = new Map(
+        (state.fleetDetail?.activeFleetsInSystem ?? []).map(fleet => [fleet.factionId, fleet.factionName]));
+    const knownFactionNames = new Map(
+        (state.galaxy.factions ?? []).map(faction => [faction.factionId, faction.factionName]));
 
-    return empireIds.map(id => ({
-        empireId: id,
-        empireName: visibleEmpireNames.get(id) ?? id.slice(0, 8)
+    return factionIds.map(id => ({
+        factionId: id,
+        factionName: visibleFactionNames.get(id) ?? knownFactionNames.get(id) ?? id.slice(0, 8)
     }));
 }
 
@@ -3608,7 +3645,7 @@ function resourceCard(label, value, maxResource, generated, spent) {
 function renderMapOwnershipStats(galaxy, empire, presenceBySystem = null) {
     const presence = presenceBySystem ?? new Map(galaxy.presence.map(item => [item.systemId, item.effectivePresence]));
     const reachedSystems = galaxy.systems.filter(system =>
-        Number((presence.get(system.systemId) ?? {})[empire.empireId] ?? 0) > 0);
+        Number((presence.get(system.systemId) ?? {})[empire.factionId] ?? 0) > 0);
     const reachedSectors = new Set(reachedSystems.map(system => system.sectorId).filter(Boolean));
     const activeFleets = state.fleets.filter(item =>
         item.fleet.empireId === empire.empireId

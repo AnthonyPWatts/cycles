@@ -10,6 +10,8 @@ public sealed class GameState
     public List<AdminRoleAuditRecord> AdminRoleAuditRecords { get; set; } = [];
     public List<Cycle> Cycles { get; set; } = [];
     public List<Empire> Empires { get; set; } = [];
+    public List<Faction> Factions { get; set; } = [];
+    public List<MatchParticipant> MatchParticipants { get; set; } = [];
     public List<EmpireResource> EmpireResources { get; set; } = [];
     public List<EmpirePriority> EmpirePriorities { get; set; } = [];
     public List<EmpireMetric> EmpireMetrics { get; set; } = [];
@@ -44,6 +46,8 @@ public sealed class GameState
             AdminRoleAuditRecords = AdminRoleAuditRecords.Select(Clone).ToList(),
             Cycles = Cycles.Select(Clone).ToList(),
             Empires = Empires.Select(Clone).ToList(),
+            Factions = Factions.Select(Clone).ToList(),
+            MatchParticipants = MatchParticipants.Select(Clone).ToList(),
             EmpireResources = EmpireResources.Select(Clone).ToList(),
             EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
             EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
@@ -79,6 +83,8 @@ public sealed class GameState
             Players = Players,
             AdminRoleAuditRecords = AdminRoleAuditRecords,
             Empires = Empires,
+            Factions = Factions,
+            MatchParticipants = MatchParticipants,
             EmpirePriorities = EmpirePriorities,
             CycleRankings = CycleRankings,
             CycleMajorEvents = CycleMajorEvents,
@@ -122,6 +128,8 @@ public sealed class GameState
         AdminRoleAuditRecords = other.AdminRoleAuditRecords;
         Cycles = other.Cycles;
         Empires = other.Empires;
+        Factions = other.Factions;
+        MatchParticipants = other.MatchParticipants;
         EmpireResources = other.EmpireResources;
         EmpirePriorities = other.EmpirePriorities;
         EmpireMetrics = other.EmpireMetrics;
@@ -152,6 +160,7 @@ public sealed class GameState
         PasswordHash = item.PasswordHash,
         ExternalIssuer = item.ExternalIssuer,
         ExternalSubject = item.ExternalSubject,
+        Kind = item.Kind,
         Role = item.Role,
         CreatedAt = item.CreatedAt,
         LastLoginAt = item.LastLoginAt,
@@ -179,6 +188,7 @@ public sealed class GameState
         TickLengthMinutes = item.TickLengthMinutes,
         CurrentTickNumber = item.CurrentTickNumber,
         Status = item.Status,
+        CreatedByPlayerId = item.CreatedByPlayerId,
         CreatedAt = item.CreatedAt
     };
 
@@ -191,6 +201,28 @@ public sealed class GameState
         HomeSystemId = item.HomeSystemId,
         CreatedAt = item.CreatedAt,
         Status = item.Status
+    };
+
+    private static Faction Clone(Faction item) => new()
+    {
+        FactionId = item.FactionId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        FactionName = item.FactionName,
+        Kind = item.Kind,
+        Status = item.Status,
+        CreatedAt = item.CreatedAt
+    };
+
+    private static MatchParticipant Clone(MatchParticipant item) => new()
+    {
+        MatchParticipantId = item.MatchParticipantId,
+        CycleId = item.CycleId,
+        PlayerId = item.PlayerId,
+        EmpireId = item.EmpireId,
+        Status = item.Status,
+        JoinedAt = item.JoinedAt,
+        EndedAt = item.EndedAt
     };
 
     private static EmpireResource Clone(EmpireResource item) => new()
@@ -375,6 +407,7 @@ public sealed class GameState
         FleetId = item.FleetId,
         CycleId = item.CycleId,
         EmpireId = item.EmpireId,
+        FactionId = item.FactionId,
         AdmiralId = item.AdmiralId,
         FleetName = item.FleetName,
         CurrentSystemId = item.CurrentSystemId,
@@ -393,6 +426,7 @@ public sealed class GameState
         OrderType = item.OrderType,
         TargetSystemId = item.TargetSystemId,
         TargetEmpireId = item.TargetEmpireId,
+        TargetFactionId = item.TargetFactionId,
         SubmitTick = item.SubmitTick,
         ExecuteAfterTick = item.ExecuteAfterTick,
         ProcessedTick = item.ProcessedTick,
@@ -436,6 +470,7 @@ public sealed class GameState
         EventType = item.EventType,
         SystemId = item.SystemId,
         EmpireId = item.EmpireId,
+        FactionId = item.FactionId,
         Severity = item.Severity,
         FactJson = item.FactJson,
         DisplayText = item.DisplayText,
@@ -450,6 +485,8 @@ public sealed class GameState
         SystemId = item.SystemId,
         AttackerEmpireId = item.AttackerEmpireId,
         DefenderEmpireId = item.DefenderEmpireId,
+        AttackerFactionId = item.AttackerFactionId,
+        DefenderFactionId = item.DefenderFactionId,
         AttackerFleetIds = item.AttackerFleetIds,
         DefenderFleetIds = item.DefenderFleetIds,
         AttackerShipsBefore = item.AttackerShipsBefore,
@@ -489,6 +526,7 @@ public sealed class Player
     public string PasswordHash { get; set; } = "";
     public string ExternalIssuer { get; set; } = "";
     public string ExternalSubject { get; set; } = "";
+    public PlayerKind Kind { get; set; } = PlayerKind.Human;
     public PlayerRole Role { get; set; } = PlayerRole.Player;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
@@ -516,6 +554,7 @@ public sealed class Cycle
     public int TickLengthMinutes { get; set; } = 60;
     public int CurrentTickNumber { get; set; }
     public CycleStatus Status { get; set; } = CycleStatus.Active;
+    public Guid? CreatedByPlayerId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -528,6 +567,28 @@ public sealed class Empire
     public Guid HomeSystemId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public EmpireStatus Status { get; set; } = EmpireStatus.Active;
+}
+
+public sealed class Faction
+{
+    public Guid FactionId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid? EmpireId { get; set; }
+    public string FactionName { get; set; } = "";
+    public FactionKind Kind { get; set; }
+    public FactionStatus Status { get; set; } = FactionStatus.Active;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class MatchParticipant
+{
+    public Guid MatchParticipantId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid PlayerId { get; set; }
+    public Guid EmpireId { get; set; }
+    public MatchParticipantStatus Status { get; set; } = MatchParticipantStatus.Active;
+    public DateTimeOffset JoinedAt { get; set; }
+    public DateTimeOffset? EndedAt { get; set; }
 }
 
 public sealed class EmpireResource
@@ -674,6 +735,7 @@ public sealed class Fleet
     public Guid FleetId { get; set; } = Guid.NewGuid();
     public Guid CycleId { get; set; }
     public Guid EmpireId { get; set; }
+    public Guid FactionId { get; set; }
     public Guid? AdmiralId { get; set; }
     public string FleetName { get; set; } = "";
     public Guid CurrentSystemId { get; set; }
@@ -723,6 +785,7 @@ public sealed class FleetOrder
     public FleetOrderType OrderType { get; set; }
     public Guid? TargetSystemId { get; set; }
     public Guid? TargetEmpireId { get; set; }
+    public Guid? TargetFactionId { get; set; }
     public int SubmitTick { get; set; }
     public int ExecuteAfterTick { get; set; }
     public int? ProcessedTick { get; set; }
@@ -766,6 +829,7 @@ public sealed class EventRecord
     public EventType EventType { get; set; }
     public Guid? SystemId { get; set; }
     public Guid? EmpireId { get; set; }
+    public Guid? FactionId { get; set; }
     public EventSeverity Severity { get; set; } = EventSeverity.Normal;
     public string FactJson { get; set; } = "{}";
     public string DisplayText { get; set; } = "";
@@ -791,6 +855,8 @@ public sealed class BattleRecord
     public Guid SystemId { get; set; }
     public Guid AttackerEmpireId { get; set; }
     public Guid DefenderEmpireId { get; set; }
+    public Guid AttackerFactionId { get; set; }
+    public Guid DefenderFactionId { get; set; }
     public string AttackerFleetIds { get; set; } = "";
     public string DefenderFleetIds { get; set; } = "";
     public int AttackerShipsBefore { get; set; }
@@ -827,6 +893,12 @@ public enum PlayerStatus
     Suspended
 }
 
+public enum PlayerKind
+{
+    Human,
+    AI
+}
+
 public enum PlayerRole
 {
     Player,
@@ -851,6 +923,26 @@ public enum EmpireStatus
 {
     Active,
     Defeated
+}
+
+public enum FactionKind
+{
+    Empire,
+    Neutral
+}
+
+public enum FactionStatus
+{
+    Active,
+    Defeated
+}
+
+public enum MatchParticipantStatus
+{
+    Active,
+    Defeated,
+    Withdrawn,
+    Completed
 }
 
 public enum FleetStatus

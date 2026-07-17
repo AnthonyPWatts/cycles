@@ -60,9 +60,7 @@ public sealed class ApiAdminRoleBoundaryTests
 
     private static DefaultHttpContext AuthenticatedContext(Player player)
     {
-        var context = new DefaultHttpContext();
-        context.Request.Headers[DevelopmentAuth.HeaderName] = player.PlayerId.ToString("D");
-        return context;
+        return TestHttpContextFactory.CreateAuthenticated(player);
     }
 
     private static async Task<(int StatusCode, string Body)> ExecuteAsync(IResult result)

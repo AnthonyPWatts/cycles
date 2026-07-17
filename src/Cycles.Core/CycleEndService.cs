@@ -49,7 +49,7 @@ public static class CycleEndService
         var majorEvents = SelectMajorBattleEvents(state, cycleId, cutoffAt);
         state.CycleMajorEvents.RemoveAll(item => item.CycleId == cycleId);
         state.CycleMajorEvents.AddRange(majorEvents);
-        cycle.Status = CycleStatus.Completed;
+        MatchControl.CompleteCycle(state, cycleId, cutoffAt);
 
         var winner = rankings.Single(ranking => ranking.IsWinner);
         var winnerEmpire = state.Empires.Single(empire => empire.EmpireId == winner.EmpireId);
@@ -59,6 +59,7 @@ public static class CycleEndService
             TickNumber = cycle.CurrentTickNumber,
             EventType = EventType.CycleCompleted,
             EmpireId = winner.EmpireId,
+            FactionId = state.GetEmpireFaction(winner.EmpireId).FactionId,
             Severity = EventSeverity.Historic,
             DisplayText = $"{cycle.Name} ended at tick {cycle.CurrentTickNumber}. {winnerEmpire.EmpireName} won with {winner.MapControlPercent:0.##}% map control.",
             FactJson = JsonSerializer.Serialize(new
@@ -211,8 +212,18 @@ public static class CycleEndService
         DateTimeOffset cutoffAt)
     {
         var system = state.Systems.Single(item => item.SystemId == battle.SystemId);
-        var attacker = state.Empires.Single(item => item.EmpireId == battle.AttackerEmpireId);
-        var defender = state.Empires.Single(item => item.EmpireId == battle.DefenderEmpireId);
+        var attackerFaction = battle.AttackerFactionId != Guid.Empty
+            ? state.Factions.Single(item => item.FactionId == battle.AttackerFactionId)
+            : state.GetEmpireFaction(battle.AttackerEmpireId);
+        var defenderFaction = battle.DefenderFactionId != Guid.Empty
+            ? state.Factions.Single(item => item.FactionId == battle.DefenderFactionId)
+            : state.GetEmpireFaction(battle.DefenderEmpireId);
+        var attacker = attackerFaction.EmpireId.HasValue
+            ? state.Empires.Single(item => item.EmpireId == attackerFaction.EmpireId.Value)
+            : new Empire { EmpireId = Guid.Empty, EmpireName = attackerFaction.FactionName };
+        var defender = defenderFaction.EmpireId.HasValue
+            ? state.Empires.Single(item => item.EmpireId == defenderFaction.EmpireId.Value)
+            : new Empire { EmpireId = Guid.Empty, EmpireName = defenderFaction.FactionName };
         var admiralHistories = state.AdmiralBattleHistories
             .Where(history => history.BattleId == battle.BattleId)
             .ToArray();
@@ -236,6 +247,8 @@ public static class CycleEndService
                 battle.SystemId,
                 battle.AttackerEmpireId,
                 battle.DefenderEmpireId,
+                battle.AttackerFactionId,
+                battle.DefenderFactionId,
                 battle.AttackerShipsBefore,
                 battle.DefenderShipsBefore,
                 battle.AttackerLosses,

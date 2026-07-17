@@ -186,6 +186,7 @@ public static class EconomyProcessor
         {
             CycleId = cycleId,
             EmpireId = empire.EmpireId,
+            FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             FleetName = $"{empire.EmpireName} Home Fleet",
             CurrentSystemId = empire.HomeSystemId,
             ShipCount = 0,

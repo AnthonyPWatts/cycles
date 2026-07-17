@@ -54,11 +54,19 @@ public sealed class SqlServerMigrator
             PendingMigrations: pendingMigrations);
     }
 
-    public IReadOnlyList<SqlServerMigrationResult> Migrate()
+    public IReadOnlyList<SqlServerMigrationResult> Migrate() => MigrateThrough(finalMigrationId: null);
+
+    internal IReadOnlyList<SqlServerMigrationResult> MigrateThrough(string? finalMigrationId)
     {
         EnsureDatabaseExists();
 
         var migrations = LoadEmbeddedMigrations();
+        if (finalMigrationId is not null
+            && !migrations.Any(item => string.Equals(item.MigrationId, finalMigrationId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Unknown final migration '{finalMigrationId}'.", nameof(finalMigrationId));
+        }
+
         using var connection = OpenTargetConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
 
@@ -68,6 +76,10 @@ public sealed class SqlServerMigrator
         var appliedMigrationIds = ReadAppliedMigrationIds(connection, transaction);
         var pendingMigrations = migrations
             .Where(migration => !appliedMigrationIds.Contains(migration.MigrationId, StringComparer.OrdinalIgnoreCase))
+            .TakeWhile(migration => finalMigrationId is null || string.Compare(
+                migration.MigrationId,
+                finalMigrationId,
+                StringComparison.OrdinalIgnoreCase) <= 0)
             .ToArray();
 
         foreach (var migration in pendingMigrations)

@@ -36,7 +36,9 @@ Use explicit generation arguments when a generic galaxy is required:
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" 24 4 71421 --confirm-replace
 ```
 
-The curated seed is fixed so tutorial objective identifiers and first-turn outcomes are reproducible. Development API and Worker hosts seed an empty configured store; shared environments should be provisioned deliberately rather than relying on generic implicit seeding.
+The curated `development-match-v2` seed is fixed so participant assignments, distinct-sector homes, neutral fleets, tutorial objective identifiers, and first-turn outcomes are reproducible. It creates Tony and Will as selectable human players, Ariadne as a game-AI player, three empires with three fleets and 60 ships apiece, and six weaker neutral Free Captain fleets. Development API and Worker hosts seed an empty configured store; shared environments should be provisioned deliberately rather than relying on generic implicit seeding.
+
+`Cycles:TrustedPlayerSelection:Enabled` controls the fixed Development selector. It is enabled by `appsettings.Development.json`, disabled by default elsewhere, and must be enabled deliberately for an access-restricted hosted playground. A non-Development process with the selector enabled refuses to start unless `CYCLES_PLAYGROUND_ACCESS_CODE` or `Cycles:PlaygroundAccessCode` is present. It selects only existing active human accounts that participate in the match, stores the selected identity in a protected cookie, and is not an account-registration or production-identity mechanism. Defeated and completed participants can sign in to inspect the match but cannot mutate it.
 
 ## Scheduled And Manual Ticks
 

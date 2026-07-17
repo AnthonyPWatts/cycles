@@ -26,12 +26,20 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
-            return ToCommandResponse(OrderService.SubmitAttackOrder(
-                state,
-                request.FleetId,
-                request.TargetEmpireId,
-                now,
-                request.ReplacesOrderId));
+            var order = request.TargetFactionId.HasValue
+                ? OrderService.SubmitAttackOrderAgainstFaction(
+                    state,
+                    request.FleetId,
+                    request.TargetFactionId,
+                    now,
+                    request.ReplacesOrderId)
+                : OrderService.SubmitAttackOrder(
+                    state,
+                    request.FleetId,
+                    request.TargetEmpireId,
+                    now,
+                    request.ReplacesOrderId);
+            return ToCommandResponse(order);
         }));
 
     public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -71,6 +79,10 @@ public static class ApiOrderEndpoints
         TryResult(() => store.Update(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
+            if (!actor.IsAdmin)
+            {
+                _ = DevelopmentAuth.RequireCommandableEmpire(state, actor);
+            }
             var empireId = DevelopmentAuth.ResolveEmpireId(state, actor, request.EmpireId);
             return ToCommandResponse(OrderService.UpdatePriorities(
                 state,
@@ -90,6 +102,7 @@ public static class ApiOrderEndpoints
             order.OrderType,
             order.TargetSystemId,
             order.TargetEmpireId,
+            order.TargetFactionId,
             order.SubmitTick,
             order.ExecuteAfterTick,
             order.ProcessedTick,
@@ -150,6 +163,7 @@ public sealed record FleetOrderCommandResponse(
     FleetOrderType OrderType,
     Guid? TargetSystemId,
     Guid? TargetEmpireId,
+    Guid? TargetFactionId,
     int SubmitTick,
     int ExecuteAfterTick,
     int? ProcessedTick,

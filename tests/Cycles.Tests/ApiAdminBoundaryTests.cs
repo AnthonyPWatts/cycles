@@ -61,6 +61,25 @@ public sealed class ApiAdminBoundaryTests
     }
 
     [Fact]
+    public async Task Development_tick_endpoint_rejects_defeated_player()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var player = Assert.Single(state.Players);
+        MatchControl.DefeatEmpire(state, Assert.Single(state.Empires).EmpireId, TestState.Now);
+        var store = new InMemoryGameStateStore(state);
+
+        var result = ApiAdminEndpoints.RunTick(
+            CreateAuthenticatedContext(player),
+            store,
+            allowDevelopmentPlayer: true,
+            TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Equal(0, store.RunTickCalls);
+    }
+
+    [Fact]
     public async Task Admin_tick_endpoint_requires_login()
     {
         var state = TestState.CreateSingleEmpireState();
@@ -76,9 +95,7 @@ public sealed class ApiAdminBoundaryTests
 
     private static DefaultHttpContext CreateAuthenticatedContext(Player player)
     {
-        var context = new DefaultHttpContext();
-        context.Request.Headers[DevelopmentAuth.HeaderName] = player.PlayerId.ToString("D");
-        return context;
+        return TestHttpContextFactory.CreateAuthenticated(player);
     }
 
     private static async Task<(int StatusCode, string Body)> ExecuteAsync(IResult result)

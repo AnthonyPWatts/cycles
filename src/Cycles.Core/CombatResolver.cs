@@ -36,14 +36,18 @@ public static class CombatResolver
         var outcome = attackerFleet.Status == FleetStatus.Destroyed && defenderFleets.All(fleet => fleet.Status == FleetStatus.Destroyed)
             ? BattleOutcome.MutualDestruction
             : attackerWins ? BattleOutcome.AttackerVictory : BattleOutcome.DefenderVictory;
+        var attackerFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(attackerFleet));
+        var defenderFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(defenderFleets.First()));
 
         var battle = new BattleRecord
         {
             CycleId = attackerFleet.CycleId,
             TickNumber = tickNumber,
             SystemId = system.SystemId,
-            AttackerEmpireId = attackerFleet.EmpireId,
-            DefenderEmpireId = defenderFleets.First().EmpireId,
+            AttackerEmpireId = attackerFaction.EmpireId ?? Guid.Empty,
+            DefenderEmpireId = defenderFaction.EmpireId ?? Guid.Empty,
+            AttackerFactionId = attackerFaction.FactionId,
+            DefenderFactionId = defenderFaction.FactionId,
             AttackerFleetIds = attackerFleet.FleetId.ToString(),
             DefenderFleetIds = string.Join(",", defenderFleets.Select(fleet => fleet.FleetId)),
             AttackerShipsBefore = attackerShipsBefore,
@@ -81,6 +85,8 @@ public static class CombatResolver
             battle.SystemId,
             battle.AttackerEmpireId,
             battle.DefenderEmpireId,
+            battle.AttackerFactionId,
+            battle.DefenderFactionId,
             attackerShipsBefore,
             defenderShipsBefore,
             attackerLosses,

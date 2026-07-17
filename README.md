@@ -78,7 +78,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-With no size or seed arguments, this creates the curated `development-cold-start-v1` opening used by the Day One guide: 8 named sectors, 64 systems, and 91 routes. Every sector contains 8 systems in its own connected 10-route composition and has exactly two gateway systems. The 11 inter-sector bridges form a partial mesh with no central hub and are drawn as live SVG over the route-free authored chart. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
+With no size or seed arguments, this creates the deterministic `development-match-v2` opening used by the Day One guide: 8 named sectors, 64 systems, 91 routes, and three competing empires in distinct sectors. Tony and Will are persistent human development players; Ariadne is a game-AI player. Each empire begins with three fleets and 60 ships, while six weaker Free Captain fleets provide neutral local and remote pressure. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
 
 Run the API and dashboard:
 
@@ -86,7 +86,7 @@ Run the API and dashboard:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString"
 ```
 
-Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Log in as the prefilled `player-1` to receive the curated Aurelian opening. The development login creates or finds a local player and issues an HttpOnly cookie; **Sign out** removes that cookie and returns to the login prompt. This flow is suitable only for trusted local testing.
+Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Select Tony or Will to command that player's assigned empire. The trusted selector accepts only seeded human participants; it cannot create arbitrary accounts or take over Ariadne. It issues a protected HttpOnly cookie, while **Sign out** removes that cookie and returns to the selector. A defeated participant may still inspect the match but cannot issue or cancel orders, change priorities, or advance the turn. This flow remains suitable only for trusted Development testing behind the access-code boundary.
 
 The Galaxy workspace uses three authored ranges rather than a free camera. **Galaxy** shows the eight-sector partial mesh, **Sector** shows one eight-system territorial chart and its outbound bridges, and **Local** subdues systems outside the selected neighbourhood. Search, strategic lenses, Home/Selected/Flashpoint focus controls, direct chart selection, a maximised view, and the adjacent-system inspector recover context without covering the map with a duplicate navigator.
 

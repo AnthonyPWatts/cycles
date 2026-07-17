@@ -364,6 +364,7 @@ public static class BalanceScenarioRunner
                 FleetId = CreateDeterministicId(seed, $"{empire.EmpireId:N}:expedition:{wave}"),
                 CycleId = cycleId,
                 EmpireId = empire.EmpireId,
+                FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
                 FleetName = $"{empire.EmpireName} Scenario Expedition {wave:000}",
                 CurrentSystemId = empire.HomeSystemId,
                 ShipCount = ExpeditionShipCount,

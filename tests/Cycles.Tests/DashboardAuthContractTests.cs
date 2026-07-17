@@ -28,13 +28,14 @@ public sealed class DashboardAuthContractTests
     {
         var script = ReadDashboardAsset("app.js");
         var bootStart = script.IndexOf("async function boot()", StringComparison.Ordinal);
-        var loginStart = script.IndexOf("async function login(username)", StringComparison.Ordinal);
+        var loginStart = script.IndexOf("async function loadTrustedPlayers()", StringComparison.Ordinal);
 
         Assert.True(bootStart >= 0);
         Assert.True(loginStart > bootStart);
 
         var bootFunction = script[bootStart..loginStart];
-        Assert.Contains("showLogin(\"Enter your player name to continue.\");", bootFunction);
+        Assert.Contains("showLogin(\"Choose a player to continue.\");", bootFunction);
+        Assert.Contains("await loadTrustedPlayers();", bootFunction);
         Assert.DoesNotContain("await login(", bootFunction);
     }
 

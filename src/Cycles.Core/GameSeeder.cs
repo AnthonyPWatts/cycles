@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,7 +8,9 @@ namespace Cycles.Core;
 
 public static class GameSeeder
 {
-    public const string CuratedColdStartScenarioKey = "development-cold-start-v1";
+    public const string CuratedColdStartScenarioKey = "development-match-v2";
+    public const int DevelopmentSetupAlgorithmVersion = 1;
+    public const int DefaultDevelopmentScenarioSeed = 20260717;
     public const string CanonicalGalaxyTopologyKey = "territorial-graph-v2";
     public const int CanonicalGalaxySectorCount = 8;
     public const int CanonicalGalaxySystemCount = 64;
@@ -15,6 +18,9 @@ public static class GameSeeder
     public const int CanonicalGalaxyRouteCount = 91;
 
     private const int CanonicalGalaxySeed = 71421;
+    private static readonly Guid TonyPlayerId = Guid.Parse("2bbf6b63-b50f-4fe3-bc11-913c2b74aa01");
+    private static readonly Guid WillPlayerId = Guid.Parse("8bf77462-f7ce-4c67-8c20-29e4e1e5bb02");
+    private static readonly Guid DevelopmentAiPlayerId = Guid.Parse("3ecfbf78-b6b3-42cd-a811-85efb916cc03");
 
     private static readonly SectorDefinition[] CanonicalSectors =
     [
@@ -156,12 +162,17 @@ public static class GameSeeder
     }
 
     public static GameState CreateCuratedColdStart(DateTimeOffset? createdAt = null)
+        => CreateDevelopmentMatch(DefaultDevelopmentScenarioSeed, createdAt);
+
+    public static GameState CreateDevelopmentMatch(
+        int scenarioSeed = DefaultDevelopmentScenarioSeed,
+        DateTimeOffset? createdAt = null)
     {
         var now = createdAt ?? DateTimeOffset.UtcNow;
         var identitySequence = new DeterministicIdentitySequence(CanonicalGalaxySeed);
-        var state = Create(CanonicalGalaxySystemCount, 4, CanonicalGalaxySeed, now, identitySequence.Next);
+        var state = Create(CanonicalGalaxySystemCount, 3, CanonicalGalaxySeed, now, identitySequence.Next);
 
-        ApplyCuratedColdStart(state, now, identitySequence.Next);
+        ApplyDevelopmentMatch(state, scenarioSeed, now, identitySequence.Next);
         return state;
     }
 
@@ -830,11 +841,13 @@ public static class GameSeeder
                 Username = $"player-{index + 1}",
                 Email = $"player-{index + 1}@cycles.local",
                 PasswordHash = "prototype",
+                Kind = PlayerKind.Human,
                 CreatedAt = now,
                 LastLoginAt = now,
                 Status = PlayerStatus.Active
             };
             state.Players.Add(player);
+            cycle.CreatedByPlayerId ??= player.PlayerId;
 
             var homeSystem = homeSystems[index];
             var empire = new Empire
@@ -848,6 +861,27 @@ public static class GameSeeder
                 Status = EmpireStatus.Active
             };
             state.Empires.Add(empire);
+
+            var faction = new Faction
+            {
+                FactionId = empire.EmpireId,
+                CycleId = cycle.CycleId,
+                EmpireId = empire.EmpireId,
+                FactionName = empire.EmpireName,
+                Kind = FactionKind.Empire,
+                Status = FactionStatus.Active,
+                CreatedAt = now
+            };
+            state.Factions.Add(faction);
+            state.MatchParticipants.Add(new MatchParticipant
+            {
+                MatchParticipantId = nextId(),
+                CycleId = cycle.CycleId,
+                PlayerId = player.PlayerId,
+                EmpireId = empire.EmpireId,
+                Status = MatchParticipantStatus.Active,
+                JoinedAt = now
+            });
 
             state.EmpireResources.Add(new EmpireResource
             {
@@ -888,6 +922,7 @@ public static class GameSeeder
                 FleetId = nextId(),
                 CycleId = cycle.CycleId,
                 EmpireId = empire.EmpireId,
+                FactionId = faction.FactionId,
                 AdmiralId = admiral.AdmiralId,
                 FleetName = $"{empire.EmpireName} Home Fleet",
                 CurrentSystemId = homeSystem.SystemId,
@@ -896,6 +931,398 @@ public static class GameSeeder
                 CreatedAt = now
             });
         }
+    }
+
+    private static void ApplyDevelopmentMatch(
+        GameState state,
+        int scenarioSeed,
+        DateTimeOffset now,
+        Func<Guid> nextId)
+    {
+        var cycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("The Development match requires an active Cycle.");
+        var empires = state.Empires
+            .Where(item => item.CycleId == cycle.CycleId)
+            .OrderBy(item => item.EmpireName, StringComparer.Ordinal)
+            .ToArray();
+        if (empires.Length != 3)
+        {
+            throw new InvalidOperationException("The canonical Development match requires exactly three Empires.");
+        }
+
+        AssignDevelopmentPlayers(state, cycle, empires, scenarioSeed, now);
+        var bundles = SelectDevelopmentBundles(state, cycle.CycleId, empires.Length, scenarioSeed);
+        var assignmentRandom = StableRandom.ForStream(scenarioSeed, "starting-bundle-assignment");
+        assignmentRandom.Shuffle(bundles);
+
+        state.Fleets.RemoveAll(item => item.CycleId == cycle.CycleId);
+        state.Events.RemoveAll(item => item.CycleId == cycle.CycleId && item.EventType == EventType.OpeningBriefingIssued);
+
+        var neutralFaction = new Faction
+        {
+            FactionId = nextId(),
+            CycleId = cycle.CycleId,
+            FactionName = "Free Captains",
+            Kind = FactionKind.Neutral,
+            Status = FactionStatus.Active,
+            CreatedAt = now
+        };
+        state.Factions.Add(neutralFaction);
+
+        var reservedSystems = new HashSet<Guid>();
+        for (var index = 0; index < empires.Length; index++)
+        {
+            var empire = empires[index];
+            var faction = state.GetEmpireFaction(empire.EmpireId);
+            var bundle = bundles[index];
+            empire.HomeSystemId = bundle.Home.SystemId;
+            faction.FactionName = empire.EmpireName;
+
+            reservedSystems.Add(bundle.Home.SystemId);
+            reservedSystems.Add(bundle.MoveTarget.SystemId);
+            reservedSystems.Add(bundle.SurveyTarget.SystemId);
+            reservedSystems.Add(bundle.Flashpoint.SystemId);
+
+            var admiral = state.Admirals.Single(item => item.EmpireId == empire.EmpireId);
+            var homeGuard = new Fleet
+            {
+                FleetId = nextId(),
+                CycleId = cycle.CycleId,
+                EmpireId = empire.EmpireId,
+                FactionId = faction.FactionId,
+                AdmiralId = admiral.AdmiralId,
+                FleetName = $"{empire.EmpireName} Home Guard",
+                CurrentSystemId = bundle.Home.SystemId,
+                ShipCount = 30,
+                Status = FleetStatus.Active,
+                CreatedAt = now
+            };
+            var vanguard = new Fleet
+            {
+                FleetId = nextId(),
+                CycleId = cycle.CycleId,
+                EmpireId = empire.EmpireId,
+                FactionId = faction.FactionId,
+                FleetName = $"{bundle.Flashpoint.SystemName} Vanguard",
+                CurrentSystemId = bundle.Flashpoint.SystemId,
+                ShipCount = 18,
+                Status = FleetStatus.Active,
+                CreatedAt = now
+            };
+            var survey = new Fleet
+            {
+                FleetId = nextId(),
+                CycleId = cycle.CycleId,
+                EmpireId = empire.EmpireId,
+                FactionId = faction.FactionId,
+                FleetName = $"{bundle.SurveyTarget.SystemName} Survey",
+                CurrentSystemId = bundle.SurveyTarget.SystemId,
+                ShipCount = 12,
+                Status = FleetStatus.Active,
+                CreatedAt = now
+            };
+            state.Fleets.AddRange([homeGuard, vanguard, survey]);
+
+            state.Fleets.Add(new Fleet
+            {
+                FleetId = nextId(),
+                CycleId = cycle.CycleId,
+                EmpireId = Guid.Empty,
+                FactionId = neutralFaction.FactionId,
+                FleetName = $"{bundle.Flashpoint.SystemName} Free Captains",
+                CurrentSystemId = bundle.Flashpoint.SystemId,
+                ShipCount = 8,
+                Status = FleetStatus.Active,
+                CreatedAt = now
+            });
+
+            state.Events.Add(new EventRecord
+            {
+                EventId = nextId(),
+                CycleId = cycle.CycleId,
+                TickNumber = 0,
+                EventType = EventType.OpeningBriefingIssued,
+                SystemId = bundle.Flashpoint.SystemId,
+                EmpireId = empire.EmpireId,
+                FactionId = faction.FactionId,
+                Severity = EventSeverity.High,
+                DisplayText = $"Day 1 briefing: Free Captains contest {bundle.Flashpoint.SystemName}. {bundle.SurveyTarget.SystemName} is ready for an outpost, while {bundle.MoveTarget.SystemName} offers immediate expansion.",
+                FactJson = JsonSerializer.Serialize(new
+                {
+                    scenarioKey = CuratedColdStartScenarioKey,
+                    scenarioSeed,
+                    mapVersion = CanonicalGalaxyTopologyKey,
+                    setupAlgorithmVersion = DevelopmentSetupAlgorithmVersion,
+                    focusSystemId = bundle.Flashpoint.SystemId,
+                    objectives = new
+                    {
+                        move = new
+                        {
+                            fleetId = homeGuard.FleetId,
+                            targetSystemId = bundle.MoveTarget.SystemId
+                        },
+                        colonise = new
+                        {
+                            fleetId = survey.FleetId,
+                            systemId = bundle.SurveyTarget.SystemId
+                        },
+                        attack = new
+                        {
+                            fleetId = vanguard.FleetId,
+                            systemId = bundle.Flashpoint.SystemId,
+                            targetFactionId = neutralFaction.FactionId
+                        }
+                    }
+                }, GameStateJson.Options),
+                CreatedAt = now
+            });
+        }
+
+        var remoteCandidates = state.Systems
+            .Where(item => item.CycleId == cycle.CycleId && !reservedSystems.Contains(item.SystemId))
+            .OrderBy(item => item.SystemId)
+            .ToList();
+        var remoteRandom = StableRandom.ForStream(scenarioSeed, "remote-neutral-fleets");
+        remoteRandom.Shuffle(remoteCandidates);
+        for (var index = 0; index < empires.Length; index++)
+        {
+            var system = remoteCandidates[index];
+            state.Fleets.Add(new Fleet
+            {
+                FleetId = nextId(),
+                CycleId = cycle.CycleId,
+                EmpireId = Guid.Empty,
+                FactionId = neutralFaction.FactionId,
+                FleetName = $"Free Captain Patrol {index + 1}",
+                CurrentSystemId = system.SystemId,
+                ShipCount = remoteRandom.NextInt(8, 15),
+                Status = FleetStatus.Active,
+                CreatedAt = now
+            });
+        }
+    }
+
+    private static void AssignDevelopmentPlayers(
+        GameState state,
+        Cycle cycle,
+        IReadOnlyList<Empire> empires,
+        int scenarioSeed,
+        DateTimeOffset now)
+    {
+        var identities = new List<DevelopmentPlayerIdentity>
+        {
+            new(TonyPlayerId, "Tony", PlayerKind.Human),
+            new(WillPlayerId, "Will", PlayerKind.Human),
+            new(DevelopmentAiPlayerId, "Ariadne", PlayerKind.AI)
+        };
+        StableRandom.ForStream(scenarioSeed, "player-empire-assignment").Shuffle(identities);
+
+        for (var index = 0; index < empires.Count; index++)
+        {
+            var empire = empires[index];
+            var player = state.Players.Single(item => item.PlayerId == empire.PlayerId);
+            var participant = state.MatchParticipants.Single(item => item.EmpireId == empire.EmpireId);
+            var identity = identities[index];
+            player.PlayerId = identity.PlayerId;
+            player.Username = identity.Name;
+            player.Email = "";
+            player.PasswordHash = "";
+            player.Kind = identity.Kind;
+            player.CreatedAt = now;
+            player.LastLoginAt = null;
+            empire.PlayerId = identity.PlayerId;
+            participant.PlayerId = identity.PlayerId;
+        }
+
+        cycle.CreatedByPlayerId = TonyPlayerId;
+    }
+
+    private static List<DevelopmentBundle> SelectDevelopmentBundles(
+        GameState state,
+        Guid cycleId,
+        int count,
+        int scenarioSeed)
+    {
+        var cycleSystems = state.Systems.Where(item => item.CycleId == cycleId).ToArray();
+        var candidatesBySector = cycleSystems
+            .Where(item => item.HistoricalSignificance == 0)
+            .Select(home => CreateDevelopmentBundle(state, cycleId, home))
+            .Where(item => item is not null)
+            .Cast<DevelopmentBundle>()
+            .GroupBy(item => item.Home.SectorId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(item => item.Home.SystemId).ToArray());
+        var sectors = state.Sectors
+            .Where(item => item.CycleId == cycleId && candidatesBySector.ContainsKey(item.SectorId))
+            .OrderBy(item => item.SortOrder)
+            .ToArray();
+        var sectorDistances = BuildSectorDistances(state, cycleId, sectors);
+        DevelopmentSelection? best = null;
+
+        foreach (var sectorSelection in Choose(sectors, count))
+        {
+            foreach (var bundleSelection in CartesianBundles(sectorSelection, candidatesBySector))
+            {
+                var totals = bundleSelection.Select(item => TotalOutput(item.Home)).ToArray();
+                var strategicValues = bundleSelection.Select(item => item.Home.StrategicValue).ToArray();
+                var outputSpread = totals.Max() - totals.Min();
+                var strategicSpread = strategicValues.Max() - strategicValues.Min();
+                if (outputSpread > decimal.Round(totals.Min() * 0.15m, 2) || strategicSpread > 5)
+                {
+                    continue;
+                }
+
+                var minimumDistance = bundleSelection
+                    .SelectMany((first, firstIndex) => bundleSelection.Skip(firstIndex + 1)
+                        .Select(second => sectorDistances[(first.Home.SectorId, second.Home.SectorId)]))
+                    .Min();
+                var tieBreaker = StableTieBreaker(
+                    scenarioSeed,
+                    "home-bundle-selection",
+                    bundleSelection.Select(item => item.Home.SystemId));
+                var selection = new DevelopmentSelection(
+                    bundleSelection.ToList(),
+                    minimumDistance,
+                    outputSpread,
+                    strategicSpread,
+                    tieBreaker);
+                if (best is null || selection.IsBetterThan(best))
+                {
+                    best = selection;
+                }
+            }
+        }
+
+        return best?.Bundles
+            ?? throw new InvalidOperationException("The canonical map has no fair, distinct-sector Development start for the requested Empire count.");
+    }
+
+    private static DevelopmentBundle? CreateDevelopmentBundle(GameState state, Guid cycleId, GalaxySystem home)
+    {
+        var systemsById = state.Systems.Where(item => item.CycleId == cycleId).ToDictionary(item => item.SystemId);
+        var localNeighbours = state.SystemLinks
+            .Where(item => item.CycleId == cycleId && (item.SystemAId == home.SystemId || item.SystemBId == home.SystemId))
+            .Select(item => systemsById[item.SystemAId == home.SystemId ? item.SystemBId : item.SystemAId])
+            .Where(item => item.SectorId == home.SectorId)
+            .OrderBy(item => item.SystemId)
+            .ToArray();
+        if (localNeighbours.Length < 2)
+        {
+            return null;
+        }
+
+        var moveTarget = localNeighbours[0];
+        var flashpoint = localNeighbours[1];
+        var surveyTarget = systemsById.Values
+            .Where(item => item.SectorId == home.SectorId
+                           && item.SystemId != home.SystemId
+                           && item.SystemId != moveTarget.SystemId
+                           && item.SystemId != flashpoint.SystemId)
+            .OrderBy(item => item.SystemId)
+            .FirstOrDefault();
+        return surveyTarget is null ? null : new DevelopmentBundle(home, moveTarget, surveyTarget, flashpoint);
+    }
+
+    private static Dictionary<(Guid First, Guid Second), int> BuildSectorDistances(
+        GameState state,
+        Guid cycleId,
+        IReadOnlyCollection<GalaxySector> sectors)
+    {
+        var sectorBySystem = state.Systems
+            .Where(item => item.CycleId == cycleId)
+            .ToDictionary(item => item.SystemId, item => item.SectorId);
+        var adjacent = sectors.ToDictionary(item => item.SectorId, _ => new HashSet<Guid>());
+        foreach (var link in state.SystemLinks.Where(item => item.CycleId == cycleId))
+        {
+            var first = sectorBySystem[link.SystemAId];
+            var second = sectorBySystem[link.SystemBId];
+            if (first != second)
+            {
+                adjacent[first].Add(second);
+                adjacent[second].Add(first);
+            }
+        }
+
+        var result = new Dictionary<(Guid First, Guid Second), int>();
+        foreach (var origin in adjacent.Keys)
+        {
+            var distances = new Dictionary<Guid, int> { [origin] = 0 };
+            var queue = new Queue<Guid>();
+            queue.Enqueue(origin);
+            while (queue.TryDequeue(out var current))
+            {
+                foreach (var next in adjacent[current].Where(item => !distances.ContainsKey(item)))
+                {
+                    distances[next] = distances[current] + 1;
+                    queue.Enqueue(next);
+                }
+            }
+
+            foreach (var pair in distances)
+            {
+                result[(origin, pair.Key)] = pair.Value;
+            }
+        }
+
+        return result;
+    }
+
+    private static IEnumerable<IReadOnlyList<GalaxySector>> Choose(IReadOnlyList<GalaxySector> values, int count)
+    {
+        var selection = new GalaxySector[count];
+        IEnumerable<IReadOnlyList<GalaxySector>> Select(int start, int depth)
+        {
+            if (depth == count)
+            {
+                yield return selection.ToArray();
+                yield break;
+            }
+
+            for (var index = start; index <= values.Count - (count - depth); index++)
+            {
+                selection[depth] = values[index];
+                foreach (var result in Select(index + 1, depth + 1))
+                {
+                    yield return result;
+                }
+            }
+        }
+
+        return Select(0, 0);
+    }
+
+    private static IEnumerable<IReadOnlyList<DevelopmentBundle>> CartesianBundles(
+        IReadOnlyList<GalaxySector> sectors,
+        IReadOnlyDictionary<Guid, DevelopmentBundle[]> candidatesBySector)
+    {
+        var selection = new DevelopmentBundle[sectors.Count];
+        IEnumerable<IReadOnlyList<DevelopmentBundle>> Select(int depth)
+        {
+            if (depth == sectors.Count)
+            {
+                yield return selection.ToArray();
+                yield break;
+            }
+
+            foreach (var candidate in candidatesBySector[sectors[depth].SectorId])
+            {
+                selection[depth] = candidate;
+                foreach (var result in Select(depth + 1))
+                {
+                    yield return result;
+                }
+            }
+        }
+
+        return Select(0);
+    }
+
+    private static decimal TotalOutput(GalaxySystem system) =>
+        system.IndustryOutput + system.ResearchOutput + system.PopulationOutput;
+
+    private static ulong StableTieBreaker(int scenarioSeed, string streamName, IEnumerable<Guid> values)
+    {
+        var value = $"{scenarioSeed}:{DevelopmentSetupAlgorithmVersion}:{streamName}:{string.Join(':', values.Select(item => item.ToString("N")))}";
+        return BinaryPrimitives.ReadUInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     }
 
     private static void ApplyCuratedColdStart(
@@ -907,6 +1334,8 @@ public static class GameSeeder
             ?? throw new InvalidOperationException("The curated cold start requires an active Cycle.");
         var aurelian = state.Empires.Single(empire => empire.CycleId == cycle.CycleId && empire.EmpireName == "Aurelian Compact");
         var khepri = state.Empires.Single(empire => empire.CycleId == cycle.CycleId && empire.EmpireName == "Khepri Mandate");
+        var aurelianFaction = state.GetEmpireFaction(aurelian.EmpireId);
+        var khepriFaction = state.GetEmpireFaction(khepri.EmpireId);
         var asterVale = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Aster Vale");
         var nadirCrossing = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Nadir Crossing");
         var paleHarbour = state.Systems.Single(system => system.CycleId == cycle.CycleId && system.SystemName == "Pale Harbour");
@@ -934,6 +1363,7 @@ public static class GameSeeder
             FleetId = nextId(),
             CycleId = cycle.CycleId,
             EmpireId = aurelian.EmpireId,
+            FactionId = aurelianFaction.FactionId,
             FleetName = "Aurelian Home Guard",
             CurrentSystemId = asterVale.SystemId,
             ShipCount = 30,
@@ -947,6 +1377,7 @@ public static class GameSeeder
             FleetId = nextId(),
             CycleId = cycle.CycleId,
             EmpireId = aurelian.EmpireId,
+            FactionId = aurelianFaction.FactionId,
             FleetName = "Pale Harbour Survey",
             CurrentSystemId = paleHarbour.SystemId,
             ShipCount = 12,
@@ -965,6 +1396,7 @@ public static class GameSeeder
             FleetId = nextId(),
             CycleId = cycle.CycleId,
             EmpireId = khepri.EmpireId,
+            FactionId = khepriFaction.FactionId,
             FleetName = "Khepri Home Fleet",
             CurrentSystemId = khepri.HomeSystemId,
             ShipCount = 40,
@@ -980,6 +1412,7 @@ public static class GameSeeder
             EventType = EventType.OpeningBriefingIssued,
             SystemId = treatyGate.SystemId,
             EmpireId = aurelian.EmpireId,
+            FactionId = aurelianFaction.FactionId,
             Severity = EventSeverity.High,
             DisplayText = "Day 1 briefing: Khepri raiders contest Treaty Gate. Pale Harbour is ready for an outpost, while Nadir Crossing offers immediate expansion.",
             FactJson = JsonSerializer.Serialize(new
@@ -1002,7 +1435,8 @@ public static class GameSeeder
                     {
                         fleetId = aurelianVanguard.FleetId,
                         systemId = treatyGate.SystemId,
-                        targetEmpireId = khepri.EmpireId
+                        targetEmpireId = khepri.EmpireId,
+                        targetFactionId = khepriFaction.FactionId
                     }
                 }
             }, GameStateJson.Options),
@@ -1057,6 +1491,28 @@ public static class GameSeeder
         int SecondSectorIndex,
         int SecondLocalIndex);
 
+    private sealed record DevelopmentPlayerIdentity(Guid PlayerId, string Name, PlayerKind Kind);
+
+    private sealed record DevelopmentBundle(
+        GalaxySystem Home,
+        GalaxySystem MoveTarget,
+        GalaxySystem SurveyTarget,
+        GalaxySystem Flashpoint);
+
+    private sealed record DevelopmentSelection(
+        List<DevelopmentBundle> Bundles,
+        int MinimumSectorDistance,
+        decimal OutputSpread,
+        int StrategicSpread,
+        ulong TieBreaker)
+    {
+        public bool IsBetterThan(DevelopmentSelection other) =>
+            MinimumSectorDistance > other.MinimumSectorDistance
+            || (MinimumSectorDistance == other.MinimumSectorDistance && OutputSpread < other.OutputSpread)
+            || (MinimumSectorDistance == other.MinimumSectorDistance && OutputSpread == other.OutputSpread && StrategicSpread < other.StrategicSpread)
+            || (MinimumSectorDistance == other.MinimumSectorDistance && OutputSpread == other.OutputSpread && StrategicSpread == other.StrategicSpread && TieBreaker < other.TieBreaker);
+    }
+
     private sealed record CanonicalSystemAssignment(
         string SystemName,
         int SectorIndex,
@@ -1076,6 +1532,51 @@ public static class GameSeeder
             var value = $"cycles-balance:{seed}:{sequence++}";
             var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
             return new Guid(hash.AsSpan(0, 16));
+        }
+    }
+
+    private sealed class StableRandom
+    {
+        private ulong state;
+
+        private StableRandom(ulong seed)
+        {
+            state = seed;
+        }
+
+        public static StableRandom ForStream(int scenarioSeed, string streamName)
+        {
+            var material = $"cycles-development:{DevelopmentSetupAlgorithmVersion}:{scenarioSeed}:{streamName}";
+            var seed = BinaryPrimitives.ReadUInt64LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(material)));
+            return new StableRandom(seed);
+        }
+
+        public int NextInt(int minimumInclusive, int maximumExclusive)
+        {
+            if (minimumInclusive >= maximumExclusive)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumExclusive));
+            }
+
+            return minimumInclusive + (int)(NextUInt64() % (uint)(maximumExclusive - minimumInclusive));
+        }
+
+        public void Shuffle<T>(IList<T> values)
+        {
+            for (var index = values.Count - 1; index > 0; index--)
+            {
+                var swapIndex = NextInt(0, index + 1);
+                (values[index], values[swapIndex]) = (values[swapIndex], values[index]);
+            }
+        }
+
+        private ulong NextUInt64()
+        {
+            state += 0x9E3779B97F4A7C15UL;
+            var value = state;
+            value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
+            value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
+            return value ^ (value >> 31);
         }
     }
 }

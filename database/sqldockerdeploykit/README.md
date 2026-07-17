@@ -34,8 +34,8 @@ docker exec cycles-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P "Y
 Expected result:
 
 - `CycleCount` is `1`.
-- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
-- The canonical seed contains 8 sectors, 64 systems, and 93 routes; every sector contains 8 systems, exactly two gateway systems, and the active Cycle ends 90 days after container startup.
+- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `Factions`, `MatchParticipants`, `EmpireResources`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The canonical seed contains 8 sectors, 64 systems, 91 routes, three empire participants, and six neutral fleets; every sector contains 8 systems, exactly two gateway systems, and the active Cycle ends 90 days after container startup.
 
 ## Connection String
 
@@ -75,14 +75,14 @@ The export contains player identity and game state. Store it as a sensitive temp
 
 ## Integration Test
 
-The normal test suite does not require Docker. To include SQL Server integration coverage, point `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` at a disposable Cycles database before using the repository test helper:
+The normal test suite does not require Docker. To include SQL Server integration coverage, point `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` at a SQL Server instance the test run may use to create a uniquely named disposable database:
 
 ```powershell
 $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 .\eng\test.ps1
 ```
 
-The integration test replaces the configured database contents, so do not run it against data you want to keep.
+The integration fixture never replaces the configured catalogue. It creates a `CyclesIntegration_*` database, writes a run-specific marker before migration, redirects the suite to that database, and drops it only when both the generated-name and marker checks match. The configured login therefore needs permission to create and drop test databases.
 
 See [Operations](../../docs/operations.md) for Worker paths, diagnostics, recovery, and the destructive `db profile` guard.
 

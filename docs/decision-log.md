@@ -1596,3 +1596,25 @@ Consequences:
 - The guide panel shows the admiral's name and a portrait selected deterministically from the human portrait concepts using the admiral ID. The same persisted admiral therefore keeps the same presentation within the current model.
 - Portrait choice remains a client presentation convention until species, portrait ownership, background meaning, or player selection receives an explicit model.
 - The detailed resource, priority, map, fleet, order, turn, and history teaching remains otherwise provisional.
+
+## 2026-07-17: Separate Persistent Players From Match Control
+
+Decision: represent a persistent `Player` as either a human account or a game-AI identity, and assign that player to exactly one empire in a Cycle through a `MatchParticipant`. A match may contain up to six empire participants, never shares control of an empire, and may record the player who created it without treating that player as an owner. General `Faction` ownership covers both empire and neutral fleets.
+
+Use a deterministic three-empire Development match for current play-testing. Tony and Will are the two selectable human players; Ariadne is game-AI controlled. Place their home systems in different sectors, give every empire three fleets totalling 60 ships and one starting admiral, and add a neutral Free Captains faction with six weaker fleets. Give each empire a real move, colonise, and neutral-attack opening briefing.
+
+Reasoning:
+
+- Persistent identity and per-match control have different lifecycles. Keeping them separate allows a human or AI player to participate in many future matches without making an empire a permanent account property.
+- One participant per empire preserves unambiguous order authority while allowing defeated or completed participation to be recorded explicitly.
+- Neutral fleets need combat, influence, history, and presentation identity but do not need an empire economy, diplomacy, resources, or a controlling participant.
+- Distinct starting sectors, equal fleet totals, comparable home outputs, and deterministic randomisation make repeated Development matches varied enough to exercise the galaxy while remaining reproducible.
+- A fixed Tony/Will selector is sufficient behind the existing access-code perimeter. Email, registration, invitations, matchmaking, and production identity remain separate decisions.
+
+Consequences:
+
+- Migration `017_add_match_participants_and_factions` adds player kind, optional Cycle creator, factions, match participants, and faction-based ownership while retaining nullable legacy empire references during transition.
+- Influence and attacks are faction-based. Neutral fleets dilute local resource shares but receive no resources, and attacking them creates battle facts without inventing diplomatic relationships.
+- The normal curated seed is `development-match-v2`; it creates three empire factions, one neutral faction, three active participants, nine empire fleets, six neutral fleets, and one opening briefing per empire.
+- `Cycles:TrustedPlayerSelection:Enabled` must be deliberately enabled outside local Development, where it also requires the shared playground access code at startup. The trusted endpoints list active human accounts participating in the match, reject arbitrary or game-AI identities, and use a protected session cookie. Ended participants retain read-only access to the historical match but cannot mutate state.
+- The six-empire ceiling is a model limit, not evidence that the current dashboard or balance is proved for six concurrent human players.

@@ -138,6 +138,13 @@ public static class ExternalIdentityAdmission
             throw new ApiForbiddenException("The mapped Cycles player is not active.");
         }
 
+        var activeCycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("No active Cycle exists for invited-player provisioning.");
+        var participant = state.GetParticipant(activeCycle.CycleId, player.PlayerId)
+            ?? throw new InvalidOperationException("The mapped Cycles player is not participating in the active Cycle.");
+        var empire = state.Empires.Single(item => item.EmpireId == participant.EmpireId);
+        PlayerProvisioning.RepairLegacyStartingAdmiralName(state, empire, player, now);
+
         player.LastLoginAt = now;
         if (bootstrapped)
         {

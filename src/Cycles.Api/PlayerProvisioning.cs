@@ -2,6 +2,20 @@ using Cycles.Core;
 
 public static class PlayerProvisioning
 {
+    private static readonly string[] AdmiralGivenNames =
+    [
+        "Amina", "Anik", "Cassia", "Cela", "Darian", "Elian", "Esra", "Ilya",
+        "Imani", "Jalen", "Kael", "Keira", "Lio", "Mara", "Nadia", "Niko",
+        "Orin", "Rhea", "Sable", "Soren", "Tavian", "Tessa", "Vela", "Yara"
+    ];
+
+    private static readonly string[] AdmiralFamilyNames =
+    [
+        "Ardent", "Ashar", "Calder", "Damar", "Hale", "Harrow", "Ilyan", "Kepler",
+        "Kestrel", "Morrow", "Neris", "Orre", "Rook", "Sen", "Solari", "Sutekh",
+        "Teral", "Vale", "Vey", "Voss", "Wren", "Xanthe", "Yarrow", "Zoric"
+    ];
+
     public static Empire AddEmpireForPlayer(
         GameState state,
         Cycle cycle,
@@ -9,6 +23,11 @@ public static class PlayerProvisioning
         string? requestedEmpireName,
         DateTimeOffset now)
     {
+        if (state.Empires.Count(item => item.CycleId == cycle.CycleId) >= MatchControl.MaximumEmpireCount)
+        {
+            throw new InvalidOperationException($"A Cycle supports at most {MatchControl.MaximumEmpireCount} Empires.");
+        }
+
         var claimedHomeSystems = state.Empires
             .Where(empire => empire.CycleId == cycle.CycleId)
             .Select(empire => empire.HomeSystemId)
@@ -32,6 +51,25 @@ public static class PlayerProvisioning
             Status = EmpireStatus.Active
         };
         state.Empires.Add(empire);
+        var faction = new Faction
+        {
+            FactionId = empire.EmpireId,
+            CycleId = cycle.CycleId,
+            EmpireId = empire.EmpireId,
+            FactionName = empire.EmpireName,
+            Kind = FactionKind.Empire,
+            Status = FactionStatus.Active,
+            CreatedAt = now
+        };
+        state.Factions.Add(faction);
+        state.MatchParticipants.Add(new MatchParticipant
+        {
+            CycleId = cycle.CycleId,
+            PlayerId = player.PlayerId,
+            EmpireId = empire.EmpireId,
+            Status = MatchParticipantStatus.Active,
+            JoinedAt = now
+        });
 
         state.EmpireResources.Add(new EmpireResource
         {
@@ -56,7 +94,7 @@ public static class PlayerProvisioning
         {
             CycleId = cycle.CycleId,
             EmpireId = empire.EmpireId,
-            AdmiralName = $"{player.Username} Vanguard",
+            AdmiralName = CreateUniqueAdmiralName(state),
             ReputationScore = 0,
             Status = AdmiralStatus.Active,
             CreatedAt = now,
@@ -68,6 +106,7 @@ public static class PlayerProvisioning
         {
             CycleId = cycle.CycleId,
             EmpireId = empire.EmpireId,
+            FactionId = faction.FactionId,
             AdmiralId = admiral.AdmiralId,
             FleetName = $"{empire.EmpireName} Home Fleet",
             CurrentSystemId = homeSystem.SystemId,
@@ -77,5 +116,45 @@ public static class PlayerProvisioning
         });
 
         return empire;
+    }
+
+    public static void RepairLegacyStartingAdmiralName(
+        GameState state,
+        Empire empire,
+        Player player,
+        DateTimeOffset now)
+    {
+        var legacyName = $"{player.Username} Vanguard";
+        var admiral = state.Admirals.SingleOrDefault(item =>
+            item.EmpireId == empire.EmpireId
+            && string.Equals(item.AdmiralName, legacyName, StringComparison.OrdinalIgnoreCase));
+        if (admiral is null)
+        {
+            return;
+        }
+
+        admiral.AdmiralName = CreateUniqueAdmiralName(state);
+        admiral.UpdatedAt = now;
+    }
+
+    private static string CreateUniqueAdmiralName(GameState state)
+    {
+        var usedNames = state.Admirals
+            .Select(item => item.AdmiralName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var candidateCount = AdmiralGivenNames.Length * AdmiralFamilyNames.Length;
+        var start = Random.Shared.Next(candidateCount);
+
+        for (var offset = 0; offset < candidateCount; offset++)
+        {
+            var index = (start + offset) % candidateCount;
+            var candidate = $"{AdmiralGivenNames[index / AdmiralFamilyNames.Length]} {AdmiralFamilyNames[index % AdmiralFamilyNames.Length]}";
+            if (!usedNames.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("The admiral name pool is exhausted.");
     }
 }

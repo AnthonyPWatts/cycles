@@ -146,6 +146,24 @@ public sealed class EmpireMetricTests
             Status = EmpireStatus.Active
         };
         state.Empires.Add(empire);
+        state.Factions.Add(new Faction
+        {
+            FactionId = empire.EmpireId,
+            CycleId = cycleId,
+            EmpireId = empire.EmpireId,
+            FactionName = name,
+            Kind = FactionKind.Empire,
+            Status = FactionStatus.Active,
+            CreatedAt = TestState.Now
+        });
+        state.MatchParticipants.Add(new MatchParticipant
+        {
+            CycleId = cycleId,
+            PlayerId = playerId,
+            EmpireId = empire.EmpireId,
+            Status = MatchParticipantStatus.Active,
+            JoinedAt = TestState.Now
+        });
         return empire;
     }
 
@@ -165,6 +183,7 @@ public sealed class EmpireMetricTests
         {
             CycleId = cycleId,
             EmpireId = empireId,
+            FactionId = state.GetEmpireFaction(empireId).FactionId,
             FleetName = $"{shipCount} ships",
             CurrentSystemId = systemId,
             ShipCount = shipCount,

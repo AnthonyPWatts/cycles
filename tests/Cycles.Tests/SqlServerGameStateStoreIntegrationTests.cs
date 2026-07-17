@@ -1,12 +1,54 @@
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 using Microsoft.Data.SqlClient;
+using System.Text.Json;
 
 namespace Cycles.Tests;
 
+[Collection(SqlServerIntegrationCollection.CollectionName)]
 public sealed class SqlServerGameStateStoreIntegrationTests
 {
     private const string ConnectionStringEnvironmentVariable = "CYCLES_SQL_INTEGRATION_CONNECTION_STRING";
+
+    [Fact]
+    public void Store_runs_and_round_trips_a_neutral_faction_battle_without_inventing_diplomacy()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = GameSeeder.CreateDevelopmentMatch();
+        var cycle = state.GetActiveCycle()!;
+        var empire = state.Empires.OrderBy(item => item.EmpireName).First();
+        var briefing = state.Events.Single(item => item.EventType == EventType.OpeningBriefingIssued && item.EmpireId == empire.EmpireId);
+        using var objectives = JsonDocument.Parse(briefing.FactJson);
+        var attack = objectives.RootElement.GetProperty("objectives").GetProperty("attack");
+        var fleetId = attack.GetProperty("fleetId").GetGuid();
+        var neutralFactionId = attack.GetProperty("targetFactionId").GetGuid();
+        OrderService.SubmitAttackOrderAgainstFaction(state, fleetId, neutralFactionId, TestState.Now);
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(state);
+
+        var result = store.RunTick(cycle.CycleId, TestState.Now.AddHours(1));
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var loaded = store.LoadOrCreate();
+        var battle = Assert.Single(loaded.BattleRecords, item => item.AttackerFactionId == state.GetEmpireFaction(empire.EmpireId).FactionId);
+        Assert.Equal(neutralFactionId, battle.DefenderFactionId);
+        Assert.Equal(Guid.Empty, battle.DefenderEmpireId);
+        Assert.DoesNotContain(loaded.DiplomaticRelationships, item =>
+            item.FirstEmpireId == empire.EmpireId || item.SecondEmpireId == empire.EmpireId);
+
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM dbo.BattleRecords WHERE BattleID = @BattleID AND DefenderEmpireID IS NULL AND DefenderFactionID = @FactionID;";
+        command.Parameters.AddWithValue("@BattleID", battle.BattleId);
+        command.Parameters.AddWithValue("@FactionID", neutralFactionId);
+        Assert.Equal(1, Convert.ToInt32(command.ExecuteScalar()));
+    }
 
     [Fact]
     public void Store_round_trips_legacy_systems_without_sector_membership_when_connection_string_is_configured()
@@ -70,6 +112,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             SystemId = system.SystemId,
             AttackerEmpireId = attacker.EmpireId,
             DefenderEmpireId = defender.EmpireId,
+            AttackerFactionId = state.GetEmpireFaction(attacker.EmpireId).FactionId,
+            DefenderFactionId = state.GetEmpireFaction(defender.EmpireId).FactionId,
             AttackerFleetIds = state.Fleets.First(fleet => fleet.EmpireId == attacker.EmpireId).FleetId.ToString(),
             DefenderFleetIds = state.Fleets.First(fleet => fleet.EmpireId == defender.EmpireId).FleetId.ToString(),
             AttackerShipsBefore = 10,
@@ -87,6 +131,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             EventType = EventType.CombatResolved,
             SystemId = system.SystemId,
             EmpireId = attacker.EmpireId,
+            FactionId = state.GetEmpireFaction(attacker.EmpireId).FactionId,
             Severity = EventSeverity.High,
             DisplayText = "A test battle was resolved.",
             FactJson = battle.FactJson,
@@ -449,6 +494,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             EventType = EventType.ResourcesGenerated,
             SystemId = system.SystemId,
             EmpireId = empire.EmpireId,
+            FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             Severity = EventSeverity.Low,
             DisplayText = "Historical event.",
             FactJson = "{}",
@@ -461,6 +507,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             SystemId = system.SystemId,
             AttackerEmpireId = empire.EmpireId,
             DefenderEmpireId = empire.EmpireId,
+            AttackerFactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
+            DefenderFactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             AttackerFleetIds = fleet.FleetId.ToString(),
             DefenderFleetIds = fleet.FleetId.ToString(),
             AttackerShipsBefore = 1,
@@ -927,6 +975,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             SystemId = system.SystemId,
             AttackerEmpireId = firstEmpire.EmpireId,
             DefenderEmpireId = secondEmpire.EmpireId,
+            AttackerFactionId = state.GetEmpireFaction(firstEmpire.EmpireId).FactionId,
+            DefenderFactionId = state.GetEmpireFaction(secondEmpire.EmpireId).FactionId,
             AttackerFleetIds = state.Fleets.First(fleet => fleet.EmpireId == firstEmpire.EmpireId).FleetId.ToString(),
             DefenderFleetIds = state.Fleets.First(fleet => fleet.EmpireId == secondEmpire.EmpireId).FleetId.ToString(),
             AttackerShipsBefore = 80,
@@ -1012,6 +1062,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             Sectors = states.SelectMany(state => state.Sectors).ToList(),
             Systems = states.SelectMany(state => state.Systems).ToList(),
             Empires = states.SelectMany(state => state.Empires).ToList(),
+            Factions = states.SelectMany(state => state.Factions).ToList(),
+            MatchParticipants = states.SelectMany(state => state.MatchParticipants).ToList(),
             EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),
             EmpirePriorities = states.SelectMany(state => state.EmpirePriorities).ToList(),
             EmpireMetrics = states.SelectMany(state => state.EmpireMetrics).ToList(),
@@ -1024,6 +1076,8 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             Fleets = states.SelectMany(state => state.Fleets).ToList(),
             FleetOrders = states.SelectMany(state => state.FleetOrders).ToList(),
             ShipConstructions = states.SelectMany(state => state.ShipConstructions).ToList(),
+            ColonialOutposts = states.SelectMany(state => state.ColonialOutposts).ToList(),
+            DiplomaticRelationships = states.SelectMany(state => state.DiplomaticRelationships).ToList(),
             TickLogs = states.SelectMany(state => state.TickLogs).ToList(),
             Events = states.SelectMany(state => state.Events).ToList(),
             BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),

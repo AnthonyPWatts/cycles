@@ -44,6 +44,7 @@ public static class CycleContinuityService
         newCycle.StartAt = startsAt;
         newCycle.EndAt = startsAt.Add(sourceCycle.EndAt - sourceCycle.StartAt);
         newCycle.TickLengthMinutes = sourceCycle.TickLengthMinutes;
+        newCycle.CreatedByPlayerId = sourceCycle.CreatedByPlayerId;
         newCycle.CreatedAt = startsAt;
 
         var successorEmpires = ApplySuccessorEmpires(generated, newCycle.CycleId, sourceEmpires);
@@ -86,8 +87,14 @@ public static class CycleContinuityService
         {
             var sourceEmpire = sourceEmpires[index];
             var newEmpire = newEmpires[index];
+            var generatedPlayerId = newEmpire.PlayerId;
             newEmpire.PlayerId = sourceEmpire.PlayerId;
             newEmpire.EmpireName = CreateSuccessorEmpireName(sourceEmpire, index);
+            var faction = generated.GetEmpireFaction(newEmpire.EmpireId);
+            faction.FactionName = newEmpire.EmpireName;
+            var participant = generated.MatchParticipants.Single(item =>
+                item.CycleId == newCycleId && item.PlayerId == generatedPlayerId);
+            participant.PlayerId = sourceEmpire.PlayerId;
             continuities.Add(new SuccessorEmpireContinuity(
                 sourceEmpire.EmpireId,
                 newEmpire.EmpireId,
@@ -233,6 +240,8 @@ public static class CycleContinuityService
     {
         state.Cycles.AddRange(generated.Cycles);
         state.Empires.AddRange(generated.Empires);
+        state.Factions.AddRange(generated.Factions);
+        state.MatchParticipants.AddRange(generated.MatchParticipants);
         state.EmpireResources.AddRange(generated.EmpireResources);
         state.EmpirePriorities.AddRange(generated.EmpirePriorities);
         state.Admirals.AddRange(generated.Admirals);

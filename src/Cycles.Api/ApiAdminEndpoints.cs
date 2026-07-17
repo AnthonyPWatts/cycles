@@ -25,6 +25,11 @@ public static class ApiAdminEndpoints
                 throw new ApiForbiddenException("Only an administrator can run a tick.");
             }
 
+            if (!actor.IsAdmin)
+            {
+                _ = DevelopmentAuth.RequireCommandableEmpire(state, actor);
+            }
+
             var result = store.RunTick(now);
             return new TickCommandResponse(
                 result.TickNumber,

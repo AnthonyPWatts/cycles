@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 16 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 17 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -12,7 +12,7 @@ For the curated local opening:
 
 - follow the [run instructions](../README.md#run-locally);
 - open `/app.html` on the local site;
-- use the prefilled `player-1` username;
+- select Tony or Will from the trusted player selector;
 - start from tick 0 of a freshly seeded state.
 
 Reseed the local SQL database if the opening has already been played:
@@ -21,39 +21,39 @@ Reseed the local SQL database if the opening has already been played:
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-cold-start-v1` opening in an 8-sector, 64-system galaxy. Explicit non-canonical dimensions create a generic galaxy instead.
+Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-match-v2` opening in an 8-sector, 64-system galaxy. Tony, Will, and the game-AI Ariadne command three empires in distinct sectors; explicit non-canonical dimensions create a generic galaxy instead.
 
-For an organised hosted test, use the access code and username supplied by the organiser. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The development login creates a new empire when it does not recognise a name, so a spelling change can put you in a different empire. Use it only in a trusted environment.
+For an organised hosted test, use the access code supplied by the organiser, then select Tony or Will. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The selector cannot create players or select the game-AI participant. Use it only in a trusted environment.
 
 ## Curated Day One
 
-The Day One guide opens automatically for `player-1` when the curated Cycle is at tick 0 with no submitted orders. It is a click-along walkthrough, not a slideshow: required steps unlock only after the real server action succeeds.
+The Day One guide opens automatically for the selected participant when the curated Cycle is at tick 0 with no submitted orders. It is a click-along walkthrough, not a slideshow: required steps unlock only after the real server action succeeds.
 
 ![Command view with the Day One guide open](images/cycles-dashboard-command-guide.png)
 
 *The Command view opens with the resumable Day One guide and the next-turn information kept together.*
 
-Your Aurelian command begins with three live problems:
+Every player empire begins with three live opportunities:
 
-- **Nadir Crossing is open.** Move the 30-ship **Aurelian Home Guard** there from Aster Vale.
-- **Pale Harbour is ready for an outpost.** Commit the 12-ship **Pale Harbour Survey** and 100 Population.
-- **Treaty Gate is contested.** Send the 18-ship **Treaty Gate Vanguard** against the local Khepri force.
+- move the 30-ship home guard along an adjacent route;
+- establish an outpost using the 12-ship survey fleet and 100 Population;
+- attack the local 8-ship Free Captains fleet with the 18-ship vanguard.
 
 The guide takes you through this sequence:
 
 1. Read the resource cards and what each stockpile pays for.
 2. Drag either the Military or Expansion slider. The other active slider rebalances automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
-3. Select highlighted Treaty Gate on the map and inspect the Vanguard.
+3. Select the highlighted local flashpoint on the map and inspect the vanguard.
 4. Read the visibility note: routes are always known, while exact remote facts require an active fleet in the system.
-5. In **Fleets**, select **Aurelian Home Guard**. The guide opens **Move**; choose **Nadir Crossing**, then select **Queue move**.
-6. Select **Pale Harbour Survey**. The guide opens **Colonise**; select **Queue outpost**.
-7. Select **Treaty Gate Vanguard**. The guide opens **Attack**; choose the **Khepri Mandate**, then select **Queue attack**.
+5. In **Fleets**, select the home guard. The guide opens **Move** and identifies the intended adjacent destination; select **Queue move**.
+6. Select the survey fleet. The guide opens **Colonise**; select **Queue outpost**.
+7. Select the vanguard. The guide opens **Attack** with the local Free Captains faction; select **Queue attack**.
 8. Check that the order queue contains the three commitments.
 9. Select **Advance turn**.
-10. Read the factual results in **Events**, then open the selective **Chronicle** account of Treaty Gate.
+10. Read the factual results in **Events**, then inspect any selective **Chronicle** account of the battle.
 11. Read how the current tick fits into the operator-driven Cycle end, final ranking, and successor boundary.
 
-All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The battle is deliberately staged at a sufficiently important system to create an immediate Chronicle entry without scripting its outcome.
+All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The neutral fleets are factions with ships and influence, but no empire economy, player participant, diplomacy, or resources.
 
 The guide remembers progress for each player and seeded Cycle instance in that browser. Reseeding creates a fresh tutorial. **Pause** or Escape closes it without losing the current step. **Skip guide** dismisses it. **Guide**, **Resume guide**, or **Restart guide** in the dashboard toolbar opens it again.
 
@@ -87,7 +87,7 @@ The map's visual language marks:
 - **Home**: your empire's founding system;
 - **Historic**: a system with recorded historical significance;
 - **Presence**: your effective influence at a system;
-- **Contested**: more than one empire has visible presence there.
+- **Contested**: more than one faction has visible presence there.
 
 You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
 

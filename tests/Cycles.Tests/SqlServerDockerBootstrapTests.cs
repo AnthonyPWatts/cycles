@@ -47,7 +47,9 @@ public sealed class SqlServerDockerBootstrapTests
             "002_seed_cycles_data.sql");
         var script = File.ReadAllText(scriptPath);
 
-        Assert.Equal(4, script.Split(", 0, 0, 67, 33, @SeededAt", StringSplitOptions.None).Length - 1);
+        var expectedEmpires = GameSeeder.CreateCuratedColdStart().Empires.Count;
+
+        Assert.Equal(expectedEmpires, script.Split(", 0, 0, 67, 33, @SeededAt", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
@@ -87,7 +89,24 @@ public sealed class SqlServerDockerBootstrapTests
         var state = new GameState
         {
             Systems = [system],
-            Empires = [firstEmpire, secondEmpire]
+            Empires = [firstEmpire, secondEmpire],
+            Factions =
+            [
+                new Faction
+                {
+                    FactionId = firstEmpire.EmpireId,
+                    CycleId = cycle.CycleId,
+                    EmpireId = firstEmpire.EmpireId,
+                    FactionName = "First empire"
+                },
+                new Faction
+                {
+                    FactionId = secondEmpire.EmpireId,
+                    CycleId = cycle.CycleId,
+                    EmpireId = secondEmpire.EmpireId,
+                    FactionName = "Second empire"
+                }
+            ]
         };
 
         var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
