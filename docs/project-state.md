@@ -11,7 +11,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Galaxy | A deterministic 8-sector territorial graph with 64 systems, 91 routes, 16 gateway systems, distributed gateway fan-out, home systems, resources, strategic/history fields, and a curated four-empire development opening. | The canonical 64-system scale is browser- and SQL-verified. Larger or differently shaped galaxies remain unproved rather than an implied client contract. |
 | Tick execution | CLI tick runner, scheduled Worker, SQL-atomic due execution, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, shutdown behaviour, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation are locked at zero until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
-| Orders | Durable move, hold, attack, colonise, and cancellation lifecycle with submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. |
+| Orders | Durable move, hold, attack, colonise, cancellation, and supersession lifecycle with one confirmed next-tick intention per fleet plus submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. Relative resolution between different fleets is unchanged. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers or declarations. The accepted first-version Alliance friendly-fire guard and factual-history contract are not implemented; shared visibility remains governed separately by Q025. |
@@ -58,6 +58,9 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 ### Orders And Combat
 
 - Movement follows linked systems; longer routes put fleets in transit until the recorded arrival tick.
+- A fleet can have at most one pending intention for a given execution tick. Current player commands target the next tick.
+- Submitting the same intention again is idempotent. Replacing it with a different intention requires the current pending order ID as explicit confirmation.
+- A confirmed replacement stays in immutable history as `Superseded` and links to the new pending order.
 - Pending orders can be cancelled by the owning empire before their execution tick.
 - Processing revalidates state, so an order that was valid when submitted can still be rejected later.
 - Attack orders engage hostile active fleets in the attacker's current system.

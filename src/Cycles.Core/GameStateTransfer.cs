@@ -306,6 +306,7 @@ public static class GameStateTransfer
         var sectorsById = state.Sectors.GroupBy(item => item.SectorId).ToDictionary(group => group.Key, group => group.First());
         var systemsById = state.Systems.GroupBy(item => item.SystemId).ToDictionary(group => group.Key, group => group.First());
         var fleetsById = state.Fleets.GroupBy(item => item.FleetId).ToDictionary(group => group.Key, group => group.First());
+        var fleetOrdersById = state.FleetOrders.GroupBy(item => item.FleetOrderId).ToDictionary(group => group.Key, group => group.First());
         var admiralsById = state.Admirals.GroupBy(item => item.AdmiralId).ToDictionary(group => group.Key, group => group.First());
         var battleIds = state.BattleRecords.Select(item => item.BattleId).ToHashSet();
         var eventIds = state.Events.Select(item => item.EventId).ToHashSet();
@@ -456,6 +457,32 @@ public static class GameStateTransfer
                 Reference(empireIds, order.TargetEmpireId.Value, $"Fleet order {order.FleetOrderId} target empire", errors);
             }
 
+            if (order.SupersededByOrderId.HasValue)
+            {
+                Reference(
+                    fleetOrdersById.Keys,
+                    order.SupersededByOrderId.Value,
+                    $"Fleet order {order.FleetOrderId} replacement order",
+                    errors);
+            }
+
+            if (order.Status == FleetOrderStatus.Superseded && !order.SupersededByOrderId.HasValue)
+            {
+                errors.Add($"Superseded fleet order {order.FleetOrderId} has no replacement order.");
+            }
+
+            if (order.Status != FleetOrderStatus.Superseded && order.SupersededByOrderId.HasValue)
+            {
+                errors.Add($"Fleet order {order.FleetOrderId} links to a replacement without being superseded.");
+            }
+
+            if (order.SupersededByOrderId.HasValue
+                && fleetOrdersById.TryGetValue(order.SupersededByOrderId.Value, out var replacement)
+                && (replacement.CycleId != order.CycleId || replacement.FleetId != order.FleetId))
+            {
+                errors.Add($"Fleet order {order.FleetOrderId} and its replacement must belong to the same fleet and Cycle.");
+            }
+
             if (fleetsById.TryGetValue(order.FleetId, out var orderedFleet) && orderedFleet.CycleId != order.CycleId)
             {
                 errors.Add($"Fleet order {order.FleetOrderId} and its fleet belong to different Cycles.");
@@ -465,6 +492,15 @@ public static class GameStateTransfer
             {
                 errors.Add($"Fleet order {order.FleetOrderId} has invalid tick scheduling.");
             }
+        }
+
+        foreach (var duplicate in state.FleetOrders
+                     .Where(item => item.Status == FleetOrderStatus.Pending)
+                     .GroupBy(item => (item.CycleId, item.FleetId, item.ExecuteAfterTick))
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add(
+                $"Fleet {duplicate.Key.FleetId} has more than one pending order for tick {duplicate.Key.ExecuteAfterTick} in Cycle {duplicate.Key.CycleId}.");
         }
 
         foreach (var history in state.AdmiralBattleHistories)

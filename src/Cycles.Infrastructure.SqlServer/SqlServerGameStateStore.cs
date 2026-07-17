@@ -831,6 +831,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         ProcessedTick = GetNullableInt(reader, "ProcessedTick"),
         Status = GetEnum<FleetOrderStatus>(reader, "Status"),
         RejectionReason = GetNullableString(reader, "RejectionReason"),
+        SupersededByOrderId = GetNullableGuid(reader, "SupersededByOrderID"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
@@ -1339,13 +1340,14 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 ProcessedTick = @ProcessedTick,
                 Status = @Status,
                 RejectionReason = @RejectionReason,
+                SupersededByOrderID = @SupersededByOrderID,
                 CreatedAt = @CreatedAt
             WHERE FleetOrderID = @FleetOrderID;
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetSystemID, TargetEmpireID, SubmitTick, ExecuteAfterTick, ProcessedTick, Status, RejectionReason, CreatedAt)
-            VALUES (@FleetOrderID, @CycleID, @FleetID, @OrderType, @TargetSystemID, @TargetEmpireID, @SubmitTick, @ExecuteAfterTick, @ProcessedTick, @Status, @RejectionReason, @CreatedAt);
+            INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetSystemID, TargetEmpireID, SubmitTick, ExecuteAfterTick, ProcessedTick, Status, RejectionReason, SupersededByOrderID, CreatedAt)
+            VALUES (@FleetOrderID, @CycleID, @FleetID, @OrderType, @TargetSystemID, @TargetEmpireID, @SubmitTick, @ExecuteAfterTick, @ProcessedTick, @Status, @RejectionReason, @SupersededByOrderID, @CreatedAt);
             END;
             """, command =>
         {
@@ -1360,6 +1362,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddNullableInt(command, "@ProcessedTick", item.ProcessedTick);
             AddString(command, "@Status", item.Status.ToString(), 32);
             AddNullableString(command, "@RejectionReason", item.RejectionReason, 512);
+            AddNullableGuid(command, "@SupersededByOrderID", item.SupersededByOrderId);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 

@@ -41,6 +41,7 @@ public sealed class SqlServerMigratorTests
         var externalIdentityAndAdminAudit = Assert.Single(migrations, migration => migration.MigrationId == "013_add_external_identity_and_admin_audit");
         var inactivePriorities = Assert.Single(migrations, migration => migration.MigrationId == "014_lock_inactive_priorities");
         var galaxySectors = Assert.Single(migrations, migration => migration.MigrationId == "015_add_galaxy_sectors");
+        var pendingFleetOrder = Assert.Single(migrations, migration => migration.MigrationId == "016_enforce_one_pending_fleet_order");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -69,5 +70,9 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("IX_Systems_SectorID", galaxySectors.Script, StringComparison.Ordinal);
         Assert.Contains("BEGIN TRANSACTION", galaxySectors.Script, StringComparison.Ordinal);
         Assert.Contains("COMMIT TRANSACTION", galaxySectors.Script, StringComparison.Ordinal);
+        Assert.Contains("SupersededByOrderID", pendingFleetOrder.Script, StringComparison.Ordinal);
+        Assert.Contains("UX_FleetOrders_Cycle_Fleet_ExecuteAfterTick_Pending", pendingFleetOrder.Script, StringComparison.Ordinal);
+        Assert.Contains("ROW_NUMBER()", pendingFleetOrder.Script, StringComparison.Ordinal);
+        Assert.Matches(@"END;\r?\nGO\r?\n", pendingFleetOrder.Script);
     }
 }

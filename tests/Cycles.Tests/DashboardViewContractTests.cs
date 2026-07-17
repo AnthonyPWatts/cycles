@@ -110,6 +110,11 @@ public sealed class DashboardViewContractTests
         Assert.Contains("function renderFrontierSchematic", script);
         Assert.Contains("class=\"calendar-turn", script);
         Assert.Contains("data-cancel-order-id", script);
+        Assert.Contains("function confirmOrderReplacement", script);
+        Assert.Contains("window.confirm(", script);
+        Assert.Contains("replacesOrderId", script);
+        Assert.Contains("Superseded", html);
+        Assert.Contains("Replaced by ${escapeHtml(formatOrderIntent(replacement))}", script);
     }
 
     [Fact]

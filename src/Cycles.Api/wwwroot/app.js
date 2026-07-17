@@ -682,11 +682,30 @@ elements.moveForm.addEventListener("submit", async event => {
         return;
     }
 
+    const targetName = elements.destinationSelect.selectedOptions[0]?.textContent?.trim() ?? "the selected system";
+    const replacement = confirmOrderReplacement(fleetId, {
+        orderType: "moveFleet",
+        targetSystemId,
+        targetEmpireId: null,
+        summary: `Move to ${targetName}`
+    });
+    if (!replacement) {
+        return;
+    }
+
+    if (replacement.duplicate) {
+        setMessage("That move is already the fleet's current intention.");
+        return;
+    }
+
     try {
-        await postJson("/orders/fleet/move", { fleetId, targetSystemId });
-        setMessage("Move order queued.");
+        await postJson("/orders/fleet/move", { fleetId, targetSystemId, replacesOrderId: replacement.replacesOrderId });
+        setMessage(replacement.replacesOrderId ? "Move order replaced." : "Move order queued.");
         await refresh();
     } catch (error) {
+        if (error.code === "stateConflict") {
+            await refresh();
+        }
         setMessage(error.message);
     }
 });
@@ -700,11 +719,30 @@ elements.attackForm.addEventListener("submit", async event => {
         return;
     }
 
+    const targetName = elements.targetEmpireSelect.selectedOptions[0]?.textContent?.trim() || "nearest hostile";
+    const replacement = confirmOrderReplacement(fleetId, {
+        orderType: "attack",
+        targetSystemId: null,
+        targetEmpireId,
+        summary: `Attack ${targetName}`
+    });
+    if (!replacement) {
+        return;
+    }
+
+    if (replacement.duplicate) {
+        setMessage("That attack is already the fleet's current intention.");
+        return;
+    }
+
     try {
-        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId });
-        setMessage("Attack order queued.");
+        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId, replacesOrderId: replacement.replacesOrderId });
+        setMessage(replacement.replacesOrderId ? "Attack order replaced." : "Attack order queued.");
         await refresh();
     } catch (error) {
+        if (error.code === "stateConflict") {
+            await refresh();
+        }
         setMessage(error.message);
     }
 });
@@ -717,14 +755,66 @@ elements.coloniseForm.addEventListener("submit", async event => {
         return;
     }
 
+    const targetSystemId = state.fleetDetail?.currentSystem?.systemId ?? null;
+    const targetName = state.fleetDetail?.currentSystem?.systemName ?? "the current system";
+    const replacement = confirmOrderReplacement(fleetId, {
+        orderType: "colonise",
+        targetSystemId,
+        targetEmpireId: null,
+        summary: `Colonise ${targetName}`
+    });
+    if (!replacement) {
+        return;
+    }
+
+    if (replacement.duplicate) {
+        setMessage("That colonisation is already the fleet's current intention.");
+        return;
+    }
+
     try {
-        await postJson("/orders/fleet/colonise", { fleetId });
-        setMessage("Colonisation order queued.");
+        await postJson("/orders/fleet/colonise", { fleetId, replacesOrderId: replacement.replacesOrderId });
+        setMessage(replacement.replacesOrderId ? "Colonisation order replaced." : "Colonisation order queued.");
         await refresh();
     } catch (error) {
+        if (error.code === "stateConflict") {
+            await refresh();
+        }
         setMessage(error.message);
     }
 });
+
+function confirmOrderReplacement(fleetId, proposedOrder) {
+    const nextTick = (state.cycle?.currentTickNumber ?? 0) + 1;
+    const pendingOrder = state.orders.find(order => order.fleetId === fleetId
+        && order.status === "pending"
+        && order.executeAfterTick === nextTick);
+    if (!pendingOrder) {
+        return { duplicate: false, replacesOrderId: null };
+    }
+
+    if (orderMatchesIntent(pendingOrder, proposedOrder)) {
+        return { duplicate: true, replacesOrderId: null };
+    }
+
+    const confirmed = window.confirm(
+        `Replace ${formatOrderIntent(pendingOrder)} with ${proposedOrder.summary}?\n\n` +
+        "The previous order will remain in history as Superseded.");
+    return confirmed
+        ? { duplicate: false, replacesOrderId: pendingOrder.fleetOrderId }
+        : null;
+}
+
+function orderMatchesIntent(order, proposedOrder) {
+    return order.orderType === proposedOrder.orderType
+        && (order.targetSystemId ?? null) === (proposedOrder.targetSystemId ?? null)
+        && (order.targetEmpireId ?? null) === (proposedOrder.targetEmpireId ?? null);
+}
+
+function formatOrderIntent(order) {
+    const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
+    return `${formatOrderType(order.orderType)} ${target}`;
+}
 
 elements.orders.addEventListener("click", async event => {
     const button = event.target.closest("[data-cancel-order-id]");
@@ -1692,6 +1782,14 @@ function orderCard(order, allowCancel) {
     const target = order.targetSystemName ?? order.targetEmpireName ?? "nearest hostile";
     const timing = formatOrderTiming(order);
     const rejection = order.rejectionReason ? ` | ${order.rejectionReason}` : "";
+    const replacement = order.supersededByOrderId
+        ? state.orders.find(item => item.fleetOrderId === order.supersededByOrderId)
+        : null;
+    const replacementDetail = replacement
+        ? `<span>Replaced by ${escapeHtml(formatOrderIntent(replacement))}</span>`
+        : order.status === "superseded"
+            ? `<span>Replacement retained outside the current history window</span>`
+            : "";
     const cancelButton = allowCancel
         ? `<button type="button" class="inline-action" data-cancel-order-id="${order.fleetOrderId}">Cancel</button>`
         : "";
@@ -1702,6 +1800,7 @@ function orderCard(order, allowCancel) {
                 ${statusChip(order.status)}
                 <span>${escapeHtml(target)}</span>
                 <span>${escapeHtml(timing)}${escapeHtml(rejection)}</span>
+                ${replacementDetail}
             </span>
             ${cancelButton}
         </article>
@@ -3235,6 +3334,10 @@ function formatOrderTiming(order) {
 
     if (order.status === "cancelled") {
         return order.processedTick === null ? "cancelled" : `cancelled T${order.processedTick}`;
+    }
+
+    if (order.status === "superseded") {
+        return order.processedTick === null ? "superseded" : `superseded T${order.processedTick}`;
     }
 
     return order.processedTick === null ? "processed" : `processed T${order.processedTick}`;

@@ -178,7 +178,8 @@ select {
     color: var(--accent);
 }
 
-.status-cancelled {
+.status-cancelled,
+.status-superseded {
     border-color: rgba(170, 182, 173, 0.56);
     background: rgba(170, 182, 173, 0.1);
     color: var(--muted);
@@ -1511,7 +1512,8 @@ dd {
     color: var(--accent);
 }
 
-.item .status-cancelled {
+.item .status-cancelled,
+.item .status-superseded {
     color: var(--muted);
 }
 
@@ -1578,7 +1580,8 @@ dd {
     border-color: rgba(211, 101, 86, 0.48);
 }
 
-.order-cancelled {
+.order-cancelled,
+.order-superseded {
     border-color: rgba(170, 182, 173, 0.32);
     opacity: 0.82;
 }

@@ -91,17 +91,17 @@ public sealed class ColonisationTests
     }
 
     [Fact]
-    public void Duplicate_pending_colonisation_order_is_rejected()
+    public void Duplicate_pending_colonisation_order_is_idempotent()
     {
         var state = CreateColonisationState();
         var fleet = Assert.Single(state.Fleets);
         state.EmpireResources.Single().Population = 200m;
-        OrderService.SubmitColoniseOrder(state, fleet.FleetId, TestState.Now);
+        var pending = OrderService.SubmitColoniseOrder(state, fleet.FleetId, TestState.Now);
 
-        var error = Assert.Throws<InvalidOperationException>(
-            () => OrderService.SubmitColoniseOrder(state, fleet.FleetId, TestState.Now));
+        var duplicate = OrderService.SubmitColoniseOrder(state, fleet.FleetId, TestState.Now.AddSeconds(1));
 
-        Assert.Contains("pending colonisation order", error.Message, StringComparison.Ordinal);
+        Assert.Same(pending, duplicate);
+        Assert.Single(state.FleetOrders);
     }
 
     [Fact]

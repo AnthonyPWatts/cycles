@@ -804,6 +804,7 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         order.ExecuteAfterTick,
         order.ProcessedTick,
         order.RejectionReason,
+        order.SupersededByOrderId,
         order.TargetSystemId,
         order.TargetEmpireId,
         fleet?.FleetName ?? "Unknown fleet",
@@ -1010,6 +1011,7 @@ public sealed record FleetOrderResponse(
     int ExecuteAfterTick,
     int? ProcessedTick,
     string? RejectionReason,
+    Guid? SupersededByOrderId,
     Guid? TargetSystemId,
     Guid? TargetEmpireId,
     string FleetName,
@@ -1144,11 +1146,11 @@ public sealed record ChronicleEntryResponse(
     string? NarrativeFailureReason,
     DateTimeOffset CreatedAt);
 
-public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId);
+public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId, Guid? ReplacesOrderId = null);
 
-public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId);
+public sealed record AttackFleetRequest(Guid FleetId, Guid? TargetEmpireId, Guid? ReplacesOrderId = null);
 
-public sealed record ColoniseFleetRequest(Guid FleetId);
+public sealed record ColoniseFleetRequest(Guid FleetId, Guid? ReplacesOrderId = null);
 
 public sealed record CancelFleetOrderRequest(Guid FleetOrderId);
 

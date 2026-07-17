@@ -200,8 +200,10 @@ These earlier answers remain in force unless a later accepted question explicitl
 
 ### Orders And Tick Control
 
+- A fleet has at most one pending next-tick intention. Submitting a different intention requires explicit confirmation of the order being replaced; the previous order becomes `Superseded` and links to its replacement.
+- Repeating the identical intention is idempotent rather than creating another order.
 - Pending orders may be cancelled before their execution tick by the owning empire or an admin.
-- Processed, rejected, and cancelled order history remains durable.
+- Processed, rejected, cancelled, and superseded order history remains durable.
 - Cancellation records an event.
 - Scheduled ticks belong to a Worker; ordinary production player actions must not execute ticks.
 - **Advance turn** is the only ordinary-player Development exception and invokes the same authoritative store operation without changing the player's role, visibility, or empire authority.

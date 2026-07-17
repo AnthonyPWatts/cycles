@@ -125,6 +125,48 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task AttackOrderEndpointRequiresAndAppliesConfirmedReplacement()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 30, defenderShips: 20);
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var fleet = state.Fleets.Single(item => item.EmpireId == firstEmpire.EmpireId);
+        var player = state.Players.Single(item => item.PlayerId == firstEmpire.PlayerId);
+        var store = new InMemoryGameStateStore(state);
+        var httpContext = CreateAuthenticatedContext(state, player);
+
+        var firstResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
+            new AttackFleetRequest(fleet.FleetId, secondEmpire.EmpireId),
+            httpContext,
+            store,
+            TestState.Now));
+        var pending = Assert.Single(state.FleetOrders);
+
+        var conflictResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
+            new AttackFleetRequest(fleet.FleetId, null),
+            httpContext,
+            store,
+            TestState.Now.AddSeconds(1)));
+
+        Assert.Equal(StatusCodes.Status200OK, firstResponse.StatusCode);
+        Assert.Equal(StatusCodes.Status409Conflict, conflictResponse.StatusCode);
+        Assert.Contains("stateConflict", conflictResponse.Body, StringComparison.Ordinal);
+        Assert.Equal(FleetOrderStatus.Pending, pending.Status);
+
+        var replacementResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
+            new AttackFleetRequest(fleet.FleetId, null, pending.FleetOrderId),
+            httpContext,
+            store,
+            TestState.Now.AddSeconds(2)));
+        var replacement = state.FleetOrders.Single(order => order.Status == FleetOrderStatus.Pending);
+
+        Assert.Equal(StatusCodes.Status200OK, replacementResponse.StatusCode);
+        Assert.Equal(FleetOrderStatus.Superseded, pending.Status);
+        Assert.Equal(replacement.FleetOrderId, pending.SupersededByOrderId);
+        Assert.Equal(2, state.FleetOrders.Count);
+    }
+
+    [Fact]
     public async Task ColoniseOrderEndpointAcceptsOwnedFleetWithPopulationAndLeadingInfluence()
     {
         var state = TestState.CreateMovementState(linkSystems: true);

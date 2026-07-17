@@ -24,6 +24,27 @@ For example, a successful order response includes camelCase properties and a str
 
 Clients must not send numeric enum values such as `"orderType": 1`.
 
+## Fleet Order Intent Contract
+
+Move, attack, and colonise requests accept an optional `replacesOrderId` alongside their normal fleet and target fields. A fleet can have only one pending intention for the requested execution tick.
+
+- Repeating the identical intention is idempotent and returns the existing pending order.
+- A different intention without `replacesOrderId`, or with an ID that no longer identifies the current pending order, returns `409 Conflict` with `code: "stateConflict"`.
+- A different intention with the current pending order ID creates the replacement and records the previous order as `superseded`.
+- Historical order responses can include `supersededByOrderId`, linking the superseded record to the replacement.
+
+For example, replacing a pending move with an attack includes the order being confirmed for replacement:
+
+```json
+{
+  "fleetId": "5ce2f146-1240-4175-a2d4-befd7895c20f",
+  "targetEmpireId": "372e73c0-0fb2-4770-94d6-c9d0833dc7c8",
+  "replacesOrderId": "5a43a94a-d358-4ca7-8321-a00be6fd198b"
+}
+```
+
+The confirmation ID makes a stale dashboard or competing submission fail safely instead of silently replacing a newer intention. `superseded` is an additive fleet-order status; clients must tolerate additive string-enum members as well as optional response fields.
+
 ## Error Contract
 
 Handled player-facing failures retain an appropriate HTTP status and return the same envelope:

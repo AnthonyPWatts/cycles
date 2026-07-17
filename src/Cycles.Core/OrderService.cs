@@ -6,7 +6,12 @@ public static class OrderService
 {
     public const decimal ColonisationPopulationCost = 100m;
 
-    public static FleetOrder SubmitMoveOrder(GameState state, Guid fleetId, Guid targetSystemId, DateTimeOffset now)
+    public static FleetOrder SubmitMoveOrder(
+        GameState state,
+        Guid fleetId,
+        Guid targetSystemId,
+        DateTimeOffset now,
+        Guid? replacesOrderId = null)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
         var target = state.Systems.SingleOrDefault(system => system.CycleId == cycle.CycleId && system.SystemId == targetSystemId)
@@ -17,10 +22,15 @@ public static class OrderService
             throw new InvalidOperationException("Move orders must target an adjacent linked system.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.MoveFleet, target.SystemId, null, now);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.MoveFleet, target.SystemId, null, now, replacesOrderId);
     }
 
-    public static FleetOrder SubmitAttackOrder(GameState state, Guid fleetId, Guid? targetEmpireId, DateTimeOffset now)
+    public static FleetOrder SubmitAttackOrder(
+        GameState state,
+        Guid fleetId,
+        Guid? targetEmpireId,
+        DateTimeOffset now,
+        Guid? replacesOrderId = null)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
 
@@ -35,16 +45,24 @@ public static class OrderService
             throw new InvalidOperationException("A fleet cannot attack its own empire.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Attack, null, targetEmpireId, now);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Attack, null, targetEmpireId, now, replacesOrderId);
     }
 
-    public static FleetOrder SubmitHoldOrder(GameState state, Guid fleetId, DateTimeOffset now)
+    public static FleetOrder SubmitHoldOrder(
+        GameState state,
+        Guid fleetId,
+        DateTimeOffset now,
+        Guid? replacesOrderId = null)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, now);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, now, replacesOrderId);
     }
 
-    public static FleetOrder SubmitColoniseOrder(GameState state, Guid fleetId, DateTimeOffset now)
+    public static FleetOrder SubmitColoniseOrder(
+        GameState state,
+        Guid fleetId,
+        DateTimeOffset now,
+        Guid? replacesOrderId = null)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
         var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
@@ -69,6 +87,7 @@ public static class OrderService
                                           && item.OrderType == FleetOrderType.Colonise
                                           && item.Status == FleetOrderStatus.Pending
                                           && item.TargetSystemId == fleet.CurrentSystemId
+                                          && item.FleetId != fleet.FleetId
                                           && empireFleetIds.Contains(item.FleetId)))
         {
             throw new InvalidOperationException("The empire already has a pending colonisation order for this system.");
@@ -85,7 +104,7 @@ public static class OrderService
             throw new InvalidOperationException("Colonisation requires the empire to have the leading influence in the system.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Colonise, fleet.CurrentSystemId, null, now);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Colonise, fleet.CurrentSystemId, null, now, replacesOrderId);
     }
 
     public static FleetOrder CancelFleetOrder(GameState state, Guid fleetOrderId, Guid requestingEmpireId, DateTimeOffset now)
@@ -202,8 +221,50 @@ public static class OrderService
         FleetOrderType orderType,
         Guid? targetSystemId,
         Guid? targetEmpireId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        Guid? replacesOrderId)
     {
+        var executeAfterTick = cycle.CurrentTickNumber + 1;
+        var pendingOrders = state.FleetOrders
+            .Where(item => item.CycleId == cycle.CycleId
+                           && item.FleetId == fleet.FleetId
+                           && item.ExecuteAfterTick == executeAfterTick
+                           && item.Status == FleetOrderStatus.Pending)
+            .ToArray();
+
+        if (pendingOrders.Length > 1)
+        {
+            throw new FleetOrderReplacementConflictException(
+                "This fleet has multiple pending orders for the same tick. Refresh after the order history is repaired.");
+        }
+
+        var pendingOrder = pendingOrders.SingleOrDefault();
+        if (pendingOrder is null && replacesOrderId.HasValue)
+        {
+            throw new FleetOrderReplacementConflictException(
+                "The pending order changed before its replacement could be confirmed. Refresh and try again.");
+        }
+
+        if (pendingOrder is not null)
+        {
+            if (replacesOrderId.HasValue && replacesOrderId.Value != pendingOrder.FleetOrderId)
+            {
+                throw new FleetOrderReplacementConflictException(
+                    "The pending order changed before its replacement could be confirmed. Refresh and try again.");
+            }
+
+            if (HasSameIntent(pendingOrder, orderType, targetSystemId, targetEmpireId))
+            {
+                return pendingOrder;
+            }
+
+            if (!replacesOrderId.HasValue)
+            {
+                throw new FleetOrderReplacementConflictException(
+                    "This fleet already has a pending order. Confirm its replacement and try again.");
+            }
+        }
+
         var order = new FleetOrder
         {
             CycleId = cycle.CycleId,
@@ -212,14 +273,30 @@ public static class OrderService
             TargetSystemId = targetSystemId,
             TargetEmpireId = targetEmpireId,
             SubmitTick = cycle.CurrentTickNumber,
-            ExecuteAfterTick = cycle.CurrentTickNumber + 1,
+            ExecuteAfterTick = executeAfterTick,
             Status = FleetOrderStatus.Pending,
             CreatedAt = now
         };
 
+        if (pendingOrder is not null)
+        {
+            pendingOrder.Status = FleetOrderStatus.Superseded;
+            pendingOrder.ProcessedTick = cycle.CurrentTickNumber;
+            pendingOrder.SupersededByOrderId = order.FleetOrderId;
+        }
+
         state.FleetOrders.Add(order);
         return order;
     }
+
+    private static bool HasSameIntent(
+        FleetOrder order,
+        FleetOrderType orderType,
+        Guid? targetSystemId,
+        Guid? targetEmpireId) =>
+        order.OrderType == orderType
+        && order.TargetSystemId == targetSystemId
+        && order.TargetEmpireId == targetEmpireId;
 
     private static string FormatOrderType(FleetOrderType orderType) =>
         orderType switch
@@ -259,3 +336,5 @@ public static class OrderService
         return (cycle, fleet);
     }
 }
+
+public sealed class FleetOrderReplacementConflictException(string message) : InvalidOperationException(message);

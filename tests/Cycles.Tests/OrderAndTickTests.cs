@@ -57,6 +57,91 @@ public sealed class OrderAndTickTests
     }
 
     [Fact]
+    public void FleetOrderReplacementRequiresTheCurrentPendingOrderId()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var pending = OrderService.SubmitHoldOrder(state, fleet.FleetId, TestState.Now);
+
+        var error = Assert.Throws<FleetOrderReplacementConflictException>(
+            () => OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now));
+
+        Assert.Contains("Confirm its replacement", error.Message, StringComparison.Ordinal);
+        Assert.Equal(FleetOrderStatus.Pending, pending.Status);
+        Assert.Single(state.FleetOrders);
+    }
+
+    [Fact]
+    public void ConfirmedFleetOrderReplacementSupersedesHistoryAndOnlyExecutesTheNewIntention()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var pending = OrderService.SubmitHoldOrder(state, fleet.FleetId, TestState.Now);
+
+        var replacement = OrderService.SubmitMoveOrder(
+            state,
+            fleet.FleetId,
+            destination.SystemId,
+            TestState.Now.AddSeconds(1),
+            pending.FleetOrderId);
+
+        Assert.Equal(FleetOrderStatus.Superseded, pending.Status);
+        Assert.Equal(cycle.CurrentTickNumber, pending.ProcessedTick);
+        Assert.Equal(replacement.FleetOrderId, pending.SupersededByOrderId);
+        Assert.Equal(FleetOrderStatus.Pending, replacement.Status);
+        Assert.Single(state.FleetOrders, order => order.Status == FleetOrderStatus.Pending);
+
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(1));
+
+        var committedReplacement = state.FleetOrders.Single(order => order.FleetOrderId == replacement.FleetOrderId);
+        var committedFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        Assert.Equal(FleetOrderStatus.Processed, committedReplacement.Status);
+        Assert.Equal(destination.SystemId, committedFleet.CurrentSystemId);
+        Assert.DoesNotContain(state.Events, item => item.EventType == EventType.FleetHeld);
+    }
+
+    [Fact]
+    public void IdenticalFleetOrderSubmissionIsIdempotent()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var pending = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+
+        var duplicate = OrderService.SubmitMoveOrder(
+            state,
+            fleet.FleetId,
+            destination.SystemId,
+            TestState.Now.AddSeconds(1));
+
+        Assert.Same(pending, duplicate);
+        Assert.Single(state.FleetOrders);
+    }
+
+    [Fact]
+    public void StaleFleetOrderReplacementDoesNotChangeThePendingIntention()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var pending = OrderService.SubmitHoldOrder(state, fleet.FleetId, TestState.Now);
+
+        Assert.Throws<FleetOrderReplacementConflictException>(() => OrderService.SubmitMoveOrder(
+            state,
+            fleet.FleetId,
+            destination.SystemId,
+            TestState.Now.AddSeconds(1),
+            Guid.NewGuid()));
+
+        Assert.Equal(FleetOrderStatus.Pending, pending.Status);
+        Assert.Null(pending.SupersededByOrderId);
+        Assert.Single(state.FleetOrders);
+    }
+
+    [Fact]
     public void MoveOrdersCanOnlyTargetLinkedSystems()
     {
         var state = TestState.CreateMovementState(linkSystems: false);

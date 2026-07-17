@@ -32,6 +32,8 @@ public sealed class GameStateTransferTests
         Assert.Equal("https://identity.example", document.State.Players[0].ExternalIssuer);
         Assert.Single(document.State.AdminRoleAuditRecords);
         Assert.Contains(document.State.ChronicleEntries, entry => entry.NarrativeContextJson == "{\"retained\":true}");
+        var superseded = Assert.Single(document.State.FleetOrders, order => order.Status == FleetOrderStatus.Superseded);
+        Assert.Contains(document.State.FleetOrders, order => order.FleetOrderId == superseded.SupersededByOrderId);
     }
 
     [Fact]
@@ -102,6 +104,40 @@ public sealed class GameStateTransferTests
 
         Assert.False(validation.IsValid);
         Assert.Contains(validation.Errors, error => error.Contains("more than one sector named", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validation_rejects_multiple_pending_orders_for_the_same_fleet_and_execution_tick()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        state.FleetOrders.AddRange(
+        [
+            new FleetOrder
+            {
+                CycleId = cycle.CycleId,
+                FleetId = fleet.FleetId,
+                OrderType = FleetOrderType.Hold,
+                SubmitTick = 0,
+                ExecuteAfterTick = 1,
+                CreatedAt = TestState.Now
+            },
+            new FleetOrder
+            {
+                CycleId = cycle.CycleId,
+                FleetId = fleet.FleetId,
+                OrderType = FleetOrderType.Hold,
+                SubmitTick = 0,
+                ExecuteAfterTick = 1,
+                CreatedAt = TestState.Now.AddSeconds(1)
+            }
+        ]);
+
+        var validation = GameStateTransfer.Validate(state);
+
+        Assert.False(validation.IsValid);
+        Assert.Contains(validation.Errors, error => error.Contains("more than one pending order", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -290,17 +326,30 @@ public sealed class GameStateTransferTests
             AdmiralStatusAfter = admiral.Status,
             CreatedAt = TestState.Now
         });
-        state.FleetOrders.Add(new FleetOrder
+        var replacementOrder = new FleetOrder
         {
             CycleId = cycle.CycleId,
             FleetId = firstFleet.FleetId,
             OrderType = FleetOrderType.Hold,
             SubmitTick = 0,
             ExecuteAfterTick = 1,
-            ProcessedTick = 1,
-            Status = FleetOrderStatus.Processed,
+            Status = FleetOrderStatus.Pending,
+            CreatedAt = TestState.Now.AddSeconds(1)
+        };
+        state.FleetOrders.Add(new FleetOrder
+        {
+            CycleId = cycle.CycleId,
+            FleetId = firstFleet.FleetId,
+            OrderType = FleetOrderType.MoveFleet,
+            TargetSystemId = system.SystemId,
+            SubmitTick = 0,
+            ExecuteAfterTick = 1,
+            ProcessedTick = 0,
+            Status = FleetOrderStatus.Superseded,
+            SupersededByOrderId = replacementOrder.FleetOrderId,
             CreatedAt = TestState.Now
         });
+        state.FleetOrders.Add(replacementOrder);
         state.ShipConstructions.Add(new ShipConstruction
         {
             CycleId = cycle.CycleId,

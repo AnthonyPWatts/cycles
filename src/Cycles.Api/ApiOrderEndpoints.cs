@@ -14,7 +14,8 @@ public static class ApiOrderEndpoints
                 state,
                 request.FleetId,
                 request.TargetSystemId,
-                now));
+                now,
+                request.ReplacesOrderId));
         }));
 
     public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -29,7 +30,8 @@ public static class ApiOrderEndpoints
                 state,
                 request.FleetId,
                 request.TargetEmpireId,
-                now));
+                now,
+                request.ReplacesOrderId));
         }));
 
     public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -40,7 +42,11 @@ public static class ApiOrderEndpoints
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
-            return ToCommandResponse(OrderService.SubmitColoniseOrder(state, request.FleetId, now));
+            return ToCommandResponse(OrderService.SubmitColoniseOrder(
+                state,
+                request.FleetId,
+                now,
+                request.ReplacesOrderId));
         }));
 
     public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -89,6 +95,7 @@ public static class ApiOrderEndpoints
             order.ProcessedTick,
             order.Status,
             order.RejectionReason,
+            order.SupersededByOrderId,
             order.CreatedAt);
 
     private static PriorityCommandResponse ToCommandResponse(EmpirePriority priorities) =>
@@ -119,6 +126,10 @@ public static class ApiOrderEndpoints
         {
             return ApiErrorResponses.ToResult(ex);
         }
+        catch (FleetOrderReplacementConflictException ex)
+        {
+            return ApiErrorResponses.ToResult(new ApiStateConflictException(ex.Message));
+        }
         catch (InvalidOperationException ex)
         {
             return ApiErrorResponses.ToResult(invalidOperationIsConflict
@@ -144,6 +155,7 @@ public sealed record FleetOrderCommandResponse(
     int? ProcessedTick,
     FleetOrderStatus Status,
     string? RejectionReason,
+    Guid? SupersededByOrderId,
     DateTimeOffset CreatedAt);
 
 public sealed record PriorityCommandResponse(

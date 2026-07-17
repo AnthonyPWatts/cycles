@@ -167,16 +167,24 @@ public sealed class SqlServerGameStateStoreIntegrationTests
 
         store.Replace(state);
 
+        var original = store.Update(current => OrderService.SubmitHoldOrder(
+            current,
+            fleet.FleetId,
+            TestState.Now));
         var order = store.Update(current => OrderService.SubmitMoveOrder(
             current,
             fleet.FleetId,
             destination.SystemId,
-            TestState.Now));
+            TestState.Now.AddSeconds(1),
+            original.FleetOrderId));
 
         Assert.Equal(FleetOrderStatus.Pending, order.Status);
 
         var afterOrder = store.LoadOrCreate();
         Assert.Single(afterOrder.FleetOrders, item => item.FleetOrderId == order.FleetOrderId);
+        var superseded = Assert.Single(afterOrder.FleetOrders, item => item.FleetOrderId == original.FleetOrderId);
+        Assert.Equal(FleetOrderStatus.Superseded, superseded.Status);
+        Assert.Equal(order.FleetOrderId, superseded.SupersededByOrderId);
 
         var result = store.RunTick(cycle.CycleId, TestState.Now);
 

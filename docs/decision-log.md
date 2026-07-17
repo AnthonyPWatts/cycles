@@ -1562,3 +1562,21 @@ Consequences:
 - Cycles owns media generation, verification, publication, compatibility, and the canonical URL contract.
 - Consuming repositories own presentation, playback lifecycle, provenance copy, responsive behaviour, and local fallback evidence.
 - Publish and verify new Cycles edge assets before deploying a consumer that depends on them. The Azure package remains deliberately unable to serve media bytes.
+
+## 2026-07-17: Treat Fleet Orders As Replaceable Next-Tick Intentions
+
+Decision: allow at most one pending order per fleet and execution tick. Repeating the same intention is idempotent. Submitting a different intention must explicitly identify the current pending order being replaced; the previous order remains in history as `Superseded` and links to its replacement.
+
+Reasoning:
+
+- A fleet can perform only one mutually exclusive action at a tick, so accepting an unbounded stack of move, hold, attack, and colonise commands creates misleading commitments and avoidable processing failures.
+- Automatic replacement matches command intent, while requiring the current order ID gives the dashboard a concrete confirmation boundary and prevents a stale client from silently overwriting a newer decision.
+- Retaining superseded orders preserves the player's decision history and keeps cancellation, rejection, processing, and replacement as distinct outcomes.
+
+Consequences:
+
+- The SQL schema enforces one pending row for each Cycle, fleet, and execution tick. Migration deterministically retains the latest legacy pending intention and supersedes older conflicts.
+- API requests return the existing order for an identical resubmission and return a state conflict for a different or stale unconfirmed replacement.
+- The dashboard names the existing and proposed intentions before confirmation, then shows superseded records in order history.
+- Tick-time validation can still reject a validly submitted intention when authoritative state changes before execution.
+- Relative processing semantics between different fleets are unchanged. Simultaneous resolution or initiative remains a separate design question.

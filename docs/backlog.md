@@ -10,7 +10,7 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 
 1. Finish and verify the remaining identity, admin, and dashboard boundaries in [#122-#124](https://github.com/AnthonyPWatts/cycles/issues/122), plus the Day One guidance evidence in [#129](https://github.com/AnthonyPWatts/cycles/issues/129).
 2. Continue shared scheduled-execution hardening through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), from the SQL-atomic due-execution boundary into Worker health, shutdown, scheduling policy, and monitoring.
-3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before changing combat, colonisation, priority, or order-feedback rules.
+3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before further tuning combat, colonisation, priority, or order-feedback rules. The accepted one-intention-per-fleet replacement contract is now part of the baseline rather than an open balance experiment.
 4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).

@@ -1,6 +1,6 @@
 # Simulation Reference
 
-Last updated: 2026-07-14
+Last updated: 2026-07-17
 
 This reference records the simulation contracts that need more precision than the project-state summary: determinism, Cycle-end ranking, and the repeatable balance diagnostic. It describes current behaviour, not intended game balance.
 
@@ -26,6 +26,10 @@ The `CycleSeeded` event records the seed. Generated Cycle, player, empire, syste
 ### Tick And Combat Resolution
 
 An active Cycle advances from persisted state to `CurrentTickNumber + 1`.
+
+The submission boundary permits at most one `Pending` order for a fleet at a particular `ExecuteAfterTick`; current player commands use the next tick. An identical resubmission returns the existing order. A different intention must identify the current order it replaces, after which the previous record becomes `Superseded` and links to the new order. This prevents one fleet from accumulating mutually exclusive commands while preserving the full decision history.
+
+This rule does not change the relative processing semantics of orders belonging to different fleets. Simultaneous resolution, initiative, or another cross-fleet ordering model remains a separate design decision.
 
 Combat pseudo-randomness derives from:
 

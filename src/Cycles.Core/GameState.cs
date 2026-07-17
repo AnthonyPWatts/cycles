@@ -398,6 +398,7 @@ public sealed class GameState
         ProcessedTick = item.ProcessedTick,
         Status = item.Status,
         RejectionReason = item.RejectionReason,
+        SupersededByOrderId = item.SupersededByOrderId,
         CreatedAt = item.CreatedAt
     };
 
@@ -727,6 +728,7 @@ public sealed class FleetOrder
     public int? ProcessedTick { get; set; }
     public FleetOrderStatus Status { get; set; } = FleetOrderStatus.Pending;
     public string? RejectionReason { get; set; }
+    public Guid? SupersededByOrderId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -893,7 +895,8 @@ public enum FleetOrderStatus
     Pending,
     Processed,
     Rejected,
-    Cancelled
+    Cancelled,
+    Superseded
 }
 
 public enum ShipConstructionStatus

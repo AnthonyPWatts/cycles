@@ -540,23 +540,68 @@ static void SubmitMove(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var targetSystemId = ParseRequiredGuid(args, 3, "target system id");
-    var order = store.Update(state => OrderService.SubmitMoveOrder(state, fleetId, targetSystemId, DateTimeOffset.UtcNow));
+    var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
+    var order = store.Update(state => OrderService.SubmitMoveOrder(
+        state,
+        fleetId,
+        targetSystemId,
+        DateTimeOffset.UtcNow,
+        GetConfirmedReplacementOrderId(state, fleetId, confirmReplacement)));
     Console.WriteLine($"Move order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
 }
 
 static void SubmitAttack(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
-    var targetEmpireId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
-    var order = store.Update(state => OrderService.SubmitAttackOrder(state, fleetId, targetEmpireId, DateTimeOffset.UtcNow));
+    var targetEmpireArgument = args.ElementAtOrDefault(3);
+    var targetEmpireId = targetEmpireArgument is not null && !targetEmpireArgument.StartsWith("--", StringComparison.Ordinal)
+        ? Guid.Parse(targetEmpireArgument)
+        : (Guid?)null;
+    var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
+    var order = store.Update(state => OrderService.SubmitAttackOrder(
+        state,
+        fleetId,
+        targetEmpireId,
+        DateTimeOffset.UtcNow,
+        GetConfirmedReplacementOrderId(state, fleetId, confirmReplacement)));
     Console.WriteLine($"Attack order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
 }
 
 static void SubmitHold(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
-    var order = store.Update(state => OrderService.SubmitHoldOrder(state, fleetId, DateTimeOffset.UtcNow));
+    var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
+    var order = store.Update(state => OrderService.SubmitHoldOrder(
+        state,
+        fleetId,
+        DateTimeOffset.UtcNow,
+        GetConfirmedReplacementOrderId(state, fleetId, confirmReplacement)));
     Console.WriteLine($"Hold order queued for tick {order.ExecuteAfterTick}: {order.FleetOrderId}");
+}
+
+static Guid? GetConfirmedReplacementOrderId(GameState state, Guid fleetId, bool confirmReplacement)
+{
+    if (!confirmReplacement)
+    {
+        return null;
+    }
+
+    var cycle = state.GetActiveCycle()
+        ?? throw new InvalidOperationException("No active Cycle exists.");
+    var pendingOrders = state.FleetOrders
+        .Where(order => order.CycleId == cycle.CycleId
+                        && order.FleetId == fleetId
+                        && order.ExecuteAfterTick == cycle.CurrentTickNumber + 1
+                        && order.Status == FleetOrderStatus.Pending)
+        .ToArray();
+
+    return pendingOrders.Length switch
+    {
+        0 => null,
+        1 => pendingOrders[0].FleetOrderId,
+        _ => throw new InvalidOperationException(
+            "This fleet has multiple pending orders for the same tick. Repair the order history before replacing one.")
+    };
 }
 
 static int RunDatabaseCommand(string[] args)
@@ -1000,9 +1045,9 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery clear <sqlserver:connectionString> <cycleId> --operator <name> --reason <reason>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery retry <sqlserver:connectionString> <cycleId> --operator <name> --reason <reason>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- recovery abandon <sqlserver:connectionString> <tickAttemptId> --operator <name> --reason <reason>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move <sqlserver:connectionString> <fleetId> <targetSystemId>");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack <sqlserver:connectionString> <fleetId> [targetEmpireId]");
-    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold <sqlserver:connectionString> <fleetId>");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- move <sqlserver:connectionString> <fleetId> <targetSystemId> [--confirm-replace]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- attack <sqlserver:connectionString> <fleetId> [targetEmpireId] [--confirm-replace]");
+    Console.WriteLine("  dotnet run --project src/Cycles.Cli -- hold <sqlserver:connectionString> <fleetId> [--confirm-replace]");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db init <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db migrate <sqlserver:connectionString>");
     Console.WriteLine("  dotnet run --project src/Cycles.Cli -- db status <sqlserver:connectionString>");

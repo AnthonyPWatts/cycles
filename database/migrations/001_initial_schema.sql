@@ -167,6 +167,7 @@ BEGIN
         ProcessedTick INT NULL,
         Status NVARCHAR(32) NOT NULL,
         RejectionReason NVARCHAR(512) NULL,
+        SupersededByOrderID UNIQUEIDENTIFIER NULL,
         CreatedAt DATETIMEOFFSET NOT NULL
     );
 END;
@@ -249,6 +250,13 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_FleetOrders_Cycle_Status_ExecuteAfterTick' AND object_id = OBJECT_ID(N'dbo.FleetOrders'))
 BEGIN
     CREATE INDEX IX_FleetOrders_Cycle_Status_ExecuteAfterTick ON dbo.FleetOrders(CycleID, Status, ExecuteAfterTick);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_FleetOrders_Cycle_Fleet_ExecuteAfterTick_Pending' AND object_id = OBJECT_ID(N'dbo.FleetOrders'))
+BEGIN
+    CREATE UNIQUE INDEX UX_FleetOrders_Cycle_Fleet_ExecuteAfterTick_Pending
+        ON dbo.FleetOrders(CycleID, FleetID, ExecuteAfterTick)
+        WHERE Status = N'Pending';
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_EmpireMetrics_Cycle_Empire_Tick' AND object_id = OBJECT_ID(N'dbo.EmpireMetrics'))
