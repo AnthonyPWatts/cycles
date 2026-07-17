@@ -1529,3 +1529,20 @@ Consequences:
 - **Enter the Build** reaches the playground access form. A successful code exchange redirects to `/app.html`.
 - Dashboard HTML, scripts, styles, authentication routes, and game APIs remain behind the shared code before their normal route-specific authentication and authorisation checks.
 - The earlier permission to use a whole-site perimeter remains available for a distinct deployment that must not be publicly discoverable, but it is no longer active on the trusted playground.
+
+## 2026-07-17: Keep Maintained Screenshots Outside The Website Asset Set
+
+Decision: use `docs/images` as the single maintained source for current Command and Galaxy screenshots. Use those captures in the root README, player guide, and reproducible promo-film inputs. Do not retain duplicate gameplay captures under `wwwroot/media` when the landing page has no runtime use for them.
+
+Reasoning:
+
+- The command-centre and expanded-atlas changes made the previous captures visibly stale.
+- Duplicate screenshots under the public media tree could drift independently and were uploaded to Cloudflare despite having no landing-page consumer.
+- One 1600×900 documentation set keeps project orientation, player guidance, and future film renders aligned with the same inspected UI state.
+
+Consequences:
+
+- `docs/images/cycles-dashboard-command-guide.png` and `docs/images/cycles-dashboard-map.png` are the maintained current screenshots.
+- The README and gameplay guide reference that set directly.
+- Promo production uses the same files as render inputs; generated video outputs retain their separate master and Cloudflare-delivery boundaries.
+- The Azure website package continues to exclude every video and media file. The deployed film remains a Cloudflare static asset, while the trusted-playground access scope begins at `/app.html` and the landing page remains public.

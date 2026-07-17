@@ -2,9 +2,9 @@
 
 ## Current Outputs
 
-`tools/promo/cycles-promo-30s-master.mp4` is the reproducible high-quality master. It is a 30-second, 1920×1080, 30 fps H.264/AAC file with 48 kHz stereo audio, encoded at CRF 16 with 256 kbps audio. It is retained outside the deployable web root.
+`tools/promo/cycles-promo-30s-master.mp4` is the reproducible high-quality master. It is a 30-second, 1920×1080, 30 fps H.264/AAC file with 48 kHz stereo audio, encoded at CRF 16 with 256 kbps audio. The current master is 34.26 MiB and is retained outside the deployable web root.
 
-`cycles-promo-30s.mp4` is the public web-delivery derivative. It retains the same dimensions, frame rate, duration and stereo format, but uses CRF 22 and 128 kbps audio. The current derivative is 10.93 MiB rather than the master's 32.50 MiB, keeping it below Cloudflare Workers' 25 MiB static-asset file limit. `cycles-promo-poster.jpg` is taken from the final title card.
+`cycles-promo-30s.mp4` is the public Cloudflare-delivery derivative. It retains the same dimensions, frame rate, duration and stereo format, but uses CRF 22 and 128 kbps audio. The current derivative is 11.54 MiB rather than the master's 34.26 MiB, keeping it below Cloudflare Workers' 25 MiB static-asset file limit. The Azure website package excludes the derivative and all other files under `wwwroot/media`; `cycles-promo-poster.jpg` is taken from the final title card and follows the same edge-only deployment path.
 
 The film labels its two kinds of imagery on screen:
 
@@ -18,8 +18,8 @@ Concept frames establish intended tone and scale. They are not screenshots, simu
 | Sequence | Source | Treatment |
 | --- | --- | --- |
 | Gateway transit | `promo/concept-gateway-transit.png` | Generated concept dramatisation with trailer typography and camera movement. |
-| Command | `promo/gameplay-command-guide.png` | Current local build captured at 1600×900 against a fresh canonical Day One SQL seed. |
-| Galaxy | `promo/gameplay-galaxy.png` | Current local build showing the authored 8-sector, 64-system chart and live route overlay. |
+| Command | `docs/images/cycles-dashboard-command-guide.png` | Current local build captured at 1600×900 with the Day One guide over the council agenda and frontier schematic. |
+| Galaxy | `docs/images/cycles-dashboard-map.png` | Current local build showing the authored 8-sector, 64-system chart, live route overlay, and selected-system inspector. |
 | Sector | `../assets/galaxy/sector-aster-reach.png` | Current route-free Aster Reach atlas; the film identifies it as current-build authored art. |
 | Treaty Gate battle | `promo/concept-treaty-gate-battle.png` | Generated concept dramatisation. |
 | Cycle legacy | `promo/concept-cycle-legacy.png` | Generated concept dramatisation. |
@@ -41,8 +41,8 @@ Render with the repository's Python dependencies and any FFmpeg 7-compatible exe
 ```powershell
 python tools\render_cycles_promo.py `
   --gateway src\Cycles.Api\wwwroot\media\promo\concept-gateway-transit.png `
-  --command src\Cycles.Api\wwwroot\media\promo\gameplay-command-guide.png `
-  --galaxy src\Cycles.Api\wwwroot\media\promo\gameplay-galaxy.png `
+  --command docs\images\cycles-dashboard-command-guide.png `
+  --galaxy docs\images\cycles-dashboard-map.png `
   --sector src\Cycles.Api\wwwroot\assets\galaxy\sector-aster-reach.png `
   --battle src\Cycles.Api\wwwroot\media\promo\concept-treaty-gate-battle.png `
   --legacy src\Cycles.Api\wwwroot\media\promo\concept-cycle-legacy.png `

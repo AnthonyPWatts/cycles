@@ -188,7 +188,7 @@ a:focus-visible {
 }
 
 .site-hero::before {
-    background: url("/media/promo/concept-gateway-transit.png") center 48% / cover no-repeat;
+    background: url("/media/promo/concept-gateway-transit.png?v=20260716-1") center 48% / cover no-repeat;
     filter: saturate(0.82) contrast(1.04);
     transform: scale(1.015);
 }

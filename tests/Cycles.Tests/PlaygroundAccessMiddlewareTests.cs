@@ -13,7 +13,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/site.css")]
     [InlineData("/media/cycles-promo-30s.mp4")]
     [InlineData("/media/cycles-promo-poster.jpg")]
-    [InlineData("/media/promo/gameplay-galaxy.png")]
+    [InlineData("/media/promo/concept-treaty-gate-battle.png")]
     [InlineData("/media/navigation-backgrounds/command.png")]
     [InlineData("/assets/galaxy/galaxy-overview.png")]
     [InlineData("/health")]

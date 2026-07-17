@@ -8,7 +8,7 @@ test("public shell and media GET requests are edge assets", () => {
     "/",
     "/index.html",
     "/site.css?v=20260716-1",
-    "/media/cycles-promo-30s.mp4?v=20260716-1",
+    "/media/cycles-promo-30s.mp4?v=20260717-1",
     "/media/navigation-backgrounds/command.png",
     "/assets/galaxy/galaxy-overview.png"
   ]) {

@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
@@ -116,10 +116,10 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 - The database uses the Azure SQL free serverless offer with a 2-vCore maximum, 0.5-vCore minimum, 32 GB maximum, provider-default 60-minute auto-pause, local backup storage, seven-day point-in-time retention, and automatic pause rather than billing when the free allowance is exhausted.
 - No `Cycles.Worker` process is deployed. Invited players use the accepted Development-only **Advance turn** capability.
 - The hosting scope is protected by a read-only App Service plan lock and an Azure Policy deny list for unapproved platform resources. The policy deliberately permits the approved Azure SQL server/database; F1 quotas and SQL free-limit exhaustion behaviour are the enforced spend boundaries, while budget notifications are not treated as a hard cap.
-- `cycles.anthonypwatts.co.uk` is routed through a Cloudflare Worker on the Free plan. Its static-assets binding serves the public landing shell and all image/video artwork without Azure egress; dashboard HTML/JavaScript/CSS, authentication, game APIs, and `/health` retain the Azure proxy path. The API publish package excludes `wwwroot/assets` and `wwwroot/media`, and direct-origin media requests redirect to the custom domain.
-- The public 1080p/30 fps film is a 10.93 MiB CRF 22 web derivative that satisfies Cloudflare's 25 MiB static-asset ceiling. Its reproducible 32.50 MiB CRF 16 master is retained outside `wwwroot` under `tools/promo` and is not deployed to Azure or Cloudflare.
+- `cycles.anthonypwatts.co.uk` is routed through a Cloudflare Worker on the Free plan. Its static-assets binding serves the public landing shell and all image/video artwork without Azure egress; dashboard HTML/JavaScript/CSS, authentication, game APIs, and `/health` retain the Azure proxy path. The API publish package excludes `wwwroot/assets` and `wwwroot/media`, so the Azure website upload contains no video assets, and direct-origin media requests redirect to the custom domain.
+- The public 1080p/30 fps film is an 11.54 MiB CRF 22 web derivative that satisfies Cloudflare's 25 MiB static-asset ceiling. Its reproducible 34.26 MiB CRF 16 master is retained outside `wwwroot` under `tools/promo` and is not deployed to Azure or Cloudflare.
 - The shared code admits Anthony and Will without adding a payment method or enabling usage overages. It is a trusted-playground boundary, not production identity or per-user authorisation.
-- The whole-site access-code gate is an explicit deployment override. The accepted private-alpha and Production route contract instead keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
+- The whole-site access-code gate remains available as an explicit deployment override but is not active on the trusted playground. The accepted private-alpha and Production route contract keeps `/` and `/health` public while requiring external authentication and invited-player admission for `/app.html`.
 - The managed-SQL cutover preserved all 23 persisted collection counts and 166 records, and the reopened health plus authenticated gameplay smoke passed. Azure SQL retains seven days of point-in-time recovery; an isolated restore at the post-cutover checkpoint reproduced the current schema, all collection counts, active tick 3, and zero unresolved recovery, then the temporary paid restore database was deleted.
 
 ## Verification
@@ -136,7 +136,9 @@ The retained film master and public web derivative both decode all 900 frames at
 
 The canonical territorial contract is covered at 8 sectors, 64 assigned systems, 80 locally varied routes, 11 inter-sector bridges, exactly two gateway systems per sector, distributed gateway fan-out, connected local/sector graphs, and an active Cycle ending 90 days after startup. The route-free authored atlas contract additionally verifies one galaxy image and eight sector images at native 992-pixel height and 1585–1586-pixel width. Live browser verification exercises Galaxy, Sector, and Local at 1918x1041 and 1280x800: Galaxy renders 8 contour-aware sector overlays and 11 SVG route paths; each sector renders exactly 8 system overlays and 10 SVG route paths; selected routes use the `map-route-flow` animation; no horizontal overflow, console warnings, or console errors are present.
 
-The deployed custom-domain check repeated the protected login and Galaxy verification against the reseeded Azure SQL state. Health returned `200`; the unauthenticated root remained `401`; the protected app, login, API counts, and deployed Galaxy render all passed.
+The deployed custom-domain check repeated the route-boundary and media-delivery verification against the reseeded Azure SQL state. The public root returned `200`; unauthenticated `/app.html` returned the trusted-playground access form with `401`; the promo video returned `200` with a Cloudflare cache hit; and the direct Azure video URL returned `307` to the matching custom-domain URL. The protected app, login, API counts, and deployed Galaxy render had passed in the preceding authenticated smoke.
+
+The 17 July UI-evidence refresh replaced the maintained 1600×900 Command and Galaxy screenshots, removed their redundant public-media copies, and regenerated the film from those canonical captures. Both 900-frame outputs passed full decode, timing, luminance, and audio-tail verification; the Cloudflare derivative is 11.54 MiB. A Release publish contained 66 files but zero video or `assets`/`media` files. Cloudflare revision `e0a90e57-4996-4f5b-97d1-c4e3d003311c` deployed the refreshed landing shell and edge media; live playback reached ready state 4, the hero used one matching preloaded image URL without console errors, and removed screenshot URLs returned `404`.
 
 The automated coverage includes:
 

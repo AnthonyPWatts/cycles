@@ -8,13 +8,13 @@ Cycles is a server-authoritative, tick-based strategy prototype about influence,
 
 Explore the authored eight-sector galaxy, follow live routes, and inspect the strategic value, output, presence, and local forces of each system.
 
-![Cycles Galaxy workspace showing the eight-sector map and selected-system intelligence](src/Cycles.Api/wwwroot/media/promo/gameplay-galaxy.png)
+![Cycles Galaxy workspace showing the eight-sector atlas and selected-system intelligence](docs/images/cycles-dashboard-map.png)
 
-Plan the next authoritative tick by balancing priorities, issuing orders, and following the resumable Day One guide.
+Triage the next authoritative tick through the council agenda, frontier schematic, strategic watch, programme allocation, and resumable Day One guide.
 
-![Cycles Command workspace showing resource capacity, priority allocation, and the Day One guide](src/Cycles.Api/wwwroot/media/promo/gameplay-command-guide.png)
+![Cycles Command workspace showing the council agenda, frontier schematic, and Day One guide](docs/images/cycles-dashboard-command-guide.png)
 
-The current pre-alpha development build supports a complete gameplay loop locally and through an access-restricted trusted playground:
+The current pre-alpha development build supports a complete gameplay loop locally and through a public project site with an access-restricted trusted-playground application:
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
 - explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;

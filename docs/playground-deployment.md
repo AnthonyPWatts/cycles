@@ -12,7 +12,7 @@ The hosted playground is a deliberately constrained development environment for 
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan fronts `https://cycles.anthonypwatts.co.uk`. Its static-assets binding serves the public landing shell plus image and video files directly from Cloudflare; all other routes continue through the Worker to the App Service origin. It uses no R2, KV, paid observability, or paid Worker features.
 - The landing page, its stylesheet, promotional media, atlas art, and interface artwork are public. The shared application-level access code still protects dashboard HTML, JavaScript, CSS, authentication routes, and game APIs. `/health` remains unauthenticated for deployment verification.
-- Azure publish output excludes `wwwroot/assets` and `wwwroot/media`. The deployed API redirects a direct-origin image or video request to the custom domain through `Cycles__EdgeAssetOrigin`; a media request incorrectly proxied from that domain fails with `502` rather than redirecting in a loop. The public film is a 10.93 MiB web derivative of the retained 32.50 MiB production master and does not preload before a visitor chooses to play it.
+- Azure publish output excludes `wwwroot/assets` and `wwwroot/media`, so no video file is uploaded with the website package. Cloudflare uploads the public film from the repository's edge asset source and serves it directly from the custom domain. The deployed API redirects a direct-origin image or video request to that domain through `Cycles__EdgeAssetOrigin`; a media request incorrectly proxied from the custom domain fails with `502` rather than redirecting in a loop. The film is an 11.54 MiB web derivative of the retained 34.26 MiB production master and does not preload before a visitor chooses to play it.
 
 App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
 
@@ -85,7 +85,7 @@ Later on 15 July, manual workflow run `29446689039` used the explicit `reseed` i
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 
-The Cloudflare edge is defined under `deploy/cloudflare`. `wrangler.toml` binds `src/Cycles.Api/wwwroot` as static assets, while `worker.js` uses an explicit allowlist for the landing shell and image/video extensions. Unknown files, Markdown production notes, dashboard code, authentication and API requests default to the Azure proxy.
+The Cloudflare edge is defined under `deploy/cloudflare`. `wrangler.toml` binds the repository's web-root sources as static assets, while `worker.js` exposes only the public landing shell and image/video extensions. Unknown files, Markdown production notes, dashboard code, authentication and API requests default to the Azure proxy. The binding is the deployment source for the film; it does not change the Azure publish exclusion.
 
 Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare token in GitHub:
 
@@ -95,11 +95,13 @@ npx wrangler deploy
 
 Deploy Cloudflare before publishing an API revision that changes or removes edge assets. The Azure package deliberately has no media fallback, so this ordering prevents a missing-asset window while retaining the hard bandwidth boundary.
 
+The 17 July 2026 media refresh deployed Cloudflare Worker version `e0a90e57-4996-4f5b-97d1-c4e3d003311c`. The public root returned `200`, unauthenticated `/app.html` returned the access form with `401`, the refreshed video returned `200` with `CF-Cache-Status: HIT`, and the direct Azure video URL returned `307` to the same versioned custom-domain asset. Live browser playback reached ready state 4, and the landing page loaded the hero image once through its matching preload and CSS URL without console errors. A Release website publish contained zero video, `assets`, or `media` files.
+
 ## Invited Access
 
 `CYCLES_PLAYGROUND_ACCESS_CODE` enables the access gate. Keep the generated value only in the Azure App Service setting and a password manager; never commit it or add it to GitHub. Anthony and Will use the same code and receive separate seven-day, secure, HTTP-only browser cookies. Rotate the setting to revoke every existing playground cookie.
 
-Anonymous visitors may read the public landing page and static artwork. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard HTML, JavaScript, CSS, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`.
+Anonymous visitors may read the public landing page, play its Cloudflare-served film, and view static artwork. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard HTML, JavaScript, CSS, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`. The **trusted playground** label applies to this gated application surface, not to the open landing page.
 
 This shared-code gate is a trusted-playground exception, not production identity. Cloudflare Zero Trust was considered but not activated because its checkout required a payment card and offered authorisation for usage over the free allowance. The hard-spend requirement takes precedence over per-email sign-in for this environment.
 
