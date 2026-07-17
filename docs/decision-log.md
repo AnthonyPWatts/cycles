@@ -1580,3 +1580,19 @@ Consequences:
 - The dashboard names the existing and proposed intentions before confirmation, then shows superseded records in order history.
 - Tick-time validation can still reject a validly submitted intention when authoritative state changes before execution.
 - Relative processing semantics between different fleets are unchanged. Simultaneous resolution or initiative remains a separate design question.
+
+## 2026-07-17: Let The Starting Admiral Present The Opening Guide
+
+Decision: use the player's existing fleet-attached starting admiral as the speaker throughout the Day One guide. Open with three general frames: welcome the player, introduce Command, then introduce the Map before moving into the current click-along objectives.
+
+Reasoning:
+
+- One named figure can establish the game's character voice while remaining a real participant in fleets, combat, reputation, and history rather than a separate tutorial mascot.
+- The current fleet response already exposes the player's admiral name and stable ID, so the first presentation pass needs no new gameplay authority or duplicate character record.
+- The guide is likely to be reworked. A small presenter layer and conventional opening sequence are useful now without treating the current tutorial copy or ordering as permanent.
+
+Consequences:
+
+- The guide panel shows the admiral's name and a portrait selected deterministically from the human portrait concepts using the admiral ID. The same persisted admiral therefore keeps the same presentation within the current model.
+- Portrait choice remains a client presentation convention until species, portrait ownership, background meaning, or player selection receives an explicit model.
+- The detailed resource, priority, map, fleet, order, turn, and history teaching remains otherwise provisional.

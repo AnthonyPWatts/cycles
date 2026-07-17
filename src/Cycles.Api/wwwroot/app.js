@@ -1,5 +1,6 @@
 const state = {
     playerId: null,
+    username: null,
     role: null,
     canAdvanceTurn: false,
     cycle: null,
@@ -213,7 +214,7 @@ const viewShortcuts = new Map([
 ]);
 
 const tutorial = {
-    version: "v2",
+    version: "v3",
     active: false,
     status: "available",
     storageKey: null,
@@ -325,6 +326,9 @@ const elements = {
     tutorialButton: document.querySelector("#tutorialButton"),
     tutorialPanel: document.querySelector("#tutorialPanel"),
     tutorialProgress: document.querySelector("#tutorialProgress"),
+    tutorialAdmiralPortrait: document.querySelector("#tutorialAdmiralPortrait"),
+    tutorialAdmiralRole: document.querySelector("#tutorialAdmiralRole"),
+    tutorialAdmiralName: document.querySelector("#tutorialAdmiralName"),
     tutorialTitle: document.querySelector("#tutorialTitle"),
     tutorialBody: document.querySelector("#tutorialBody"),
     tutorialRequirement: document.querySelector("#tutorialRequirement"),
@@ -891,6 +895,7 @@ function applySession(login) {
     }
 
     state.playerId = login.playerId;
+    state.username = login.username;
     state.role = login.role;
     state.canAdvanceTurn = login.canAdvanceTurn;
     state.empire = login.empire;
@@ -913,6 +918,7 @@ function showLogin(message) {
     }
 
     state.playerId = null;
+    state.username = null;
     state.role = null;
     state.canAdvanceTurn = false;
     state.empire = null;
@@ -1984,6 +1990,7 @@ function renderTutorial({ focusHeading }) {
     }
 
     clearTutorialTarget();
+    renderTutorialAdmiral();
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
     elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
@@ -2071,6 +2078,64 @@ function resetTutorialContext() {
     tutorial.completedActions = new Set();
 }
 
+const tutorialAdmiralPortraits = Object.freeze([
+    "astrolabe-gold-human-01",
+    "astrolabe-gold-human-02",
+    "astrolabe-gold-human-03",
+    "astrolabe-gold-human-04",
+    "astrolabe-gold-human-05",
+    "gateway-teal-human-01",
+    "gateway-teal-human-02",
+    "gateway-teal-human-03",
+    "gateway-teal-human-04",
+    "spearpoint-crimson-human-01",
+    "spearpoint-crimson-human-02",
+    "spearpoint-crimson-human-03",
+    "spearpoint-crimson-human-04",
+    "spearpoint-crimson-human-05",
+    "archive-violet-human-01",
+    "archive-violet-human-02",
+    "archive-violet-human-03",
+    "archive-violet-human-04"
+]);
+
+function tutorialAdmiralProfile() {
+    const admiral = state.fleets
+        .find(item => item.fleet.empireId === state.empire?.empireId && item.admiral)
+        ?.admiral;
+    const admiralName = admiral?.admiralName ?? "Fleet Command";
+    const displayName = admiral && !admiralName.toLocaleLowerCase().startsWith("admiral ")
+        ? `Admiral ${admiralName}`
+        : admiralName;
+    const portraitKey = tutorialAdmiralPortraits[stableTutorialPortraitIndex(admiral?.admiralId ?? state.playerId ?? admiralName)];
+
+    return {
+        admiral,
+        displayName,
+        portraitKey,
+        portraitPath: `assets/admirals/portraits/${portraitKey}.webp`
+    };
+}
+
+function stableTutorialPortraitIndex(value) {
+    const text = String(value);
+    let hash = 0;
+    for (let index = 0; index < text.length; index += 1) {
+        hash = ((hash * 31) + text.charCodeAt(index)) >>> 0;
+    }
+
+    return hash % tutorialAdmiralPortraits.length;
+}
+
+function renderTutorialAdmiral() {
+    const profile = tutorialAdmiralProfile();
+    elements.tutorialAdmiralName.textContent = profile.displayName;
+    elements.tutorialAdmiralRole.textContent = profile.admiral ? "Your starting admiral" : "Fleet Command";
+    elements.tutorialAdmiralPortrait.src = profile.portraitPath;
+    elements.tutorialAdmiralPortrait.alt = profile.admiral ? `Portrait of ${profile.displayName}` : "Fleet Command portrait";
+    elements.tutorialAdmiralPortrait.dataset.portraitId = profile.portraitKey;
+}
+
 function tutorialSteps() {
     const briefing = tutorial.briefing;
     const move = briefing?.objectives?.move;
@@ -2081,14 +2146,51 @@ function tutorialSteps() {
     const moveFleetId = move?.fleetId ?? state.fleets[0]?.fleet?.fleetId;
     const moveTargetId = move?.targetSystemId ?? linkedSystems(state.fleets[0]?.fleet?.currentSystemId)[0]?.systemId;
     const curated = Boolean(move && colonise && attack);
+    const guideAdmiral = tutorialAdmiralProfile();
+    const playerName = state.username ?? "Commander";
     const steps = [
         {
             id: "welcome",
             view: "command",
-            title: curated ? "Three fronts need orders" : "Command your first turn",
+            title: "Welcome to Cycles",
+            body: `Hi, ${playerName}. ${guideAdmiral.displayName} speaking. Welcome, and let's get you settled in. I'll stay with you for the opening and point out the controls as we need them.`,
+            required: false
+        },
+        {
+            id: "command-introduction",
+            view: "command",
+            title: "This is Command",
+            body: "Command is where you review the situation, set your priorities, check pending orders, and advance the turn. There is quite a lot here; I'll introduce it when it becomes useful.",
+            target: () => document.querySelector(".command-overview-grid"),
+            required: false
+        },
+        {
+            id: "map-introduction",
+            view: "galaxy",
+            title: "This is the Map",
+            body: "The Map shows the galaxy, your reach, known fleets, routes, and places worth your attention. You can inspect and focus the strategic picture here; I'll show you the first few things now.",
+            target: () => document.querySelector("#mapPanel"),
+            required: false
+        },
+        {
+            id: "map",
+            view: "galaxy",
+            mapSystemId: focusSystemId,
+            title: curated ? "Start with the flashpoint" : "Start with your home system",
             body: curated
-                ? "Treaty Gate is contested, Pale Harbour can support an outpost, and Nadir Crossing is open. This guide will help you issue all three orders, advance the turn, and read the consequences."
-                : "Your command loop is simple: inspect the galaxy, set priorities, issue an order, advance the turn, and review what changed. This guide uses the real controls and real simulation.",
+                ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`
+                : "Routes define where fleets can move. Rings show your presence, and red marks a contested system. Select your home system to inspect it.",
+            target: () => document.querySelector(`.system-node[data-system-id="${focusSystemId}"]`),
+            required: true,
+            requirement: "Select the highlighted system on the map.",
+            isSatisfied: () => state.selectedSystemId === focusSystemId
+        },
+        {
+            id: "visibility",
+            view: "galaxy",
+            title: "Know what the map does not reveal",
+            body: "You always see the galaxy topology and routes. Exact remote presence, fleets, events, last-turn facts, and Chronicle detail appear only where your active fleets provide visibility; an apparently quiet system may still contain hidden activity.",
+            target: () => elements.galaxyMap,
             required: false
         },
         {
@@ -2108,27 +2210,6 @@ function tutorialSteps() {
             required: true,
             requirement: "Save the priority allocation to continue.",
             isSatisfied: () => tutorial.completedActions.has("prioritiesSaved")
-        },
-        {
-            id: "map",
-            view: "galaxy",
-            mapSystemId: focusSystemId,
-            title: curated ? "Find the flashpoint" : "Read the galaxy",
-            body: curated
-                ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`
-                : "Routes define where fleets can move. Rings show your presence, and red marks a contested system. Select your home system to inspect it.",
-            target: () => document.querySelector(`.system-node[data-system-id="${focusSystemId}"]`),
-            required: true,
-            requirement: "Select the highlighted system on the map.",
-            isSatisfied: () => state.selectedSystemId === focusSystemId
-        },
-        {
-            id: "visibility",
-            view: "galaxy",
-            title: "Know what the map does not reveal",
-            body: "You always see the galaxy topology and routes. Exact remote presence, fleets, events, last-turn facts, and Chronicle detail appear only where your active fleets provide visibility; an apparently quiet system may still contain hidden activity.",
-            target: () => elements.galaxyMap,
-            required: false
         },
         {
             id: "fleet",

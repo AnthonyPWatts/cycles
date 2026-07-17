@@ -175,7 +175,7 @@ public sealed class DashboardViewContractTests
     {
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("version: \"v2\"", script);
+        Assert.Contains("version: \"v3\"", script);
         Assert.Contains("getJson(\"/briefings/opening\")", script);
         Assert.DoesNotContain("event.factJson", script);
         Assert.DoesNotContain("JSON.parse(event.factJson)", script);
@@ -183,6 +183,28 @@ public sealed class DashboardViewContractTests
         Assert.Contains("galaxy topology and routes", script);
         Assert.Contains("id: \"cycle-history\"", script);
         Assert.Contains("an operator ends the Cycle", script);
+    }
+
+    [Fact]
+    public void Day_one_guide_opens_with_the_players_starting_admiral_across_welcome_command_and_map()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"tutorialAdmiralPortrait\"", html);
+        Assert.Contains("id=\"tutorialAdmiralName\"", html);
+        Assert.DoesNotContain("id=\"tutorialAdmiralPortrait\" src=", html);
+        Assert.Contains("astrolabe-gold-human-01", script);
+        Assert.Contains("item.fleet.empireId === state.empire?.empireId && item.admiral", script);
+        Assert.Contains("stableTutorialPortraitIndex(admiral?.admiralId", script);
+        Assert.Contains("Hi, ${playerName}. ${guideAdmiral.displayName} speaking.", script);
+
+        var welcome = script.IndexOf("id: \"welcome\"", StringComparison.Ordinal);
+        var command = script.IndexOf("id: \"command-introduction\"", StringComparison.Ordinal);
+        var map = script.IndexOf("id: \"map-introduction\"", StringComparison.Ordinal);
+        Assert.True(welcome >= 0 && welcome < command && command < map);
+        Assert.Contains(".tutorial-admiral-frame", css);
     }
 
     [Fact]
