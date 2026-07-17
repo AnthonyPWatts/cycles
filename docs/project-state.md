@@ -130,7 +130,7 @@ Latest local verification on 2026-07-17 used the normal repository test helper:
 .\eng\test.ps1
 ```
 
-Result: **249 tests passed, 0 failed** in the normal suite. The Cloudflare Worker has a further **5 passing Node routing tests**; Wrangler's deployment dry run accepted the complete static-asset set; and a Release publish produced no files under `wwwroot/assets` or `wwwroot/media`. A further **22 SQL Server state-store integration tests passed** against a disposable database, and all **6 generated Docker seed checks passed**. The end-to-end Development gameplay smoke passed login, priorities, pending movement, turn advancement, processed movement, resources, events, and the 8-sector/64-system topology assertions.
+Result: **250 tests passed, 0 failed** in the normal suite. The Cloudflare Worker has a further **5 passing Node routing tests**; Wrangler's deployment dry run accepted the complete static-asset set; and a Release publish produced no files under `wwwroot/assets` or `wwwroot/media`. A further **22 SQL Server state-store integration tests passed** against a disposable database, and all **6 generated Docker seed checks passed**. The end-to-end Development gameplay smoke passed login, priorities, pending movement, turn advancement, processed movement, resources, events, and the 8-sector/64-system topology assertions.
 
 The retained film master and public web derivative both decode all 900 frames at 1920×1080 and 30 fps with 48 kHz stereo audio, and their final titles remain visible. The master keeps its documented −43.2 dB final-tail exception; the delivery-specific fade brings the web derivative inside the strict −45 dB final-250-ms gate.
 

@@ -53,6 +53,7 @@ public sealed class ApiAdminRoleBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Contains("\"code\":\"forbidden\"", response.Body, StringComparison.Ordinal);
         Assert.Equal(PlayerRole.Player, target.Role);
         Assert.Empty(state.AdminRoleAuditRecords);
     }

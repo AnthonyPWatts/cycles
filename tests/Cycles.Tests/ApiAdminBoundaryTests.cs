@@ -39,6 +39,7 @@ public sealed class ApiAdminBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Contains("\"code\":\"forbidden\"", response.Body, StringComparison.Ordinal);
         Assert.Equal(0, store.RunTickCalls);
         Assert.Equal(0, state.GetActiveCycle()!.CurrentTickNumber);
     }
@@ -69,6 +70,7 @@ public sealed class ApiAdminBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status401Unauthorized, response.StatusCode);
+        Assert.Contains("\"code\":\"authenticationRequired\"", response.Body, StringComparison.Ordinal);
         Assert.Equal(0, store.RunTickCalls);
     }
 

@@ -8,7 +8,7 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 
 ## Current Sequence
 
-1. Finish and verify the local implementation boundaries in [#120-#124](https://github.com/AnthonyPWatts/cycles/issues/120) and [#127-#129](https://github.com/AnthonyPWatts/cycles/issues/127).
+1. Finish and verify the remaining identity, admin, and dashboard boundaries in [#122-#124](https://github.com/AnthonyPWatts/cycles/issues/122), plus the Day One guidance evidence in [#129](https://github.com/AnthonyPWatts/cycles/issues/129).
 2. Continue shared scheduled-execution hardening through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), from the SQL-atomic due-execution boundary into Worker health, shutdown, scheduling policy, and monitoring.
 3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before changing combat, colonisation, priority, or order-feedback rules.
 4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.

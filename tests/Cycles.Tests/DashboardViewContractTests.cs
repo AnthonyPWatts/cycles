@@ -180,6 +180,17 @@ public sealed class DashboardViewContractTests
         Assert.Contains("an operator ends the Cycle", script);
     }
 
+    [Fact]
+    public void Dashboard_displays_safe_error_messages_and_retains_machine_codes()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("new Error(payload.message ?? \"Request failed.\")", script);
+        Assert.Contains("error.code = payload.code ?? \"requestFailed\";", script);
+        Assert.Contains("error.details = payload.details ?? null;", script);
+        Assert.Contains("error.traceId = payload.traceId ?? null;", script);
+    }
+
     private static string ReadDashboardAsset(string fileName) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dashboard", fileName));
 }

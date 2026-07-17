@@ -35,6 +35,7 @@ This is a working development MVP, not an alpha release or production game servi
 - [Promo Film Production Notes](src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) identify current-build footage, concept dramatisations, source imagery, and the reproducible render command for the 30-second film.
 - [Trusted Playground Deployment](docs/playground-deployment.md) records the hosted test boundary and cost guardrails.
 - [Project State](docs/project-state.md) records implemented behaviour, verification, and known limits.
+- [Player API Contract](docs/api-contract.md) records JSON conventions, stable error codes, compatibility rules, and the player-facing fact boundary.
 - [Documentation Index](docs/README.md) defines the purpose and ownership of every maintained document.
 - [Backlog](docs/backlog.md) curates priorities, sequencing, decision gates, conditional risks, and links; GitHub issues own concrete actionable work and live status.
 

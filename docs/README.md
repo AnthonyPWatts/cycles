@@ -9,6 +9,7 @@ The maintained documentation has one owner for each kind of information. Update 
 | [Gameplay Guide](alpha-testers-guide.md) | Player-facing Day One tutorial and development-build expectations. |
 | [Project State](project-state.md) | What is implemented, verified, and still limited. |
 | [Architecture Direction](architecture-direction.md) | System boundaries, invariants, and intended technical shape. |
+| [Player API Contract](api-contract.md) | JSON conventions, stable error codes, compatibility rules, and player-facing fact presentation. |
 | [Backlog](backlog.md) | Curated priorities, sequencing, decision gates, conditional risks, and links to authoritative GitHub issues. |
 | [Product Owner Questions](product-owner-questions.md) | Accepted product answers and active product-decision gates. |
 | [Decision Log](decision-log.md) | Durable chronological decisions and their consequences. |

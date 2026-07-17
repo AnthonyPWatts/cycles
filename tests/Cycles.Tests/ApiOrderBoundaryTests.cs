@@ -171,6 +171,7 @@ public sealed class ApiOrderBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Contains("\"code\":\"forbidden\"", response.Body, StringComparison.Ordinal);
         Assert.Empty(state.FleetOrders);
     }
 
@@ -280,6 +281,7 @@ public sealed class ApiOrderBoundaryTests
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status401Unauthorized, response.StatusCode);
+        Assert.Contains("\"code\":\"authenticationRequired\"", response.Body, StringComparison.Ordinal);
         Assert.Empty(state.FleetOrders);
     }
 
