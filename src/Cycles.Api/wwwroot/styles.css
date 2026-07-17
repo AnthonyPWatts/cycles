@@ -705,6 +705,13 @@ select {
     display: none;
 }
 
+@media (min-width: 901px) {
+    .tutorial-panel.is-right {
+        right: 24px;
+        left: auto;
+    }
+}
+
 .tutorial-heading-row {
     display: flex;
     align-items: start;

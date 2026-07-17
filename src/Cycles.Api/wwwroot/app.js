@@ -1991,6 +1991,7 @@ function renderTutorial({ focusHeading }) {
 
     clearTutorialTarget();
     renderTutorialAdmiral();
+    elements.tutorialPanel.classList.toggle("is-right", step.panelPlacement === "right");
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
     elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
@@ -2176,6 +2177,7 @@ function tutorialSteps() {
             id: "map",
             view: "galaxy",
             mapSystemId: focusSystemId,
+            panelPlacement: "right",
             title: curated ? "Start with the flashpoint" : "Start with your home system",
             body: curated
                 ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`

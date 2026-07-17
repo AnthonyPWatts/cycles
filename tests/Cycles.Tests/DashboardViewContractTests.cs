@@ -204,6 +204,9 @@ public sealed class DashboardViewContractTests
         var command = script.IndexOf("id: \"command-introduction\"", StringComparison.Ordinal);
         var map = script.IndexOf("id: \"map-introduction\"", StringComparison.Ordinal);
         Assert.True(welcome >= 0 && welcome < command && command < map);
+        Assert.Contains("classList.toggle(\"is-right\", step.panelPlacement === \"right\")", script);
+        Assert.Contains("panelPlacement: \"right\"", script);
+        Assert.Contains(".tutorial-panel.is-right", css);
         Assert.Contains(".tutorial-admiral-frame", css);
     }
 
