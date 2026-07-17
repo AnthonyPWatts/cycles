@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "width": 1024,
+  "height": 1024,
+  "format": "webp",
+  "backgrounds": [
+    {
+      "id": "astrolabe-gold",
+      "accent": "antiqueGold",
+      "symbol": "compassStarAstrolabe"
+    },
+    {
+      "id": "gateway-teal",
+      "accent": "teal",
+      "symbol": "pairedGatewayRings"
+    },
+    {
+      "id": "spearpoint-crimson",
+      "accent": "crimson",
+      "symbol": "convergingChevrons"
+    },
+    {
+      "id": "archive-violet",
+      "accent": "indigoViolet",
+      "symbol": "archiveStar"
+    }
+  ],
+  "portraits": [
+    { "id": "astrolabe-gold-human-01", "file": "portraits/astrolabe-gold-human-01.webp", "background": "astrolabe-gold", "speciesGroup": "human" },
+    { "id": "astrolabe-gold-human-02", "file": "portraits/astrolabe-gold-human-02.webp", "background": "astrolabe-gold", "speciesGroup": "human" },
+    { "id": "astrolabe-gold-human-03", "file": "portraits/astrolabe-gold-human-03.webp", "background": "astrolabe-gold", "speciesGroup": "human" },
+    { "id": "astrolabe-gold-human-04", "file": "portraits/astrolabe-gold-human-04.webp", "background": "astrolabe-gold", "speciesGroup": "human" },
+    { "id": "astrolabe-gold-human-05", "file": "portraits/astrolabe-gold-human-05.webp", "background": "astrolabe-gold", "speciesGroup": "human" },
+    { "id": "astrolabe-gold-non-human-01", "file": "portraits/astrolabe-gold-non-human-01.webp", "background": "astrolabe-gold", "speciesGroup": "nonHuman" },
+    { "id": "astrolabe-gold-non-human-02", "file": "portraits/astrolabe-gold-non-human-02.webp", "background": "astrolabe-gold", "speciesGroup": "nonHuman" },
+    { "id": "astrolabe-gold-non-human-03", "file": "portraits/astrolabe-gold-non-human-03.webp", "background": "astrolabe-gold", "speciesGroup": "nonHuman" },
+    { "id": "astrolabe-gold-non-human-04", "file": "portraits/astrolabe-gold-non-human-04.webp", "background": "astrolabe-gold", "speciesGroup": "nonHuman" },
+    { "id": "gateway-teal-human-01", "file": "portraits/gateway-teal-human-01.webp", "background": "gateway-teal", "speciesGroup": "human" },
+    { "id": "gateway-teal-human-02", "file": "portraits/gateway-teal-human-02.webp", "background": "gateway-teal", "speciesGroup": "human" },
+    { "id": "gateway-teal-human-03", "file": "portraits/gateway-teal-human-03.webp", "background": "gateway-teal", "speciesGroup": "human" },
+    { "id": "gateway-teal-human-04", "file": "portraits/gateway-teal-human-04.webp", "background": "gateway-teal", "speciesGroup": "human" },
+    { "id": "gateway-teal-non-human-01", "file": "portraits/gateway-teal-non-human-01.webp", "background": "gateway-teal", "speciesGroup": "nonHuman" },
+    { "id": "gateway-teal-non-human-02", "file": "portraits/gateway-teal-non-human-02.webp", "background": "gateway-teal", "speciesGroup": "nonHuman" },
+    { "id": "gateway-teal-non-human-03", "file": "portraits/gateway-teal-non-human-03.webp", "background": "gateway-teal", "speciesGroup": "nonHuman" },
+    { "id": "gateway-teal-non-human-04", "file": "portraits/gateway-teal-non-human-04.webp", "background": "gateway-teal", "speciesGroup": "nonHuman" },
+    { "id": "gateway-teal-non-human-05", "file": "portraits/gateway-teal-non-human-05.webp", "background": "gateway-teal", "speciesGroup": "nonHuman" },
+    { "id": "spearpoint-crimson-human-01", "file": "portraits/spearpoint-crimson-human-01.webp", "background": "spearpoint-crimson", "speciesGroup": "human" },
+    { "id": "spearpoint-crimson-human-02", "file": "portraits/spearpoint-crimson-human-02.webp", "background": "spearpoint-crimson", "speciesGroup": "human" },
+    { "id": "spearpoint-crimson-human-03", "file": "portraits/spearpoint-crimson-human-03.webp", "background": "spearpoint-crimson", "speciesGroup": "human" },
+    { "id": "spearpoint-crimson-human-04", "file": "portraits/spearpoint-crimson-human-04.webp", "background": "spearpoint-crimson", "speciesGroup": "human" },
+    { "id": "spearpoint-crimson-human-05", "file": "portraits/spearpoint-crimson-human-05.webp", "background": "spearpoint-crimson", "speciesGroup": "human" },
+    { "id": "spearpoint-crimson-non-human-01", "file": "portraits/spearpoint-crimson-non-human-01.webp", "background": "spearpoint-crimson", "speciesGroup": "nonHuman" },
+    { "id": "spearpoint-crimson-non-human-02", "file": "portraits/spearpoint-crimson-non-human-02.webp", "background": "spearpoint-crimson", "speciesGroup": "nonHuman" },
+    { "id": "spearpoint-crimson-non-human-03", "file": "portraits/spearpoint-crimson-non-human-03.webp", "background": "spearpoint-crimson", "speciesGroup": "nonHuman" },
+    { "id": "spearpoint-crimson-non-human-04", "file": "portraits/spearpoint-crimson-non-human-04.webp", "background": "spearpoint-crimson", "speciesGroup": "nonHuman" },
+    { "id": "archive-violet-human-01", "file": "portraits/archive-violet-human-01.webp", "background": "archive-violet", "speciesGroup": "human" },
+    { "id": "archive-violet-human-02", "file": "portraits/archive-violet-human-02.webp", "background": "archive-violet", "speciesGroup": "human" },
+    { "id": "archive-violet-human-03", "file": "portraits/archive-violet-human-03.webp", "background": "archive-violet", "speciesGroup": "human" },
+    { "id": "archive-violet-human-04", "file": "portraits/archive-violet-human-04.webp", "background": "archive-violet", "speciesGroup": "human" },
+    { "id": "archive-violet-non-human-01", "file": "portraits/archive-violet-non-human-01.webp", "background": "archive-violet", "speciesGroup": "nonHuman" },
+    { "id": "archive-violet-non-human-02", "file": "portraits/archive-violet-non-human-02.webp", "background": "archive-violet", "speciesGroup": "nonHuman" },
+    { "id": "archive-violet-non-human-03", "file": "portraits/archive-violet-non-human-03.webp", "background": "archive-violet", "speciesGroup": "nonHuman" },
+    { "id": "archive-violet-non-human-04", "file": "portraits/archive-violet-non-human-04.webp", "background": "archive-violet", "speciesGroup": "nonHuman" }
+  ]
+}
