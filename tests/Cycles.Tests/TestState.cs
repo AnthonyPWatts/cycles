@@ -95,6 +95,7 @@ internal static class TestState
             Status = PlayerStatus.Active
         };
         state.Players.Add(player);
+        state.GetActiveCycle()!.CreatedByPlayerId ??= player.PlayerId;
         return player;
     }
 
@@ -137,6 +138,25 @@ internal static class TestState
             Status = EmpireStatus.Active
         };
         state.Empires.Add(empire);
+        var faction = new Faction
+        {
+            FactionId = empire.EmpireId,
+            CycleId = cycleId,
+            EmpireId = empire.EmpireId,
+            FactionName = name,
+            Kind = FactionKind.Empire,
+            Status = FactionStatus.Active,
+            CreatedAt = Now
+        };
+        state.Factions.Add(faction);
+        state.MatchParticipants.Add(new MatchParticipant
+        {
+            CycleId = cycleId,
+            PlayerId = playerId,
+            EmpireId = empire.EmpireId,
+            Status = MatchParticipantStatus.Active,
+            JoinedAt = Now
+        });
         return empire;
     }
 
@@ -160,10 +180,12 @@ internal static class TestState
 
     private static void AddFleet(GameState state, Guid cycleId, Guid empireId, Guid systemId, int shipCount)
     {
+        var faction = state.GetEmpireFaction(empireId);
         state.Fleets.Add(new Fleet
         {
             CycleId = cycleId,
             EmpireId = empireId,
+            FactionId = faction.FactionId,
             FleetName = $"{shipCount} ships",
             CurrentSystemId = systemId,
             ShipCount = shipCount,

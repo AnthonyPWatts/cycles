@@ -166,12 +166,13 @@ try {
 
     $playerClient = New-SessionClient $baseAddress
 
+    $trustedPlayers = @(Get-Json $playerClient "/auth/trusted-players")
+    $tony = $trustedPlayers | Where-Object { $_.playerName -eq "Tony" } | Select-Object -First 1
+    Assert-Condition ($null -ne $tony) "The trusted player selector did not expose Tony."
     $login = Post-Json $playerClient "/auth/login" @{
-        username = "player-1"
-        empireName = $null
-        isAdmin = $false
+        playerId = $tony.playerId
     }
-    Assert-Condition ($login.role -eq "player") "Expected player-1 to receive the player role."
+    Assert-Condition ($login.role -eq "player") "Expected Tony to receive the player role."
     Assert-Condition $login.canAdvanceTurn "Expected a Development player to receive the advance-turn capability."
 
     $cycleBefore = Get-Json $playerClient "/cycles/current"

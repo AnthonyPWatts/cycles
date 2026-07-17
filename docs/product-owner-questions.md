@@ -1,6 +1,6 @@
 # Product Owner Questions
 
-Last updated: 2026-07-14
+Last updated: 2026-07-17
 
 This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
 
@@ -53,6 +53,8 @@ Q123 was answered on 2026-07-14 by keeping raw fact storage out of the normal da
 Q124 was answered on 2026-07-14 by locking camelCase properties and camelCase string enums, while requiring a stable machine-readable error code before freezing the current message-only envelope.
 
 Q125's earlier scale answers were explicitly superseded on 2026-07-15. The next player test now targets the canonical 8-sector, 64-system, four-empire territorial galaxy and its three curated map ranges.
+
+The 17 July development-match decision supersedes the four-empire opening without changing the 8-sector, 64-system map boundary. The current seed uses Tony and Will as persistent human players plus Ariadne as a game-AI player, each controlling one of three empires in distinct sectors. The match model permits up to six empire participants and never shares control of an empire. Complex identity, account email, invitations, matchmaking, and production game-AI policy remain deferred; the present Development selector offers only Tony or Will behind the existing access-code boundary.
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
@@ -219,7 +221,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Ordinary player responses and the normal dashboard do not expose raw fact storage. Display text is the default presentation; useful structured detail uses a purpose-built typed contract, while raw inspection is limited to an explicit authorised operator surface.
 - Player API property names use camelCase and enum wire values use camelCase strings; numeric enum values are not accepted as part of the public contract.
 - Handled player API errors retain the correct HTTP status and use a stable machine-readable code plus a safe human-readable message. Optional structured validation detail and trace correlation may be added without exposing internal exception data.
-- The next player test targets the curated 8-sector, 64-system, four-empire territorial galaxy. Support beyond that canonical scale or for materially denser topologies is not implied and requires fresh navigation and rendering evidence.
+- The next player test targets the curated 8-sector, 64-system galaxy with three empire participants and neutral pressure. The model permits up to six empire participants, but support beyond the current three-player Development setup or for materially denser topologies is not implied and requires fresh navigation, balance, and rendering evidence.
 - Desktop and laptop browsers are the primary command surface. Narrow layouts retain a readable core loop without page-level horizontal scrolling, but equal mobile optimisation and native mobile clients are not current requirements.
 - The resumable Day One guide is the primary in-dashboard training path. It teaches the real command loop and must explicitly explain the accepted visibility model, Events versus Chronicle, and the current tick/Cycle boundary without becoming a separate help system.
 

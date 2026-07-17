@@ -37,9 +37,11 @@
             </div>
         </div>
         <form id="loginForm" class="login-form">
-            <input id="username" name="username" autocomplete="username" value="player-1" aria-label="Username" required>
+            <select id="username" name="playerId" aria-label="Player" required>
+                <option value="">Loading players...</option>
+            </select>
             <button id="loginButton" type="submit">Login</button>
-            <p id="loginMessage" class="login-message" role="status">Enter your player name to continue.</p>
+            <p id="loginMessage" class="login-message" role="status">Choose a player to continue.</p>
         </form>
         <div id="sessionSummary" class="session-summary" hidden>
             <span><span class="session-label">Signed in as </span><strong id="sessionUsername"></strong></span>

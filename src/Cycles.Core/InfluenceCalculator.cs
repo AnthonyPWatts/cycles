@@ -18,29 +18,37 @@ public static class InfluenceCalculator
                             && fleet.Status == FleetStatus.Active
                             && fleet.CurrentSystemId == systemId
                             && fleet.ShipCount > 0)
-            .GroupBy(fleet => fleet.EmpireId)
+            .GroupBy(state.GetFactionId)
             .ToDictionary(group => group.Key, group => (decimal)group.Sum(fleet => fleet.ShipCount));
 
         foreach (var homeEmpire in state.Empires.Where(empire => empire.CycleId == cycleId && empire.HomeSystemId == systemId))
         {
-            presence[homeEmpire.EmpireId] = presence.TryGetValue(homeEmpire.EmpireId, out var currentPresence)
+            var factionId = state.GetEmpireFaction(homeEmpire.EmpireId).FactionId;
+            presence[factionId] = presence.TryGetValue(factionId, out var currentPresence)
                 ? Math.Max(currentPresence, HomeSystemMinimumPresence)
                 : HomeSystemMinimumPresence;
         }
 
         foreach (var outpost in state.ColonialOutposts.Where(item => item.CycleId == cycleId && item.SystemId == systemId))
         {
-            if (presence.TryGetValue(outpost.EmpireId, out var currentPresence))
+            var factionId = state.GetEmpireFaction(outpost.EmpireId).FactionId;
+            if (presence.TryGetValue(factionId, out var currentPresence))
             {
-                presence[outpost.EmpireId] = currentPresence + ColonialOutpostPresence;
+                presence[factionId] = currentPresence + ColonialOutpostPresence;
             }
         }
 
-        foreach (var (empireId, effectivePresence) in presence.ToArray())
+        foreach (var (factionId, effectivePresence) in presence.ToArray())
         {
-            var projectionBonus = CalculateExpansionProjectionBonus(state, empireId);
-            var doctrineBonus = CalculateDoctrinePresenceBonus(state, cycleId, empireId);
-            presence[empireId] = decimal.Round(effectivePresence * (1m + projectionBonus + doctrineBonus), 2);
+            var empireId = state.GetEmpireIdForFaction(factionId);
+            if (!empireId.HasValue)
+            {
+                continue;
+            }
+
+            var projectionBonus = CalculateExpansionProjectionBonus(state, empireId.Value);
+            var doctrineBonus = CalculateDoctrinePresenceBonus(state, cycleId, empireId.Value);
+            presence[factionId] = decimal.Round(effectivePresence * (1m + projectionBonus + doctrineBonus), 2);
         }
 
         return presence;
@@ -73,17 +81,23 @@ public static class InfluenceCalculator
             }
 
             var totalPresence = presence.Values.Sum();
-            foreach (var (empireId, effectivePresence) in presence)
+            foreach (var (factionId, effectivePresence) in presence)
             {
                 var share = effectivePresence / totalPresence;
+                var empireId = state.GetEmpireIdForFaction(factionId);
+                if (!empireId.HasValue)
+                {
+                    continue;
+                }
+
                 var delta = new ResourceDelta(
                     decimal.Round(system.IndustryOutput * share, 2),
                     decimal.Round(system.ResearchOutput * share, 2),
                     decimal.Round(system.PopulationOutput * share, 2));
 
-                if (!generatedByEmpire.TryAdd(empireId, delta))
+                if (!generatedByEmpire.TryAdd(empireId.Value, delta))
                 {
-                    generatedByEmpire[empireId] = generatedByEmpire[empireId] + delta;
+                    generatedByEmpire[empireId.Value] = generatedByEmpire[empireId.Value] + delta;
                 }
             }
         }
@@ -106,6 +120,7 @@ public static class InfluenceCalculator
                 TickNumber = tickNumber,
                 EventType = EventType.ResourcesGenerated,
                 EmpireId = empireId,
+                FactionId = state.GetEmpireFaction(empireId).FactionId,
                 Severity = EventSeverity.Low,
                 DisplayText = $"{empire.EmpireName} gained {delta.Industry:0.##} industry, {delta.Research:0.##} research, and {delta.Population:0.##} population.",
                 FactJson = JsonSerializer.Serialize(new

@@ -22,7 +22,7 @@ public static class OrderService
             throw new InvalidOperationException("Move orders must target an adjacent linked system.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.MoveFleet, target.SystemId, null, now, replacesOrderId);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.MoveFleet, target.SystemId, null, null, now, replacesOrderId);
     }
 
     public static FleetOrder SubmitAttackOrder(
@@ -34,10 +34,12 @@ public static class OrderService
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
 
-        if (targetEmpireId.HasValue
-            && !state.Empires.Any(empire => empire.CycleId == cycle.CycleId && empire.EmpireId == targetEmpireId.Value))
+        Guid? targetFactionId = null;
+        if (targetEmpireId.HasValue)
         {
-            throw new InvalidOperationException("Target empire does not exist in the active cycle.");
+            var targetEmpire = state.Empires.SingleOrDefault(empire => empire.CycleId == cycle.CycleId && empire.EmpireId == targetEmpireId.Value)
+                ?? throw new InvalidOperationException("Target empire does not exist in the active cycle.");
+            targetFactionId = state.GetEmpireFaction(targetEmpire.EmpireId).FactionId;
         }
 
         if (targetEmpireId == fleet.EmpireId)
@@ -45,7 +47,37 @@ public static class OrderService
             throw new InvalidOperationException("A fleet cannot attack its own empire.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Attack, null, targetEmpireId, now, replacesOrderId);
+        return SubmitAttackOrderAgainstFaction(state, fleetId, targetFactionId, now, replacesOrderId);
+    }
+
+    public static FleetOrder SubmitAttackOrderAgainstFaction(
+        GameState state,
+        Guid fleetId,
+        Guid? targetFactionId,
+        DateTimeOffset now,
+        Guid? replacesOrderId = null)
+    {
+        var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
+        var targetFaction = targetFactionId.HasValue
+            ? state.Factions.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FactionId == targetFactionId.Value)
+                ?? throw new InvalidOperationException("Target faction does not exist in the active cycle.")
+            : null;
+
+        if (targetFactionId == fleet.FactionId)
+        {
+            throw new InvalidOperationException("A fleet cannot attack its own faction.");
+        }
+
+        return AddFleetOrder(
+            state,
+            cycle,
+            fleet,
+            FleetOrderType.Attack,
+            null,
+            targetFaction?.EmpireId,
+            targetFactionId,
+            now,
+            replacesOrderId);
     }
 
     public static FleetOrder SubmitHoldOrder(
@@ -55,7 +87,7 @@ public static class OrderService
         Guid? replacesOrderId = null)
     {
         var (cycle, fleet) = GetActiveFleetForOrder(state, fleetId);
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, now, replacesOrderId);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Hold, null, null, null, now, replacesOrderId);
     }
 
     public static FleetOrder SubmitColoniseOrder(
@@ -104,7 +136,7 @@ public static class OrderService
             throw new InvalidOperationException("Colonisation requires the empire to have the leading influence in the system.");
         }
 
-        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Colonise, fleet.CurrentSystemId, null, now, replacesOrderId);
+        return AddFleetOrder(state, cycle, fleet, FleetOrderType.Colonise, fleet.CurrentSystemId, null, null, now, replacesOrderId);
     }
 
     public static FleetOrder CancelFleetOrder(GameState state, Guid fleetOrderId, Guid requestingEmpireId, DateTimeOffset now)
@@ -142,6 +174,7 @@ public static class OrderService
             TickNumber = cycle.CurrentTickNumber,
             EventType = EventType.OrderCancelled,
             EmpireId = empire.EmpireId,
+            FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             Severity = EventSeverity.Low,
             DisplayText = $"{empire.EmpireName} cancelled {fleet.FleetName}'s {FormatOrderType(order.OrderType)} order.",
             FactJson = JsonSerializer.Serialize(new
@@ -198,6 +231,7 @@ public static class OrderService
             TickNumber = cycle.CurrentTickNumber,
             EventType = EventType.PrioritiesChanged,
             EmpireId = empire.EmpireId,
+            FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             Severity = EventSeverity.Low,
             DisplayText = $"{empire.EmpireName} updated strategic priorities.",
             FactJson = JsonSerializer.Serialize(new
@@ -221,6 +255,7 @@ public static class OrderService
         FleetOrderType orderType,
         Guid? targetSystemId,
         Guid? targetEmpireId,
+        Guid? targetFactionId,
         DateTimeOffset now,
         Guid? replacesOrderId)
     {
@@ -253,7 +288,7 @@ public static class OrderService
                     "The pending order changed before its replacement could be confirmed. Refresh and try again.");
             }
 
-            if (HasSameIntent(pendingOrder, orderType, targetSystemId, targetEmpireId))
+            if (HasSameIntent(pendingOrder, orderType, targetSystemId, targetEmpireId, targetFactionId))
             {
                 return pendingOrder;
             }
@@ -272,6 +307,7 @@ public static class OrderService
             OrderType = orderType,
             TargetSystemId = targetSystemId,
             TargetEmpireId = targetEmpireId,
+            TargetFactionId = targetFactionId,
             SubmitTick = cycle.CurrentTickNumber,
             ExecuteAfterTick = executeAfterTick,
             Status = FleetOrderStatus.Pending,
@@ -293,10 +329,12 @@ public static class OrderService
         FleetOrder order,
         FleetOrderType orderType,
         Guid? targetSystemId,
-        Guid? targetEmpireId) =>
+        Guid? targetEmpireId,
+        Guid? targetFactionId) =>
         order.OrderType == orderType
         && order.TargetSystemId == targetSystemId
-        && order.TargetEmpireId == targetEmpireId;
+        && order.TargetEmpireId == targetEmpireId
+        && order.TargetFactionId == targetFactionId;
 
     private static string FormatOrderType(FleetOrderType orderType) =>
         orderType switch
@@ -311,13 +349,14 @@ public static class OrderService
     internal static bool HasLeadingPresence(GameState state, Guid cycleId, Guid systemId, Guid empireId)
     {
         var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycleId, systemId);
-        if (!presence.TryGetValue(empireId, out var empirePresence))
+        var factionId = state.GetEmpireFaction(empireId).FactionId;
+        if (!presence.TryGetValue(factionId, out var empirePresence))
         {
             return false;
         }
 
         return presence
-            .Where(item => item.Key != empireId)
+            .Where(item => item.Key != factionId)
             .All(item => empirePresence > item.Value);
     }
 
@@ -331,6 +370,13 @@ public static class OrderService
         if (fleet.Status != FleetStatus.Active || fleet.ShipCount <= 0)
         {
             throw new InvalidOperationException("Fleet is not active.");
+        }
+
+        fleet.FactionId = state.GetFactionId(fleet);
+
+        if (state.Factions.Single(item => item.FactionId == fleet.FactionId).Kind != FactionKind.Empire)
+        {
+            throw new InvalidOperationException("Neutral fleets cannot receive player orders.");
         }
 
         return (cycle, fleet);

@@ -60,7 +60,7 @@ The following do not justify standing implementation tickets without evidence:
 - add focused regression or SQL integration coverage when a specified behaviour exposes a concrete gap;
 - profile retained-history and generic whole-state paths when a measured caller or scenario warrants it;
 - revisit the generic SQL mutation bridge only if profiling shows a high-frequency or scaling-critical problem;
-- revisit dashboard rendering only after an agreed galaxy/player target exceeds the verified 8-sector, 64-system, four-empire test or requires a materially denser topology;
+- revisit dashboard rendering only after an agreed galaxy/player target exceeds the verified 8-sector, 64-system, three-empire development test or requires a materially denser topology; the six-empire domain ceiling is not yet six-player UI evidence;
 - introduce `Cycles.Application`, provider-neutral repositories, or broader typed fact schemas only when a selected feature or measured complexity requires them;
 - continue small correctness, migration-safety, diagnostics, CI, and clean-checkout repairs when concrete friction is observed.
 

@@ -38,12 +38,16 @@ For example, replacing a pending move with an attack includes the order being co
 ```json
 {
   "fleetId": "5ce2f146-1240-4175-a2d4-befd7895c20f",
-  "targetEmpireId": "372e73c0-0fb2-4770-94d6-c9d0833dc7c8",
+  "targetFactionId": "372e73c0-0fb2-4770-94d6-c9d0833dc7c8",
   "replacesOrderId": "5a43a94a-d358-4ca7-8321-a00be6fd198b"
 }
 ```
 
-The confirmation ID makes a stale dashboard or competing submission fail safely instead of silently replacing a newer intention. `superseded` is an additive fleet-order status; clients must tolerate additive string-enum members as well as optional response fields.
+The confirmation ID makes a stale dashboard or competing submission fail safely instead of silently replacing a newer intention. `targetFactionId` is authoritative for attacks and permits neutral targets; `targetEmpireId` remains an optional compatibility input and response field for empire targets. `superseded` is an additive fleet-order status; clients must tolerate additive string-enum members as well as optional response fields.
+
+## Trusted Development Selection
+
+When `Cycles:TrustedPlayerSelection:Enabled` is deliberately enabled, `GET /auth/trusted-players` returns active human accounts participating in the current match. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector is intended only for an access-restricted Development host and does not replace external identity or create accounts.
 
 ## Error Contract
 
@@ -83,7 +87,7 @@ The Day One guide consumes the purpose-built `GET /briefings/opening` response. 
 
 ```json
 {
-  "scenarioKey": "development-cold-start-v1",
+  "scenarioKey": "development-match-v2",
   "focusSystemId": "d960253b-23be-410d-8690-812fa524af19",
   "objectives": {
     "move": {
@@ -97,7 +101,7 @@ The Day One guide consumes the purpose-built `GET /briefings/opening` response. 
     "attack": {
       "fleetId": "3ae815cc-2faf-4e51-b709-88a31cde5959",
       "systemId": "df7fe765-17ec-4ab9-8ca1-544e167ab681",
-      "targetEmpireId": "372e73c0-0fb2-4770-94d6-c9d0833dc7c8"
+      "targetFactionId": "372e73c0-0fb2-4770-94d6-c9d0833dc7c8"
     }
   }
 }

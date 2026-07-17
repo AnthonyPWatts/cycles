@@ -14,16 +14,15 @@ BEGIN
     DECLARE @SeededAt DATETIMEOFFSET = SYSDATETIMEOFFSET();
     DECLARE @CycleName NVARCHAR(120) = CONCAT(N'Cycle ', DATEPART(YEAR, @SeededAt), N'.', RIGHT(N'0' + CONVERT(NVARCHAR(2), DATEPART(MONTH, @SeededAt)), 2));
 
-    INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, ExternalIssuer, ExternalSubject, Role, CreatedAt, LastLoginAt, Status)
+    INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, ExternalIssuer, ExternalSubject, PlayerKind, Role, CreatedAt, LastLoginAt, Status)
     VALUES
-        ('089f8d2b-cb2f-2235-8fae-c0d1a135c865', N'player-1', N'player-1@cycles.local', N'prototype', N'', N'', N'Player', @SeededAt, @SeededAt, N'Active'),
-        ('7ff1913a-63f9-122f-cd2b-ac8e709afa03', N'player-2', N'player-2@cycles.local', N'prototype', N'', N'', N'Player', @SeededAt, @SeededAt, N'Active'),
-        ('4c2b8d58-af0d-9f22-846e-4c213d53d181', N'player-3', N'player-3@cycles.local', N'prototype', N'', N'', N'Player', @SeededAt, @SeededAt, N'Active'),
-        ('5157de0c-e13b-b784-3c78-b5bc77fa9bb0', N'player-4', N'player-4@cycles.local', N'prototype', N'', N'', N'Player', @SeededAt, @SeededAt, N'Active');
+        ('2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', N'Tony', N'', N'', N'', N'', N'Human', N'Player', @SeededAt, NULL, N'Active'),
+        ('8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', N'Will', N'', N'', N'', N'', N'Human', N'Player', @SeededAt, NULL, N'Active'),
+        ('3ecfbf78-b6b3-42cd-a811-85efb916cc03', N'Ariadne', N'', N'', N'', N'', N'AI', N'Player', @SeededAt, NULL, N'Active');
 
-    INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedAt)
+    INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedByPlayerID, CreatedAt)
     VALUES
-        ('fce1d96a-6a07-4559-cff6-dd6efde758ae', @CycleName, @SeededAt, DATEADD(DAY, 90, @SeededAt), 60, 0, N'Active', @SeededAt);
+        ('fce1d96a-6a07-4559-cff6-dd6efde758ae', @CycleName, @SeededAt, DATEADD(DAY, 90, @SeededAt), 60, 0, N'Active', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', @SeededAt);
 
     INSERT INTO dbo.GalaxySectors(SectorID, CycleID, SectorName, CentreX, CentreY, SortOrder)
     VALUES
@@ -89,7 +88,7 @@ BEGIN
         ('9ea672e2-02e9-96a5-6e17-b9c2479b83dd', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'd07e8579-5205-1fa9-ce91-6522e730db13', N'Silent Array', 452, 165, 54, 57, 11, 24, 0, @SeededAt),
         ('d81b94a7-92b1-0459-383c-c82e86fe57ee', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'c538bd49-820e-075d-3088-400abf0b89d6', N'Ternary', 522, 510, 62, 68, 16, 29, 0, @SeededAt),
         ('f8b85da0-c7e5-24ad-b678-0d3533c78429', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'c538bd49-820e-075d-3088-400abf0b89d6', N'Ternary Watch', 445, 572, 69, 60, 36, 33, 0, @SeededAt),
-        ('fe739d22-e193-f482-cbcf-3f5977f3ab8b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8e20bd6d-9b8e-9800-ee6c-4338de928cb1', N'Treaty Gate', 636, 310, 25, 21, 30, 35, 4, @SeededAt),
+        ('fe739d22-e193-f482-cbcf-3f5977f3ab8b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8e20bd6d-9b8e-9800-ee6c-4338de928cb1', N'Treaty Gate', 636, 310, 25, 21, 30, 35, 2, @SeededAt),
         ('181e55e1-6f33-0ec2-9bb5-b826f6ee5ea7', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '552c6fc1-0fda-1aaa-b8b5-f7ac3f750b1d', N'Umbral Bastion', 235, 510, 29, 59, 54, 40, 1, @SeededAt),
         ('780fe021-3614-fceb-71be-fbf1a3cfcf28', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '552c6fc1-0fda-1aaa-b8b5-f7ac3f750b1d', N'Umbral Lantern', 175, 545, 46, 24, 26, 19, 0, @SeededAt),
         ('0a4ce56e-94fc-f9d7-64f8-9e19977b07bb', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '552c6fc1-0fda-1aaa-b8b5-f7ac3f750b1d', N'Umbral Way', 120, 603, 75, 33, 38, 41, 1, @SeededAt),
@@ -105,24 +104,34 @@ BEGIN
 
     INSERT INTO dbo.Empires(EmpireID, CycleID, PlayerID, EmpireName, HomeSystemID, CreatedAt, Status)
     VALUES
-        ('1b12558d-ff5e-d372-e4c1-94f63137b642', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '089f8d2b-cb2f-2235-8fae-c0d1a135c865', N'Aurelian Compact', 'afa5fe7c-06d1-228c-e1fc-22f23e6daca0', @SeededAt, N'Active'),
-        ('c0660deb-fa0d-be04-7967-8a1e8691079e', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '7ff1913a-63f9-122f-cd2b-ac8e709afa03', N'Khepri Mandate', '090ff8af-f3eb-2c34-411e-daabcac34283', @SeededAt, N'Active'),
-        ('5b61c575-b567-8f71-e940-4e08f628cad7', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '4c2b8d58-af0d-9f22-846e-4c213d53d181', N'Novan League', '9b18a470-5646-f257-a801-b7994aa2883e', @SeededAt, N'Active'),
-        ('dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '5157de0c-e13b-b784-3c78-b5bc77fa9bb0', N'Vestige Combine', '181e55e1-6f33-0ec2-9bb5-b826f6ee5ea7', @SeededAt, N'Active');
+        ('1b12558d-ff5e-d372-e4c1-94f63137b642', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', N'Aurelian Compact', '1b4109ca-8f45-263a-e773-60297272f0aa', @SeededAt, N'Active'),
+        ('98428db6-ba14-1fb9-14c1-86a6d38348b7', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', N'Khepri Mandate', 'f6eda3ae-c645-0d35-c4e4-e2c4f213e0e4', @SeededAt, N'Active'),
+        ('f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '3ecfbf78-b6b3-42cd-a811-85efb916cc03', N'Novan League', '83d2d582-4f0c-650b-6a77-0ee5b6a9fa93', @SeededAt, N'Active');
+
+    INSERT INTO dbo.Factions(FactionID, CycleID, EmpireID, FactionName, Kind, Status, CreatedAt)
+    VALUES
+        ('1b12558d-ff5e-d372-e4c1-94f63137b642', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Aurelian Compact', N'Empire', N'Active', @SeededAt),
+        ('fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, N'Free Captains', N'Neutral', N'Active', @SeededAt),
+        ('98428db6-ba14-1fb9-14c1-86a6d38348b7', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Khepri Mandate', N'Empire', N'Active', @SeededAt),
+        ('f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Novan League', N'Empire', N'Active', @SeededAt);
+
+    INSERT INTO dbo.MatchParticipants(MatchParticipantID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt)
+    VALUES
+        ('40a59e85-1d96-90c1-201b-70f33711ba04', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Active', @SeededAt, NULL),
+        ('219c6de2-f38e-d076-47c3-d09adf3dee9a', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '3ecfbf78-b6b3-42cd-a811-85efb916cc03', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Active', @SeededAt, NULL),
+        ('828573b7-ce4b-b890-5065-b80574c14fc0', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Active', @SeededAt, NULL);
 
     INSERT INTO dbo.EmpireResources(EmpireResourceID, EmpireID, Industry, Research, Population, LastGeneratedIndustry, LastGeneratedResearch, LastGeneratedPopulation, LastSpentIndustry, LastSpentResearch, LastSpentPopulation, UpdatedAt)
     VALUES
-        ('40a59e85-1d96-90c1-201b-70f33711ba04', '1b12558d-ff5e-d372-e4c1-94f63137b642', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt),
-        ('98428db6-ba14-1fb9-14c1-86a6d38348b7', 'c0660deb-fa0d-be04-7967-8a1e8691079e', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt),
-        ('cac84274-f341-cb4f-1687-b580727b072d', '5b61c575-b567-8f71-e940-4e08f628cad7', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt),
-        ('be43d99b-bd01-bfb6-b95b-a04e0680e0db', 'dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt);
+        ('3510456e-fb83-1403-f88f-2bd6cbc442e1', '1b12558d-ff5e-d372-e4c1-94f63137b642', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt),
+        ('70f25832-dd43-8d14-72e4-9d1a0fe83d83', '98428db6-ba14-1fb9-14c1-86a6d38348b7', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt),
+        ('22b80436-db08-9382-3c0c-2e91449be933', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 100, 100, 100, 0, 0, 0, 0, 0, 0, @SeededAt);
 
     INSERT INTO dbo.EmpirePriorities(EmpirePriorityID, EmpireID, IndustryWeight, ResearchWeight, MilitaryWeight, ExpansionWeight, UpdatedAt)
     VALUES
-        ('3510456e-fb83-1403-f88f-2bd6cbc442e1', '1b12558d-ff5e-d372-e4c1-94f63137b642', 0, 0, 67, 33, @SeededAt),
-        ('828573b7-ce4b-b890-5065-b80574c14fc0', 'c0660deb-fa0d-be04-7967-8a1e8691079e', 0, 0, 67, 33, @SeededAt),
-        ('f60b5f1e-a53f-9d22-3396-4b36a9b25571', '5b61c575-b567-8f71-e940-4e08f628cad7', 0, 0, 67, 33, @SeededAt),
-        ('987bba47-af77-9e2c-4760-cc5d60da32dd', 'dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', 0, 0, 67, 33, @SeededAt);
+        ('aff0c7fa-0165-78db-bd0a-a4f770ed422f', '1b12558d-ff5e-d372-e4c1-94f63137b642', 0, 0, 67, 33, @SeededAt),
+        ('49b9d4b1-892c-009a-184a-5122d864e12b', '98428db6-ba14-1fb9-14c1-86a6d38348b7', 0, 0, 67, 33, @SeededAt),
+        ('5157de0c-e13b-b784-3c78-b5bc77fa9bb0', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 0, 0, 67, 33, @SeededAt);
 
     INSERT INTO dbo.SystemLinks(SystemLinkID, CycleID, SystemAID, SystemBID, Distance, TravelTicks)
     VALUES
@@ -220,50 +229,104 @@ BEGIN
 
     INSERT INTO dbo.Admirals(AdmiralID, CycleID, EmpireID, AdmiralName, ReputationScore, Status, CreatedAt, UpdatedAt)
     VALUES
-        ('aff0c7fa-0165-78db-bd0a-a4f770ed422f', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Elian Voss', 0, N'Active', @SeededAt, @SeededAt),
-        ('fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', N'Ilya Sen', 0, N'Active', @SeededAt, @SeededAt),
-        ('70f25832-dd43-8d14-72e4-9d1a0fe83d83', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'c0660deb-fa0d-be04-7967-8a1e8691079e', N'Mara Sutekh', 0, N'Active', @SeededAt, @SeededAt),
-        ('219c6de2-f38e-d076-47c3-d09adf3dee9a', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '5b61c575-b567-8f71-e940-4e08f628cad7', N'Tavian Orre', 0, N'Active', @SeededAt, @SeededAt);
+        ('82ba60e7-3827-3d9a-57e4-7511bc9c5fa2', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Elian Voss', 0, N'Active', @SeededAt, @SeededAt),
+        ('4c2b8d58-af0d-9f22-846e-4c213d53d181', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Mara Sutekh', 0, N'Active', @SeededAt, @SeededAt),
+        ('dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Tavian Orre', 0, N'Active', @SeededAt, @SeededAt);
 
-    INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
+    INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FactionID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
     VALUES
-        ('04eff6c0-998a-66ef-c882-34b221368b4b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', NULL, N'Aurelian Home Guard', 'afa5fe7c-06d1-228c-e1fc-22f23e6daca0', NULL, NULL, 30, N'Active', @SeededAt),
-        ('49b9d4b1-892c-009a-184a-5122d864e12b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'c0660deb-fa0d-be04-7967-8a1e8691079e', '70f25832-dd43-8d14-72e4-9d1a0fe83d83', N'Khepri Gate Raiders', 'fe739d22-e193-f482-cbcf-3f5977f3ab8b', NULL, NULL, 20, N'Active', @SeededAt),
-        ('59412fdc-6d2f-f5e8-a6e5-88ab480e6372', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'c0660deb-fa0d-be04-7967-8a1e8691079e', NULL, N'Khepri Home Fleet', '090ff8af-f3eb-2c34-411e-daabcac34283', NULL, NULL, 40, N'Active', @SeededAt),
-        ('22b80436-db08-9382-3c0c-2e91449be933', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '5b61c575-b567-8f71-e940-4e08f628cad7', '219c6de2-f38e-d076-47c3-d09adf3dee9a', N'Novan League Home Fleet', '9b18a470-5646-f257-a801-b7994aa2883e', NULL, NULL, 60, N'Active', @SeededAt),
-        ('e17e8e91-d4fe-aabf-c35d-deaa6c26172e', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', NULL, N'Pale Harbour Survey', '9a6ef3a4-5051-a0ab-8b3e-8c633e44e522', NULL, NULL, 12, N'Active', @SeededAt),
-        ('82ba60e7-3827-3d9a-57e4-7511bc9c5fa2', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', 'aff0c7fa-0165-78db-bd0a-a4f770ed422f', N'Treaty Gate Vanguard', 'fe739d22-e193-f482-cbcf-3f5977f3ab8b', NULL, NULL, 18, N'Active', @SeededAt),
-        ('a8c01cc4-efad-d769-6100-4c8f28606a98', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', N'Vestige Combine Home Fleet', '181e55e1-6f33-0ec2-9bb5-b826f6ee5ea7', NULL, NULL, 60, N'Active', @SeededAt);
+        ('a8c01cc4-efad-d769-6100-4c8f28606a98', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', '1b12558d-ff5e-d372-e4c1-94f63137b642', '82ba60e7-3827-3d9a-57e4-7511bc9c5fa2', N'Aurelian Compact Home Guard', '1b4109ca-8f45-263a-e773-60297272f0aa', NULL, NULL, 30, N'Active', @SeededAt),
+        ('6b3cdbd7-27ff-28b4-ac0b-4e982c7ec1d6', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Deep Vault Free Captains', 'a00244e8-42f4-56fc-ebff-1a1e60153f97', NULL, NULL, 8, N'Active', @SeededAt),
+        ('095612c2-4f59-0f52-284c-5118d428c24f', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', '98428db6-ba14-1fb9-14c1-86a6d38348b7', NULL, N'Deep Vault Vanguard', 'a00244e8-42f4-56fc-ebff-1a1e60153f97', NULL, NULL, 18, N'Active', @SeededAt),
+        ('6e539737-1902-9ae8-b3f7-4c3767c677c3', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Free Captain Patrol 1', 'a93029b7-0f17-d3c3-6f78-637f01b2c82d', NULL, NULL, 14, N'Active', @SeededAt),
+        ('5f1651d7-bb68-7068-ad68-f2103e041364', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Free Captain Patrol 2', '9ea672e2-02e9-96a5-6e17-b9c2479b83dd', NULL, NULL, 13, N'Active', @SeededAt),
+        ('6108056b-cbd8-615c-4dd1-925378c8f783', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Free Captain Patrol 3', 'c23b5450-e8d6-e676-023d-6dd23e6ebf7b', NULL, NULL, 12, N'Active', @SeededAt),
+        ('90507006-2403-9e35-870a-5737678e5137', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', '98428db6-ba14-1fb9-14c1-86a6d38348b7', '4c2b8d58-af0d-9f22-846e-4c213d53d181', N'Khepri Mandate Home Guard', 'f6eda3ae-c645-0d35-c4e4-e2c4f213e0e4', NULL, NULL, 30, N'Active', @SeededAt),
+        ('e17e8e91-d4fe-aabf-c35d-deaa6c26172e', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Night Span Free Captains', 'b611c0c2-5995-70e1-3ffe-417c1d305c14', NULL, NULL, 8, N'Active', @SeededAt),
+        ('029b750a-db56-cf33-628e-4abd4ec3b834', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', '1b12558d-ff5e-d372-e4c1-94f63137b642', NULL, N'Night Span Vanguard', 'b611c0c2-5995-70e1-3ffe-417c1d305c14', NULL, NULL, 18, N'Active', @SeededAt),
+        ('b46b714a-061e-0c83-1619-15f278031670', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', NULL, N'Northstar Gate Survey', '1beef779-8b9f-7fd7-18e2-5cbf2c347d7f', NULL, NULL, 12, N'Active', @SeededAt),
+        ('93547ff6-2b99-abde-bb56-8e878963df45', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'dc99aa36-86c5-ebe6-2ba0-1b557b73ec5b', N'Novan League Home Guard', '83d2d582-4f0c-650b-6a77-0ee5b6a9fa93', NULL, NULL, 30, N'Active', @SeededAt),
+        ('6aae2bb7-53a1-2efe-9165-6e7492ac34e8', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', '98428db6-ba14-1fb9-14c1-86a6d38348b7', NULL, N'Penumbral Span Survey', '3fd19805-7287-29d4-63b5-48d6ab124adc', NULL, NULL, 12, N'Active', @SeededAt),
+        ('8c66cf9b-5fc8-b567-b80d-6af68ba079ae', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, 'fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037', NULL, N'Sentinel Spur Free Captains', '45cdce04-7d01-eead-4a2f-ce299ec25aa3', NULL, NULL, 8, N'Active', @SeededAt),
+        ('7e6494db-66fc-5539-e43a-20493061ba8c', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', NULL, N'Sentinel Spur Vanguard', '45cdce04-7d01-eead-4a2f-ce299ec25aa3', NULL, NULL, 18, N'Active', @SeededAt),
+        ('04eff6c0-998a-66ef-c882-34b221368b4b', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '1b12558d-ff5e-d372-e4c1-94f63137b642', '1b12558d-ff5e-d372-e4c1-94f63137b642', NULL, N'Umbral Way Survey', '0a4ce56e-94fc-f9d7-64f8-9e19977b07bb', NULL, NULL, 12, N'Active', @SeededAt);
 
-    INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, SystemID, EmpireID, Severity, FactJson, DisplayText, CreatedAt)
+    INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, SystemID, EmpireID, FactionID, Severity, FactJson, DisplayText, CreatedAt)
     VALUES
-        ('029b750a-db56-cf33-628e-4abd4ec3b834', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'CycleSeeded', NULL, NULL, N'Normal', N'{
+        ('56c7fae3-29e6-a57e-e402-4cb71936ff8f', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'OpeningBriefingIssued', '45cdce04-7d01-eead-4a2f-ce299ec25aa3', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'High', N'{
+  "scenarioKey": "development-match-v2",
+  "scenarioSeed": 20260717,
+  "mapVersion": "territorial-graph-v2",
+  "setupAlgorithmVersion": 1,
+  "focusSystemId": "45cdce04-7d01-eead-4a2f-ce299ec25aa3",
+  "objectives": {
+    "move": {
+      "fleetId": "93547ff6-2b99-abde-bb56-8e878963df45",
+      "targetSystemId": "1ed45dec-c261-6f52-6fda-1c2499040654"
+    },
+    "colonise": {
+      "fleetId": "b46b714a-061e-0c83-1619-15f278031670",
+      "systemId": "1beef779-8b9f-7fd7-18e2-5cbf2c347d7f"
+    },
+    "attack": {
+      "fleetId": "7e6494db-66fc-5539-e43a-20493061ba8c",
+      "systemId": "45cdce04-7d01-eead-4a2f-ce299ec25aa3",
+      "targetFactionId": "fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037"
+    }
+  }
+}', N'Day 1 briefing: Free Captains contest Sentinel Spur. Northstar Gate is ready for an outpost, while Zenith Yard offers immediate expansion.', @SeededAt),
+        ('59412fdc-6d2f-f5e8-a6e5-88ab480e6372', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'OpeningBriefingIssued', 'b611c0c2-5995-70e1-3ffe-417c1d305c14', '1b12558d-ff5e-d372-e4c1-94f63137b642', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'High', N'{
+  "scenarioKey": "development-match-v2",
+  "scenarioSeed": 20260717,
+  "mapVersion": "territorial-graph-v2",
+  "setupAlgorithmVersion": 1,
+  "focusSystemId": "b611c0c2-5995-70e1-3ffe-417c1d305c14",
+  "objectives": {
+    "move": {
+      "fleetId": "a8c01cc4-efad-d769-6100-4c8f28606a98",
+      "targetSystemId": "181e55e1-6f33-0ec2-9bb5-b826f6ee5ea7"
+    },
+    "colonise": {
+      "fleetId": "04eff6c0-998a-66ef-c882-34b221368b4b",
+      "systemId": "0a4ce56e-94fc-f9d7-64f8-9e19977b07bb"
+    },
+    "attack": {
+      "fleetId": "029b750a-db56-cf33-628e-4abd4ec3b834",
+      "systemId": "b611c0c2-5995-70e1-3ffe-417c1d305c14",
+      "targetFactionId": "fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037"
+    }
+  }
+}', N'Day 1 briefing: Free Captains contest Night Span. Umbral Way is ready for an outpost, while Umbral Bastion offers immediate expansion.', @SeededAt),
+        ('987bba47-af77-9e2c-4760-cc5d60da32dd', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'CycleSeeded', NULL, NULL, NULL, N'Normal', N'{
   "cycleId": "fce1d96a-6a07-4559-cff6-dd6efde758ae",
-  "empireCount": 4,
+  "empireCount": 3,
   "systemCount": 64,
   "sectorCount": 8,
   "topologyKey": "territorial-graph-v2",
   "seed": 71421
-}', N'The ' + @CycleName + N' began with 4 empires and 64 systems.', @SeededAt),
-        ('90507006-2403-9e35-870a-5737678e5137', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'OpeningBriefingIssued', 'fe739d22-e193-f482-cbcf-3f5977f3ab8b', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'High', N'{
-  "scenarioKey": "development-cold-start-v1",
-  "focusSystemId": "fe739d22-e193-f482-cbcf-3f5977f3ab8b",
+}', N'The ' + @CycleName + N' began with 3 empires and 64 systems.', @SeededAt),
+        ('fda733e5-d001-80f3-2f94-f1626ad0fd3a', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 0, N'OpeningBriefingIssued', 'a00244e8-42f4-56fc-ebff-1a1e60153f97', '98428db6-ba14-1fb9-14c1-86a6d38348b7', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'High', N'{
+  "scenarioKey": "development-match-v2",
+  "scenarioSeed": 20260717,
+  "mapVersion": "territorial-graph-v2",
+  "setupAlgorithmVersion": 1,
+  "focusSystemId": "a00244e8-42f4-56fc-ebff-1a1e60153f97",
   "objectives": {
     "move": {
-      "fleetId": "04eff6c0-998a-66ef-c882-34b221368b4b",
-      "targetSystemId": "ec62360a-6a52-3c7e-62f0-37b657551e11"
+      "fleetId": "90507006-2403-9e35-870a-5737678e5137",
+      "targetSystemId": "4182bfd6-48b1-517a-de17-02326198da1b"
     },
     "colonise": {
-      "fleetId": "e17e8e91-d4fe-aabf-c35d-deaa6c26172e",
-      "systemId": "9a6ef3a4-5051-a0ab-8b3e-8c633e44e522"
+      "fleetId": "6aae2bb7-53a1-2efe-9165-6e7492ac34e8",
+      "systemId": "3fd19805-7287-29d4-63b5-48d6ab124adc"
     },
     "attack": {
-      "fleetId": "82ba60e7-3827-3d9a-57e4-7511bc9c5fa2",
-      "systemId": "fe739d22-e193-f482-cbcf-3f5977f3ab8b",
-      "targetEmpireId": "c0660deb-fa0d-be04-7967-8a1e8691079e"
+      "fleetId": "095612c2-4f59-0f52-284c-5118d428c24f",
+      "systemId": "a00244e8-42f4-56fc-ebff-1a1e60153f97",
+      "targetFactionId": "fe2cd889-ba40-cd7b-6cbc-3e8cef6c8037"
     }
   }
-}', N'Day 1 briefing: Khepri raiders contest Treaty Gate. Pale Harbour is ready for an outpost, while Nadir Crossing offers immediate expansion.', @SeededAt);
+}', N'Day 1 briefing: Free Captains contest Deep Vault. Penumbral Span is ready for an outpost, while Far Meridian offers immediate expansion.', @SeededAt);
 
 END;
 COMMIT TRANSACTION;

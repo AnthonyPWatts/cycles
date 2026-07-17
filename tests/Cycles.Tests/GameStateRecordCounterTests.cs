@@ -34,6 +34,8 @@ public sealed class GameStateRecordCounterTests
                        + state.Systems.Count
                        + state.SystemLinks.Count
                        + state.Empires.Count
+                       + state.Factions.Count
+                       + state.MatchParticipants.Count
                        + state.EmpireResources.Count
                        + state.EmpirePriorities.Count
                        + state.EmpireMetrics.Count

@@ -276,6 +276,7 @@ public sealed class TickEngine
             EventType = EventType.FleetMoved,
             SystemId = target.SystemId,
             EmpireId = fleet.EmpireId,
+            FactionId = fleet.FactionId,
             Severity = EventSeverity.Normal,
             DisplayText = $"{fleet.FleetName} moved from {origin.SystemName} to {target.SystemName}{inTransitText}.",
             FactJson = JsonSerializer.Serialize(new
@@ -310,6 +311,7 @@ public sealed class TickEngine
             EventType = EventType.FleetHeld,
             SystemId = system.SystemId,
             EmpireId = fleet.EmpireId,
+            FactionId = fleet.FactionId,
             Severity = EventSeverity.Low,
             DisplayText = $"{fleet.FleetName} held position at {system.SystemName}.",
             FactJson = JsonSerializer.Serialize(new
@@ -330,12 +332,15 @@ public sealed class TickEngine
             return;
         }
 
+        attackerFleet.FactionId = state.GetFactionId(attackerFleet);
+        var requestedFactionId = order.TargetFactionId
+            ?? (order.TargetEmpireId.HasValue ? state.GetEmpireFaction(order.TargetEmpireId.Value).FactionId : null);
         var defenderFleets = state.Fleets
             .Where(fleet => fleet.CycleId == order.CycleId
                             && fleet.Status == FleetStatus.Active
                             && fleet.CurrentSystemId == attackerFleet.CurrentSystemId
-                            && fleet.EmpireId != attackerFleet.EmpireId
-                            && (!order.TargetEmpireId.HasValue || fleet.EmpireId == order.TargetEmpireId.Value))
+                            && state.GetFactionId(fleet) != attackerFleet.FactionId
+                            && (!requestedFactionId.HasValue || state.GetFactionId(fleet) == requestedFactionId.Value))
             .ToList();
 
         if (defenderFleets.Count == 0)
@@ -344,30 +349,43 @@ public sealed class TickEngine
             return;
         }
 
-        var defenderEmpireId = order.TargetEmpireId
+        var defenderFactionId = requestedFactionId
             ?? defenderFleets
-                .GroupBy(fleet => fleet.EmpireId)
+                .GroupBy(state.GetFactionId)
                 .OrderByDescending(group => group.Sum(fleet => fleet.ShipCount))
                 .First()
                 .Key;
 
-        defenderFleets = defenderFleets.Where(fleet => fleet.EmpireId == defenderEmpireId).ToList();
+        defenderFleets = defenderFleets.Where(fleet => state.GetFactionId(fleet) == defenderFactionId).ToList();
+        foreach (var defenderFleet in defenderFleets)
+        {
+            defenderFleet.FactionId = defenderFactionId;
+        }
         var system = state.Systems.Single(item => item.SystemId == attackerFleet.CurrentSystemId);
         var battle = CombatResolver.Resolve(state, tickNumber, now, system, attackerFleet, defenderFleets);
-        DiplomacyService.RecordAggression(
-            state,
-            order.CycleId,
-            tickNumber,
-            attackerFleet.EmpireId,
-            defenderEmpireId,
-            system,
-            now);
+        var attackerFaction = state.Factions.Single(item => item.FactionId == attackerFleet.FactionId);
+        var defenderFaction = state.Factions.Single(item => item.FactionId == defenderFactionId);
+        if (attackerFaction.EmpireId.HasValue && defenderFaction.EmpireId.HasValue)
+        {
+            DiplomacyService.RecordAggression(
+                state,
+                order.CycleId,
+                tickNumber,
+                attackerFaction.EmpireId.Value,
+                defenderFaction.EmpireId.Value,
+                system,
+                now);
+        }
 
         order.Status = FleetOrderStatus.Processed;
         order.ProcessedTick = tickNumber;
 
-        var attacker = state.Empires.Single(empire => empire.EmpireId == battle.AttackerEmpireId);
-        var defender = state.Empires.Single(empire => empire.EmpireId == battle.DefenderEmpireId);
+        var attacker = attackerFaction.EmpireId.HasValue
+            ? state.Empires.Single(empire => empire.EmpireId == attackerFaction.EmpireId.Value)
+            : new Empire { EmpireId = Guid.Empty, EmpireName = attackerFaction.FactionName };
+        var defender = defenderFaction.EmpireId.HasValue
+            ? state.Empires.Single(empire => empire.EmpireId == defenderFaction.EmpireId.Value)
+            : new Empire { EmpireId = Guid.Empty, EmpireName = defenderFaction.FactionName };
         var totalLosses = battle.AttackerLosses + battle.DefenderLosses;
         var severity = totalLosses >= 80 ? EventSeverity.Historic : totalLosses >= 30 ? EventSeverity.High : EventSeverity.Normal;
         var outcomeText = battle.Outcome == BattleOutcome.AttackerVictory
@@ -382,7 +400,8 @@ public sealed class TickEngine
             TickNumber = tickNumber,
             EventType = EventType.CombatResolved,
             SystemId = system.SystemId,
-            EmpireId = attacker.EmpireId,
+            EmpireId = attackerFaction.EmpireId,
+            FactionId = attackerFaction.FactionId,
             Severity = severity,
             DisplayText = $"{outcomeText} at {system.SystemName}; {totalLosses} ships were destroyed.",
             FactJson = battle.FactJson,
@@ -413,6 +432,8 @@ public sealed class TickEngine
                 TickNumber = tickNumber,
                 EventType = EventType.ChronicleCreated,
                 SystemId = system.SystemId,
+                EmpireId = attackerFaction.EmpireId,
+                FactionId = attackerFaction.FactionId,
                 Severity = EventSeverity.Historic,
                 DisplayText = $"The Chronicle preserved '{chronicle.Title}'.",
                 FactJson = JsonSerializer.Serialize(new
@@ -494,6 +515,7 @@ public sealed class TickEngine
             EventType = EventType.ColonialOutpostEstablished,
             SystemId = system.SystemId,
             EmpireId = fleet.EmpireId,
+            FactionId = fleet.FactionId,
             Severity = EventSeverity.Normal,
             DisplayText = $"{empire.EmpireName} established a colonial outpost at {system.SystemName}.",
             FactJson = JsonSerializer.Serialize(new
@@ -526,6 +548,7 @@ public sealed class TickEngine
             TickNumber = tickNumber,
             EventType = EventType.OrderRejected,
             EmpireId = state.Fleets.SingleOrDefault(fleet => fleet.FleetId == order.FleetId)?.EmpireId,
+            FactionId = state.Fleets.SingleOrDefault(fleet => fleet.FleetId == order.FleetId)?.FactionId,
             Severity = EventSeverity.Low,
             DisplayText = $"Order {order.FleetOrderId} was rejected: {reason}",
             FactJson = JsonSerializer.Serialize(new

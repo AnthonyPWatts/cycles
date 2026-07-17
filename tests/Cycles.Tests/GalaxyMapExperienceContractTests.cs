@@ -85,6 +85,8 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function mapAtlasSystemPosition", script);
         Assert.Contains("galaxyRoutes: [", script);
         Assert.Contains("function mapAtlasSectorRoutePath", script);
+        Assert.Contains("presence[state.empire.factionId]", script);
+        Assert.DoesNotContain("presence[state.empire.empireId]", script);
         Assert.Contains("<image class=\"atlas-background\"", script);
         Assert.Contains("<path class=\"link", script);
         Assert.DoesNotContain("<line class=\"link", script);

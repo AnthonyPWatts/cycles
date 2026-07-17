@@ -216,6 +216,101 @@ public sealed class GameStateTransferTests
         Assert.Contains(result.Errors, error => error.Contains("must require recovery", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Legacy_defeated_participant_does_not_inherit_a_future_scheduled_cycle_end()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        cycle.EndAt = TestState.Now.AddDays(90);
+        empire.Status = EmpireStatus.Defeated;
+        state.Factions.Clear();
+        state.MatchParticipants.Clear();
+        using var stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(
+            new GameStateTransferDocument(2, TestState.Now, state),
+            GameStateJson.Options));
+
+        var document = GameStateTransfer.Read(stream);
+        var participant = Assert.Single(document.State.MatchParticipants);
+
+        Assert.Equal(MatchParticipantStatus.Defeated, participant.Status);
+        Assert.Equal(empire.CreatedAt, participant.EndedAt);
+        Assert.NotEqual(cycle.EndAt, participant.EndedAt);
+    }
+
+    [Fact]
+    public void Validation_rejects_participant_ownership_disagreement()
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var participant = state.MatchParticipants.First();
+        participant.PlayerId = state.Players.First(item => item.PlayerId != participant.PlayerId).PlayerId;
+
+        var validation = GameStateTransfer.Validate(state);
+
+        Assert.Contains(validation.Errors, error => error.Contains("does not match its Empire's player ownership", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validation_rejects_cross_cycle_faction_references()
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var cycle = state.GetActiveCycle()!;
+        var foreignCycle = new Cycle
+        {
+            Name = "Foreign",
+            StartAt = TestState.Now,
+            EndAt = TestState.Now.AddDays(1),
+            CreatedAt = TestState.Now,
+            Status = CycleStatus.Active
+        };
+        var foreignFaction = new Faction
+        {
+            CycleId = foreignCycle.CycleId,
+            FactionName = "Foreign faction",
+            Kind = FactionKind.Neutral,
+            Status = FactionStatus.Active,
+            CreatedAt = TestState.Now
+        };
+        state.Cycles.Add(foreignCycle);
+        state.Factions.Add(foreignFaction);
+        var fleet = state.Fleets.First(item => item.CycleId == cycle.CycleId);
+        state.FleetOrders.Add(new FleetOrder
+        {
+            CycleId = cycle.CycleId,
+            FleetId = fleet.FleetId,
+            OrderType = FleetOrderType.Attack,
+            TargetFactionId = foreignFaction.FactionId,
+            SubmitTick = 0,
+            ExecuteAfterTick = 1,
+            CreatedAt = TestState.Now
+        });
+        state.Events.First(item => item.CycleId == cycle.CycleId).FactionId = foreignFaction.FactionId;
+        var system = state.Systems.First(item => item.CycleId == cycle.CycleId);
+        state.BattleRecords.Add(new BattleRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 0,
+            SystemId = system.SystemId,
+            AttackerEmpireId = fleet.EmpireId,
+            DefenderEmpireId = Guid.Empty,
+            AttackerFactionId = fleet.FactionId,
+            DefenderFactionId = foreignFaction.FactionId,
+            AttackerFleetIds = $"[\"{fleet.FleetId:D}\"]",
+            DefenderFleetIds = "[]",
+            AttackerShipsBefore = fleet.ShipCount,
+            DefenderShipsBefore = 1,
+            Outcome = BattleOutcome.AttackerVictory,
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        });
+
+        var validation = GameStateTransfer.Validate(state);
+
+        Assert.Contains(validation.Errors, error => error.Contains("Fleet order", StringComparison.Ordinal) && error.Contains("target faction", StringComparison.Ordinal));
+        Assert.Contains(validation.Errors, error => error.Contains("Event", StringComparison.Ordinal) && error.Contains("faction", StringComparison.Ordinal));
+        Assert.Contains(validation.Errors, error => error.Contains("Battle", StringComparison.Ordinal) && error.Contains("defender faction", StringComparison.Ordinal));
+    }
+
     private static GameState CreateCompleteValidState()
     {
         var state = GameSeeder.CreateCuratedColdStart();

@@ -42,7 +42,8 @@ public static class OpeningBriefingContract
         && response.Objectives.Colonise.SystemId != Guid.Empty
         && response.Objectives.Attack.FleetId != Guid.Empty
         && response.Objectives.Attack.SystemId != Guid.Empty
-        && response.Objectives.Attack.TargetEmpireId != Guid.Empty;
+        && ((response.Objectives.Attack.TargetFactionId.HasValue && response.Objectives.Attack.TargetFactionId.Value != Guid.Empty)
+            || (response.Objectives.Attack.TargetEmpireId.HasValue && response.Objectives.Attack.TargetEmpireId.Value != Guid.Empty));
 }
 
 public sealed record OpeningBriefingResponse(
@@ -59,4 +60,8 @@ public sealed record OpeningMoveObjectiveResponse(Guid FleetId, Guid TargetSyste
 
 public sealed record OpeningColoniseObjectiveResponse(Guid FleetId, Guid SystemId);
 
-public sealed record OpeningAttackObjectiveResponse(Guid FleetId, Guid SystemId, Guid TargetEmpireId);
+public sealed record OpeningAttackObjectiveResponse(
+    Guid FleetId,
+    Guid SystemId,
+    Guid? TargetEmpireId = null,
+    Guid? TargetFactionId = null);

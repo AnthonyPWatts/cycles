@@ -1,23 +1,32 @@
 using Cycles.Core;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 public static class DevelopmentAuth
 {
     public const string CookieName = "cycles.dev.player";
     public const string HeaderName = "X-Cycles-Dev-Player";
+    private const string CookiePurpose = "Cycles.TrustedPlayerSession.v1";
 
     public static void SignIn(HttpContext httpContext, Player player)
     {
+        var environment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>();
+        var protectedPlayerId = GetProtector(httpContext).Protect(player.PlayerId.ToString("D"));
         httpContext.Response.Cookies.Append(
             CookieName,
-            player.PlayerId.ToString("D"),
+            protectedPlayerId,
             new CookieOptions
             {
                 HttpOnly = true,
                 IsEssential = true,
                 SameSite = SameSiteMode.Lax,
-                Secure = false
+                Secure = !environment.IsDevelopment(),
+                Path = "/",
+                MaxAge = TimeSpan.FromHours(12)
             });
     }
 
@@ -31,14 +40,17 @@ public static class DevelopmentAuth
         var player = RequirePlayer(httpContext, state);
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
-        var empire = GetPlayerEmpire(state, cycle.CycleId, player.PlayerId);
+        var participant = state.GetParticipant(cycle.CycleId, player.PlayerId);
+        var empire = participant is null
+            ? null
+            : state.Empires.Single(item => item.EmpireId == participant.EmpireId);
 
         if (player.Role != PlayerRole.Admin && empire is null)
         {
             throw new ApiForbiddenException("The authenticated player has no empire in the active cycle.");
         }
 
-        return new DevelopmentActor(player, empire);
+        return new DevelopmentActor(player, empire, participant);
     }
 
     public static Fleet RequireCommandableFleet(GameState state, DevelopmentActor actor, Guid fleetId)
@@ -48,12 +60,33 @@ public static class DevelopmentAuth
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
             ?? throw new ApiNotFoundException("Fleet does not exist in the active cycle.");
 
+        _ = RequireCommandableEmpire(state, actor);
+
         if (!actor.IsAdmin && fleet.EmpireId != RequirePlayerEmpireId(actor))
         {
             throw new ApiForbiddenException("The authenticated player cannot command this fleet.");
         }
 
         return fleet;
+    }
+
+    public static Empire? RequireCommandableEmpire(GameState state, DevelopmentActor actor)
+    {
+        if (actor.IsAdmin)
+        {
+            return actor.Empire;
+        }
+
+        var cycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("No active cycle exists.");
+        try
+        {
+            return state.RequireCommandableEmpire(cycle.CycleId, actor.Player.PlayerId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new ApiForbiddenException(exception.Message);
+        }
     }
 
     public static Guid ResolveEmpireId(GameState state, DevelopmentActor actor, Guid? requestedEmpireId = null)
@@ -92,6 +125,11 @@ public static class DevelopmentAuth
             throw new ApiForbiddenException("The authenticated player cannot cancel another empire's order.");
         }
 
+        if (!actor.IsAdmin)
+        {
+            _ = RequireCommandableEmpire(state, actor);
+        }
+
         return fleet.EmpireId;
     }
 
@@ -107,6 +145,11 @@ public static class DevelopmentAuth
             throw new ApiForbiddenException("The authenticated player is not active.");
         }
 
+        if (player.Kind != PlayerKind.Human)
+        {
+            throw new ApiForbiddenException("The authenticated player is not available for human sign-in.");
+        }
+
         return player;
     }
 
@@ -117,31 +160,37 @@ public static class DevelopmentAuth
             return authenticatedPlayerId;
         }
 
-        if (httpContext.Request.Headers.TryGetValue(HeaderName, out var headerValues)
+        var requestServices = httpContext.Features.Get<IServiceProvidersFeature>()?.RequestServices;
+        var environment = requestServices?.GetService<IHostEnvironment>();
+        if (environment?.IsDevelopment() == true
+            && httpContext.Request.Headers.TryGetValue(HeaderName, out var headerValues)
             && Guid.TryParse(headerValues.FirstOrDefault(), out var headerPlayerId))
         {
             return headerPlayerId;
         }
 
-        return httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
-            && Guid.TryParse(cookieValue, out var cookiePlayerId)
+        if (!httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue))
+        {
+            return null;
+        }
+
+        try
+        {
+            var unprotectedPlayerId = GetProtector(httpContext).Unprotect(cookieValue);
+            return Guid.TryParse(unprotectedPlayerId, out var cookiePlayerId)
                 ? cookiePlayerId
                 : null;
-    }
-
-    private static Empire? GetPlayerEmpire(GameState state, Guid cycleId, Guid playerId)
-    {
-        var empires = state.Empires
-            .Where(item => item.CycleId == cycleId && item.PlayerId == playerId)
-            .ToArray();
-
-        return empires.Length switch
+        }
+        catch (CryptographicException)
         {
-            0 => null,
-            1 => empires[0],
-            _ => throw new InvalidOperationException("A player is assigned to more than one empire in the active cycle.")
-        };
+            return null;
+        }
     }
+
+    private static IDataProtector GetProtector(HttpContext httpContext) =>
+        httpContext.RequestServices
+            .GetRequiredService<IDataProtectionProvider>()
+            .CreateProtector(CookiePurpose);
 
     private static Guid RequirePlayerEmpireId(DevelopmentActor actor) =>
         actor.Empire?.EmpireId
@@ -156,7 +205,7 @@ public static class DevelopmentAuth
     }
 }
 
-public sealed record DevelopmentActor(Player Player, Empire? Empire)
+public sealed record DevelopmentActor(Player Player, Empire? Empire, MatchParticipant? Participant = null)
 {
     public bool IsAdmin => Player.Role == PlayerRole.Admin;
 }

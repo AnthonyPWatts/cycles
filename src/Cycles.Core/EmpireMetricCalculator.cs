@@ -30,15 +30,21 @@ public static class EmpireMetricCalculator
             }
 
             var systemTotalPresence = presence.Values.Sum();
-            foreach (var (empireId, effectivePresence) in presence)
+            foreach (var (factionId, effectivePresence) in presence)
             {
-                if (!controlShares.ContainsKey(empireId))
+                var empireId = state.GetEmpireIdForFaction(factionId);
+                if (!empireId.HasValue)
                 {
                     continue;
                 }
 
-                controlShares[empireId] += effectivePresence / systemTotalPresence;
-                totalPresence[empireId] += effectivePresence;
+                if (!controlShares.ContainsKey(empireId.Value))
+                {
+                    continue;
+                }
+
+                controlShares[empireId.Value] += effectivePresence / systemTotalPresence;
+                totalPresence[empireId.Value] += effectivePresence;
             }
         }
 
@@ -46,8 +52,14 @@ public static class EmpireMetricCalculator
             .Where(fleet => fleet.CycleId == cycleId
                             && fleet.Status == FleetStatus.Active
                             && fleet.ShipCount > 0)
-            .GroupBy(fleet => fleet.EmpireId)
-            .ToDictionary(group => group.Key, group => group.Sum(fleet => fleet.ShipCount));
+            .GroupBy(fleet => fleet.FactionId)
+            .Select(group => new
+            {
+                EmpireId = state.GetEmpireIdForFaction(group.Key),
+                ShipCount = group.Sum(fleet => fleet.ShipCount)
+            })
+            .Where(item => item.EmpireId.HasValue)
+            .ToDictionary(item => item.EmpireId!.Value, item => item.ShipCount);
 
         var standings = activeEmpires
             .Select(empire => new

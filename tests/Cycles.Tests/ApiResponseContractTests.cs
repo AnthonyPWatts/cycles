@@ -8,6 +8,16 @@ namespace Cycles.Tests;
 public sealed class ApiResponseContractTests
 {
     [Fact]
+    public void Neutral_fleet_contract_uses_its_faction_name_without_an_empire()
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var neutralFleet = state.Fleets.First(item => item.EmpireId == Guid.Empty);
+        var faction = state.Factions.Single(item => item.FactionId == neutralFleet.FactionId);
+
+        Assert.Equal(faction.FactionName, FleetContractMapping.GetOwnerName(state, neutralFleet));
+    }
+
+    [Fact]
     public void Public_response_contracts_do_not_expose_domain_entities()
     {
         Type[] responseTypes =
@@ -105,13 +115,15 @@ public sealed class ApiResponseContractTests
         Assert.NotEqual(Guid.Empty, briefing.FocusSystemId);
         Assert.NotEqual(Guid.Empty, briefing.Objectives.Move.FleetId);
         Assert.NotEqual(Guid.Empty, briefing.Objectives.Colonise.SystemId);
-        Assert.NotEqual(Guid.Empty, briefing.Objectives.Attack.TargetEmpireId);
+        Assert.NotEqual(Guid.Empty, briefing.Objectives.Attack.TargetFactionId);
 
         var khepri = state.Empires.Single(empire => empire.EmpireName == "Khepri Mandate");
         var khepriPlayer = state.Players.Single(player => player.PlayerId == khepri.PlayerId);
         var khepriActor = new DevelopmentActor(khepriPlayer, khepri);
         var khepriVisibleSystems = ApiVisibility.GetVisibleSystemIds(state, cycle, khepriActor);
-        Assert.Null(OpeningBriefingContract.FindVisible(state, cycle, khepriActor, khepriVisibleSystems));
+        var khepriBriefing = OpeningBriefingContract.FindVisible(state, cycle, khepriActor, khepriVisibleSystems);
+        Assert.NotNull(khepriBriefing);
+        Assert.NotEqual(briefing.Objectives.Move.FleetId, khepriBriefing.Objectives.Move.FleetId);
     }
 
     [Fact]

@@ -267,6 +267,28 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task CancelOrderEndpointRejectsDefeatedParticipant()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var player = Assert.Single(state.Players);
+        var empire = Assert.Single(state.Empires);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        MatchControl.DefeatEmpire(state, empire.EmpireId, TestState.Now.AddMinutes(1));
+
+        var result = ApiOrderEndpoints.Cancel(
+            new CancelFleetOrderRequest(order.FleetOrderId),
+            CreateAuthenticatedContext(state, player),
+            new InMemoryGameStateStore(state),
+            TestState.Now.AddMinutes(2));
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Equal(FleetOrderStatus.Pending, order.Status);
+    }
+
+    [Fact]
     public async Task PriorityEndpointRejectsWeightsThatDoNotTotalOneHundred()
     {
         var state = TestState.CreateSingleEmpireState();
@@ -409,10 +431,8 @@ public sealed class ApiOrderBoundaryTests
 
     private static DefaultHttpContext CreateAuthenticatedContext(GameState state, Player? player = null)
     {
-        var context = new DefaultHttpContext();
         var authenticatedPlayer = player ?? Assert.Single(state.Players);
-        context.Request.Headers[DevelopmentAuth.HeaderName] = authenticatedPlayer.PlayerId.ToString("D");
-        return context;
+        return TestHttpContextFactory.CreateAuthenticated(authenticatedPlayer);
     }
 
     private static IServiceProvider CreateResultServices()

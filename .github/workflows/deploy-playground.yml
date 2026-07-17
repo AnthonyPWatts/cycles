@@ -82,7 +82,9 @@ jobs:
           az webapp config appsettings set
           --resource-group rg-cycles-playground-uks
           --name "${{ vars.AZURE_WEBAPP_NAME }}"
-          --settings Cycles__EdgeAssetOrigin=https://cycles.anthonypwatts.co.uk
+          --settings
+          Cycles__EdgeAssetOrigin=https://cycles.anthonypwatts.co.uk
+          Cycles__TrustedPlayerSelection__Enabled=true
           --output none
 
       - name: Migrate and prepare galaxy
