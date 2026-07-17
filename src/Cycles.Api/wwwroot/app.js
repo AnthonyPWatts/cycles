@@ -2068,11 +2068,30 @@ function applyTutorialTarget(target) {
     target.setAttribute("aria-describedby", [...describedBy].join(" "));
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(() => target.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-        inline: "nearest"
-    }));
+    requestAnimationFrame(() => {
+        if (!tutorialTargetNeedsScroll(target)) {
+            return;
+        }
+
+        target.scrollIntoView({
+            behavior: reducedMotion ? "auto" : "smooth",
+            block: "center",
+            inline: "nearest"
+        });
+    });
+}
+
+function tutorialTargetNeedsScroll(target) {
+    const bounds = target.getBoundingClientRect();
+    const viewBounds = target.closest(".app-view")?.getBoundingClientRect();
+    const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0);
+    let visibleBottom = Math.min(bounds.bottom, viewBounds?.bottom ?? window.innerHeight);
+    if (window.innerWidth <= 900 && !elements.tutorialPanel.hidden) {
+        visibleBottom = Math.min(visibleBottom, elements.tutorialPanel.getBoundingClientRect().top);
+    }
+
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    return visibleHeight < Math.min(bounds.height, 120);
 }
 
 function clearTutorialTarget() {
