@@ -806,16 +806,6 @@ select {
     background: #01040a;
 }
 
-.map-stage::before {
-    position: absolute;
-    z-index: 0;
-    inset: 0;
-    background: center / cover no-repeat url("/assets/atlas-backdrop.png");
-    opacity: 0.58;
-    filter: saturate(0.8) brightness(0.72);
-    content: "";
-}
-
 .map-recovery button:disabled {
     opacity: 0.38;
     cursor: not-allowed;
@@ -2978,11 +2968,12 @@ dd {
 
     .map-stage {
         display: block;
-        min-height: min(620px, 64vh);
+        min-height: 0;
+        aspect-ratio: 1586 / 992;
     }
 
     #galaxyMap {
-        min-height: 420px;
+        min-height: 0;
         height: 100%;
     }
 
@@ -3200,7 +3191,7 @@ dd {
     }
 
     .map-stage {
-        min-height: min(520px, 58vh);
+        min-height: 0;
     }
 
     .map-ranges > span,
@@ -3215,7 +3206,7 @@ dd {
     }
 
     #galaxyMap {
-        min-height: 340px;
+        min-height: 0;
     }
 
     .system-inspector {

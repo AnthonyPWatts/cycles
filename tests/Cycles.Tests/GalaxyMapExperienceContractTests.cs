@@ -16,7 +16,7 @@ public sealed class GalaxyMapExperienceContractTests
         foreach (var asset in assets)
         {
             var header = File.ReadAllBytes(asset).AsSpan(0, 24);
-            Assert.InRange(BinaryPrimitives.ReadInt32BigEndian(header[16..20]), 1585, 1586);
+            Assert.Equal(2400, BinaryPrimitives.ReadInt32BigEndian(header[16..20]));
             Assert.Equal(992, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
         }
     }
@@ -44,7 +44,7 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
         Assert.Contains("const authoredGalaxyAtlas", script);
-        Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.png\"", script);
+        Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.png?v=20260716-wide-atlas-1\"", script);
         Assert.Equal(8, Regex.Matches(script, "asset: \"/assets/galaxy/sector-").Count);
     }
 

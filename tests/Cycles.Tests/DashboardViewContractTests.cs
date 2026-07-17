@@ -72,7 +72,8 @@ public sealed class DashboardViewContractTests
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
         Assert.Contains("authoredGalaxyAtlas", script);
-        Assert.Contains("viewBox=\"0 0 1586 992\"", html);
+        Assert.Contains("viewBox=\"-407 0 2400 992\"", html);
+        Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", html);
         Assert.Contains("function renderMapOwnershipStats", script);
         Assert.Contains("function renderMapInsight", script);
         Assert.Contains("selected-route", script);
