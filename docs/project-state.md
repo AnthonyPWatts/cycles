@@ -124,7 +124,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 
 ## Verification
 
-Latest local verification on 2026-07-16 used the normal repository test helper:
+Latest local verification on 2026-07-17 used the normal repository test helper:
 
 ```powershell
 .\eng\test.ps1
@@ -140,7 +140,7 @@ The deployed custom-domain check repeated the route-boundary and media-delivery 
 
 The 17 July UI-evidence refresh replaced the maintained 1600×900 Command and Galaxy screenshots, removed their redundant public-media copies, and regenerated the film from those canonical captures. Both 900-frame outputs passed full decode, timing, luminance, and audio-tail verification; the Cloudflare derivative is 11.54 MiB. A Release publish contained 66 files but zero video or `assets`/`media` files. Cloudflare revision `e0a90e57-4996-4f5b-97d1-c4e3d003311c` deployed the refreshed landing shell and edge media; live playback reached ready state 4, the hero used one matching preloaded image URL without console errors, and removed screenshot URLs returned `404`.
 
-The duration-independent promo contract is implemented and locally verified in the repository. The renamed derivative passes all 900-frame media checks; five Worker tests cover canonical delivery and the permanent legacy redirect; the full 249-test suite passes; Wrangler accepts the 39-file asset set; and Release publish output contains zero edge media files. The live canonical film URL remains unavailable until the coordinated Cycles Cloudflare deployment, so consuming-site deployment must follow that edge publication and verification.
+The duration-independent promo contract is deployed through Cloudflare revision `a190e52e-979f-4ee5-a976-3c62edad5aaf`. Real unauthenticated GETs return `200`, `video/mp4` and `image/jpeg` for the canonical film and poster, with Cloudflare cache hits, revalidation headers and content-derived ETags. GET and HEAD requests for the former duration-based film path return `308` to the canonical film, while a direct Azure request returns `307` to the same Cloudflare URL without serving media bytes. The landing page uses both canonical paths without query strings; browser playback reached ready state 4 and advanced without media or console errors. The consuming-site dependency is therefore cleared. A future real derivative replacement, rather than a sacrificial media deployment, should retain the URL and record the validator change as longitudinal evidence.
 
 The automated coverage includes:
 
