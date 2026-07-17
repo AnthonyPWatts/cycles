@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260717-admiral-guide-3">
+    <link rel="stylesheet" href="styles.css?v=20260717-command-density-1">
 </head>
 <body>
     <header class="topbar">
@@ -89,24 +89,15 @@
             <section id="commandView" class="app-view command-view" data-view="command" aria-labelledby="commandViewTitle">
                 <h1 id="commandViewTitle" class="visually-hidden" tabindex="-1">Command</h1>
                 <div class="command-workspace">
-                    <header class="command-workspace-heading">
-                        <div>
-                            <span class="section-kicker">Imperial command</span>
-                            <h2>Command</h2>
-                            <p>Triage the Cycle. Commit the next turn.</p>
-                        </div>
-                        <div class="command-heading-status">
-                            <span><strong id="commandAgendaCount">0</strong> agenda items</span>
-                            <span><strong id="commandPendingCount">0</strong> orders pending</span>
-                        </div>
-                    </header>
-
                     <div class="command-overview-grid">
                         <section class="view-card council-agenda" aria-labelledby="councilAgendaTitle">
                             <div class="section-heading">
                                 <div>
                                     <span class="section-kicker">Immediate decisions</span>
-                                    <h2 id="councilAgendaTitle">Council Agenda</h2>
+                                    <div class="section-title-row">
+                                        <h2 id="councilAgendaTitle">Council Agenda</h2>
+                                        <span class="section-heading-count"><strong id="commandAgendaCount">0</strong> items</span>
+                                    </div>
                                 </div>
                             </div>
                             <div id="councilAgenda" class="agenda-list" aria-live="polite"></div>
@@ -221,7 +212,10 @@
                         <div class="section-heading command-queue-heading">
                             <div>
                                 <span class="section-kicker">Committed intentions</span>
-                                <h2>Order Queue &amp; Turn Calendar</h2>
+                                <div class="section-title-row">
+                                    <h2>Order Queue &amp; Turn Calendar</h2>
+                                    <span class="section-heading-count"><strong id="commandPendingCount">0</strong> pending</span>
+                                </div>
                             </div>
                             <div class="command-queue-actions">
                                 <a class="section-link" href="#fleets">Issue orders</a>
@@ -525,6 +519,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260717-admiral-guide-4"></script>
+    <script src="app.js?v=20260717-command-density-1"></script>
 </body>
 </html>
