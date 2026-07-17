@@ -15,6 +15,9 @@ public static class MatchControl
             ? fleet.FactionId
             : state.GetEmpireFaction(fleet.EmpireId).FactionId;
 
+    public static Faction GetFleetFaction(this GameState state, Fleet fleet) =>
+        state.Factions.Single(item => item.FactionId == state.GetFactionId(fleet));
+
     public static MatchParticipant? GetParticipant(this GameState state, Guid cycleId, Guid playerId) =>
         state.MatchParticipants.SingleOrDefault(item => item.CycleId == cycleId && item.PlayerId == playerId);
 

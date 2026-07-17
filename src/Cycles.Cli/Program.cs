@@ -150,7 +150,7 @@ static void Show(IGameStateStore store)
     Console.WriteLine("Fleets");
     foreach (var fleet in state.Fleets.Where(fleet => fleet.CycleId == cycle.CycleId).OrderBy(fleet => fleet.FleetName))
     {
-        var empire = state.Empires.Single(item => item.EmpireId == fleet.EmpireId);
+        var faction = state.GetFleetFaction(fleet);
         var system = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
         var destination = fleet.DestinationSystemId.HasValue
             ? state.Systems.Single(item => item.SystemId == fleet.DestinationSystemId.Value).SystemName
@@ -159,7 +159,7 @@ static void Show(IGameStateStore store)
             ? state.Admirals.SingleOrDefault(item => item.AdmiralId == fleet.AdmiralId.Value)
             : null;
         Console.WriteLine($"- {fleet.FleetName} ({fleet.FleetId})");
-        Console.WriteLine($"  {empire.EmpireName}; {fleet.ShipCount} ships; {fleet.Status}; at {system.SystemName}{(destination is null ? "" : $" -> {destination} on tick {fleet.ArrivalTickNumber}")}");
+        Console.WriteLine($"  {faction.FactionName}; {fleet.ShipCount} ships; {fleet.Status}; at {system.SystemName}{(destination is null ? "" : $" -> {destination} on tick {fleet.ArrivalTickNumber}")}");
         if (admiral is not null)
         {
             Console.WriteLine($"  Admiral: {admiral.AdmiralName}; reputation {admiral.ReputationScore}; {admiral.Status}");
