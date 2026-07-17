@@ -20,6 +20,9 @@ public sealed class CuratedColdStartTests
         Assert.Equal(3, state.MatchParticipants.Count(item => item.CycleId == cycle.CycleId));
         Assert.Equal(3, empires.Select(item => state.Systems.Single(system => system.SystemId == item.HomeSystemId).SectorId).Distinct().Count());
         Assert.Equal(6, state.Fleets.Count(item => item.FactionId == neutral.FactionId));
+        Assert.All(
+            state.Fleets.Where(item => item.FactionId == neutral.FactionId),
+            fleet => Assert.Equal(neutral.FactionId, state.GetFleetFaction(fleet).FactionId));
 
         var homeOutputs = empires
             .Select(item => state.Systems.Single(system => system.SystemId == item.HomeSystemId))
