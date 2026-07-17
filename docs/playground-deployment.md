@@ -10,9 +10,9 @@ The hosted playground is a deliberately constrained development environment for 
 - `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Advance turn** capability.
 - The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the canonical 8-sector, 64-system Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
-- A Cloudflare Worker on the Free plan proxies `https://cycles.anthonypwatts.co.uk` to the App Service origin. The Worker has no bindings, storage, observability, or paid features.
-- The landing page, its stylesheet and promotional media remain public on both the custom domain and direct Azure origin. The shared application-level access code protects the dashboard, application assets, authentication routes, and game APIs. `/health` also remains unauthenticated for deployment verification.
-- Public landing assets use versioned URLs plus browser and Cloudflare edge-cache headers. The film does not preload before a visitor chooses to play it. This keeps repeated landing-page visits and film playback from repeatedly consuming the App Service F1 outbound-data allowance at the Azure origin.
+- A Cloudflare Worker on the Free plan fronts `https://cycles.anthonypwatts.co.uk`. Its static-assets binding serves the public landing shell plus image and video files directly from Cloudflare; all other routes continue through the Worker to the App Service origin. It uses no R2, KV, paid observability, or paid Worker features.
+- The landing page, its stylesheet, promotional media, atlas art, and interface artwork are public. The shared application-level access code still protects dashboard HTML, JavaScript, CSS, authentication routes, and game APIs. `/health` remains unauthenticated for deployment verification.
+- Azure publish output excludes `wwwroot/assets` and `wwwroot/media`. The deployed API redirects a direct-origin image or video request to the custom domain through `Cycles__EdgeAssetOrigin`; a media request incorrectly proxied from that domain fails with `502` rather than redirecting in a loop. The public film is a 10.93 MiB web derivative of the retained 32.50 MiB production master and does not preload before a visitor chooses to play it.
 
 App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
 
@@ -85,20 +85,28 @@ Later on 15 July, manual workflow run `29446689039` used the explicit `reseed` i
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Successful CI runs then skip deployment rather than restarting a public Development-auth origin.
 
-The Cloudflare proxy is defined under `deploy/cloudflare`. It is deliberately separate from the normal application deployment because the proxy is stable and its deployment requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy with Wrangler, and delete the token immediately afterwards. Do not store a Cloudflare token in GitHub.
+The Cloudflare edge is defined under `deploy/cloudflare`. `wrangler.toml` binds `src/Cycles.Api/wwwroot` as static assets, while `worker.js` uses an explicit allowlist for the landing shell and image/video extensions. Unknown files, Markdown production notes, dashboard code, authentication and API requests default to the Azure proxy.
+
+Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare token in GitHub:
+
+```powershell
+npx wrangler deploy
+```
+
+Deploy Cloudflare before publishing an API revision that changes or removes edge assets. The Azure package deliberately has no media fallback, so this ordering prevents a missing-asset window while retaining the hard bandwidth boundary.
 
 ## Invited Access
 
 `CYCLES_PLAYGROUND_ACCESS_CODE` enables the access gate. Keep the generated value only in the Azure App Service setting and a password manager; never commit it or add it to GitHub. Anthony and Will use the same code and receive separate seven-day, secure, HTTP-only browser cookies. Rotate the setting to revoke every existing playground cookie.
 
-Anonymous visitors may read the public landing page and promotional media. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard, application asset, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`.
+Anonymous visitors may read the public landing page and static artwork. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard HTML, JavaScript, CSS, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`.
 
 This shared-code gate is a trusted-playground exception, not production identity. Cloudflare Zero Trust was considered but not activated because its checkout required a payment card and offered authorisation for usage over the free allowance. The hard-spend requirement takes precedence over per-email sign-in for this environment.
 
 ## Cost Guardrails
 
 - Keep the App Service plan on SKU `F1`.
-- App Service F1 enforces a daily outbound-data allowance. If Azure reports the site state as `QuotaExceeded`, inspect the plan's `/usages` resource, leave paid scaling disabled, and wait for the reported `nextResetTime`. Pause automatic deployment while the quota is exhausted, then re-enable it and dispatch one deliberate deployment after reset.
+- App Service F1 enforces a daily outbound-data allowance. Static media should not contribute to it after the edge cutover. If Azure reports the site state as `QuotaExceeded`, inspect the plan's `/usages` resource, leave paid scaling disabled, and wait for the reported `nextResetTime`. Pause automatic deployment while the quota is exhausted, then investigate direct-origin or unexpectedly proxied traffic before re-enabling deployment.
 - Keep `CyclesDb` on the free serverless offer with 2 vCores maximum, 0.5 vCores minimum, 32 GB maximum size, locally redundant backups, provider-default auto-pause, and free-limit exhaustion behaviour `AutoPause`. Do not select `BillOverUsage`.
 - Do not add another persistent database, continuously running Worker, Container Apps environment, Azure Container Registry, private endpoint, Application Insights resource, Log Analytics workspace, or paid App Service feature to this playground. A restore-rehearsal database must be isolated, validated, and deleted immediately after evidence is recorded.
 - Treat Azure budgets as notifications only; the F1 quotas and Azure SQL free-limit exhaustion setting are the enforced spend controls.
@@ -107,7 +115,7 @@ This shared-code gate is a trusted-playground exception, not production identity
 - Keep the playable application surface restricted. This environment uses development authentication and is not suitable for untrusted application access even though its non-sensitive landing page is public.
 - The database cutover and restore gate is complete; later tester scope remains governed by the guided-play, Worker-operation, and security gates in the project backlog.
 - Keep temporary restore-rehearsal databases isolated and delete them as soon as their recorded evidence is complete. No restore-proof database should remain during normal playground operation.
-- Keep the Cloudflare Workers subscription on Free. Do not enable a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
+- Keep the Cloudflare Workers subscription on Free. Static assets must remain below the Free plan's 25 MiB per-file limit. Do not enable R2, a paid Workers plan, Zero Trust subscription, paid observability, or usage-overage authorisation for this playground.
 
 ## Verification
 
@@ -149,4 +157,4 @@ az policy assignment show `
   --query '{enforcementMode:enforcementMode,scope:scope}'
 ```
 
-The checks must continue to report `F1`/`Free`; an online or auto-paused `GP_S_Gen5` `CyclesDb` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum size, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; no exceeded App Service quota after the daily reset; no leftover restore-proof user database; seven retention days; a single `Cycles` connection-string name without displaying its value; no obsolete state-path or SQL-activation setting; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from both `https://cycles.anthonypwatts.co.uk/` and `/health`, `401` from an unauthenticated request to `/app.html`, `200` from `/app.html` after exchanging the access code for the secure cookie, and cache headers on versioned public film and promotional-image responses.
+The checks must continue to report `F1`/`Free`; an online or auto-paused `GP_S_Gen5` `CyclesDb` database with capacity 2, minimum 0.5, auto-pause 60, 32 GB maximum size, free-limit use enabled, `AutoPause` exhaustion behaviour, and local backup storage; no exceeded App Service quota after the daily reset; no leftover restore-proof user database; seven retention days; a single `Cycles` connection-string name without displaying its value; no obsolete state-path or SQL-activation setting; an access-code setting without displaying its value; a `ReadOnly` lock; and an enforced policy assignment. Public verification should report `200` from `https://cycles.anthonypwatts.co.uk/` and its image/video assets while Azure Data Out remains unchanged on repeated media requests; `200` from the direct Azure `/health`; `307` from a direct-origin image/video request to the matching custom-domain URL; `401` from an unauthenticated `/app.html`; and `200` from `/app.html` after exchanging the access code for the secure cookie.

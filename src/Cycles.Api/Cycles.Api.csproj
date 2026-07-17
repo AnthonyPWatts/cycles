@@ -6,6 +6,11 @@
     <ProjectReference Include="..\Cycles.Infrastructure.SqlServer\Cycles.Infrastructure.SqlServer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="wwwroot\assets\**\*" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot\media\**\*" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

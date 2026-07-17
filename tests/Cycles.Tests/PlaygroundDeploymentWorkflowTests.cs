@@ -7,12 +7,15 @@ public sealed class PlaygroundDeploymentWorkflowTests
     {
         var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"));
         var stopIndex = workflow.IndexOf("Stop API for database maintenance", StringComparison.Ordinal);
+        var edgeOriginIndex = workflow.IndexOf("Cycles__EdgeAssetOrigin=https://cycles.anthonypwatts.co.uk", StringComparison.Ordinal);
         var migrationIndex = workflow.IndexOf("db migrate", StringComparison.Ordinal);
         var seedIndex = workflow.IndexOf("seed \"sqlserver:$connection_string\" --confirm-replace", StringComparison.Ordinal);
         var upgradeIndex = workflow.IndexOf("galaxy upgrade", StringComparison.Ordinal);
         var deployIndex = workflow.IndexOf("azure/webapps-deploy", StringComparison.Ordinal);
 
         Assert.True(stopIndex >= 0);
+        Assert.True(stopIndex < edgeOriginIndex);
+        Assert.True(edgeOriginIndex < migrationIndex);
         Assert.True(stopIndex < migrationIndex);
         Assert.True(migrationIndex < seedIndex);
         Assert.True(migrationIndex < upgradeIndex);
@@ -26,5 +29,6 @@ public sealed class PlaygroundDeploymentWorkflowTests
         Assert.Contains("for attempt in 1 2 3", workflow, StringComparison.Ordinal);
         Assert.Contains("sleep $((attempt * 15))", workflow, StringComparison.Ordinal);
         Assert.Contains("- name: Start API\n        if: always()", workflow.ReplaceLineEndings("\n"), StringComparison.Ordinal);
+        Assert.Contains("--output none", workflow, StringComparison.Ordinal);
     }
 }

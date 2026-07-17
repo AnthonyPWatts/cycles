@@ -1476,6 +1476,25 @@ Consequences:
 - The film uses an original generated score and sound design, with no third-party audio in the current master.
 - Current film assets, prompt text, timing, render inputs, and verification command are maintained in `src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md`.
 
+## 2026-07-16: Move Static Media Delivery To The Existing Cloudflare Worker
+
+Decision: serve the public landing shell plus image and video artwork through the existing Cloudflare Worker's static-assets binding. Keep dashboard HTML, JavaScript and CSS, authentication, APIs and health checks on the Azure proxy path. Retain the high-quality film master outside `wwwroot`, deploy a sub-25-MiB web derivative, and exclude `wwwroot/assets` and `wwwroot/media` from the App Service package.
+
+Reasoning:
+
+- The live F1 plan exhausted its daily Data Out quota while using negligible CPU. Its 32.50 MiB film alone could consume the observed 225.5 MiB allowance in roughly seven uncached origin transfers.
+- Cloudflare already fronts the custom domain, and Workers static assets on the Free plan add neither storage nor bandwidth charges. The binding therefore removes the dominant Azure egress without introducing R2 checkout, overage billing, another hosting account, or a second public hostname.
+- A CRF 22/128 kbps derivative preserves the film's 1080p, 30 fps and 48 kHz stereo delivery contract at 10.93 MiB, 66% below the retained CRF 16/256 kbps master and safely under Cloudflare's 25 MiB per-file limit.
+- The repository is public and the artwork contains no player, credential, or authoritative game-state data. Keeping executable dashboard assets and every dynamic route on the existing access-controlled origin preserves the meaningful playground boundary.
+
+Consequences:
+
+- `deploy/cloudflare` owns the explicit edge allowlist and static-assets binding. Unknown files and routes continue to Azure by default.
+- Cloudflare must be deployed before an Azure revision that removes or changes edge assets. The API publish package deliberately provides no media fallback.
+- Direct Azure image/video requests redirect to `cycles.anthonypwatts.co.uk`; a request already forwarded from that host fails rather than forming a redirect loop.
+- Repeated media requests should not increase App Service Data Out. Azure bandwidth remains relevant only for the small application shell, authentication, APIs, health and any unexpectedly proxied traffic.
+- The earlier binding-free Worker description is superseded for the trusted playground; the Worker still uses no paid feature, R2, KV, or paid observability.
+
 ## 2026-07-16: Make Command The Cross-Workspace Triage Hub
 
 Decision: treat Command as the place to understand what needs attention and what is already committed for the next turn, not as a container for every specialised action. Place the four implemented workspaces inside an authored empire/Cycle shell with illustrated navigation, and keep future Strategy or Diplomacy destinations out of the navigation until they have bounded player-facing behaviour.
@@ -1496,7 +1515,7 @@ Consequences:
 
 ## 2026-07-16: Keep The Trusted Playground Landing Page Public
 
-Decision: remove the trusted playground's whole-site access-code override. Keep `/`, `index.html`, the landing stylesheet, promotional media, and `/health` public. Require the shared playground code before serving `/app.html`, application assets, authentication routes, or game APIs.
+Decision: remove the trusted playground's whole-site access-code override. Keep `/`, `index.html`, the landing stylesheet, static image/video artwork, and `/health` public. Require the shared playground code before serving `/app.html`, dashboard JavaScript/CSS, authentication routes, or game APIs.
 
 Reasoning:
 
@@ -1506,7 +1525,7 @@ Reasoning:
 
 Consequences:
 
-- Anonymous visitors can view the landing page, film, and promotional imagery on both the custom domain and direct Azure origin.
+- Anonymous visitors can view the landing page, film, atlas, and interface artwork on the custom domain. Direct-origin image/video requests redirect to that canonical edge route.
 - **Enter the Build** reaches the playground access form. A successful code exchange redirects to `/app.html`.
-- Dashboard HTML, scripts, styles, authored atlas assets, authentication routes, and game APIs remain behind the shared code before their normal route-specific authentication and authorisation checks.
+- Dashboard HTML, scripts, styles, authentication routes, and game APIs remain behind the shared code before their normal route-specific authentication and authorisation checks.
 - The earlier permission to use a whole-site perimeter remains available for a distinct deployment that must not be publicly discoverable, but it is no longer active on the trusted playground.

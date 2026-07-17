@@ -14,6 +14,8 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/media/cycles-promo-30s.mp4")]
     [InlineData("/media/cycles-promo-poster.jpg")]
     [InlineData("/media/promo/gameplay-galaxy.png")]
+    [InlineData("/media/navigation-backgrounds/command.png")]
+    [InlineData("/assets/galaxy/galaxy-overview.png")]
     [InlineData("/health")]
     public async Task PublicLandingRequest_RemainsAvailableWithoutAPlaygroundCookie(string path)
     {
@@ -34,8 +36,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/app.html")]
     [InlineData("/app.js")]
     [InlineData("/styles.css")]
-    [InlineData("/assets/galaxy/galaxy-overview.png")]
-    [InlineData("/media/navigation-backgrounds/command.png")]
+    [InlineData("/media/PROMO-PRODUCTION.md")]
     [InlineData("/auth/login")]
     [InlineData("/galaxy")]
     public async Task UnauthenticatedApplicationRequest_ShowsTheAccessForm(string path)

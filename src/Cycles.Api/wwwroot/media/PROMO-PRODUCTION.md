@@ -1,8 +1,10 @@
 # Cycles Promo Film Production Notes
 
-## Current Master
+## Current Outputs
 
-`cycles-promo-30s.mp4` is the current public-site film. It is a 30-second, 1920×1080, 30 fps H.264/AAC master with 48 kHz stereo audio. `cycles-promo-poster.jpg` is taken from the final title card.
+`tools/promo/cycles-promo-30s-master.mp4` is the reproducible high-quality master. It is a 30-second, 1920×1080, 30 fps H.264/AAC file with 48 kHz stereo audio, encoded at CRF 16 with 256 kbps audio. It is retained outside the deployable web root.
+
+`cycles-promo-30s.mp4` is the public web-delivery derivative. It retains the same dimensions, frame rate, duration and stereo format, but uses CRF 22 and 128 kbps audio. The current derivative is 10.93 MiB rather than the master's 32.50 MiB, keeping it below Cloudflare Workers' 25 MiB static-asset file limit. `cycles-promo-poster.jpg` is taken from the final title card.
 
 The film labels its two kinds of imagery on screen:
 
@@ -32,7 +34,7 @@ The generated concept frames were created with OpenAI's built-in image generatio
 
 The structure is: premise and movement; current Command intent; current Galaxy and Sector geography; concept battle; concept legacy; final call to action. Crossfades briefly overlap those chapters, so current-build and concept labels remain attached to their respective shots.
 
-`tools/render_cycles_promo.py` creates every frame, the original score, the sound design, the encoded master, and the poster. No third-party audio is used in the current film.
+`tools/render_cycles_promo.py` creates every frame, the original score, the sound design, the encoded master, the web derivative, and the poster. No third-party audio is used in the current film. The derivative adds a final delivery fade so its last 250 ms meets the stricter −45 dB web gate; the retained master keeps the documented −43.2 dB tail exception.
 
 Render with the repository's Python dependencies and any FFmpeg 7-compatible executable:
 
@@ -45,11 +47,12 @@ python tools\render_cycles_promo.py `
   --battle src\Cycles.Api\wwwroot\media\promo\concept-treaty-gate-battle.png `
   --legacy src\Cycles.Api\wwwroot\media\promo\concept-cycle-legacy.png `
   --ffmpeg C:\path\to\ffmpeg.exe `
-  --out src\Cycles.Api\wwwroot\media\cycles-promo-30s.mp4 `
+  --out tools\promo\cycles-promo-30s-master.mp4 `
+  --web-out src\Cycles.Api\wwwroot\media\cycles-promo-30s.mp4 `
   --poster src\Cycles.Api\wwwroot\media\cycles-promo-poster.jpg
 ```
 
-Verify the encoded duration, dimensions, frame count, audio format, full decode, final-title luminance, and audio decay:
+Verify both encodes' duration, dimensions, frame count, audio format, full decode, final-title luminance and audio decay, plus the web derivative's 25 MiB ceiling:
 
 ```powershell
 python tools\verify_cycles_promo.py --ffmpeg C:\path\to\ffmpeg.exe

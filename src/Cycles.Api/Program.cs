@@ -51,6 +51,7 @@ if (!app.Environment.IsDevelopment())
     app.UseForwardedHeaders();
 }
 
+app.UseEdgeAssetRedirect(builder.Configuration["Cycles:EdgeAssetOrigin"]);
 app.UsePlaygroundAccess(
     Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE")
         ?? builder.Configuration["Cycles:PlaygroundAccessCode"]);

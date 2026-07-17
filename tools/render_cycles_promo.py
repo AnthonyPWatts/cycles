@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the approximately thirty-second Cycles promo as a 1080p H.264/AAC MP4."""
+"""Render the Cycles promo master and its smaller 1080p web-delivery derivative."""
 
 from __future__ import annotations
 
@@ -1643,6 +1643,59 @@ def render_video(
         raise RuntimeError(f"FFmpeg exited with code {return_code}.")
 
 
+def transcode_web_video(ffmpeg_path: Path, master_path: Path, web_path: Path) -> None:
+    web_path.parent.mkdir(parents=True, exist_ok=True)
+    command = [
+        str(ffmpeg_path),
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-y",
+        "-i",
+        str(master_path),
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0",
+        "-map_metadata",
+        "-1",
+        "-frames:v",
+        str(FRAME_COUNT),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "22",
+        "-pix_fmt",
+        "yuv420p",
+        "-profile:v",
+        "high",
+        "-level",
+        "4.1",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-c:a",
+        "aac",
+        "-af",
+        "afade=t=out:st=29.500:d=0.500",
+        "-b:a",
+        "128k",
+        "-ar",
+        str(SAMPLE_RATE),
+        "-movflags",
+        "+faststart",
+        "-t",
+        f"{DURATION:.3f}",
+        str(web_path),
+    ]
+    subprocess.run(command, check=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gateway", type=Path, required=True)
@@ -1653,6 +1706,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--legacy", type=Path, required=True)
     parser.add_argument("--ffmpeg", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--web-out", type=Path, required=True)
     parser.add_argument("--poster", type=Path, required=True)
     return parser.parse_args()
 
@@ -1671,6 +1725,8 @@ def main() -> int:
     for path, label in required_paths:
         if not path.exists():
             raise FileNotFoundError(f"Missing {label}: {path}")
+    if args.out.resolve() == args.web_out.resolve():
+        raise ValueError("--out and --web-out must identify different files.")
     renderer = PromoRenderer(
         args.gateway,
         args.command,
@@ -1685,7 +1741,10 @@ def main() -> int:
     print("Rendering 1080p master", flush=True)
     render_video(renderer, args.ffmpeg, args.out, audio_path, args.poster)
     audio_path.unlink(missing_ok=True)
+    print("Encoding 1080p web derivative", flush=True)
+    transcode_web_video(args.ffmpeg, args.out, args.web_out)
     print(f"Created {args.out}", flush=True)
+    print(f"Created {args.web_out}", flush=True)
     print(f"Created {args.poster}", flush=True)
     return 0
 

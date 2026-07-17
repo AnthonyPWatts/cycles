@@ -22,7 +22,7 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 | [Simulation Reference](simulation-reference.md) | Determinism, final ranking, and repeatable balance-scenario contracts. |
 | [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
 | [Trusted Playground Deployment](playground-deployment.md) | Free-tier hosted play-testing, CI deployment, and enforced cost guardrails. |
-| [Promo Film Production Notes](../src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) | The current 30-second master, shot provenance, concept-image prompts, render command, and verification boundary. |
+| [Promo Film Production Notes](../src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) | The 30-second master and edge-delivery derivative, shot provenance, concept-image prompts, render command, and verification boundary. |
 | [SQL Server Runbook](../database/sqldockerdeploykit/README.md) | Local database image, connection, migration, integration-test, and cleanup instructions. |
 
 These references support the core documents but are not separate roadmaps or status reports.

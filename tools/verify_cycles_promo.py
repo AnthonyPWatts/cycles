@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the rendered Cycles promo master and its resolved CTA outro."""
+"""Verify the Cycles promo master and its web-delivery derivative."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from pathlib import Path
 
 
 EXPECTED_OUTPUTS = {
-    Path("src/Cycles.Api/wwwroot/media/cycles-promo-30s.mp4"): (30.0, 900),
+    Path("tools/promo/cycles-promo-30s-master.mp4"): (30.0, 900, 0.011, -43.0, None),
+    Path("src/Cycles.Api/wwwroot/media/cycles-promo-30s.mp4"): (30.0, 900, 0.025, -45.0, 25 * 1024 * 1024),
 }
 
 
@@ -67,14 +68,22 @@ def count_decoded_frames(path: Path, ffmpeg: Path) -> int:
     return int(frames[-1])
 
 
-def verify(path: Path, expected_duration: float, expected_frames: int, ffmpeg: Path) -> None:
+def verify(
+    path: Path,
+    expected_duration: float,
+    expected_frames: int,
+    duration_tolerance: float,
+    tail_peak_limit: float,
+    max_bytes: int | None,
+    ffmpeg: Path,
+) -> None:
     if not path.exists():
         raise FileNotFoundError(path)
 
     actual_duration, width, height, frame_rate, sample_rate, channel_layout = read_stream_metadata(path, ffmpeg)
     actual_frames = count_decoded_frames(path, ffmpeg)
     failures: list[str] = []
-    if abs(actual_duration - expected_duration) > 0.011:
+    if abs(actual_duration - expected_duration) > duration_tolerance:
         failures.append(f"duration {actual_duration:.3f}s != {expected_duration:.3f}s")
     if actual_frames != expected_frames:
         failures.append(f"frame count {actual_frames} != {expected_frames}")
@@ -131,13 +140,20 @@ def verify(path: Path, expected_duration: float, expected_frames: int, ffmpeg: P
         failures.append("could not measure final audio decay")
     else:
         final_peak = float("-inf") if volume_matches[-1] == "-inf" else float(volume_matches[-1])
-        if final_peak > -45.0:
-            failures.append(f"final 250 ms has not decayed cleanly (peak {final_peak:.1f} dB)")
+        if final_peak > tail_peak_limit:
+            failures.append(
+                f"final 250 ms peak {final_peak:.1f} dB exceeds {tail_peak_limit:.1f} dB"
+            )
+    if max_bytes is not None and path.stat().st_size > max_bytes:
+        failures.append(f"file size {path.stat().st_size} bytes exceeds {max_bytes} bytes")
 
     if failures:
         raise RuntimeError(f"{path}: " + "; ".join(failures))
 
-    print(f"PASS {path} ({actual_duration:.3f}s, {actual_frames} frames)")
+    print(
+        f"PASS {path} ({actual_duration:.3f}s, {actual_frames} frames, "
+        f"{path.stat().st_size / 1024 / 1024:.2f} MiB)"
+    )
 
 
 def main() -> int:
@@ -147,8 +163,8 @@ def main() -> int:
     if not args.ffmpeg.exists():
         raise FileNotFoundError(args.ffmpeg)
 
-    for path, (duration, frames) in EXPECTED_OUTPUTS.items():
-        verify(path, duration, frames, args.ffmpeg)
+    for path, (duration, frames, tolerance, tail_limit, max_bytes) in EXPECTED_OUTPUTS.items():
+        verify(path, duration, frames, tolerance, tail_limit, max_bytes, args.ffmpeg)
     return 0
 
 
