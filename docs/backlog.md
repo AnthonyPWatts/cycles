@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -27,6 +27,7 @@ The dashboard shell currently exposes the four implemented Command, Galaxy, Flee
 | Guided play and balance evidence | [#131](https://github.com/AnthonyPWatts/cycles/issues/131) | Evidence precedes named constant or rule changes. |
 | Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Builds on the completed managed-SQL deployment and mandatory runtime-host configuration. |
 | Pre-untrusted-test security gate | [#133](https://github.com/AnthonyPWatts/cycles/issues/133) | Review the implemented identity, authorisation, data-transfer, proxy, persistence, and deployment boundaries together. |
+| Public media consumer contract | [#134](https://github.com/AnthonyPWatts/cycles/issues/134) | Cycles owns the stable Cloudflare film and poster URLs; each consuming site owns its presentation, fallback, and responsive behaviour. |
 
 ## Decision-Gated Roadmap
 

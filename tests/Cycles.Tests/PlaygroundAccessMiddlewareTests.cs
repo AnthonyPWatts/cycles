@@ -11,6 +11,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/")]
     [InlineData("/index.html")]
     [InlineData("/site.css")]
+    [InlineData("/media/cycles-promo.mp4")]
     [InlineData("/media/cycles-promo-30s.mp4")]
     [InlineData("/media/cycles-promo-poster.jpg")]
     [InlineData("/media/promo/concept-treaty-gate-battle.png")]

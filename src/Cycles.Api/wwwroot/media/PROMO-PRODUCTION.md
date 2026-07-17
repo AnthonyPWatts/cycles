@@ -4,7 +4,16 @@
 
 `tools/promo/cycles-promo-30s-master.mp4` is the reproducible high-quality master. It is a 30-second, 1920×1080, 30 fps H.264/AAC file with 48 kHz stereo audio, encoded at CRF 16 with 256 kbps audio. The current master is 34.26 MiB and is retained outside the deployable web root.
 
-`cycles-promo-30s.mp4` is the public Cloudflare-delivery derivative. It retains the same dimensions, frame rate, duration and stereo format, but uses CRF 22 and 128 kbps audio. The current derivative is 11.54 MiB rather than the master's 34.26 MiB, keeping it below Cloudflare Workers' 25 MiB static-asset file limit. The Azure website package excludes the derivative and all other files under `wwwroot/media`; `cycles-promo-poster.jpg` is taken from the final title card and follows the same edge-only deployment path.
+`cycles-promo.mp4` is the public Cloudflare-delivery derivative. It retains the same dimensions, frame rate, duration and stereo format, but uses CRF 22 and 128 kbps audio. The current derivative is 11.54 MiB rather than the master's 34.26 MiB, keeping it below Cloudflare Workers' 25 MiB static-asset file limit. The Azure website package excludes the derivative and all other files under `wwwroot/media`; `cycles-promo-poster.jpg` is taken from the final title card and follows the same edge-only deployment path.
+
+## Public Consumer Contract
+
+Public consumers use these duration-independent URLs without manually maintained cache-busting queries:
+
+- `https://cycles.anthonypwatts.co.uk/media/cycles-promo.mp4`
+- `https://cycles.anthonypwatts.co.uk/media/cycles-promo-poster.jpg`
+
+Cloudflare revalidates these paths with content-derived ETags, so a later verified derivative can replace the media without changing consumer markup. The former `/media/cycles-promo-30s.mp4` path redirects permanently to the canonical film URL for existing links. Deploy and verify the Cycles Cloudflare assets before publishing a consumer that references them; the Azure package deliberately carries no media fallback.
 
 The film labels its two kinds of imagery on screen:
 
@@ -48,7 +57,7 @@ python tools\render_cycles_promo.py `
   --legacy src\Cycles.Api\wwwroot\media\promo\concept-cycle-legacy.png `
   --ffmpeg C:\path\to\ffmpeg.exe `
   --out tools\promo\cycles-promo-30s-master.mp4 `
-  --web-out src\Cycles.Api\wwwroot\media\cycles-promo-30s.mp4 `
+  --web-out src\Cycles.Api\wwwroot\media\cycles-promo.mp4 `
   --poster src\Cycles.Api\wwwroot\media\cycles-promo-poster.jpg
 ```
 

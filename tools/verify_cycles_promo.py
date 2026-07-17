@@ -11,7 +11,7 @@ from pathlib import Path
 
 EXPECTED_OUTPUTS = {
     Path("tools/promo/cycles-promo-30s-master.mp4"): (30.0, 900, 0.011, -43.0, None),
-    Path("src/Cycles.Api/wwwroot/media/cycles-promo-30s.mp4"): (30.0, 900, 0.025, -45.0, 25 * 1024 * 1024),
+    Path("src/Cycles.Api/wwwroot/media/cycles-promo.mp4"): (30.0, 900, 0.025, -45.0, 25 * 1024 * 1024),
 }
 
 

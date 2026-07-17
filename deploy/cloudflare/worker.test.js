@@ -8,7 +8,7 @@ test("public shell and media GET requests are edge assets", () => {
     "/",
     "/index.html",
     "/site.css?v=20260716-1",
-    "/media/cycles-promo-30s.mp4?v=20260717-1",
+    "/media/cycles-promo.mp4",
     "/media/navigation-backgrounds/command.png",
     "/assets/galaxy/galaxy-overview.png"
   ]) {
@@ -24,7 +24,7 @@ test("application code, documentation, APIs and mutating media requests stay on 
     ["GET", "/media/PROMO-PRODUCTION.md"],
     ["GET", "/auth/login"],
     ["GET", "/galaxy"],
-    ["POST", "/media/cycles-promo-30s.mp4"]
+    ["POST", "/media/cycles-promo.mp4"]
   ]) {
     assert.equal(
       isEdgeAssetRequest(new Request(`https://cycles.example${path}`, { method })),
@@ -46,13 +46,27 @@ test("edge assets are served by the static binding without contacting Azure", as
   };
 
   const response = await handleRequest(
-    new Request("https://cycles.example/media/cycles-promo-30s.mp4?v=1"),
+    new Request("https://cycles.example/media/cycles-promo.mp4"),
     env,
     () => assert.fail("Azure origin should not be called for an edge asset.")
   );
 
   assert.equal(new URL(assetRequest.url).hostname, "cycles.example");
   assert.equal(response.headers.get("x-cycles-source"), "edge");
+});
+
+test("duration-based promo GET and HEAD requests redirect permanently to the canonical asset", async () => {
+  for (const method of ["GET", "HEAD"]) {
+    const response = await handleRequest(
+      new Request("https://cycles.example/media/cycles-promo-30s.mp4?v=20260717-1", { method }),
+      { ASSETS: { fetch: () => assert.fail("Legacy promo requests must not use the asset binding.") } },
+      () => assert.fail("Legacy promo requests must not contact Azure.")
+    );
+
+    assert.equal(response.status, 308, method);
+    assert.equal(response.headers.get("location"), "/media/cycles-promo.mp4", method);
+    assert.equal(response.headers.get("cache-control"), "public, max-age=86400", method);
+  }
 });
 
 test("protected requests preserve the Azure proxy and custom-domain redirect rewrite", async () => {

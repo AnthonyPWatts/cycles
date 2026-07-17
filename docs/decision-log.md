@@ -1546,3 +1546,19 @@ Consequences:
 - The README and gameplay guide reference that set directly.
 - Promo production uses the same files as render inputs; generated video outputs retain their separate master and Cloudflare-delivery boundaries.
 - The Azure website package continues to exclude every video and media file. The deployed film remains a Cloudflare static asset, while the trusted-playground access scope begins at `/app.html` and the landing page remains public.
+
+## 2026-07-17: Give Public Promo Consumers A Stable Media Contract
+
+Decision: publish the current web derivative and poster at duration-independent Cloudflare URLs. Consumers reference `/media/cycles-promo.mp4` and `/media/cycles-promo-poster.jpg` without manual version queries. Preserve the former duration-based film URL as a permanent redirect.
+
+Reasoning:
+
+- Duration and production labels describe a particular edit, not the durable identity of the public film.
+- Cloudflare's static-asset responses already require revalidation and provide content-derived ETags, so the content can change behind a stable URL without pinning consumers to a stale filename.
+- The main website and future consumers should not copy an 11.54 MiB derivative into their own deployments or coordinate markup changes for every verified edit.
+
+Consequences:
+
+- Cycles owns media generation, verification, publication, compatibility, and the canonical URL contract.
+- Consuming repositories own presentation, playback lifecycle, provenance copy, responsive behaviour, and local fallback evidence.
+- Publish and verify new Cycles edge assets before deploying a consumer that depends on them. The Azure package remains deliberately unable to serve media bytes.

@@ -7,6 +7,7 @@ public sealed class EdgeAssetRedirectMiddlewareTests
     private const string EdgeOrigin = "https://cycles.anthonypwatts.co.uk";
 
     [Theory]
+    [InlineData("/media/cycles-promo.mp4")]
     [InlineData("/media/cycles-promo-30s.mp4")]
     [InlineData("/media/navigation-backgrounds/command.png")]
     [InlineData("/assets/galaxy/galaxy-overview.png")]
@@ -32,7 +33,7 @@ public sealed class EdgeAssetRedirectMiddlewareTests
     public async Task ProxiedEdgeMediaRequest_FailsWithoutRedirectingBackToTheEdge()
     {
         var middleware = new EdgeAssetRedirectMiddleware(_ => Task.CompletedTask, EdgeOrigin);
-        var context = CreateContext("GET", "/media/cycles-promo-30s.mp4");
+        var context = CreateContext("GET", "/media/cycles-promo.mp4");
         context.Request.Headers["X-Forwarded-Host"] = "cycles.anthonypwatts.co.uk";
         context.Response.Body = new MemoryStream();
 
@@ -47,7 +48,7 @@ public sealed class EdgeAssetRedirectMiddlewareTests
     [InlineData("GET", "/app.js")]
     [InlineData("GET", "/styles.css")]
     [InlineData("GET", "/media/PROMO-PRODUCTION.md")]
-    [InlineData("POST", "/media/cycles-promo-30s.mp4")]
+    [InlineData("POST", "/media/cycles-promo.mp4")]
     public async Task NonEdgeRequest_ContinuesThroughTheApplicationPipeline(string method, string path)
     {
         var nextCalled = false;

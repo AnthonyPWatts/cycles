@@ -1,6 +1,16 @@
 const origin = "https://cycles-play-b366b760.azurewebsites.net";
 const edgeShellPaths = new Set(["/", "/index.html", "/site.css"]);
 const edgeMediaPath = /^\/(?:assets|media)\/.*\.(?:avif|gif|jpe?g|mp4|png|svg|webm|webp)$/i;
+const legacyPromoPath = "/media/cycles-promo-30s.mp4";
+const canonicalPromoPath = "/media/cycles-promo.mp4";
+
+function isLegacyPromoRequest(request) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return false;
+  }
+
+  return new URL(request.url).pathname === legacyPromoPath;
+}
 
 export function isEdgeAssetRequest(request) {
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -12,6 +22,16 @@ export function isEdgeAssetRequest(request) {
 }
 
 export async function handleRequest(request, env, fetchOrigin = fetch) {
+  if (isLegacyPromoRequest(request)) {
+    return new Response(null, {
+      status: 308,
+      headers: {
+        location: canonicalPromoPath,
+        "cache-control": "public, max-age=86400"
+      }
+    });
+  }
+
   if (isEdgeAssetRequest(request)) {
     return env.ASSETS.fetch(request);
   }
