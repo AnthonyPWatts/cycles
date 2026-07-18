@@ -29,7 +29,17 @@ An active Cycle advances from persisted state to `CurrentTickNumber + 1`.
 
 The submission boundary permits at most one `Pending` order for a fleet at a particular `ExecuteAfterTick`; current player commands use the next tick. An identical resubmission returns the existing order. A different intention must identify the current order it replaces, after which the previous record becomes `Superseded` and links to the new order. This prevents one fleet from accumulating mutually exclusive commands while preserving the full decision history.
 
-At closure, the engine snapshots the active fleets, labels submitted human intentions, generates deterministic Hold intentions for game-AI and neutral fleets, and fills every other missing command with an implicit Hold. Every ledger row records its command source, sealed tick, and sealed timestamp. Generated Hold identifiers derive from the Cycle, tick, fleet, and source, so retrying the same persisted state reproduces the ledger identity.
+At closure, the engine snapshots the active fleets and labels submitted human intentions. For each game-AI empire, it applies this ordered policy:
+
+1. attack the weakest locally visible faction that the available local fleets outnumber by at least 25%;
+2. Hold if a locally visible attackable faction remains but the AI lacks that advantage;
+3. establish the highest-value affordable outpost for which it has leading presence;
+4. move along a least-travel-time route towards the highest-value reachable system that is not its home, an existing outpost, or already claimed by one of its fleets;
+5. Hold when no earlier legal action exists.
+
+System value combines strategic value, resource output, and historical significance. Equal objectives and equal routes use stable identifiers only as reproducible tie-breakers. The planner uses public system fields and topology plus its own fleets, resources, outposts, and locally visible opponents. It neither reads hidden human intentions nor changes its plan in response to remote enemy fleets. It will not initiate an attack through a non-aggression pact or Alliance. Neutral factions remain positional obstacles and generate deterministic Holds.
+
+Every ledger row records its command source, sealed tick, and sealed timestamp. Generated game-AI identifiers derive from the Cycle, tick, fleet, complete intention, and target; generated Hold identifiers derive from the Cycle, tick, fleet, and source. Retrying the same persisted state therefore reproduces the planner intent and ledger identity. Every remaining missing command becomes an implicit Hold.
 
 ### Authoritative Processing Order
 
@@ -69,7 +79,7 @@ The same persisted state and tick number must produce the same winner, losses, f
 
 This is a current-code and target-runtime contract. Exact replay across runtime or algorithm upgrades would require a versioned PRNG and a persisted algorithm version. Historical events, battles, and Chronicle facts remain authoritative and must not be rewritten when algorithms change.
 
-`tests/Cycles.Tests/DeterminismTests.cs` verifies stable seeded layout fields and combat results for stable persisted identifiers. `tests/Cycles.Tests/TurnResolutionTests.cs` verifies deterministic ledger identities, command sources, movement-before-combat semantics, grouped same-faction attacks, reinforcement isolation, and next-window progression.
+`tests/Cycles.Tests/DeterminismTests.cs` verifies stable seeded layout fields and combat results for stable persisted identifiers. `tests/Cycles.Tests/GameAiPlannerTests.cs` verifies the policy order, tie-breaks, visibility restrictions, neutral behaviour, stable planner identities, and an unattended eight-tick map change. `tests/Cycles.Tests/TurnResolutionTests.cs` verifies deterministic ledger identities, command sources, movement-before-combat semantics, grouped same-faction attacks, reinforcement isolation, and next-window progression.
 
 ## Cycle-End Ranking
 

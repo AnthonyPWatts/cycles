@@ -22,6 +22,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
 - generate resources from influence and spend military industry on queued ships;
 - unlock the first research doctrine and establish population-funded outposts;
+- compete against Ariadne's deterministic game-AI policy as it attacks weaker local forces, establishes outposts, and advances towards valuable systems;
 - resolve deterministic combat and persist factual events, admirals, and Chronicle reports;
 - record map-control metrics, complete a Cycle, preserve major history, and generate a successor Cycle;
 - learn the first-turn loop through a resumable click-along guide in the dashboard;
@@ -86,7 +87,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-With no size or seed arguments, this creates the deterministic `development-match-v2` opening used by the Day One guide: 8 named sectors, 64 systems, 91 routes, and three competing empires in distinct sectors. Tony and Will are persistent human development players; Ariadne is a game-AI player. Each empire begins with three fleets and 60 ships, while six weaker Free Captain fleets provide neutral local and remote pressure. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
+With no size or seed arguments, this creates the deterministic `development-match-v2` opening used by the Day One guide: 8 named sectors, 64 systems, 91 routes, and three competing empires in distinct sectors. Tony and Will are persistent human development players; Ariadne is a game-AI player whose ordered planner attacks weaker visible forces, establishes affordable outposts, and moves towards high-value expansion systems. Each empire begins with three fleets and 60 ships, while six weaker Free Captain fleets remain positional neutral pressure. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
 
 Run the API and dashboard:
 

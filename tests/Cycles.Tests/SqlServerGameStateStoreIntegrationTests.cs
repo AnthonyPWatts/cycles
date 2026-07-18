@@ -38,6 +38,10 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var battle = Assert.Single(loaded.BattleRecords, item => item.AttackerFactionId == state.GetEmpireFaction(empire.EmpireId).FactionId);
         Assert.Equal(neutralFactionId, battle.DefenderFactionId);
         Assert.Equal(Guid.Empty, battle.DefenderEmpireId);
+        Assert.Contains(loaded.FleetOrders, item =>
+            item.CommandSource == FleetOrderCommandSource.GameAiPlanner
+            && item.SealedTick == 1
+            && item.OrderType != FleetOrderType.Hold);
         Assert.DoesNotContain(loaded.DiplomaticRelationships, item =>
             item.FirstEmpireId == empire.EmpireId || item.SecondEmpireId == empire.EmpireId);
 

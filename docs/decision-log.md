@@ -1730,3 +1730,25 @@ Consequences:
 - The ribbon exposes accessible progressbar semantics, a current-turn label, 25-turn milestones, and 150 compact turn divisions.
 - Progress fills to the end of the ribbon at turn 150. A later tick remains visible in the text label without extending the fixed timeline.
 - Tutorial and narrow-screen layouts reserve the ribbon height so fixed controls do not cover playable content.
+
+## 2026-07-18: Give Game AI A Deterministic Expansion Policy
+
+Decision: replace the game-AI Hold-only planner with one ordered deterministic policy. At command closure, each AI empire first attacks a locally visible faction when its available local fleets have at least a 25% ship advantage. It otherwise Holds against an attackable local threat, establishes the highest-value affordable eligible outpost, then advances towards the highest-value reachable system that is not already its home, outpost, or fleet objective. Hold remains the legal fallback.
+
+Use strategic value, resource output, and historical significance to rank expansion systems. Use least travel time for routing and stable identifiers only to break equal-value or equal-route ties. Respect Non-Aggression Pacts and Alliances. Keep neutral factions on deterministic Hold as positional pressure rather than giving them an expansion economy or independent strategic goals.
+
+Reasoning:
+
+- Ariadne already has the same curated move, colonise, and favourable neutral-attack opportunities used to teach human players, so using the ordinary order and tick rules creates a meaningful opponent without scripting outcomes.
+- A small visible priority ladder is auditable in the sealed ledger, straightforward to test, and easier to balance than role assignment, forecasting, or adaptive strategy.
+- Local fleet visibility is sufficient for safe attacks. Remote enemy positions and hidden human commands are unnecessary for value-seeking expansion and would violate the accepted information boundary.
+- A 25% advantage avoids automatic equal-strength attacks while retaining the intended opening pressure. It is a named first-pass tuning value, not a claim of finished combat balance.
+- Positional neutrals preserve predictable map pressure without inventing resources, diplomacy, visibility, or long-horizon goals for a faction that has none of those systems.
+
+Consequences:
+
+- Game-AI Move, Attack, Colonise, and fallback Hold intentions are sealed with `GameAiPlanner` as their command source. Their identifiers derive from the Cycle, tick, fleet, complete intention, and target, so identical persisted state produces the same ledger identity.
+- The planner reads public system value and topology, its own fleets, resources, outposts, and only opponents co-located with an active AI fleet. Remote enemy fleet changes and hidden submitted commands cannot affect its choice.
+- Several available AI fleets in one system combine their strength and issue the same favourable Attack, allowing the existing grouped-combat rule to resolve one battle.
+- An unattended curated match changes position, establishes outposts, and creates combat instead of only accumulating ships.
+- Difficulty levels, fleet roles, home defence, coordinated campaigns, player-facing diplomacy, combat forecasting, adaptation, and strategic neutral behaviour remain separate decisions.

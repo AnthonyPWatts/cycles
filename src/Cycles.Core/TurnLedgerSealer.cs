@@ -44,6 +44,39 @@ internal static class TurnLedgerSealer
             .OrderBy(fleet => fleet.FleetId)
             .ToArray();
 
+        var plannedOrders = GameAiPlanner.Plan(
+            state,
+            cycleId,
+            tickNumber,
+            now,
+            eligibleFleets
+                .Where(fleet => !dueOrdersByFleet.ContainsKey(fleet.FleetId)
+                                && ResolveMissingCommandSource(state, fleet) == FleetOrderCommandSource.GameAiPlanner)
+                .Select(fleet => fleet.FleetId)
+                .ToArray());
+        foreach (var plannedOrder in plannedOrders)
+        {
+            if (!eligibleFleets.Any(fleet => fleet.FleetId == plannedOrder.FleetId)
+                || dueOrdersByFleet.ContainsKey(plannedOrder.FleetId)
+                || plannedOrder.CycleId != cycleId
+                || plannedOrder.ExecuteAfterTick != tickNumber
+                || plannedOrder.Status != FleetOrderStatus.Pending
+                || plannedOrder.CommandSource != FleetOrderCommandSource.GameAiPlanner)
+            {
+                throw new InvalidOperationException("The game-AI planner produced an invalid or conflicting intention.");
+            }
+
+            if (state.FleetOrders.Any(order => order.FleetOrderId == plannedOrder.FleetOrderId))
+            {
+                throw new InvalidOperationException(
+                    $"The deterministic game-AI identifier for fleet {plannedOrder.FleetId} and tick {tickNumber} already exists.");
+            }
+
+            state.FleetOrders.Add(plannedOrder);
+            dueOrders.Add(plannedOrder);
+            dueOrdersByFleet[plannedOrder.FleetId] = [plannedOrder];
+        }
+
         foreach (var fleet in eligibleFleets)
         {
             if (dueOrdersByFleet.TryGetValue(fleet.FleetId, out var existingOrders))
