@@ -69,6 +69,14 @@ The sealed ledger resolves as resource income; due construction; programme spend
 
 When `Cycles:TrustedPlayerSelection:Enabled` is deliberately enabled, `GET /auth/trusted-players` returns active human accounts participating in the current match. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector is intended only for an access-restricted Development host and does not replace external identity or create accounts.
 
+## Dashboard Bootstrap Contract
+
+`GET /dashboard/bootstrap` supplies the dashboard's initial player view and normal refresh from one authoritative store snapshot. The typed response contains the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, 20 recent visible Events, visible Chronicle entries, and the visible opening briefing.
+
+The optional `selectedFleetId` query preserves the player's current fleet selection across a refresh. The server honours it only when the fleet belongs to the authenticated player's empire; a missing, stale, or foreign identifier falls back to the normal owned-fleet default without disclosing whether another fleet exists.
+
+The bootstrap applies the same actor, empire, visibility, and fog-of-war rules as the narrower source endpoints. It does not return `GameState`, domain entities, another empire's fleets or orders, or hidden Events and Chronicle entries. The narrower endpoints remain available for focused interactions and future clients; the bootstrap is a read-optimised composition contract rather than their replacement.
+
 ## Error Contract
 
 Handled player-facing failures retain an appropriate HTTP status and return the same envelope:

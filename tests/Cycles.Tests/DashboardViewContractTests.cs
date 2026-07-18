@@ -251,7 +251,7 @@ public sealed class DashboardViewContractTests
         var script = ReadDashboardAsset("app.js");
 
         Assert.Contains("version: \"v3\"", script);
-        Assert.Contains("getJson(\"/briefings/opening\")", script);
+        Assert.Contains("openingBriefing } = bootstrap", script);
         Assert.DoesNotContain("event.factJson", script);
         Assert.DoesNotContain("JSON.parse(event.factJson)", script);
         Assert.Contains("id: \"visibility\"", script);

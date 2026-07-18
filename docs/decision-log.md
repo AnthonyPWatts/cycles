@@ -1692,3 +1692,23 @@ Consequences:
 - The nine authored images requested by the measured initial dashboard state fall from 15.38 MiB to 1.42 MiB before protocol overhead, a 90.8% reduction without changing the 23-request page shape.
 - Sector charts remain lazy and load one at a time. The measured Umbral Marches request is 313 KiB rather than the 2.88 MiB PNG master.
 - Retained masters still occupy the current Cloudflare upload set even though browsers no longer request them. The public-only bundle boundary in issue #144 may exclude source masters later; responsive derivatives and longer-lived cache policy remain separate backlog work.
+
+## 2026-07-18: Consolidate Dashboard Refresh Around One Player Snapshot
+
+Decision: make one typed, player-scoped dashboard bootstrap the normal initial-load and refresh contract. Build its session, active Cycle, empire, galaxy, fleets, selected-fleet detail, recent orders and Events, Chronicle, and opening briefing from one authoritative store snapshot. Keep narrower endpoints for focused interactions and other clients.
+
+Treat a supplied selected-fleet identifier as context, not authority. Honour it only when it identifies an owned fleet in the snapshot; otherwise choose the normal owned-fleet default without revealing whether a foreign identifier exists. Apply the existing actor, empire, visibility, and fog-of-war filters to every bootstrap collection.
+
+Reasoning:
+
+- The previous dashboard composed one view through nine API requests on an in-UI refresh and ten after a browser reload. Each request independently loaded the same broad SQL state, creating avoidable lock and query amplification even when the browser was merely refreshing.
+- A single composition boundary gives the UI one consistent view instead of merging snapshots that may have been loaded at different times.
+- Purpose-built DTOs preserve the player API boundary; returning the domain `GameState` would reduce request count by weakening security and compatibility.
+- Focused fleet interactions still benefit from narrow endpoints, so consolidation should not turn every read into the bootstrap contract.
+
+Consequences:
+
+- Repeatable local measurements reduced warm in-UI refresh from a 1,450 ms median to 43 ms and warm reload data readiness from about 2,031 ms to about 50 ms.
+- In-UI refresh falls from nine requests, nine generic store loads, and 243 SQL commands to one request, one load, and 27 commands. Reload falls from ten loads and 270 commands to the same single-load path.
+- The decoded payload remains effectively flat at 61,610 versus 62,113 bytes; the improvement comes from eliminating duplicated request, locking, and store work rather than omitting player-visible data.
+- The remaining generic load still reads broad state. Issue #141 owns replacing it with a focused SQL projection behind this stable bootstrap boundary; validators, topology reuse, public asset routing, and abuse guardrails remain separately sequenced.

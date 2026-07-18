@@ -36,7 +36,26 @@ public sealed class DashboardAuthContractTests
         var bootFunction = script[bootStart..loginStart];
         Assert.Contains("showLogin(\"Choose a player to continue.\");", bootFunction);
         Assert.Contains("await loadTrustedPlayers();", bootFunction);
+        Assert.Contains("await refresh({ applySessionFromBootstrap: true });", bootFunction);
+        Assert.DoesNotContain("/auth/session", bootFunction);
         Assert.DoesNotContain("await login(", bootFunction);
+    }
+
+    [Fact]
+    public void Initial_load_and_refresh_use_one_player_bootstrap_request()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var refreshStart = script.IndexOf("async function refresh(", StringComparison.Ordinal);
+        var refreshEnd = script.IndexOf("function viewFromHash()", refreshStart, StringComparison.Ordinal);
+
+        Assert.True(refreshStart >= 0);
+        Assert.True(refreshEnd > refreshStart);
+
+        var refreshFunction = script[refreshStart..refreshEnd];
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(refreshFunction, "getJson\\(").Cast<System.Text.RegularExpressions.Match>());
+        Assert.Contains("getJson(`/dashboard/bootstrap${selectedFleetQuery}`)", refreshFunction);
+        Assert.DoesNotContain("Promise.all", refreshFunction);
+        Assert.DoesNotContain("/fleets/${state.selectedFleetId}", refreshFunction);
     }
 
     [Fact]

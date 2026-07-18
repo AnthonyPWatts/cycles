@@ -153,6 +153,11 @@ app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
         return ToLoginResponse(state, actor.Player, empire, trustedPlayerSelectionEnabled);
     }));
 
+app.MapGet("/dashboard/bootstrap", (Guid? selectedFleetId, HttpContext httpContext, IGameStateStore store) =>
+    TryResult(() => ToDashboardBootstrapResponse(
+        DashboardBootstrapContextFactory.Load(selectedFleetId, httpContext, store),
+        trustedPlayerSelectionEnabled)));
+
 app.MapGet("/cycles/current", (HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
     {
@@ -198,77 +203,7 @@ app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
-        var domainSystems = state.Systems.Where(system => system.CycleId == cycle.CycleId).OrderBy(system => system.SystemName).ToArray();
-        var domainLinks = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).ToArray();
-        var domainSectors = state.Sectors.Where(sector => sector.CycleId == cycle.CycleId).ToArray();
-        var systemsById = domainSystems.ToDictionary(system => system.SystemId);
-        var gatewaySystemIds = new HashSet<Guid>();
-        var adjacentSectorIds = domainSectors.ToDictionary(sector => sector.SectorId, _ => new HashSet<Guid>());
-        var sectorSortOrders = domainSectors.ToDictionary(sector => sector.SectorId, sector => sector.SortOrder);
-        foreach (var link in domainLinks)
-        {
-            if (!systemsById.TryGetValue(link.SystemAId, out var systemA)
-                || !systemsById.TryGetValue(link.SystemBId, out var systemB)
-                || systemA.SectorId == systemB.SectorId)
-            {
-                continue;
-            }
-
-            gatewaySystemIds.Add(systemA.SystemId);
-            gatewaySystemIds.Add(systemB.SystemId);
-            if (adjacentSectorIds.TryGetValue(systemA.SectorId, out var systemAAdjacentSectors)
-                && adjacentSectorIds.TryGetValue(systemB.SectorId, out var systemBAdjacentSectors))
-            {
-                systemAAdjacentSectors.Add(systemB.SectorId);
-                systemBAdjacentSectors.Add(systemA.SectorId);
-            }
-        }
-
-        var systems = domainSystems.Select(system => ToGalaxySystemResponse(system, gatewaySystemIds.Contains(system.SystemId))).ToArray();
-        var links = domainLinks.Select(ToSystemLinkResponse).ToArray();
-        var sectors = domainSectors
-            .OrderBy(sector => sector.SortOrder)
-            .ThenBy(sector => sector.SectorName)
-            .Select(sector => new GalaxySectorResponse(
-                sector.SectorId,
-                sector.CycleId,
-                sector.SectorName,
-                sector.CentreX,
-                sector.CentreY,
-                sector.SortOrder,
-                domainSystems.Count(system => system.SectorId == sector.SectorId),
-                gatewaySystemIds
-                    .Where(systemId => systemsById[systemId].SectorId == sector.SectorId)
-                    .OrderBy(systemId => systemsById[systemId].SystemName)
-                    .ToArray(),
-                adjacentSectorIds[sector.SectorId]
-                    .OrderBy(sectorId => sectorSortOrders[sectorId])
-                    .ToArray()))
-            .ToArray();
-        var presence = domainSystems.Select(system =>
-        {
-            var effectivePresence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
-            return new SystemPresenceResponse(
-                system.SystemId,
-                ApiVisibility.FilterPresence(actor, visibleSystemIds, system.SystemId, effectivePresence));
-        }).ToArray();
-        var factions = state.Factions
-            .Where(item => item.CycleId == cycle.CycleId)
-            .OrderBy(item => item.FactionName)
-            .Select(item => new FactionResponse(item.FactionId, item.EmpireId, item.FactionName, item.Kind, item.Status))
-            .ToArray();
-
-        var outposts = state.ColonialOutposts
-            .Where(item => item.CycleId == cycle.CycleId)
-            .Where(item => actor.IsAdmin
-                           || visibleSystemIds.Contains(item.SystemId)
-                           || item.EmpireId == actor.Empire?.EmpireId)
-            .OrderBy(item => domainSystems.Single(system => system.SystemId == item.SystemId).SystemName)
-            .ThenBy(item => state.Empires.Single(empire => empire.EmpireId == item.EmpireId).EmpireName)
-            .Select(item => ToColonialOutpostResponse(state, item))
-            .ToArray();
-
-        return new GalaxyResponse(ToCycleResponse(cycle), sectors, systems, links, presence, factions, outposts);
+        return ToGalaxyResponse(state, cycle, actor, visibleSystemIds);
     }));
 
 app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
@@ -293,11 +228,7 @@ app.MapGet("/fleets", (Guid? empireId, HttpContext httpContext, IGameStateStore 
         Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
             ? null
             : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
-        return state.Fleets
-            .Where(fleet => fleet.CycleId == cycle.CycleId && (!targetEmpireId.HasValue || fleet.EmpireId == targetEmpireId.Value))
-            .OrderBy(fleet => fleet.FleetName)
-            .Select(fleet => ToFleetResponse(state, fleet))
-            .ToArray();
+        return ToFleetResponses(state, cycle, targetEmpireId);
     }));
 
 app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGameStateStore store) =>
@@ -326,15 +257,7 @@ app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, IGameStateStore 
         Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
             ? null
             : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
-        return state.FleetOrders
-            .Where(order => order.CycleId == cycle.CycleId)
-            .Where(order => !targetEmpireId.HasValue || state.Fleets.Any(fleet => fleet.FleetId == order.FleetId && fleet.EmpireId == targetEmpireId.Value))
-            .OrderBy(order => order.Status == FleetOrderStatus.Pending ? 0 : 1)
-            .ThenBy(order => order.ExecuteAfterTick)
-            .ThenByDescending(order => order.CreatedAt)
-            .Take(50)
-            .Select(order => ToOrderResponse(state, order))
-            .ToArray();
+        return ToOrderResponses(state, cycle, targetEmpireId);
     }));
 
 app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
@@ -371,13 +294,7 @@ app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateSto
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
-        return state.Events
-            .Where(item => item.CycleId == cycle.CycleId)
-            .Where(item => ApiVisibility.CanSeeEvent(item, actor, visibleSystemIds))
-            .OrderByDescending(item => item.CreatedAt)
-            .Take(Math.Clamp(limit ?? 25, 1, 100))
-            .Select(ToEventResponse)
-            .ToArray();
+        return ToEventResponses(state, cycle, actor, visibleSystemIds, limit ?? 25);
     }));
 
 app.MapGet("/briefings/opening", (HttpContext httpContext, IGameStateStore store) =>
@@ -397,18 +314,7 @@ app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
         var cycle = GetActiveCycle(state);
         var actor = DevelopmentAuth.RequireActor(httpContext, state);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
-        var eventTicksById = state.Events
-            .Where(item => item.CycleId == cycle.CycleId)
-            .ToDictionary(item => item.EventId, item => item.TickNumber);
-        var battleTicksById = state.BattleRecords
-            .Where(item => item.CycleId == cycle.CycleId)
-            .ToDictionary(item => item.BattleId, item => item.TickNumber);
-        return state.ChronicleEntries
-            .Where(entry => entry.CycleId == cycle.CycleId)
-            .Where(entry => ApiVisibility.CanSeeChronicleEntry(entry, actor, visibleSystemIds))
-            .OrderByDescending(entry => entry.ImportanceScore)
-            .Select(entry => ToChronicleEntryResponse(entry, eventTicksById, battleTicksById))
-            .ToArray();
+        return ToChronicleEntryResponses(state, cycle, actor, visibleSystemIds);
     }));
 
 app.Run();
@@ -482,6 +388,166 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
         ToEmpireResourceResponse(resources),
         ToEmpirePriorityResponse(priorities),
         state.Fleets.Count(fleet => fleet.EmpireId == empire.EmpireId && fleet.Status != FleetStatus.Destroyed));
+}
+
+static DashboardBootstrapResponse ToDashboardBootstrapResponse(
+    DashboardBootstrapContext context,
+    bool trustedPlayerSelectionEnabled)
+{
+    var login = ToLoginResponse(
+        context.State,
+        context.Actor.Player,
+        context.Empire,
+        trustedPlayerSelectionEnabled);
+
+    return new DashboardBootstrapResponse(
+        new DashboardSessionResponse(login.PlayerId, login.Username, login.Role, login.CanAdvanceTurn),
+        ToCycleResponse(context.Cycle),
+        login.Empire,
+        ToGalaxyResponse(context.State, context.Cycle, context.Actor, context.VisibleSystemIds),
+        context.Fleets.Select(fleet => ToFleetResponse(context.State, fleet)).ToArray(),
+        context.SelectedFleet is null
+            ? null
+            : ToFleetDetailResponse(
+                context.State,
+                context.Cycle,
+                context.SelectedFleet,
+                context.Actor,
+                context.VisibleSystemIds),
+        context.Orders.Select(order => ToOrderResponse(context.State, order)).ToArray(),
+        context.Events.Select(ToEventResponse).ToArray(),
+        ToChronicleEntryResponsesFromEntries(context.State, context.Cycle, context.ChronicleEntries),
+        context.OpeningBriefing);
+}
+
+static GalaxyResponse ToGalaxyResponse(
+    GameState state,
+    Cycle cycle,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds)
+{
+    var domainSystems = state.Systems
+        .Where(system => system.CycleId == cycle.CycleId)
+        .OrderBy(system => system.SystemName)
+        .ToArray();
+    var domainLinks = state.SystemLinks.Where(link => link.CycleId == cycle.CycleId).ToArray();
+    var domainSectors = state.Sectors.Where(sector => sector.CycleId == cycle.CycleId).ToArray();
+    var systemsById = domainSystems.ToDictionary(system => system.SystemId);
+    var gatewaySystemIds = new HashSet<Guid>();
+    var adjacentSectorIds = domainSectors.ToDictionary(sector => sector.SectorId, _ => new HashSet<Guid>());
+    var sectorSortOrders = domainSectors.ToDictionary(sector => sector.SectorId, sector => sector.SortOrder);
+    foreach (var link in domainLinks)
+    {
+        if (!systemsById.TryGetValue(link.SystemAId, out var systemA)
+            || !systemsById.TryGetValue(link.SystemBId, out var systemB)
+            || systemA.SectorId == systemB.SectorId)
+        {
+            continue;
+        }
+
+        gatewaySystemIds.Add(systemA.SystemId);
+        gatewaySystemIds.Add(systemB.SystemId);
+        if (adjacentSectorIds.TryGetValue(systemA.SectorId, out var systemAAdjacentSectors)
+            && adjacentSectorIds.TryGetValue(systemB.SectorId, out var systemBAdjacentSectors))
+        {
+            systemAAdjacentSectors.Add(systemB.SectorId);
+            systemBAdjacentSectors.Add(systemA.SectorId);
+        }
+    }
+
+    var systems = domainSystems
+        .Select(system => ToGalaxySystemResponse(system, gatewaySystemIds.Contains(system.SystemId)))
+        .ToArray();
+    var links = domainLinks.Select(ToSystemLinkResponse).ToArray();
+    var sectors = domainSectors
+        .OrderBy(sector => sector.SortOrder)
+        .ThenBy(sector => sector.SectorName)
+        .Select(sector => new GalaxySectorResponse(
+            sector.SectorId,
+            sector.CycleId,
+            sector.SectorName,
+            sector.CentreX,
+            sector.CentreY,
+            sector.SortOrder,
+            domainSystems.Count(system => system.SectorId == sector.SectorId),
+            gatewaySystemIds
+                .Where(systemId => systemsById[systemId].SectorId == sector.SectorId)
+                .OrderBy(systemId => systemsById[systemId].SystemName)
+                .ToArray(),
+            adjacentSectorIds[sector.SectorId]
+                .OrderBy(sectorId => sectorSortOrders[sectorId])
+                .ToArray()))
+        .ToArray();
+    var presence = domainSystems.Select(system =>
+    {
+        var effectivePresence = InfluenceCalculator.CalculateEffectivePresence(state, cycle.CycleId, system.SystemId);
+        return new SystemPresenceResponse(
+            system.SystemId,
+            ApiVisibility.FilterPresence(actor, visibleSystemIds, system.SystemId, effectivePresence));
+    }).ToArray();
+    var factions = state.Factions
+        .Where(item => item.CycleId == cycle.CycleId)
+        .OrderBy(item => item.FactionName)
+        .Select(item => new FactionResponse(item.FactionId, item.EmpireId, item.FactionName, item.Kind, item.Status))
+        .ToArray();
+    var outposts = state.ColonialOutposts
+        .Where(item => item.CycleId == cycle.CycleId)
+        .Where(item => actor.IsAdmin
+                       || visibleSystemIds.Contains(item.SystemId)
+                       || item.EmpireId == actor.Empire?.EmpireId)
+        .OrderBy(item => domainSystems.Single(system => system.SystemId == item.SystemId).SystemName)
+        .ThenBy(item => state.Empires.Single(empire => empire.EmpireId == item.EmpireId).EmpireName)
+        .Select(item => ToColonialOutpostResponse(state, item))
+        .ToArray();
+
+    return new GalaxyResponse(ToCycleResponse(cycle), sectors, systems, links, presence, factions, outposts);
+}
+
+static IReadOnlyCollection<FleetResponse> ToFleetResponses(GameState state, Cycle cycle, Guid? targetEmpireId) =>
+    PlayerViewScope.SelectFleets(state, cycle, targetEmpireId)
+        .Select(fleet => ToFleetResponse(state, fleet))
+        .ToArray();
+
+static IReadOnlyCollection<FleetOrderResponse> ToOrderResponses(GameState state, Cycle cycle, Guid? targetEmpireId) =>
+    PlayerViewScope.SelectOrders(state, cycle, targetEmpireId)
+        .Select(order => ToOrderResponse(state, order))
+        .ToArray();
+
+static IReadOnlyCollection<EventResponse> ToEventResponses(
+    GameState state,
+    Cycle cycle,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds,
+    int limit) =>
+    PlayerViewScope.SelectEvents(state, cycle, actor, visibleSystemIds, limit)
+        .Select(ToEventResponse)
+        .ToArray();
+
+static IReadOnlyCollection<ChronicleEntryResponse> ToChronicleEntryResponses(
+    GameState state,
+    Cycle cycle,
+    DevelopmentActor actor,
+    IReadOnlySet<Guid> visibleSystemIds) =>
+    ToChronicleEntryResponsesFromEntries(
+        state,
+        cycle,
+        PlayerViewScope.SelectChronicleEntries(state, cycle, actor, visibleSystemIds));
+
+static IReadOnlyCollection<ChronicleEntryResponse> ToChronicleEntryResponsesFromEntries(
+    GameState state,
+    Cycle cycle,
+    IReadOnlyCollection<ChronicleEntry> entries)
+{
+    var eventTicksById = state.Events
+        .Where(item => item.CycleId == cycle.CycleId)
+        .ToDictionary(item => item.EventId, item => item.TickNumber);
+    var battleTicksById = state.BattleRecords
+        .Where(item => item.CycleId == cycle.CycleId)
+        .ToDictionary(item => item.BattleId, item => item.TickNumber);
+
+    return entries
+        .Select(entry => ToChronicleEntryResponse(entry, eventTicksById, battleTicksById))
+        .ToArray();
 }
 
 static FleetResponse ToFleetResponse(GameState state, Fleet fleet)
@@ -933,6 +999,24 @@ public sealed record LoginResponse(
     PlayerRole Role,
     bool CanAdvanceTurn,
     EmpireResponse Empire);
+
+public sealed record DashboardSessionResponse(
+    Guid PlayerId,
+    string Username,
+    PlayerRole Role,
+    bool CanAdvanceTurn);
+
+public sealed record DashboardBootstrapResponse(
+    DashboardSessionResponse Session,
+    CycleResponse Cycle,
+    EmpireResponse Empire,
+    GalaxyResponse Galaxy,
+    IReadOnlyCollection<FleetResponse> Fleets,
+    FleetDetailResponse? SelectedFleet,
+    IReadOnlyCollection<FleetOrderResponse> Orders,
+    IReadOnlyCollection<EventResponse> Events,
+    IReadOnlyCollection<ChronicleEntryResponse> Chronicle,
+    OpeningBriefingResponse? OpeningBriefing);
 
 public sealed record EmpireResponse(
     Guid EmpireId,

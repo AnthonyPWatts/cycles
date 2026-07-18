@@ -30,6 +30,8 @@ public sealed class ApiResponseContractTests
         Type[] responseTypes =
         [
             typeof(LoginResponse),
+            typeof(DashboardSessionResponse),
+            typeof(DashboardBootstrapResponse),
             typeof(EmpireResponse),
             typeof(GalaxyResponse),
             typeof(GalaxySectorResponse),
@@ -73,6 +75,27 @@ public sealed class ApiResponseContractTests
             .ToArray();
 
         Assert.Empty(leaks);
+    }
+
+    [Fact]
+    public void Dashboard_bootstrap_contract_is_typed_and_bounded()
+    {
+        Assert.Equal(
+            typeof(DashboardSessionResponse),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.Session))!.PropertyType);
+        Assert.Equal(
+            typeof(IReadOnlyCollection<FleetResponse>),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.Fleets))!.PropertyType);
+        Assert.Equal(
+            typeof(FleetDetailResponse),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.SelectedFleet))!.PropertyType);
+        Assert.Equal(
+            typeof(IReadOnlyCollection<EventResponse>),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.Events))!.PropertyType);
+        Assert.Equal(
+            typeof(IReadOnlyCollection<ChronicleEntryResponse>),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.Chronicle))!.PropertyType);
+        Assert.Null(typeof(DashboardBootstrapResponse).GetProperty("GameState"));
     }
 
     [Fact]

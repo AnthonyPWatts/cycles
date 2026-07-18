@@ -876,19 +876,11 @@ elements.orderHistory.addEventListener("click", event => {
 
 async function boot() {
     try {
-        const session = await getJson("/auth/session");
-        applySession(session);
+        await refresh({ applySessionFromBootstrap: true });
     } catch (error) {
         await loadTrustedPlayers();
         showLogin("Choose a player to continue.");
         elements.username.focus();
-        return;
-    }
-
-    try {
-        await refresh();
-    } catch (error) {
-        setTurnMessage(error.message);
     }
 }
 
@@ -974,17 +966,16 @@ function showLogin(message) {
     elements.appShell.hidden = true;
 }
 
-async function refresh() {
-    const [cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing] = await Promise.all([
-        getJson("/cycles/current"),
-        getJson("/empire"),
-        getJson("/galaxy"),
-        getJson("/fleets"),
-        getJson("/orders"),
-        getJson("/events/recent?limit=20"),
-        getJson("/chronicle"),
-        getJson("/briefings/opening")
-    ]);
+async function refresh({ applySessionFromBootstrap = false } = {}) {
+    const selectedFleetQuery = state.selectedFleetId
+        ? `?selectedFleetId=${encodeURIComponent(state.selectedFleetId)}`
+        : "";
+    const bootstrap = await getJson(`/dashboard/bootstrap${selectedFleetQuery}`);
+    const { cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing } = bootstrap;
+
+    if (applySessionFromBootstrap) {
+        applySession({ ...bootstrap.session, empire });
+    }
 
     state.empire = empire;
     state.cycle = cycle;
@@ -995,14 +986,8 @@ async function refresh() {
     state.chronicle = chronicle;
     state.openingBriefing = openingBriefing;
 
-    if (!state.selectedFleetId || !fleets.some(item => item.fleet.fleetId === state.selectedFleetId)) {
-        const defaultFleet = fleets.find(item => item.fleet.status === "active" && item.fleet.shipCount > 0) ?? fleets[0];
-        state.selectedFleetId = defaultFleet?.fleet.fleetId ?? null;
-    }
-
-    state.fleetDetail = state.selectedFleetId
-        ? await getJson(`/fleets/${state.selectedFleetId}`)
-        : null;
+    state.fleetDetail = bootstrap.selectedFleet;
+    state.selectedFleetId = bootstrap.selectedFleet?.fleetId ?? null;
 
     if (!state.selectedSystemId || !galaxy.systems.some(system => system.systemId === state.selectedSystemId)) {
         state.selectedSystemId = empire.homeSystem.systemId;
