@@ -35,6 +35,8 @@ Move, attack, and colonise requests accept an optional `replacesOrderId` alongsi
 - Order responses expose `commandSource` plus optional `sealedTick` and `sealedAt` fields. Human submissions are `human`; completed ledgers may also contain `gameAiPlanner`, `neutralPlanner`, and `implicitHold` records.
 - Fleet responses expose an optional `departureTickNumber` alongside destination and arrival. Clients use the three values together for journey and recall timing; active fleets return all three as `null`.
 
+Order outcome and fleet transit are separate state. A Move can be `processed` because dispatch succeeded while its fleet remains `inTransit` until the recorded arrival tick. Clients must keep that journey visible as an ongoing commitment rather than treating the historical order outcome as fleet readiness.
+
 For example, replacing a pending move with an attack includes the order being confirmed for replacement:
 
 ```json

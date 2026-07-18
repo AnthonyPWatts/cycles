@@ -104,7 +104,7 @@ Research still matters even though Innovation has no direct effect. At 200 resea
 
 Change the balance between Military and Expansion to experiment with the current priority system. Existing saves are normalised to preserve their previous Military-to-Expansion ratio when the inactive allocations are removed.
 
-The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick. Select an outbound fleet in **Fleets** to review its journey or queue **Recall to origin**.
+The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick. **Processed** means the Move dispatched successfully, not that a multi-tick journey has finished. Until arrival, the navigation count, Command agenda and calendar, Fleets roster, and selected journey panel continue to show that commitment. Select an outbound fleet in **Fleets** to review its journey or queue **Recall to origin**.
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
