@@ -104,6 +104,7 @@ public static class RecoveryService
             .ToArray();
 
         cycle.Status = CycleStatus.Active;
+        cycle.TurnStage = TurnResolutionStage.CommandOpen;
 
         var recoveryEvent = new EventRecord
         {

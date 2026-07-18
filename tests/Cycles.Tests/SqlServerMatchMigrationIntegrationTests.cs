@@ -25,7 +25,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Assert.Collection(
             applied,
             item => Assert.Equal("017_add_match_participants_and_factions", item.MigrationId),
-            item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId));
+            item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId),
+            item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));
@@ -36,6 +37,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Assert.Equal(legacy.FirstEmpireId, Scalar<Guid>(connection, "SELECT FactionID FROM dbo.Events WHERE EventID = @ID;", legacy.EventId));
         Assert.Equal(legacy.FirstEmpireId, Scalar<Guid>(connection, "SELECT AttackerFactionID FROM dbo.BattleRecords WHERE BattleID = @ID;", legacy.BattleId));
         Assert.Equal(legacy.SecondEmpireId, Scalar<Guid>(connection, "SELECT DefenderFactionID FROM dbo.BattleRecords WHERE BattleID = @ID;", legacy.BattleId));
+        Assert.Equal("CommandOpen", Scalar<string>(connection, "SELECT TurnStage FROM dbo.Cycles WHERE CycleID = @ID;", legacy.CycleId));
+        Assert.Equal("Human", Scalar<string>(connection, "SELECT CommandSource FROM dbo.FleetOrders WHERE FleetOrderID = @ID;", legacy.OrderId));
         Assert.Equal(1, Scalar<int>(connection, "SELECT CAST(is_nullable AS int) FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Fleets') AND name = N'EmpireID';"));
         Assert.Equal(1, Scalar<int>(connection, "SELECT CAST(is_nullable AS int) FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BattleRecords') AND name = N'DefenderEmpireID';"));
         Assert.Equal(1, Scalar<int>(connection, "SELECT COUNT(*) FROM sys.foreign_keys WHERE name = N'FK_MatchParticipants_EmpireOwnership';"));

@@ -1,6 +1,6 @@
 # Simulation Reference
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 This reference records the simulation contracts that need more precision than the project-state summary: determinism, Cycle-end ranking, and the repeatable balance diagnostic. It describes current behaviour, not intended game balance.
 
@@ -29,7 +29,23 @@ An active Cycle advances from persisted state to `CurrentTickNumber + 1`.
 
 The submission boundary permits at most one `Pending` order for a fleet at a particular `ExecuteAfterTick`; current player commands use the next tick. An identical resubmission returns the existing order. A different intention must identify the current order it replaces, after which the previous record becomes `Superseded` and links to the new order. This prevents one fleet from accumulating mutually exclusive commands while preserving the full decision history.
 
-This rule does not change the relative processing semantics of orders belonging to different fleets. Simultaneous resolution, initiative, or another cross-fleet ordering model remains a separate design decision.
+At closure, the engine snapshots the active fleets, labels submitted human intentions, generates deterministic Hold intentions for game-AI and neutral fleets, and fills every other missing command with an implicit Hold. Every ledger row records its command source, sealed tick, and sealed timestamp. Generated Hold identifiers derive from the Cycle, tick, fleet, and source, so retrying the same persisted state reproduces the ledger identity.
+
+The sealed ledger resolves in this order:
+
+1. influence-derived resources;
+2. due construction;
+3. new programme spending and construction starts;
+4. existing arrivals, then new movement and Holds;
+5. combat;
+6. colonisation;
+7. derived map-control metrics;
+8. progression for the next command window;
+9. atomic publication and reopening.
+
+Submission timestamps do not confer initiative. Fleets and orders use stable identifier ordering inside a phase. Same-faction attacks against the same opposing faction in one system are combined into one battle from the post-movement state. Combat involving more than two independently hostile factions remains a separate product decision; the current first-pass pairwise model does not invent alliance sides, interception, or pursuit.
+
+Current income is available to current programme spending. Construction due at the start of the tick may defend, but ships completed after sealing do not inherit a previously sealed command. Construction started in the tick cannot progress in the same tick. Colonisation follows combat and spends population only on success. A doctrine unlocked during progression affects the next command window, not earlier phases of the resolving tick.
 
 Combat pseudo-randomness derives from:
 
@@ -42,7 +58,7 @@ The same persisted state and tick number must produce the same winner, losses, f
 
 This is a current-code and target-runtime contract. Exact replay across runtime or algorithm upgrades would require a versioned PRNG and a persisted algorithm version. Historical events, battles, and Chronicle facts remain authoritative and must not be rewritten when algorithms change.
 
-`tests/Cycles.Tests/DeterminismTests.cs` verifies stable seeded layout fields and combat results for stable persisted identifiers.
+`tests/Cycles.Tests/DeterminismTests.cs` verifies stable seeded layout fields and combat results for stable persisted identifiers. `tests/Cycles.Tests/TurnResolutionTests.cs` verifies deterministic ledger identities, command sources, movement-before-combat semantics, grouped same-faction attacks, reinforcement isolation, and next-window progression.
 
 ## Cycle-End Ranking
 
@@ -103,12 +119,12 @@ Seed `71421`, 24 systems, four empires, balanced policy:
 
 | Requested ticks | Completed | Orders | Battles | Colonies | Constructions | Retained records |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 24 | 24 | 68 | 24 | 10 | 83 | 792 |
-| 48 | 48 | 131 | 53 | 12 | 176 | 1,491 |
-| 96 | 96 | 265 | 115 | 12 | 362 | 2,908 |
-| 2,160 | 2,160 | 29,735 | 2,250 | 12 | 8,247 | 110,018 |
+| 24 | 24 | 197 | 18 | 10 | 82 | 924 |
+| 48 | 48 | 425 | 44 | 10 | 175 | 1,784 |
+| 96 | 96 | 839 | 96 | 10 | 361 | 3,478 |
+| 2,160 | 2,160 | 17,144 | 2,434 | 12 | 8,336 | 75,058 |
 
-The full 2,160-tick scenario completed locally on 2026-07-14 without deleting or archiving history. Order planning took 3.59 seconds and Core tick processing took 5.93 seconds. These are dated engineering measurements, not performance thresholds.
+The full 2,160-tick scenario completed locally on 2026-07-18 without deleting or archiving history. Order planning took 5.57 seconds and Core tick processing took 10.97 seconds. The order total now includes the complete sealed ledger, including implicit Holds; same-faction attacks in one system form one battle. These are dated engineering measurements, not performance thresholds.
 
 ### Strategy Comparison Baseline
 
@@ -116,11 +132,11 @@ Seed `71421`, 96 ticks, 24 systems, four empires:
 
 | Strategy | Orders | Battles | Colonies | Ships completed | Map-control gap | Active-ship range |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 265 | 115 | 12 | 1,114 | 4.17 | 55-64 |
-| Military | 240 | 105 | 0 | 1,116 | 8.33 | 40-127 |
-| Expansion | 240 | 106 | 12 | 1,025 | 4.17 | 52-65 |
-| Cautious | 56 | 0 | 8 | 1,369 | 0.00 | 366-456 |
-| Mixed | 227 | 86 | 8 | 1,128 | 4.17 | 60-279 |
+| Balanced | 839 | 96 | 10 | 1,112 | 4.17 | 50-76 |
+| Military | 734 | 99 | 0 | 1,087 | 3.33 | 46-93 |
+| Expansion | 712 | 97 | 11 | 1,012 | 5.79 | 54-78 |
+| Cautious | 2,651 | 0 | 8 | 1,367 | 0.00 | 366-454 |
+| Mixed | 1,022 | 72 | 8 | 1,093 | 7.38 | 48-98 |
 
 The results show that movement and engagement policy changes outcomes at least as much as priority weights. Research and Population grow substantially after the available unlock and colonisation targets are exhausted. This evidence does not justify changing ship cost, build delay, colonisation cost, outpost presence, research threshold, or Chronicle threshold in isolation.
 

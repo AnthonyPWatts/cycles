@@ -1645,4 +1645,6 @@ Consequences:
 - Colonisation resolves after combat. Its population cost is reserved during resolution and consumed only when an eligible surviving fleet successfully establishes the outpost.
 - Research and other progression achieved during the tick become effective in the next command window unless a future rule explicitly says otherwise.
 - Derived control, visibility, fleet availability, defeat conditions, facts, events, Chronicle entries, and the next command window are published only after authoritative phase outcomes are complete.
-- The tick remains one authoritative atomic operation with the existing recovery boundary. The current implementation does not yet provide this complete phase contract; implementation must preserve that distinction until verified.
+- The tick remains one authoritative atomic operation with the existing recovery boundary.
+
+Implementation note: issue #137 persists the Cycle turn stage and each order's command source, sealed tick, and sealed time. Player command mutations share the Cycle tick lock. The first internal game-AI and neutral planners deliberately emit Hold, missing human intentions become deterministic implicit Holds, due ships form home reinforcements when an existing home fleet has another sealed command, and same-faction attacks against one opposing faction in a system form one battle. This establishes the lifecycle and audit boundary without inventing richer AI, interception, pursuit, or unresolved multi-faction alliance sides.

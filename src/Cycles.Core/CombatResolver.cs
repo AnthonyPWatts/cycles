@@ -10,12 +10,29 @@ public static class CombatResolver
         DateTimeOffset now,
         GalaxySystem system,
         Fleet attackerFleet,
+        IReadOnlyCollection<Fleet> defenderFleets) =>
+        Resolve(state, tickNumber, now, system, [attackerFleet], defenderFleets);
+
+    public static BattleRecord Resolve(
+        GameState state,
+        int tickNumber,
+        DateTimeOffset now,
+        GalaxySystem system,
+        IReadOnlyCollection<Fleet> attackerFleets,
         IReadOnlyCollection<Fleet> defenderFleets)
     {
-        var attackerShipsBefore = attackerFleet.ShipCount;
+        if (attackerFleets.Count == 0 || defenderFleets.Count == 0)
+        {
+            throw new ArgumentException("Combat requires at least one fleet on each side.");
+        }
+
+        var orderedAttackers = attackerFleets.OrderBy(fleet => fleet.FleetId).ToArray();
+        var orderedDefenders = defenderFleets.OrderBy(fleet => fleet.FleetId).ToArray();
+        var attackerShipsBefore = orderedAttackers.Sum(fleet => fleet.ShipCount);
         var defenderShipsBefore = defenderFleets.Sum(fleet => fleet.ShipCount);
-        var defenderFleetShipsBefore = defenderFleets.ToDictionary(fleet => fleet.FleetId, fleet => fleet.ShipCount);
-        var seed = DeterministicSeed(attackerFleet.CycleId, tickNumber, system.SystemId, attackerFleet.FleetId);
+        var attackerFleetShipsBefore = orderedAttackers.ToDictionary(fleet => fleet.FleetId, fleet => fleet.ShipCount);
+        var defenderFleetShipsBefore = orderedDefenders.ToDictionary(fleet => fleet.FleetId, fleet => fleet.ShipCount);
+        var seed = DeterministicSeed(orderedAttackers[0].CycleId, tickNumber, system.SystemId, orderedAttackers);
         var random = new Random(seed);
 
         var attackerWinProbability = attackerShipsBefore / (double)(attackerShipsBefore + defenderShipsBefore);
@@ -30,26 +47,27 @@ public static class CombatResolver
             ? CalculateLosses(defenderShipsBefore, loserLossRate)
             : CalculateLosses(defenderShipsBefore, winnerLossRate);
 
-        var attackerLossesByFleet = ApplyLosses([attackerFleet], attackerLosses);
-        var defenderLossesByFleet = ApplyLosses(defenderFleets, defenderLosses);
+        var attackerLossesByFleet = ApplyLosses(orderedAttackers, attackerLosses);
+        var defenderLossesByFleet = ApplyLosses(orderedDefenders, defenderLosses);
 
-        var outcome = attackerFleet.Status == FleetStatus.Destroyed && defenderFleets.All(fleet => fleet.Status == FleetStatus.Destroyed)
+        var outcome = orderedAttackers.All(fleet => fleet.Status == FleetStatus.Destroyed)
+                      && orderedDefenders.All(fleet => fleet.Status == FleetStatus.Destroyed)
             ? BattleOutcome.MutualDestruction
             : attackerWins ? BattleOutcome.AttackerVictory : BattleOutcome.DefenderVictory;
-        var attackerFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(attackerFleet));
-        var defenderFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(defenderFleets.First()));
+        var attackerFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(orderedAttackers[0]));
+        var defenderFaction = state.Factions.Single(item => item.FactionId == state.GetFactionId(orderedDefenders[0]));
 
         var battle = new BattleRecord
         {
-            CycleId = attackerFleet.CycleId,
+            CycleId = orderedAttackers[0].CycleId,
             TickNumber = tickNumber,
             SystemId = system.SystemId,
             AttackerEmpireId = attackerFaction.EmpireId ?? Guid.Empty,
             DefenderEmpireId = defenderFaction.EmpireId ?? Guid.Empty,
             AttackerFactionId = attackerFaction.FactionId,
             DefenderFactionId = defenderFaction.FactionId,
-            AttackerFleetIds = attackerFleet.FleetId.ToString(),
-            DefenderFleetIds = string.Join(",", defenderFleets.Select(fleet => fleet.FleetId)),
+            AttackerFleetIds = string.Join(",", orderedAttackers.Select(fleet => fleet.FleetId)),
+            DefenderFleetIds = string.Join(",", orderedDefenders.Select(fleet => fleet.FleetId)),
             AttackerShipsBefore = attackerShipsBefore,
             DefenderShipsBefore = defenderShipsBefore,
             AttackerLosses = attackerLosses,
@@ -58,16 +76,14 @@ public static class CombatResolver
             CreatedAt = now
         };
 
-        var fleetResults = new[]
-            {
-                new AdmiralFleetBattleResult(
-                    attackerFleet.FleetId,
-                    AdmiralBattleRole.Attacker,
-                    ToAdmiralOutcome(outcome, AdmiralBattleRole.Attacker),
-                    attackerShipsBefore,
-                    attackerLossesByFleet[attackerFleet.FleetId])
-            }
-            .Concat(defenderFleets.Select(fleet => new AdmiralFleetBattleResult(
+        var fleetResults = orderedAttackers
+            .Select(fleet => new AdmiralFleetBattleResult(
+                fleet.FleetId,
+                AdmiralBattleRole.Attacker,
+                ToAdmiralOutcome(outcome, AdmiralBattleRole.Attacker),
+                attackerFleetShipsBefore[fleet.FleetId],
+                attackerLossesByFleet[fleet.FleetId]))
+            .Concat(orderedDefenders.Select(fleet => new AdmiralFleetBattleResult(
                 fleet.FleetId,
                 AdmiralBattleRole.Defender,
                 ToAdmiralOutcome(outcome, AdmiralBattleRole.Defender),
@@ -106,14 +122,15 @@ public static class CombatResolver
     private static Dictionary<Guid, int> ApplyLosses(IReadOnlyCollection<Fleet> fleets, int totalLosses)
     {
         var remainingLosses = totalLosses;
-        var shipsBefore = fleets.Sum(fleet => fleet.ShipCount);
+        var orderedFleets = fleets.OrderBy(fleet => fleet.FleetId).ToArray();
+        var shipsBefore = orderedFleets.Sum(fleet => fleet.ShipCount);
         var index = 0;
         var lossesByFleet = new Dictionary<Guid, int>();
 
-        foreach (var fleet in fleets)
+        foreach (var fleet in orderedFleets)
         {
             index++;
-            var loss = index == fleets.Count
+            var loss = index == orderedFleets.Length
                 ? remainingLosses
                 : Math.Min(fleet.ShipCount, (int)Math.Round(totalLosses * (fleet.ShipCount / (double)shipsBefore), MidpointRounding.AwayFromZero));
 
@@ -138,12 +155,19 @@ public static class CombatResolver
             _ => AdmiralBattleOutcome.Defeat
         };
 
-    private static int DeterministicSeed(Guid cycleId, int tickNumber, Guid systemId, Guid fleetId)
+    private static int DeterministicSeed(
+        Guid cycleId,
+        int tickNumber,
+        Guid systemId,
+        IReadOnlyCollection<Fleet> attackerFleets)
     {
         unchecked
         {
             var hash = 17;
-            foreach (var value in cycleId.ToByteArray().Concat(systemId.ToByteArray()).Concat(fleetId.ToByteArray()))
+            var identifierBytes = cycleId.ToByteArray()
+                .Concat(systemId.ToByteArray())
+                .Concat(attackerFleets.OrderBy(fleet => fleet.FleetId).SelectMany(fleet => fleet.FleetId.ToByteArray()));
+            foreach (var value in identifierBytes)
             {
                 hash = (hash * 31) + value;
             }

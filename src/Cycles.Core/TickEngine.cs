@@ -37,6 +37,11 @@ public sealed class TickEngine
             throw new InvalidOperationException("Only active cycles can process ticks.");
         }
 
+        if (cycle.TurnStage != TurnResolutionStage.CommandOpen)
+        {
+            throw new InvalidOperationException($"The Cycle cannot start a tick while it is {cycle.TurnStage}.");
+        }
+
         var nextTick = cycle.CurrentTickNumber + 1;
         var appendCounts = AppendOnlyCounts.Capture(state);
         var working = createWorkingState(state, cycleId, nextTick);
@@ -65,6 +70,7 @@ public sealed class TickEngine
             });
 
             cycle.Status = CycleStatus.RecoveryRequired;
+            cycle.TurnStage = working.Cycles.Single(item => item.CycleId == cycleId).TurnStage;
             return new TickResult(nextTick, TickLogStatus.Failed, 0, 0, 0, 0);
         }
     }
@@ -110,8 +116,6 @@ public sealed class TickEngine
         var eventsBefore = state.Events.Count;
         var battlesBefore = state.BattleRecords.Count;
         var chroniclesBefore = state.ChronicleEntries.Count;
-        var processedOrders = 0;
-
         var log = new TickLog
         {
             CycleId = cycleId,
@@ -121,38 +125,57 @@ public sealed class TickEngine
         };
         state.TickLogs.Add(log);
 
-        ProcessArrivals(state, cycleId, tickNumber, now);
-        EconomyProcessor.CompleteShipConstruction(state, cycleId, tickNumber, now);
+        var ledger = TurnLedgerSealer.Seal(state, cycleId, tickNumber, now);
+        cycle.TurnStage = TurnResolutionStage.Resolving;
+
+        // Resources are calculated from the sealed phase-start world. Current income
+        // is then available to mandatory economy and new programme spending.
         InfluenceCalculator.GenerateResources(state, cycleId, tickNumber, now);
-        EconomyProcessor.ApplyResearchUnlocks(state, cycleId, tickNumber, now);
+        EconomyProcessor.CompleteShipConstruction(state, cycleId, tickNumber, now);
         EconomyProcessor.ApplyPrioritySpending(state, cycleId, tickNumber, now);
 
-        var dueOrders = state.FleetOrders
-            .Where(order => order.CycleId == cycleId
-                            && order.Status == FleetOrderStatus.Pending
-                            && order.ExecuteAfterTick <= tickNumber)
-            .OrderBy(order => order.SubmitTick)
-            .ThenBy(order => order.CreatedAt)
-            .ToList();
-
-        foreach (var order in dueOrders)
+        // Existing journeys arrive before newly sealed movement is dispatched. All
+        // order batches use ledger order (fleet ID, then order ID), never submission time.
+        ProcessArrivals(state, cycleId, tickNumber, now);
+        foreach (var order in ledger.OrdersFor(FleetOrderType.MoveFleet))
         {
-            ProcessOrder(state, order, tickNumber, now);
-            processedOrders++;
+            ProcessMoveOrder(state, order, tickNumber, now);
+        }
+
+        foreach (var order in ledger.OrdersFor(FleetOrderType.Hold))
+        {
+            ProcessHoldOrder(state, order, tickNumber, now);
+        }
+
+        ProcessAttackOrders(state, ledger.OrdersFor(FleetOrderType.Attack).ToArray(), tickNumber, now);
+
+        foreach (var order in ledger.OrdersFor(FleetOrderType.Colonise))
+        {
+            ProcessColoniseOrder(state, order, tickNumber, now);
+        }
+
+        foreach (var order in ledger.Orders.Where(order => !Enum.IsDefined(order.OrderType)))
+        {
+            RejectOrder(state, order, tickNumber, now, "Unsupported order type.");
         }
 
         state.EmpireMetrics.RemoveAll(metric => metric.CycleId == cycleId && metric.TickNumber == tickNumber);
         state.EmpireMetrics.AddRange(EmpireMetricCalculator.CreateTickMetrics(state, cycleId, tickNumber, now));
 
+        // Progression is published for the next command window after derived state
+        // for this tick has been calculated.
+        EconomyProcessor.ApplyResearchUnlocks(state, cycleId, tickNumber, now);
+        cycle.TurnStage = TurnResolutionStage.Publishing;
         cycle.CurrentTickNumber = tickNumber;
         log.Status = TickLogStatus.Completed;
         log.CompletedAt = now;
-        log.DiagnosticLog = $"Processed {processedOrders} order(s).";
+        log.DiagnosticLog = $"Sealed and processed {ledger.Orders.Count} order(s) through deterministic resolution phases.";
+        cycle.TurnStage = TurnResolutionStage.CommandOpen;
 
         return new TickResult(
             tickNumber,
             TickLogStatus.Completed,
-            processedOrders,
+            ledger.Orders.Count,
             state.Events.Count - eventsBefore,
             state.BattleRecords.Count - battlesBefore,
             state.ChronicleEntries.Count - chroniclesBefore);
@@ -165,6 +188,7 @@ public sealed class TickEngine
                             && fleet.Status == FleetStatus.InTransit
                             && fleet.ArrivalTickNumber <= tickNumber
                             && fleet.DestinationSystemId.HasValue)
+            .OrderBy(fleet => fleet.FleetId)
             .ToList();
 
         foreach (var fleet in arrivingFleets)
@@ -192,28 +216,6 @@ public sealed class TickEngine
                 }, GameStateJson.Options),
                 CreatedAt = now
             });
-        }
-    }
-
-    private static void ProcessOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now)
-    {
-        switch (order.OrderType)
-        {
-            case FleetOrderType.MoveFleet:
-                ProcessMoveOrder(state, order, tickNumber, now);
-                break;
-            case FleetOrderType.Hold:
-                ProcessHoldOrder(state, order, tickNumber, now);
-                break;
-            case FleetOrderType.Attack:
-                ProcessAttackOrder(state, order, tickNumber, now);
-                break;
-            case FleetOrderType.Colonise:
-                ProcessColoniseOrder(state, order, tickNumber, now);
-                break;
-            default:
-                RejectOrder(state, order, tickNumber, now, "Unsupported order type.");
-                break;
         }
     }
 
@@ -303,6 +305,11 @@ public sealed class TickEngine
         order.Status = FleetOrderStatus.Processed;
         order.ProcessedTick = tickNumber;
 
+        if (order.CommandSource != FleetOrderCommandSource.Human)
+        {
+            return;
+        }
+
         var system = state.Systems.Single(item => item.SystemId == fleet.CurrentSystemId);
         state.Events.Add(new EventRecord
         {
@@ -323,62 +330,143 @@ public sealed class TickEngine
         });
     }
 
-    private static void ProcessAttackOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now)
+    private static void ProcessAttackOrders(
+        GameState state,
+        IReadOnlyCollection<FleetOrder> orders,
+        int tickNumber,
+        DateTimeOffset now)
     {
-        var attackerFleet = TryGetActiveFleet(state, order.FleetId);
-        if (attackerFleet is null)
+        var intents = new List<AttackIntent>();
+        foreach (var order in orders)
         {
-            RejectOrder(state, order, tickNumber, now, "Attacking fleet is not active.");
-            return;
+            var attackerFleet = TryGetActiveFleet(state, order.FleetId);
+            if (attackerFleet is null)
+            {
+                RejectOrder(state, order, tickNumber, now, "Attacking fleet is not active.");
+                continue;
+            }
+
+            attackerFleet.FactionId = state.GetFactionId(attackerFleet);
+            var requestedFactionId = order.TargetFactionId
+                ?? (order.TargetEmpireId.HasValue ? state.GetEmpireFaction(order.TargetEmpireId.Value).FactionId : null);
+            var defenderFleets = state.Fleets
+                .Where(fleet => fleet.CycleId == order.CycleId
+                                && fleet.Status == FleetStatus.Active
+                                && fleet.CurrentSystemId == attackerFleet.CurrentSystemId
+                                && state.GetFactionId(fleet) != attackerFleet.FactionId
+                                && (!requestedFactionId.HasValue || state.GetFactionId(fleet) == requestedFactionId.Value))
+                .OrderBy(fleet => fleet.FleetId)
+                .ToArray();
+
+            if (defenderFleets.Length == 0)
+            {
+                RejectOrder(state, order, tickNumber, now, "No hostile active fleet is present in the system.");
+                continue;
+            }
+
+            var defenderFactionId = requestedFactionId
+                ?? defenderFleets
+                    .GroupBy(state.GetFactionId)
+                    .OrderByDescending(group => group.Sum(fleet => fleet.ShipCount))
+                    .ThenBy(group => group.Key)
+                    .First()
+                    .Key;
+            var defenderFleetIds = defenderFleets
+                .Where(fleet => state.GetFactionId(fleet) == defenderFactionId)
+                .Select(fleet => fleet.FleetId)
+                .ToArray();
+            intents.Add(new AttackIntent(
+                order,
+                attackerFleet.FleetId,
+                attackerFleet.CurrentSystemId,
+                attackerFleet.FactionId,
+                defenderFactionId,
+                defenderFleetIds));
         }
 
-        attackerFleet.FactionId = state.GetFactionId(attackerFleet);
-        var requestedFactionId = order.TargetFactionId
-            ?? (order.TargetEmpireId.HasValue ? state.GetEmpireFaction(order.TargetEmpireId.Value).FactionId : null);
-        var defenderFleets = state.Fleets
-            .Where(fleet => fleet.CycleId == order.CycleId
-                            && fleet.Status == FleetStatus.Active
-                            && fleet.CurrentSystemId == attackerFleet.CurrentSystemId
-                            && state.GetFactionId(fleet) != attackerFleet.FactionId
-                            && (!requestedFactionId.HasValue || state.GetFactionId(fleet) == requestedFactionId.Value))
-            .ToList();
-
-        if (defenderFleets.Count == 0)
+        foreach (var group in intents
+                     .GroupBy(intent => CombatGroupKey.Create(
+                         intent.SystemId,
+                         intent.AttackerFactionId,
+                         intent.DefenderFactionId))
+                     .OrderBy(group => group.Key.SystemId)
+                     .ThenBy(group => group.Key.FirstFactionId)
+                     .ThenBy(group => group.Key.SecondFactionId))
         {
-            RejectOrder(state, order, tickNumber, now, "No hostile active fleet is present in the system.");
-            return;
+            ProcessAttackGroup(state, group.Key, group.ToArray(), tickNumber, now);
+        }
+    }
+
+    private static void ProcessAttackGroup(
+        GameState state,
+        CombatGroupKey key,
+        IReadOnlyCollection<AttackIntent> intents,
+        int tickNumber,
+        DateTimeOffset now)
+    {
+        var attackingFactionIds = intents.Select(intent => intent.AttackerFactionId).Distinct().ToArray();
+        var attackerFactionId = attackingFactionIds.Length == 1
+            ? attackingFactionIds[0]
+            : key.FirstFactionId;
+        var defenderFactionId = attackerFactionId == key.FirstFactionId
+            ? key.SecondFactionId
+            : key.FirstFactionId;
+        var attackerFleetIds = intents
+            .Where(intent => intent.AttackerFactionId == attackerFactionId)
+            .Select(intent => intent.AttackerFleetId)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var defenderFleetIds = intents
+            .Where(intent => intent.DefenderFactionId == defenderFactionId)
+            .SelectMany(intent => intent.DefenderFleetIds)
+            .Concat(intents
+                .Where(intent => intent.AttackerFactionId == defenderFactionId)
+                .Select(intent => intent.AttackerFleetId))
+            .Distinct()
+            .Order()
+            .ToArray();
+        var attackerFleets = attackerFleetIds.Select(id => state.Fleets.Single(fleet => fleet.FleetId == id)).ToArray();
+        var defenderFleets = defenderFleetIds.Select(id => state.Fleets.Single(fleet => fleet.FleetId == id)).ToArray();
+
+        foreach (var fleet in attackerFleets)
+        {
+            fleet.FactionId = attackerFactionId;
         }
 
-        var defenderFactionId = requestedFactionId
-            ?? defenderFleets
-                .GroupBy(state.GetFactionId)
-                .OrderByDescending(group => group.Sum(fleet => fleet.ShipCount))
-                .First()
-                .Key;
-
-        defenderFleets = defenderFleets.Where(fleet => state.GetFactionId(fleet) == defenderFactionId).ToList();
-        foreach (var defenderFleet in defenderFleets)
+        foreach (var fleet in defenderFleets)
         {
-            defenderFleet.FactionId = defenderFactionId;
+            fleet.FactionId = defenderFactionId;
         }
-        var system = state.Systems.Single(item => item.SystemId == attackerFleet.CurrentSystemId);
-        var battle = CombatResolver.Resolve(state, tickNumber, now, system, attackerFleet, defenderFleets);
-        var attackerFaction = state.Factions.Single(item => item.FactionId == attackerFleet.FactionId);
+
+        var system = state.Systems.Single(item => item.SystemId == key.SystemId);
+        var battle = CombatResolver.Resolve(state, tickNumber, now, system, attackerFleets, defenderFleets);
+        var attackerFaction = state.Factions.Single(item => item.FactionId == attackerFactionId);
         var defenderFaction = state.Factions.Single(item => item.FactionId == defenderFactionId);
-        if (attackerFaction.EmpireId.HasValue && defenderFaction.EmpireId.HasValue)
+        foreach (var aggression in intents
+                     .Select(intent => (intent.AttackerFactionId, intent.DefenderFactionId))
+                     .Distinct())
         {
-            DiplomacyService.RecordAggression(
-                state,
-                order.CycleId,
-                tickNumber,
-                attackerFaction.EmpireId.Value,
-                defenderFaction.EmpireId.Value,
-                system,
-                now);
+            var aggressor = state.Factions.Single(item => item.FactionId == aggression.AttackerFactionId);
+            var target = state.Factions.Single(item => item.FactionId == aggression.DefenderFactionId);
+            if (aggressor.EmpireId.HasValue && target.EmpireId.HasValue)
+            {
+                DiplomacyService.RecordAggression(
+                    state,
+                    intents.First().Order.CycleId,
+                    tickNumber,
+                    aggressor.EmpireId.Value,
+                    target.EmpireId.Value,
+                    system,
+                    now);
+            }
         }
 
-        order.Status = FleetOrderStatus.Processed;
-        order.ProcessedTick = tickNumber;
+        foreach (var intent in intents)
+        {
+            intent.Order.Status = FleetOrderStatus.Processed;
+            intent.Order.ProcessedTick = tickNumber;
+        }
 
         var attacker = attackerFaction.EmpireId.HasValue
             ? state.Empires.Single(empire => empire.EmpireId == attackerFaction.EmpireId.Value)
@@ -396,7 +484,7 @@ public sealed class TickEngine
 
         var battleEvent = new EventRecord
         {
-            CycleId = order.CycleId,
+            CycleId = intents.First().Order.CycleId,
             TickNumber = tickNumber,
             EventType = EventType.CombatResolved,
             SystemId = system.SystemId,
@@ -428,7 +516,7 @@ public sealed class TickEngine
             state.ChronicleEntries.Add(chronicle);
             state.Events.Add(new EventRecord
             {
-                CycleId = order.CycleId,
+                CycleId = intents.First().Order.CycleId,
                 TickNumber = tickNumber,
                 EventType = EventType.ChronicleCreated,
                 SystemId = system.SystemId,
@@ -445,6 +533,25 @@ public sealed class TickEngine
                 CreatedAt = now
             });
         }
+    }
+
+    private sealed record AttackIntent(
+        FleetOrder Order,
+        Guid AttackerFleetId,
+        Guid SystemId,
+        Guid AttackerFactionId,
+        Guid DefenderFactionId,
+        IReadOnlyCollection<Guid> DefenderFleetIds);
+
+    private readonly record struct CombatGroupKey(
+        Guid SystemId,
+        Guid FirstFactionId,
+        Guid SecondFactionId)
+    {
+        public static CombatGroupKey Create(Guid systemId, Guid attackerFactionId, Guid defenderFactionId) =>
+            attackerFactionId.CompareTo(defenderFactionId) <= 0
+                ? new CombatGroupKey(systemId, attackerFactionId, defenderFactionId)
+                : new CombatGroupKey(systemId, defenderFactionId, attackerFactionId);
     }
 
     private static void ProcessColoniseOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now)

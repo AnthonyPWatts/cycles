@@ -87,7 +87,7 @@ public sealed class CuratedColdStartTests
         var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
 
         Assert.Equal(TickLogStatus.Completed, result.Status);
-        Assert.Equal(3, result.OrdersProcessed);
+        Assert.Equal(15, result.OrdersProcessed);
         Assert.Equal(moveTargetId, state.Fleets.Single(item => item.FleetId == moveFleetId).CurrentSystemId);
         Assert.Contains(state.ColonialOutposts, item => item.SystemId == state.Fleets.Single(fleet => fleet.FleetId == colonisingFleetId).CurrentSystemId);
         var battle = Assert.Single(state.BattleRecords, item => item.SystemId == attackSystemId);

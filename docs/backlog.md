@@ -15,7 +15,7 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
 
-The 18 July command-window and tick-resolution decision is now the baseline for the next order-engine and game-AI slice. Before implementation, create one bounded issue that closes human submissions at the deadline, generates visibility-respecting AI and neutral intentions, seals the complete turn ledger, and introduces the accepted deterministic phase boundaries. Route interception, pursuit, richer combat forecasting, and other later command types remain separate decisions rather than hidden additions to that slice.
+The 18 July command-window and tick-resolution decision is implemented through [#137](https://github.com/AnthonyPWatts/cycles/issues/137): human closure, deterministic game-AI/neutral Hold planning, implicit Holds, a durable sealed ledger, shared Cycle locking for command mutations, and explicit deterministic phase boundaries. Route interception, pursuit, richer game-AI strategy, combat forecasting, and other later command types remain separate decisions rather than hidden additions to that slice.
 
 The dashboard shell currently exposes the four implemented Command, Galaxy, Fleets, and History workspaces. Command owns cross-workspace triage and next-turn commitments; specialised work remains in its dedicated view. The navigation can grow when a bounded player-facing Strategy or Diplomacy workspace exists, but decision-gated systems do not receive empty or disabled tabs in advance.
 
@@ -28,6 +28,7 @@ The dashboard shell currently exposes the four implemented Command, Galaxy, Flee
 | Player API and Day One teaching contracts | [#127](https://github.com/AnthonyPWatts/cycles/issues/127), [#128](https://github.com/AnthonyPWatts/cycles/issues/128), [#129](https://github.com/AnthonyPWatts/cycles/issues/129) | Keep player responses typed, wire conventions explicit, and guide copy tied to real controls and outcomes. |
 | Guided play and balance evidence | [#131](https://github.com/AnthonyPWatts/cycles/issues/131) | Evidence precedes named constant or rule changes. |
 | Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Builds on the completed managed-SQL deployment and mandatory runtime-host configuration. |
+| Deterministic turn ledger and resolution | [#137](https://github.com/AnthonyPWatts/cycles/issues/137) | Implements command closure, first-pass Hold planners, durable sealing, phase order, and command/tick locking; richer AI and unresolved multi-faction combat remain separate. |
 | Pre-untrusted-test security gate | [#133](https://github.com/AnthonyPWatts/cycles/issues/133) | Review the implemented identity, authorisation, data-transfer, proxy, persistence, and deployment boundaries together. |
 | Public media consumer contract | [#134](https://github.com/AnthonyPWatts/cycles/issues/134) | Cycles owns the stable Cloudflare film and poster URLs; each consuming site owns its presentation, fallback, and responsive behaviour. |
 

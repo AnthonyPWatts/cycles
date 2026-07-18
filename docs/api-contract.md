@@ -32,6 +32,7 @@ Move, attack, and colonise requests accept an optional `replacesOrderId` alongsi
 - A different intention without `replacesOrderId`, or with an ID that no longer identifies the current pending order, returns `409 Conflict` with `code: "stateConflict"`.
 - A different intention with the current pending order ID creates the replacement and records the previous order as `superseded`.
 - Historical order responses can include `supersededByOrderId`, linking the superseded record to the replacement.
+- Order responses expose `commandSource` plus optional `sealedTick` and `sealedAt` fields. Human submissions are `human`; completed ledgers may also contain `gameAiPlanner`, `neutralPlanner`, and `implicitHold` records.
 
 For example, replacing a pending move with an attack includes the order being confirmed for replacement:
 

@@ -143,6 +143,7 @@ public static class OrderService
     {
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
+        RequireCommandWindowOpen(cycle);
         var order = state.FleetOrders.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetOrderId == fleetOrderId)
             ?? throw new InvalidOperationException("Fleet order does not exist in the active cycle.");
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == order.FleetId)
@@ -201,6 +202,7 @@ public static class OrderService
     {
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
+        RequireCommandWindowOpen(cycle);
         var empire = state.Empires.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.EmpireId == empireId)
             ?? throw new InvalidOperationException("Empire does not exist in the active cycle.");
 
@@ -311,6 +313,7 @@ public static class OrderService
             SubmitTick = cycle.CurrentTickNumber,
             ExecuteAfterTick = executeAfterTick,
             Status = FleetOrderStatus.Pending,
+            CommandSource = FleetOrderCommandSource.Human,
             CreatedAt = now
         };
 
@@ -364,6 +367,7 @@ public static class OrderService
     {
         var cycle = state.GetActiveCycle()
             ?? throw new InvalidOperationException("No active cycle exists.");
+        RequireCommandWindowOpen(cycle);
         var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
             ?? throw new InvalidOperationException("Fleet does not exist in the active cycle.");
 
@@ -380,6 +384,14 @@ public static class OrderService
         }
 
         return (cycle, fleet);
+    }
+
+    private static void RequireCommandWindowOpen(Cycle cycle)
+    {
+        if (cycle.TurnStage != TurnResolutionStage.CommandOpen)
+        {
+            throw new InvalidOperationException($"The command window is not open; the Cycle is {cycle.TurnStage}.");
+        }
     }
 }
 

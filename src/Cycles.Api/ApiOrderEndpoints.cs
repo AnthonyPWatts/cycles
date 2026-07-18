@@ -6,7 +6,7 @@ public static class ApiOrderEndpoints
         SubmitMove(request, httpContext, store, DateTimeOffset.UtcNow);
 
     public static IResult SubmitMove(MoveFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.Update(state =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
@@ -22,7 +22,7 @@ public static class ApiOrderEndpoints
         SubmitAttack(request, httpContext, store, DateTimeOffset.UtcNow);
 
     public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.Update(state =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
@@ -46,7 +46,7 @@ public static class ApiOrderEndpoints
         SubmitColonise(request, httpContext, store, DateTimeOffset.UtcNow);
 
     public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.Update(state =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
@@ -61,7 +61,7 @@ public static class ApiOrderEndpoints
         Cancel(request, httpContext, store, DateTimeOffset.UtcNow);
 
     public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.Update(state =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             var empireId = DevelopmentAuth.ResolveOrderOwnerEmpireId(state, actor, request.FleetOrderId);
@@ -76,7 +76,7 @@ public static class ApiOrderEndpoints
         UpdatePriorities(request, httpContext, store, DateTimeOffset.UtcNow);
 
     public static IResult UpdatePriorities(PriorityRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.Update(state =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
         {
             var actor = DevelopmentAuth.RequireActor(httpContext, state);
             if (!actor.IsAdmin)
@@ -107,6 +107,9 @@ public static class ApiOrderEndpoints
             order.ExecuteAfterTick,
             order.ProcessedTick,
             order.Status,
+            order.CommandSource,
+            order.SealedTick,
+            order.SealedAt,
             order.RejectionReason,
             order.SupersededByOrderId,
             order.CreatedAt);
@@ -168,6 +171,9 @@ public sealed record FleetOrderCommandResponse(
     int ExecuteAfterTick,
     int? ProcessedTick,
     FleetOrderStatus Status,
+    FleetOrderCommandSource CommandSource,
+    int? SealedTick,
+    DateTimeOffset? SealedAt,
     string? RejectionReason,
     Guid? SupersededByOrderId,
     DateTimeOffset CreatedAt);

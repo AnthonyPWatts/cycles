@@ -541,7 +541,7 @@ static void SubmitMove(string[] args, IGameStateStore store)
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var targetSystemId = ParseRequiredGuid(args, 3, "target system id");
     var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
-    var order = store.Update(state => OrderService.SubmitMoveOrder(
+    var order = store.UpdateActiveCycleExclusively(state => OrderService.SubmitMoveOrder(
         state,
         fleetId,
         targetSystemId,
@@ -558,7 +558,7 @@ static void SubmitAttack(string[] args, IGameStateStore store)
         ? Guid.Parse(targetEmpireArgument)
         : (Guid?)null;
     var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
-    var order = store.Update(state => OrderService.SubmitAttackOrder(
+    var order = store.UpdateActiveCycleExclusively(state => OrderService.SubmitAttackOrder(
         state,
         fleetId,
         targetEmpireId,
@@ -571,7 +571,7 @@ static void SubmitHold(string[] args, IGameStateStore store)
 {
     var fleetId = ParseRequiredGuid(args, 2, "fleet id");
     var confirmReplacement = args.Contains("--confirm-replace", StringComparer.OrdinalIgnoreCase);
-    var order = store.Update(state => OrderService.SubmitHoldOrder(
+    var order = store.UpdateActiveCycleExclusively(state => OrderService.SubmitHoldOrder(
         state,
         fleetId,
         DateTimeOffset.UtcNow,

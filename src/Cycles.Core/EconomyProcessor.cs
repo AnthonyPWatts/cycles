@@ -16,14 +16,14 @@ public static class EconomyProcessor
             .Where(item => item.CycleId == cycleId
                            && item.Status == ShipConstructionStatus.Queued
                            && item.CompleteAfterTick <= tickNumber)
-            .OrderBy(item => item.StartedTick)
-            .ThenBy(item => item.CreatedAt)
+            .OrderBy(item => item.EmpireId)
+            .ThenBy(item => item.ShipConstructionId)
             .ToList();
 
         foreach (var construction in completing)
         {
             var empire = state.Empires.Single(item => item.CycleId == cycleId && item.EmpireId == construction.EmpireId);
-            var homeFleet = GetOrCreateHomeFleet(state, cycleId, empire, now);
+            var homeFleet = GetOrCreateConstructionFleet(state, cycleId, empire, construction, tickNumber, now);
             homeFleet.ShipCount += construction.ShipCount;
             homeFleet.Status = FleetStatus.Active;
 
@@ -57,7 +57,9 @@ public static class EconomyProcessor
 
     public static void ApplyPrioritySpending(GameState state, Guid cycleId, int tickNumber, DateTimeOffset now)
     {
-        foreach (var empire in state.Empires.Where(item => item.CycleId == cycleId && item.Status == EmpireStatus.Active))
+        foreach (var empire in state.Empires
+                     .Where(item => item.CycleId == cycleId && item.Status == EmpireStatus.Active)
+                     .OrderBy(item => item.EmpireId))
         {
             var resources = state.EmpireResources.Single(item => item.EmpireId == empire.EmpireId);
             var priorities = state.EmpirePriorities.SingleOrDefault(item => item.EmpireId == empire.EmpireId)
@@ -126,7 +128,9 @@ public static class EconomyProcessor
 
     public static void ApplyResearchUnlocks(GameState state, Guid cycleId, int tickNumber, DateTimeOffset now)
     {
-        foreach (var empire in state.Empires.Where(item => item.CycleId == cycleId && item.Status == EmpireStatus.Active))
+        foreach (var empire in state.Empires
+                     .Where(item => item.CycleId == cycleId && item.Status == EmpireStatus.Active)
+                     .OrderBy(item => item.EmpireId))
         {
             if (HasSurveyProjectionDoctrine(state, cycleId, empire.EmpireId))
             {
@@ -166,16 +170,30 @@ public static class EconomyProcessor
                                  && item.EventType == EventType.DoctrineUnlocked
                                  && item.FactJson.Contains(SurveyProjectionDoctrineKey, StringComparison.Ordinal));
 
-    private static Fleet GetOrCreateHomeFleet(GameState state, Guid cycleId, Empire empire, DateTimeOffset now)
+    private static Fleet GetOrCreateConstructionFleet(
+        GameState state,
+        Guid cycleId,
+        Empire empire,
+        ShipConstruction construction,
+        int tickNumber,
+        DateTimeOffset now)
     {
-        var homeFleet = state.Fleets
+        var homeFleets = state.Fleets
             .Where(fleet => fleet.CycleId == cycleId
                             && fleet.EmpireId == empire.EmpireId
                             && fleet.CurrentSystemId == empire.HomeSystemId
                             && fleet.Status == FleetStatus.Active)
             .OrderBy(fleet => string.Equals(fleet.FleetName, $"{empire.EmpireName} Home Fleet", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(fleet => fleet.CreatedAt)
-            .FirstOrDefault();
+            .ThenBy(fleet => fleet.FleetId)
+            .ToArray();
+
+        var sealedOrdersByFleetId = state.FleetOrders
+            .Where(order => order.CycleId == cycleId && order.SealedTick == tickNumber)
+            .ToDictionary(order => order.FleetId);
+        var homeFleet = homeFleets.FirstOrDefault(fleet =>
+                sealedOrdersByFleetId.TryGetValue(fleet.FleetId, out var order)
+                && order.OrderType == FleetOrderType.Hold)
+            ?? homeFleets.FirstOrDefault(fleet => !sealedOrdersByFleetId.ContainsKey(fleet.FleetId));
 
         if (homeFleet is not null)
         {
@@ -184,10 +202,11 @@ public static class EconomyProcessor
 
         homeFleet = new Fleet
         {
+            FleetId = construction.ShipConstructionId,
             CycleId = cycleId,
             EmpireId = empire.EmpireId,
             FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
-            FleetName = $"{empire.EmpireName} Home Fleet",
+            FleetName = $"{empire.EmpireName} Reinforcements T{tickNumber}",
             CurrentSystemId = empire.HomeSystemId,
             ShipCount = 0,
             Status = FleetStatus.Active,

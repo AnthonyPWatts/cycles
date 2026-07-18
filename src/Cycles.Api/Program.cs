@@ -582,6 +582,7 @@ static CycleResponse ToCycleResponse(Cycle cycle) =>
         cycle.EndAt,
         cycle.TickLengthMinutes,
         cycle.CurrentTickNumber,
+        cycle.TurnStage,
         cycle.Status,
         cycle.CreatedAt);
 
@@ -813,9 +814,12 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         order.FleetId,
         order.OrderType,
         order.Status,
+        order.CommandSource,
         order.SubmitTick,
         order.ExecuteAfterTick,
         order.ProcessedTick,
+        order.SealedTick,
+        order.SealedAt,
         order.RejectionReason,
         order.SupersededByOrderId,
         order.TargetSystemId,
@@ -1042,9 +1046,12 @@ public sealed record FleetOrderResponse(
     Guid FleetId,
     FleetOrderType OrderType,
     FleetOrderStatus Status,
+    FleetOrderCommandSource CommandSource,
     int SubmitTick,
     int ExecuteAfterTick,
     int? ProcessedTick,
+    int? SealedTick,
+    DateTimeOffset? SealedAt,
     string? RejectionReason,
     Guid? SupersededByOrderId,
     Guid? TargetSystemId,
@@ -1075,6 +1082,7 @@ public sealed record CycleResponse(
     DateTimeOffset EndAt,
     int TickLengthMinutes,
     int CurrentTickNumber,
+    TurnResolutionStage TurnStage,
     CycleStatus Status,
     DateTimeOffset CreatedAt);
 

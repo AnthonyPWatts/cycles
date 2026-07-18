@@ -382,6 +382,11 @@ public static class GameStateTransfer
             {
                 errors.Add($"Cycle {cycle.CycleId} has invalid scheduling boundaries.");
             }
+
+            if (cycle.Status == CycleStatus.Active && cycle.TurnStage != TurnResolutionStage.CommandOpen)
+            {
+                errors.Add($"Active Cycle {cycle.CycleId} must have an open command window in committed state.");
+            }
         }
 
         var playerIds = state.Players.Select(item => item.PlayerId).ToHashSet();
@@ -667,6 +672,21 @@ public static class GameStateTransfer
             if (order.SubmitTick < 0 || order.ExecuteAfterTick <= order.SubmitTick)
             {
                 errors.Add($"Fleet order {order.FleetOrderId} has invalid tick scheduling.");
+            }
+
+            if (order.SealedTick.HasValue != order.SealedAt.HasValue)
+            {
+                errors.Add($"Fleet order {order.FleetOrderId} must record its sealed tick and timestamp together.");
+            }
+
+            if (order.SealedTick.HasValue && order.SealedTick.Value < order.ExecuteAfterTick)
+            {
+                errors.Add($"Fleet order {order.FleetOrderId} was sealed before its execution tick.");
+            }
+
+            if (order.CommandSource != FleetOrderCommandSource.Human && !order.SealedTick.HasValue)
+            {
+                errors.Add($"Generated fleet order {order.FleetOrderId} is not part of a sealed turn ledger.");
             }
         }
 

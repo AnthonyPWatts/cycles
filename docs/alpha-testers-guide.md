@@ -132,7 +132,7 @@ Repeat these actions before each tick:
 
 The server rechecks each order when it processes the tick. An order that was valid when queued can fail if the fleet moves, the target disappears, a rival changes local influence, or another action spends the required resources.
 
-Queue one order per fleet per tick while learning the game. The current build accepts multiple pending orders for one fleet and processes them in submission order, so a later order may become invalid after the first one changes the fleet.
+Each fleet can have one pending intention for the next tick. Choosing a different action asks you to confirm replacement of the current pending order; repeating the same action is idempotent. Fleets without a submitted command Hold when the command window closes. Submission time does not grant initiative: resources and construction resolve first, then movement, combat, and colonisation.
 
 ## Influence and resources
 

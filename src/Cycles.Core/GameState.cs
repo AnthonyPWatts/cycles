@@ -188,6 +188,7 @@ public sealed class GameState
         TickLengthMinutes = item.TickLengthMinutes,
         CurrentTickNumber = item.CurrentTickNumber,
         Status = item.Status,
+        TurnStage = item.TurnStage,
         CreatedByPlayerId = item.CreatedByPlayerId,
         CreatedAt = item.CreatedAt
     };
@@ -431,6 +432,9 @@ public sealed class GameState
         ExecuteAfterTick = item.ExecuteAfterTick,
         ProcessedTick = item.ProcessedTick,
         Status = item.Status,
+        CommandSource = item.CommandSource,
+        SealedTick = item.SealedTick,
+        SealedAt = item.SealedAt,
         RejectionReason = item.RejectionReason,
         SupersededByOrderId = item.SupersededByOrderId,
         CreatedAt = item.CreatedAt
@@ -554,6 +558,7 @@ public sealed class Cycle
     public int TickLengthMinutes { get; set; } = 60;
     public int CurrentTickNumber { get; set; }
     public CycleStatus Status { get; set; } = CycleStatus.Active;
+    public TurnResolutionStage TurnStage { get; set; } = TurnResolutionStage.CommandOpen;
     public Guid? CreatedByPlayerId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -790,6 +795,9 @@ public sealed class FleetOrder
     public int ExecuteAfterTick { get; set; }
     public int? ProcessedTick { get; set; }
     public FleetOrderStatus Status { get; set; } = FleetOrderStatus.Pending;
+    public FleetOrderCommandSource CommandSource { get; set; } = FleetOrderCommandSource.Human;
+    public int? SealedTick { get; set; }
+    public DateTimeOffset? SealedAt { get; set; }
     public string? RejectionReason { get; set; }
     public Guid? SupersededByOrderId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -919,6 +927,15 @@ public enum CycleStatus
     RecoveryRequired
 }
 
+public enum TurnResolutionStage
+{
+    CommandOpen,
+    Closing,
+    Sealed,
+    Resolving,
+    Publishing
+}
+
 public enum EmpireStatus
 {
     Active,
@@ -989,6 +1006,14 @@ public enum FleetOrderStatus
     Rejected,
     Cancelled,
     Superseded
+}
+
+public enum FleetOrderCommandSource
+{
+    Human,
+    GameAiPlanner,
+    NeutralPlanner,
+    ImplicitHold
 }
 
 public enum ShipConstructionStatus

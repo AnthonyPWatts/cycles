@@ -241,7 +241,11 @@ public sealed class SqlServerGameStateStoreIntegrationTests
 
         Assert.Equal(destination.SystemId, movedFleet.CurrentSystemId);
         Assert.Equal(FleetOrderStatus.Processed, processedOrder.Status);
+        Assert.Equal(FleetOrderCommandSource.Human, processedOrder.CommandSource);
+        Assert.Equal(1, processedOrder.SealedTick);
+        Assert.Equal(TestState.Now, processedOrder.SealedAt);
         Assert.Equal(1, processedOrder.ProcessedTick);
+        Assert.Equal(TurnResolutionStage.CommandOpen, updated.Cycles.Single(item => item.CycleId == cycle.CycleId).TurnStage);
         Assert.Contains(updated.Events, item => item.EventType == EventType.FleetMoved && item.SystemId == destination.SystemId);
         Assert.Single(updated.EmpireMetrics, item => item.CycleId == cycle.CycleId && item.TickNumber == 1);
     }

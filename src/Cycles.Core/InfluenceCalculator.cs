@@ -72,7 +72,9 @@ public static class InfluenceCalculator
             resources.LastSpentPopulation = 0;
         }
 
-        foreach (var system in state.Systems.Where(system => system.CycleId == cycleId))
+        foreach (var system in state.Systems
+                     .Where(system => system.CycleId == cycleId)
+                     .OrderBy(system => system.SystemId))
         {
             var presence = CalculateEffectivePresence(state, cycleId, system.SystemId);
             if (presence.Count == 0)
@@ -81,7 +83,7 @@ public static class InfluenceCalculator
             }
 
             var totalPresence = presence.Values.Sum();
-            foreach (var (factionId, effectivePresence) in presence)
+            foreach (var (factionId, effectivePresence) in presence.OrderBy(item => item.Key))
             {
                 var share = effectivePresence / totalPresence;
                 var empireId = state.GetEmpireIdForFaction(factionId);
@@ -102,7 +104,7 @@ public static class InfluenceCalculator
             }
         }
 
-        foreach (var (empireId, delta) in generatedByEmpire)
+        foreach (var (empireId, delta) in generatedByEmpire.OrderBy(item => item.Key))
         {
             var resources = state.EmpireResources.Single(resource => resource.EmpireId == empireId);
             resources.Industry = Math.Max(0, resources.Industry + delta.Industry);

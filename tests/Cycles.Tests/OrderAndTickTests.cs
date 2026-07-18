@@ -305,6 +305,8 @@ public sealed class OrderAndTickTests
         Assert.Equal(TickLogStatus.Failed, result.Status);
         Assert.Equal(CycleStatus.RecoveryRequired, cycle.Status);
         Assert.Equal(0, cycle.CurrentTickNumber);
+        Assert.Equal(TurnResolutionStage.Resolving, cycle.TurnStage);
+        Assert.Empty(state.FleetOrders);
         Assert.Single(state.TickLogs);
         Assert.DoesNotContain(state.Events, item => item.TickNumber == 1);
     }
@@ -478,9 +480,9 @@ public sealed class OrderAndTickTests
                 (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.ArrivalTickNumber, item.ShipCount, item.Status)));
         Assert.Equal(
             expected.FleetOrders.OrderBy(item => item.FleetOrderId).Select(item =>
-                (item.FleetOrderId, item.Status, item.ProcessedTick, item.RejectionReason)),
+                (item.FleetOrderId, item.Status, item.CommandSource, item.SealedTick, item.ProcessedTick, item.RejectionReason)),
             actual.FleetOrders.OrderBy(item => item.FleetOrderId).Select(item =>
-                (item.FleetOrderId, item.Status, item.ProcessedTick, item.RejectionReason)));
+                (item.FleetOrderId, item.Status, item.CommandSource, item.SealedTick, item.ProcessedTick, item.RejectionReason)));
         Assert.Equal(
             expected.DiplomaticRelationships.OrderBy(item => item.DiplomaticRelationshipId).Select(item =>
                 (item.FirstEmpireId, item.SecondEmpireId, item.State, item.UpdatedTick)),

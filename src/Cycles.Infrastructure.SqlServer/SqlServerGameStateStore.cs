@@ -248,6 +248,17 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static GameState LoadFocusedTickStateUnsafe(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
         new()
         {
+            Players = ReadRows(
+                connection,
+                transaction,
+                """
+                SELECT DISTINCT players.*
+                FROM dbo.Players players
+                INNER JOIN dbo.Empires empires ON empires.PlayerID = players.PlayerID
+                WHERE empires.CycleID = @CycleID
+                """,
+                command => AddGuid(command, "@CycleID", cycleId),
+                ReadPlayer),
             Cycles = ReadRows(
                 connection,
                 transaction,
@@ -637,6 +648,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         TickLengthMinutes = GetInt(reader, "TickLengthMinutes"),
         CurrentTickNumber = GetInt(reader, "CurrentTickNumber"),
         Status = GetEnum<CycleStatus>(reader, "Status"),
+        TurnStage = GetEnum<TurnResolutionStage>(reader, "TurnStage"),
         CreatedByPlayerId = GetNullableGuid(reader, "CreatedByPlayerID"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
@@ -880,6 +892,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         ExecuteAfterTick = GetInt(reader, "ExecuteAfterTick"),
         ProcessedTick = GetNullableInt(reader, "ProcessedTick"),
         Status = GetEnum<FleetOrderStatus>(reader, "Status"),
+        CommandSource = GetEnum<FleetOrderCommandSource>(reader, "CommandSource"),
+        SealedTick = GetNullableInt(reader, "SealedTick"),
+        SealedAt = GetNullableDateTimeOffset(reader, "SealedAt"),
         RejectionReason = GetNullableString(reader, "RejectionReason"),
         SupersededByOrderId = GetNullableGuid(reader, "SupersededByOrderID"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
@@ -1054,14 +1069,15 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 TickLengthMinutes = @TickLengthMinutes,
                 CurrentTickNumber = @CurrentTickNumber,
                 Status = @Status,
+                TurnStage = @TurnStage,
                 CreatedByPlayerID = @CreatedByPlayerID,
                 CreatedAt = @CreatedAt
             WHERE CycleID = @CycleID;
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedByPlayerID, CreatedAt)
-            VALUES (@CycleID, @Name, @StartAt, @EndAt, @TickLengthMinutes, @CurrentTickNumber, @Status, @CreatedByPlayerID, @CreatedAt);
+            INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, TurnStage, CreatedByPlayerID, CreatedAt)
+            VALUES (@CycleID, @Name, @StartAt, @EndAt, @TickLengthMinutes, @CurrentTickNumber, @Status, @TurnStage, @CreatedByPlayerID, @CreatedAt);
             END;
             """, command =>
         {
@@ -1072,6 +1088,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@TickLengthMinutes", item.TickLengthMinutes);
             AddInt(command, "@CurrentTickNumber", item.CurrentTickNumber);
             AddString(command, "@Status", item.Status.ToString(), 32);
+            AddString(command, "@TurnStage", item.TurnStage.ToString(), 32);
             AddNullableGuid(command, "@CreatedByPlayerID", item.CreatedByPlayerId);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
@@ -1453,6 +1470,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 ExecuteAfterTick = @ExecuteAfterTick,
                 ProcessedTick = @ProcessedTick,
                 Status = @Status,
+                CommandSource = @CommandSource,
+                SealedTick = @SealedTick,
+                SealedAt = @SealedAt,
                 RejectionReason = @RejectionReason,
                 SupersededByOrderID = @SupersededByOrderID,
                 CreatedAt = @CreatedAt
@@ -1460,8 +1480,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetSystemID, TargetEmpireID, TargetFactionID, SubmitTick, ExecuteAfterTick, ProcessedTick, Status, RejectionReason, SupersededByOrderID, CreatedAt)
-            VALUES (@FleetOrderID, @CycleID, @FleetID, @OrderType, @TargetSystemID, @TargetEmpireID, @TargetFactionID, @SubmitTick, @ExecuteAfterTick, @ProcessedTick, @Status, @RejectionReason, @SupersededByOrderID, @CreatedAt);
+            INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetSystemID, TargetEmpireID, TargetFactionID, SubmitTick, ExecuteAfterTick, ProcessedTick, Status, CommandSource, SealedTick, SealedAt, RejectionReason, SupersededByOrderID, CreatedAt)
+            VALUES (@FleetOrderID, @CycleID, @FleetID, @OrderType, @TargetSystemID, @TargetEmpireID, @TargetFactionID, @SubmitTick, @ExecuteAfterTick, @ProcessedTick, @Status, @CommandSource, @SealedTick, @SealedAt, @RejectionReason, @SupersededByOrderID, @CreatedAt);
             END;
             """, command =>
         {
@@ -1476,6 +1496,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@ExecuteAfterTick", item.ExecuteAfterTick);
             AddNullableInt(command, "@ProcessedTick", item.ProcessedTick);
             AddString(command, "@Status", item.Status.ToString(), 32);
+            AddString(command, "@CommandSource", item.CommandSource.ToString(), 32);
+            AddNullableInt(command, "@SealedTick", item.SealedTick);
+            AddNullableDateTimeOffset(command, "@SealedAt", item.SealedAt);
             AddNullableString(command, "@RejectionReason", item.RejectionReason, 512);
             AddNullableGuid(command, "@SupersededByOrderID", item.SupersededByOrderId);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);

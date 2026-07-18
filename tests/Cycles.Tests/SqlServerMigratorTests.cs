@@ -42,6 +42,7 @@ public sealed class SqlServerMigratorTests
         var inactivePriorities = Assert.Single(migrations, migration => migration.MigrationId == "014_lock_inactive_priorities");
         var galaxySectors = Assert.Single(migrations, migration => migration.MigrationId == "015_add_galaxy_sectors");
         var pendingFleetOrder = Assert.Single(migrations, migration => migration.MigrationId == "016_enforce_one_pending_fleet_order");
+        var turnResolutionLedger = Assert.Single(migrations, migration => migration.MigrationId == "019_add_turn_resolution_ledger");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -74,5 +75,9 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("UX_FleetOrders_Cycle_Fleet_ExecuteAfterTick_Pending", pendingFleetOrder.Script, StringComparison.Ordinal);
         Assert.Contains("ROW_NUMBER()", pendingFleetOrder.Script, StringComparison.Ordinal);
         Assert.Matches(@"END;\r?\nGO\r?\n", pendingFleetOrder.Script);
+        Assert.Contains("TurnStage", turnResolutionLedger.Script, StringComparison.Ordinal);
+        Assert.Contains("CommandSource", turnResolutionLedger.Script, StringComparison.Ordinal);
+        Assert.Contains("SealedTick", turnResolutionLedger.Script, StringComparison.Ordinal);
+        Assert.Contains("CK_FleetOrders_SealedTogether", turnResolutionLedger.Script, StringComparison.Ordinal);
     }
 }

@@ -8,6 +8,8 @@ public interface IGameStateStore
 
     T Update<T>(Func<GameState, T> update);
 
+    T UpdateActiveCycleExclusively<T>(Func<GameState, T> update) => Update(update);
+
     TickResult RunTick(DateTimeOffset now);
 
     TickResult? RunTickIfDue(DateTimeOffset now);
