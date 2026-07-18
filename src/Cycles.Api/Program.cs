@@ -22,6 +22,10 @@ Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
     : null;
 
 builder.Services.AddSingleton<IGameStateStore>(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     ApiJson.Configure(options.SerializerOptions);
@@ -60,6 +64,7 @@ if (!app.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
     app.UseForwardedHeaders();
 }
 
+app.UseResponseCompression();
 app.UseEdgeAssetRedirect(builder.Configuration["Cycles:EdgeAssetOrigin"]);
 app.UsePlaygroundAccess(playgroundAccessCode);
 app.UseMiddleware<ApiErrorMiddleware>();
