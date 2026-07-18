@@ -8,6 +8,15 @@ This file captures Cycles-specific guidance for coding agents. Anthony's global 
 - Treat `docs/product-owner-questions.md` as the current source for product calls that have been answered or are still blocked.
 - Keep changes small and tied to an authoritative GitHub issue, the curated roadmap in `docs/backlog.md`, or the user's explicit request.
 
+## Delivery And Ready State
+
+- This repository favours frequent delivery. Commit each coherent, verified slice promptly and push it promptly; do not leave completed work accumulating only in the working tree or in local commits.
+- Direct commits and pushes to `main` are the normal path when the user has authorised the work. A feature branch or pull request is not required unless the user asks for one, branch protection requires one, or concurrent work makes isolation materially safer. Do not introduce branch or pull-request ceremony as a default gate.
+- When a branch or pull request is used, carry it through to completion without waiting for routine approval: land it, confirm the intended commits are on `origin/main`, return the local checkout to `main`, and remove temporary local branch state when safe. Do not finish with a needlessly divergent local `main`.
+- A pushed commit is not the stopping point. Leave the project ready in both places: a clean, synchronised local `main` with the relevant migrations, seed data, tests, and local smoke checks applied; and a successful deployment with its workflow and live smoke checks verified.
+- If deployment or local readiness is blocked, report the exact blocker and preserve the furthest safe ready state. Do not describe work as complete while either the expected local state or deployed state is knowingly stale.
+- These are Cycles-specific defaults and should not drift back to a branch-first, pull-request-first, or push-at-the-end workflow without an explicit user decision.
+
 ## Verification
 
 - Prefer the repo test helper for normal test runs:
