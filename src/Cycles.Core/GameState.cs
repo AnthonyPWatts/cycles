@@ -413,6 +413,7 @@ public sealed class GameState
         FleetName = item.FleetName,
         CurrentSystemId = item.CurrentSystemId,
         DestinationSystemId = item.DestinationSystemId,
+        DepartureTickNumber = item.DepartureTickNumber,
         ArrivalTickNumber = item.ArrivalTickNumber,
         ShipCount = item.ShipCount,
         Status = item.Status,
@@ -745,6 +746,7 @@ public sealed class Fleet
     public string FleetName { get; set; } = "";
     public Guid CurrentSystemId { get; set; }
     public Guid? DestinationSystemId { get; set; }
+    public int? DepartureTickNumber { get; set; }
     public int? ArrivalTickNumber { get; set; }
     public int ShipCount { get; set; }
     public FleetStatus Status { get; set; } = FleetStatus.Active;
@@ -994,6 +996,7 @@ public enum AdmiralBattleOutcome
 public enum FleetOrderType
 {
     MoveFleet,
+    RecallFleet,
     Hold,
     Attack,
     Colonise
@@ -1037,6 +1040,8 @@ public enum EventType
     ShipConstructionQueued,
     ShipConstructionCompleted,
     FleetMoved,
+    FleetRecalled,
+    FleetReturned,
     FleetArrived,
     FleetHeld,
     OrderRejected,

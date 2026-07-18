@@ -26,7 +26,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
             applied,
             item => Assert.Equal("017_add_match_participants_and_factions", item.MigrationId),
             item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId),
-            item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId));
+            item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId),
+            item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));

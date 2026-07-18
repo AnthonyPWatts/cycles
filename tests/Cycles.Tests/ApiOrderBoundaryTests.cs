@@ -82,6 +82,48 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task RecallOrderEndpointAcceptsOwnedOutboundFleetInTransit()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 2);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+
+        var result = ApiOrderEndpoints.SubmitRecall(
+            new RecallFleetRequest(fleet.FleetId),
+            CreateAuthenticatedContext(state),
+            new InMemoryGameStateStore(state),
+            TestState.Now.AddMinutes(1));
+
+        var response = await ExecuteAsync(result);
+        var recall = Assert.Single(state.FleetOrders, order => order.OrderType == FleetOrderType.RecallFleet);
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+        Assert.Equal(FleetOrderStatus.Pending, recall.Status);
+        Assert.Equal(fleet.CurrentSystemId, recall.TargetSystemId);
+        Assert.Equal(2, recall.ExecuteAfterTick);
+    }
+
+    [Fact]
+    public async Task RecallOrderEndpointRejectsActiveFleet()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+
+        var result = ApiOrderEndpoints.SubmitRecall(
+            new RecallFleetRequest(fleet.FleetId),
+            CreateAuthenticatedContext(state),
+            new InMemoryGameStateStore(state),
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Contains("outbound fleet in transit", response.Body, StringComparison.Ordinal);
+        Assert.Empty(state.FleetOrders);
+    }
+
+    [Fact]
     public async Task AttackOrderEndpointRejectsOwnEmpire()
     {
         var state = TestState.CreateSingleEmpireState();

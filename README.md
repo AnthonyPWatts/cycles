@@ -18,7 +18,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
 - explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;
-- submit durable movement, attack, cancellation, and colonisation orders;
+- submit durable movement, in-transit recall, attack, cancellation, and colonisation orders;
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
 - generate resources from influence and spend military industry on queued ships;
 - unlock the first research doctrine and establish population-funded outposts;
@@ -31,7 +31,7 @@ This is a working development MVP, not an alpha release or production game servi
 
 ## Turns Resolve In A Fixed Gameplay Order
 
-Players commit one intention per fleet before the command window closes. The server then seals one complete ledger and resolves it as `income -> due construction -> programme spending and construction starts -> arrivals and movement -> combat -> colonisation -> derived metrics -> next-window progression -> publication`.
+Players commit one intention per fleet before the command window closes. The server then seals one complete ledger and resolves it as `income -> due construction -> programme spending and construction starts -> recalls, arrivals, and movement -> combat -> colonisation -> derived metrics -> next-window progression -> publication`.
 
 That sequence governs strategy. Submission time grants no initiative. A fleet that moves away leaves before combat checks its system; a fleet that arrives can take part in defence later in the turn. Ships whose construction was already due may defend, but they contributed no income and cannot inherit a command sealed before they existed. A colonising fleet must survive combat, and research unlocked during resolution applies when the next command window opens.
 

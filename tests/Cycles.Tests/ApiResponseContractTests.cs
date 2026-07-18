@@ -18,6 +18,13 @@ public sealed class ApiResponseContractTests
     }
 
     [Fact]
+    public void Fleet_contracts_expose_authoritative_departure_ticks_for_transit_timing()
+    {
+        Assert.Equal(typeof(int?), typeof(FleetDataResponse).GetProperty(nameof(FleetDataResponse.DepartureTickNumber))!.PropertyType);
+        Assert.Equal(typeof(int?), typeof(FleetDetailResponse).GetProperty(nameof(FleetDetailResponse.DepartureTickNumber))!.PropertyType);
+    }
+
+    [Fact]
     public void Public_response_contracts_do_not_expose_domain_entities()
     {
         Type[] responseTypes =

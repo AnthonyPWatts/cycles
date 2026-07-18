@@ -37,6 +37,25 @@ public sealed class GameStateTransferTests
     }
 
     [Fact]
+    public void Import_infers_departure_tick_for_legacy_in_transit_fleet()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 2);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        state.Fleets.Single().DepartureTickNumber = null;
+        using var stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(
+            new GameStateTransferDocument(GameStateTransfer.CurrentFormatVersion, TestState.Now, state),
+            GameStateJson.Options));
+
+        var document = GameStateTransfer.Read(stream);
+
+        Assert.Equal(1, Assert.Single(document.State.Fleets).DepartureTickNumber);
+    }
+
+    [Fact]
     public void Reader_rejects_incompatible_or_partial_documents_before_deserialisation()
     {
         using var incompatible = JsonStream("""

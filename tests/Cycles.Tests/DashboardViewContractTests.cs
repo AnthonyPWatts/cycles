@@ -118,6 +118,53 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void In_transit_fleets_remain_visible_as_ongoing_commitments()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"fleetRosterSummary\"", html);
+        Assert.Contains("function transitCommitments()", script);
+        Assert.Contains("item.fleet.status === \"inTransit\"", script);
+        Assert.Contains("function operationalFleetItems()", script);
+        Assert.Contains("function transitCalendarCard(transit)", script);
+        Assert.Contains("Move underway", script);
+        Assert.Contains("continues automatically", script);
+        Assert.Contains("dispatched T${order.processedTick}", script);
+        Assert.Contains("Departed from", script);
+        Assert.Contains("recall available", script);
+        Assert.Contains("active · ${formatNumber(transitFleetCount)} in transit", script);
+        Assert.Contains("Command availability", script);
+        Assert.Contains("Recall is the only available change", script);
+        Assert.Contains("class=\"fleet-transit-track\"", script);
+        Assert.DoesNotContain("No pending intention. This fleet is ready for a command.", script);
+        Assert.Contains(".status-intransit", css);
+        Assert.Contains(".fleet-item.is-in-transit", css);
+        Assert.Contains(".fleet-transit-track", css);
+    }
+
+    [Fact]
+    public void In_transit_fleets_can_queue_and_cancel_a_fleets_first_recall()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("data-recall-fleet-id", script);
+        Assert.Contains("async function recallFleet(fleetId)", script);
+        Assert.Contains("/orders/fleet/recall", script);
+        Assert.Contains("Recall ${transit.fleetName} to ${transit.originSystemName}?", script);
+        Assert.Contains("The original move remains in history.", script);
+        Assert.Contains("Recall ordered", script);
+        Assert.Contains("projected return", script);
+        Assert.Contains("Cancel recall", script);
+        Assert.Contains("function projectedReturnCalendarCard(transit)", script);
+        Assert.Contains("recallFleet: \"R\"", script);
+        Assert.Contains("recalled T${order.processedTick} · returns T${transit.arrivalTickNumber}", script);
+        Assert.Contains(".fleet-journey-actions", css);
+    }
+
+    [Fact]
     public void History_view_separates_filterable_chronicle_and_event_records()
     {
         var html = ReadDashboardAsset("app.html");

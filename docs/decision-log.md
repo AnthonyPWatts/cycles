@@ -1654,3 +1654,23 @@ Consequences:
 Implementation note: issue #137 persists the Cycle turn stage and each order's command source, sealed tick, and sealed time. Player command mutations share the Cycle tick lock. The first internal game-AI and neutral planners emit Hold by design, missing human intentions become deterministic implicit Holds, due ships form home reinforcements when an existing home fleet has another sealed command, and same-faction attacks against one opposing faction in a system form one battle. This establishes the lifecycle and audit boundary without inventing richer AI, interception, pursuit, or unresolved multi-faction alliance sides. Issue #138 owns clear phase-order presentation in the Command and result experience; issue #131 must gather evidence about player understanding as well as balance.
 
 Known contention gap: if several eligible Colonise intentions from one empire compete for insufficient Population, stable fleet/order traversal in the current build decides which consumes the available stockpile. That behaviour is reproducible but grants an opaque identifier gameplay priority. Issue #139 asks for an explicit reservation or player-priority rule before this pattern spreads to other shared phase budgets.
+
+## 2026-07-18: Recall Outbound Fleets Before Passive Arrival
+
+Decision: treat post-dispatch reversal as a new `RecallFleet` intention rather than cancelling or rewriting the processed Move. An empire may recall an owned outbound in-transit fleet to its last occupied system. The sealed Recall resolves before passive arrivals, including when the original destination arrival is due in the same tick. Return duration equals the number of ticks already travelled outward.
+
+A still-pending Recall may be cancelled through the normal order-cancellation boundary, which leaves the outward journey unchanged. A processed Recall records its own factual event and keeps the original Move in immutable history. Returning fleets cannot be recalled again.
+
+Reasoning:
+
+- Cancelling a processed Move would falsify the durable command history: the fleet did depart and spent time in transit.
+- Resolving Recall after passive arrivals would make it useless for the current two-tick inter-sector journey, because the fleet would arrive before the new intention acted.
+- Using elapsed outward travel makes reversal timing symmetric and explainable without introducing continuous position inside a route.
+- The Fleets workspace is the natural control surface because it can show route, reversal tick, projected return, cancellation, and temporary command restrictions together.
+
+Consequences:
+
+- Fleet transit state records its departure tick as well as destination and arrival. Migration `020_add_fleet_departure_tick` backfills existing SQL journeys from link travel time; versioned and legacy JSON imports infer the same value when absent.
+- The movement phase is now ordered Recall, passive arrivals, new Move, then Hold before combat. This is a deliberate gameplay-contract refinement rather than incidental implementation ordering.
+- The commitment calendar suppresses the original destination forecast after Recall is queued and shows the projected return instead.
+- Recall returns only to the last occupied system. Arbitrary diversion, stopping between systems, multi-hop return-home routing, interception, pursuit, and richer retreat rules remain separate product decisions.

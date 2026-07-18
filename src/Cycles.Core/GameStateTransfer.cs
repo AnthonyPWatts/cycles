@@ -31,6 +31,7 @@ public static class GameStateTransfer
     {
         ArgumentNullException.ThrowIfNull(destination);
         UpgradeLegacyOwnershipModel(state);
+        UpgradeTransitTiming(state);
         var validation = Validate(state);
         if (!validation.IsValid)
         {
@@ -114,6 +115,7 @@ public static class GameStateTransfer
             }
 
             UpgradeLegacyOwnershipModel(document.State);
+            UpgradeTransitTiming(document.State);
             StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
             if (!validation.IsValid)
@@ -176,6 +178,7 @@ public static class GameStateTransfer
             }
 
             UpgradeLegacyOwnershipModel(state);
+            UpgradeTransitTiming(state);
             StrategicPriorityPolicy.Normalize(state);
             var validation = Validate(state);
             if (!validation.IsValid)
@@ -275,6 +278,30 @@ public static class GameStateTransfer
         {
             battle.AttackerFactionId = battle.AttackerFactionId == Guid.Empty ? battle.AttackerEmpireId : battle.AttackerFactionId;
             battle.DefenderFactionId = battle.DefenderFactionId == Guid.Empty ? battle.DefenderEmpireId : battle.DefenderFactionId;
+        }
+    }
+
+    private static void UpgradeTransitTiming(GameState state)
+    {
+        foreach (var fleet in state.Fleets)
+        {
+            if (fleet is not
+                {
+                    Status: FleetStatus.InTransit,
+                    DepartureTickNumber: null,
+                    DestinationSystemId: { } destinationSystemId,
+                    ArrivalTickNumber: { } arrivalTickNumber
+                })
+            {
+                continue;
+            }
+
+            var link = state.SystemLinks.SingleOrDefault(item => item.CycleId == fleet.CycleId
+                                                                 && item.Connects(fleet.CurrentSystemId, destinationSystemId));
+            if (link is not null)
+            {
+                fleet.DepartureTickNumber = arrivalTickNumber - link.TravelTicks + 1;
+            }
         }
     }
 
@@ -578,6 +605,30 @@ public static class GameStateTransfer
             if (fleet.DestinationSystemId.HasValue)
             {
                 Reference(systemsById.Keys, fleet.DestinationSystemId.Value, $"Fleet {fleet.FleetId} destination system", errors);
+            }
+
+            if (fleet.Status == FleetStatus.InTransit)
+            {
+                if (!fleet.DestinationSystemId.HasValue)
+                {
+                    errors.Add($"In-transit fleet {fleet.FleetId} has no destination system.");
+                }
+                if (!fleet.DepartureTickNumber.HasValue)
+                {
+                    errors.Add($"In-transit fleet {fleet.FleetId} has no departure tick.");
+                }
+                if (!fleet.ArrivalTickNumber.HasValue)
+                {
+                    errors.Add($"In-transit fleet {fleet.FleetId} has no arrival tick.");
+                }
+                if (fleet.DepartureTickNumber > fleet.ArrivalTickNumber)
+                {
+                    errors.Add($"In-transit fleet {fleet.FleetId} departs after its arrival tick.");
+                }
+            }
+            else if (fleet.DestinationSystemId.HasValue || fleet.DepartureTickNumber.HasValue || fleet.ArrivalTickNumber.HasValue)
+            {
+                errors.Add($"Fleet {fleet.FleetId} has transit timing while its status is {fleet.Status}.");
             }
 
             if (fleet.AdmiralId.HasValue)

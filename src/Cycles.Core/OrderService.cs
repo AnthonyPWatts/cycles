@@ -25,6 +25,21 @@ public static class OrderService
         return AddFleetOrder(state, cycle, fleet, FleetOrderType.MoveFleet, target.SystemId, null, null, now, replacesOrderId);
     }
 
+    public static FleetOrder SubmitRecallOrder(GameState state, Guid fleetId, DateTimeOffset now)
+    {
+        var (cycle, fleet) = GetInTransitFleetForOrder(state, fleetId);
+        return AddFleetOrder(
+            state,
+            cycle,
+            fleet,
+            FleetOrderType.RecallFleet,
+            fleet.CurrentSystemId,
+            null,
+            null,
+            now,
+            replacesOrderId: null);
+    }
+
     public static FleetOrder SubmitAttackOrder(
         GameState state,
         Guid fleetId,
@@ -343,6 +358,7 @@ public static class OrderService
         orderType switch
         {
             FleetOrderType.MoveFleet => "move",
+            FleetOrderType.RecallFleet => "recall",
             FleetOrderType.Hold => "hold",
             FleetOrderType.Attack => "attack",
             FleetOrderType.Colonise => "colonise",
@@ -378,6 +394,37 @@ public static class OrderService
 
         fleet.FactionId = state.GetFactionId(fleet);
 
+        if (state.Factions.Single(item => item.FactionId == fleet.FactionId).Kind != FactionKind.Empire)
+        {
+            throw new InvalidOperationException("Neutral fleets cannot receive player orders.");
+        }
+
+        return (cycle, fleet);
+    }
+
+    private static (Cycle Cycle, Fleet Fleet) GetInTransitFleetForOrder(GameState state, Guid fleetId)
+    {
+        var cycle = state.GetActiveCycle()
+            ?? throw new InvalidOperationException("No active cycle exists.");
+        RequireCommandWindowOpen(cycle);
+        var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
+            ?? throw new InvalidOperationException("Fleet does not exist in the active cycle.");
+
+        if (fleet.Status != FleetStatus.InTransit
+            || fleet.ShipCount <= 0
+            || !fleet.DestinationSystemId.HasValue
+            || !fleet.DepartureTickNumber.HasValue
+            || !fleet.ArrivalTickNumber.HasValue)
+        {
+            throw new InvalidOperationException("Only an outbound fleet in transit can be recalled.");
+        }
+
+        if (fleet.DestinationSystemId == fleet.CurrentSystemId)
+        {
+            throw new InvalidOperationException("The fleet is already returning to its origin.");
+        }
+
+        fleet.FactionId = state.GetFactionId(fleet);
         if (state.Factions.Single(item => item.FactionId == fleet.FactionId).Kind != FactionKind.Empire)
         {
             throw new InvalidOperationException("Neutral fleets cannot receive player orders.");

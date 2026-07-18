@@ -104,7 +104,7 @@ Research still matters even though Innovation has no direct effect. At 200 resea
 
 Change the balance between Military and Expansion to experiment with the current priority system. Existing saves are normalised to preserve their previous Military-to-Expansion ratio when the inactive allocations are removed.
 
-The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick.
+The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick. Select an outbound fleet in **Fleets** to review its journey or queue **Recall to origin**.
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
@@ -143,7 +143,7 @@ The order below governs the result of your commands. Sending an order before ano
 | 1 | Resource income | Your active presence generates Industry, Research, and Population before due ships arrive. You can spend the new income in the same turn. |
 | 2 | Due construction | Ships whose delivery tick has arrived appear at home and can defend. They cannot inherit a fleet command that the server has already sealed. |
 | 3 | Programme spending | The server applies your committed priorities and starts new construction. New construction does not gain a tick of progress at once. |
-| 4 | Arrivals and movement | Existing journeys arrive before new Move orders. Movement establishes the fleet positions used by combat. |
+| 4 | Recall, arrivals, and movement | Recall intentions reverse outbound fleets before passive arrivals. Remaining journeys then arrive before new Move orders. Movement establishes the fleet positions used by combat. |
 | 5 | Combat | Attacks use the post-movement fleets in each system. A target can move away; an arriving fleet can join the defence. |
 | 6 | Colonisation | The server checks the surviving colonising fleet and spends Population after the outpost succeeds. |
 | 7 | Derived state | Map-control metrics use the world left by movement, combat, and colonisation. |
@@ -183,6 +183,12 @@ An attack order fights hostile active fleets in the attacker's current system wh
 Ship numbers affect the chance of victory, but both sides take losses. A destroyed fleet leaves active play. Combat can kill its assigned admiral, while surviving commanders gain or lose reputation from the result.
 
 An attack through an Alliance or Non-Aggression Pact cancels that relationship and records the breach. Players cannot create or manage diplomatic relationships in the dashboard yet.
+
+### Recall
+
+After a multi-tick Move dispatches, select the in-transit fleet in **Fleets** and choose **Recall to origin**. The journey panel shows the tick when it will reverse and its projected return tick. Return duration equals the number of ticks already travelled outward.
+
+Recall is a new pending intention; it does not rewrite the processed Move. Select **Cancel recall** before its execution tick to continue towards the original destination. A returning fleet cannot be recalled again or diverted to another system.
 
 ### Colonise
 

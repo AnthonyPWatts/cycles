@@ -340,6 +340,9 @@ app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, IGameStateStore 
 app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.SubmitMove(request, httpContext, store));
 
+app.MapPost("/orders/fleet/recall", (RecallFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+    ApiOrderEndpoints.SubmitRecall(request, httpContext, store));
+
 app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
     ApiOrderEndpoints.SubmitAttack(request, httpContext, store));
 
@@ -564,6 +567,7 @@ static FleetDetailResponse ToFleetDetailResponse(
         ToAdmiralSummary(state, fleet.AdmiralId),
         ToSystemSummaryResponse(currentSystem),
         destination is null ? null : ToSystemSummaryResponse(destination),
+        fleet.DepartureTickNumber,
         fleet.ArrivalTickNumber,
         linkedSystems,
         orders,
@@ -645,6 +649,7 @@ static FleetDataResponse ToFleetDataResponse(Fleet fleet) =>
         fleet.FleetName,
         fleet.CurrentSystemId,
         fleet.DestinationSystemId,
+        fleet.DepartureTickNumber,
         fleet.ArrivalTickNumber,
         fleet.ShipCount,
         fleet.Status,
@@ -987,6 +992,7 @@ public sealed record FleetDetailResponse(
     AdmiralSummaryResponse? Admiral,
     SystemSummaryResponse CurrentSystem,
     SystemSummaryResponse? DestinationSystem,
+    int? DepartureTickNumber,
     int? ArrivalTickNumber,
     IReadOnlyCollection<SystemSummaryResponse> LinkedSystems,
     IReadOnlyCollection<FleetOrderResponse> Orders,
@@ -1146,6 +1152,7 @@ public sealed record FleetDataResponse(
     string FleetName,
     Guid CurrentSystemId,
     Guid? DestinationSystemId,
+    int? DepartureTickNumber,
     int? ArrivalTickNumber,
     int ShipCount,
     FleetStatus Status,
@@ -1197,6 +1204,8 @@ public sealed record ChronicleEntryResponse(
     DateTimeOffset CreatedAt);
 
 public sealed record MoveFleetRequest(Guid FleetId, Guid TargetSystemId, Guid? ReplacesOrderId = null);
+
+public sealed record RecallFleetRequest(Guid FleetId);
 
 public sealed record AttackFleetRequest(
     Guid FleetId,

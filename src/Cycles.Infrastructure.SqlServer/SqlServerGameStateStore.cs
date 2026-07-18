@@ -873,6 +873,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         FleetName = GetString(reader, "FleetName"),
         CurrentSystemId = GetGuid(reader, "CurrentSystemID"),
         DestinationSystemId = GetNullableGuid(reader, "DestinationSystemID"),
+        DepartureTickNumber = GetNullableInt(reader, "DepartureTickNumber"),
         ArrivalTickNumber = GetNullableInt(reader, "ArrivalTickNumber"),
         ShipCount = GetInt(reader, "ShipCount"),
         Status = GetEnum<FleetStatus>(reader, "Status"),
@@ -1430,6 +1431,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 FleetName = @FleetName,
                 CurrentSystemID = @CurrentSystemID,
                 DestinationSystemID = @DestinationSystemID,
+                DepartureTickNumber = @DepartureTickNumber,
                 ArrivalTickNumber = @ArrivalTickNumber,
                 ShipCount = @ShipCount,
                 Status = @Status,
@@ -1438,8 +1440,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FactionID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, ArrivalTickNumber, ShipCount, Status, CreatedAt)
-            VALUES (@FleetID, @CycleID, @EmpireID, @FactionID, @AdmiralID, @FleetName, @CurrentSystemID, @DestinationSystemID, @ArrivalTickNumber, @ShipCount, @Status, @CreatedAt);
+            INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FactionID, AdmiralID, FleetName, CurrentSystemID, DestinationSystemID, DepartureTickNumber, ArrivalTickNumber, ShipCount, Status, CreatedAt)
+            VALUES (@FleetID, @CycleID, @EmpireID, @FactionID, @AdmiralID, @FleetName, @CurrentSystemID, @DestinationSystemID, @DepartureTickNumber, @ArrivalTickNumber, @ShipCount, @Status, @CreatedAt);
             END;
             """, command =>
         {
@@ -1451,6 +1453,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@FleetName", item.FleetName, 120);
             AddGuid(command, "@CurrentSystemID", item.CurrentSystemId);
             AddNullableGuid(command, "@DestinationSystemID", item.DestinationSystemId);
+            AddNullableInt(command, "@DepartureTickNumber", item.DepartureTickNumber);
             AddNullableInt(command, "@ArrivalTickNumber", item.ArrivalTickNumber);
             AddInt(command, "@ShipCount", item.ShipCount);
             AddString(command, "@Status", item.Status.ToString(), 32);

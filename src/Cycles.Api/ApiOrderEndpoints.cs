@@ -18,6 +18,17 @@ public static class ApiOrderEndpoints
                 request.ReplacesOrderId));
         }));
 
+    public static IResult SubmitRecall(RecallFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
+        SubmitRecall(request, httpContext, store, DateTimeOffset.UtcNow);
+
+    public static IResult SubmitRecall(RecallFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
+        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+        {
+            var actor = DevelopmentAuth.RequireActor(httpContext, state);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            return ToCommandResponse(OrderService.SubmitRecallOrder(state, request.FleetId, now));
+        }));
+
     public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
         SubmitAttack(request, httpContext, store, DateTimeOffset.UtcNow);
 

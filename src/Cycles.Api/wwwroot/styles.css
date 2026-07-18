@@ -172,7 +172,8 @@ select {
 }
 
 .status-active,
-.status-pending {
+.status-pending,
+.status-intransit {
     border-color: rgba(143, 209, 189, 0.58);
     background: rgba(82, 182, 154, 0.14);
     color: var(--accent);
@@ -1585,7 +1586,8 @@ dd {
 }
 
 .item .status-active,
-.item .status-pending {
+.item .status-pending,
+.item .status-intransit {
     color: var(--accent);
 }
 
@@ -1643,6 +1645,18 @@ dd {
 .fleet-item.selected {
     border-color: var(--gold);
     box-shadow: 0 0 0 1px rgba(223, 186, 104, 0.4);
+}
+
+.fleet-item.is-in-transit {
+    border-left: 3px solid rgba(143, 209, 189, 0.66);
+    background: linear-gradient(100deg, rgba(23, 57, 61, 0.58), rgba(21, 27, 24, 0.94) 52%);
+}
+
+.fleet-item .fleet-transit-summary {
+    color: var(--accent);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.67rem;
+    letter-spacing: 0.02em;
 }
 
 .order-pending {
@@ -2260,6 +2274,39 @@ dd {
 .detail-block span {
     color: var(--muted);
     line-height: 1.4;
+}
+
+.fleet-journey-block {
+    border-color: rgba(143, 209, 189, 0.36);
+    background: linear-gradient(115deg, rgba(23, 57, 61, 0.5), var(--panel-strong) 72%);
+}
+
+.fleet-journey-actions {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+}
+
+.fleet-journey-actions:empty {
+    display: none;
+}
+
+.fleet-journey-actions .inline-action {
+    width: fit-content;
+}
+
+.fleet-transit-track {
+    display: block;
+    height: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(143, 209, 189, 0.28);
+    background: rgba(5, 12, 14, 0.8);
+}
+
+.fleet-transit-track i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(82, 182, 154, 0.62), var(--gold));
 }
 
 .message {
@@ -4440,6 +4487,11 @@ select {
     padding: 9px;
     border: 1px solid rgba(143, 180, 244, 0.24);
     background: rgba(11, 23, 30, 0.9);
+}
+
+.calendar-order.order-intransit {
+    border-color: rgba(143, 209, 189, 0.42);
+    background: linear-gradient(110deg, rgba(23, 57, 61, 0.82), rgba(11, 23, 30, 0.92));
 }
 
 .calendar-order-glyph {

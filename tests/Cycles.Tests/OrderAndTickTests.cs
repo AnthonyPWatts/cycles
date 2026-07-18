@@ -182,6 +182,7 @@ public sealed class OrderAndTickTests
 
         var inTransitFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
         Assert.Equal(FleetStatus.InTransit, inTransitFleet.Status);
+        Assert.Equal(1, inTransitFleet.DepartureTickNumber);
         Assert.Equal(2, inTransitFleet.ArrivalTickNumber);
 
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
@@ -189,8 +190,118 @@ public sealed class OrderAndTickTests
         var arrivedFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
         Assert.Equal(destination.SystemId, arrivedFleet.CurrentSystemId);
         Assert.Equal(FleetStatus.Active, arrivedFleet.Status);
+        Assert.Null(arrivedFleet.DepartureTickNumber);
         Assert.Null(arrivedFleet.ArrivalTickNumber);
         Assert.Contains(state.Events, item => item.EventType == EventType.FleetArrived);
+    }
+
+    [Fact]
+    public void RecallOrderPreemptsArrivalAndReturnsTwoTickJourneyToOrigin()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 2);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        var originSystemId = fleet.CurrentSystemId;
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var engine = new TickEngine();
+
+        var move = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        engine.RunTick(state, cycle.CycleId, TestState.Now);
+        var recall = OrderService.SubmitRecallOrder(state, fleet.FleetId, TestState.Now.AddMinutes(1));
+
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(2));
+
+        var returnedFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        Assert.Equal(originSystemId, returnedFleet.CurrentSystemId);
+        Assert.Equal(FleetStatus.Active, returnedFleet.Status);
+        Assert.Null(returnedFleet.DestinationSystemId);
+        Assert.Null(returnedFleet.DepartureTickNumber);
+        Assert.Null(returnedFleet.ArrivalTickNumber);
+        var committedMove = state.FleetOrders.Single(item => item.FleetOrderId == move.FleetOrderId);
+        var committedRecall = state.FleetOrders.Single(item => item.FleetOrderId == recall.FleetOrderId);
+        Assert.Equal(FleetOrderStatus.Processed, committedMove.Status);
+        Assert.Equal(FleetOrderStatus.Processed, committedRecall.Status);
+        Assert.Equal(FleetOrderType.RecallFleet, committedRecall.OrderType);
+        Assert.Equal(originSystemId, committedRecall.TargetSystemId);
+        Assert.Contains(state.Events, item => item.EventType == EventType.FleetRecalled);
+        Assert.DoesNotContain(state.Events, item => item.EventType == EventType.FleetArrived && item.SystemId == destination.SystemId);
+    }
+
+    [Fact]
+    public void RecallOrderUsesElapsedOutboundTravelForLongReturnJourney()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 4);
+        var cycle = state.GetActiveCycle()!;
+        var fleet = Assert.Single(state.Fleets);
+        var originSystemId = fleet.CurrentSystemId;
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var engine = new TickEngine();
+
+        OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        engine.RunTick(state, cycle.CycleId, TestState.Now);
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(1));
+        OrderService.SubmitRecallOrder(state, fleet.FleetId, TestState.Now.AddMinutes(2));
+
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(3));
+
+        var returningFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        Assert.Equal(FleetStatus.InTransit, returningFleet.Status);
+        Assert.Equal(originSystemId, returningFleet.CurrentSystemId);
+        Assert.Equal(originSystemId, returningFleet.DestinationSystemId);
+        Assert.Equal(3, returningFleet.DepartureTickNumber);
+        Assert.Equal(4, returningFleet.ArrivalTickNumber);
+
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(4));
+
+        var returnedFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        Assert.Equal(FleetStatus.Active, returnedFleet.Status);
+        Assert.Equal(originSystemId, returnedFleet.CurrentSystemId);
+        Assert.Null(returnedFleet.DestinationSystemId);
+        Assert.Null(returnedFleet.DepartureTickNumber);
+        Assert.Null(returnedFleet.ArrivalTickNumber);
+        Assert.Contains(state.Events, item => item.EventType == EventType.FleetReturned && item.SystemId == originSystemId);
+    }
+
+    [Fact]
+    public void RecallOrderRequiresAnOutboundFleetInTransit()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = Assert.Single(state.Fleets);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => OrderService.SubmitRecallOrder(state, fleet.FleetId, TestState.Now));
+
+        Assert.Contains("outbound fleet in transit", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(state.FleetOrders);
+    }
+
+    [Fact]
+    public void CancellingPendingRecallLeavesOutboundJourneyUnchanged()
+    {
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 3);
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        var fleet = Assert.Single(state.Fleets);
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        var engine = new TickEngine();
+
+        OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
+        engine.RunTick(state, cycle.CycleId, TestState.Now);
+        var recall = OrderService.SubmitRecallOrder(state, fleet.FleetId, TestState.Now.AddMinutes(1));
+        OrderService.CancelFleetOrder(state, recall.FleetOrderId, empire.EmpireId, TestState.Now.AddMinutes(2));
+
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(3));
+
+        var outboundFleet = state.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        var cancelledRecall = state.FleetOrders.Single(item => item.FleetOrderId == recall.FleetOrderId);
+        Assert.Equal(FleetStatus.InTransit, outboundFleet.Status);
+        Assert.Equal(destination.SystemId, outboundFleet.DestinationSystemId);
+        Assert.Equal(1, outboundFleet.DepartureTickNumber);
+        Assert.Equal(3, outboundFleet.ArrivalTickNumber);
+        Assert.Equal(FleetOrderStatus.Cancelled, cancelledRecall.Status);
+
+        engine.RunTick(state, cycle.CycleId, TestState.Now.AddMinutes(4));
+        Assert.Equal(destination.SystemId, state.Fleets.Single(item => item.FleetId == fleet.FleetId).CurrentSystemId);
     }
 
     [Fact]
@@ -475,9 +586,9 @@ public sealed class OrderAndTickTests
                 (item.EmpireId, item.Industry, item.Research, item.Population, item.LastGeneratedIndustry, item.LastSpentIndustry)));
         Assert.Equal(
             expected.Fleets.OrderBy(item => item.FleetId).Select(item =>
-                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.ArrivalTickNumber, item.ShipCount, item.Status)),
+                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.DepartureTickNumber, item.ArrivalTickNumber, item.ShipCount, item.Status)),
             actual.Fleets.OrderBy(item => item.FleetId).Select(item =>
-                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.ArrivalTickNumber, item.ShipCount, item.Status)));
+                (item.FleetId, item.CurrentSystemId, item.DestinationSystemId, item.DepartureTickNumber, item.ArrivalTickNumber, item.ShipCount, item.Status)));
         Assert.Equal(
             expected.FleetOrders.OrderBy(item => item.FleetOrderId).Select(item =>
                 (item.FleetOrderId, item.Status, item.CommandSource, item.SealedTick, item.ProcessedTick, item.RejectionReason)),

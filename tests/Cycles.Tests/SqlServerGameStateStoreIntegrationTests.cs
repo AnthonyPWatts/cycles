@@ -251,6 +251,46 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_persists_departure_timing_and_recall_results_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: 2);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var fleet = state.Fleets.Single();
+        var originSystemId = fleet.CurrentSystemId;
+        var destination = state.Systems.Single(system => system.SystemName == "Destination");
+        store.Replace(state);
+
+        store.Update(current => OrderService.SubmitMoveOrder(current, fleet.FleetId, destination.SystemId, TestState.Now));
+        store.RunTick(cycle.CycleId, TestState.Now);
+
+        var departed = store.LoadOrCreate().Fleets.Single(item => item.FleetId == fleet.FleetId);
+        Assert.Equal(FleetStatus.InTransit, departed.Status);
+        Assert.Equal(1, departed.DepartureTickNumber);
+        Assert.Equal(2, departed.ArrivalTickNumber);
+
+        var recall = store.Update(current => OrderService.SubmitRecallOrder(current, fleet.FleetId, TestState.Now.AddMinutes(1)));
+        store.RunTick(cycle.CycleId, TestState.Now.AddMinutes(2));
+
+        var updated = store.LoadOrCreate();
+        var returned = updated.Fleets.Single(item => item.FleetId == fleet.FleetId);
+        var processedRecall = updated.FleetOrders.Single(item => item.FleetOrderId == recall.FleetOrderId);
+        Assert.Equal(FleetStatus.Active, returned.Status);
+        Assert.Equal(originSystemId, returned.CurrentSystemId);
+        Assert.Null(returned.DestinationSystemId);
+        Assert.Null(returned.DepartureTickNumber);
+        Assert.Null(returned.ArrivalTickNumber);
+        Assert.Equal(FleetOrderStatus.Processed, processedRecall.Status);
+        Assert.Contains(updated.Events, item => item.EventType == EventType.FleetRecalled && item.SystemId == originSystemId);
+    }
+
+    [Fact]
     public void Store_refuses_to_mutate_an_existing_admin_role_audit_record_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);

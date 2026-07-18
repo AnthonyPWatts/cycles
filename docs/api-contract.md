@@ -26,13 +26,14 @@ Clients must not send numeric enum values such as `"orderType": 1`.
 
 ## Fleet Order Intent Contract
 
-Move, attack, and colonise requests accept an optional `replacesOrderId` alongside their normal fleet and target fields. A fleet can have only one pending intention for the requested execution tick.
+Move, attack, and colonise requests accept an optional `replacesOrderId` alongside their normal fleet and target fields. A fleet can have only one pending intention for the requested execution tick. `POST /orders/fleet/recall` accepts an owned outbound in-transit `fleetId`; its target is always the fleet's last occupied system and it cannot replace a different intention.
 
 - Repeating the identical intention is idempotent and returns the existing pending order.
 - A different intention without `replacesOrderId`, or with an ID that no longer identifies the current pending order, returns `409 Conflict` with `code: "stateConflict"`.
 - A different intention with the current pending order ID creates the replacement and records the previous order as `superseded`.
 - Historical order responses can include `supersededByOrderId`, linking the superseded record to the replacement.
 - Order responses expose `commandSource` plus optional `sealedTick` and `sealedAt` fields. Human submissions are `human`; completed ledgers may also contain `gameAiPlanner`, `neutralPlanner`, and `implicitHold` records.
+- Fleet responses expose an optional `departureTickNumber` alongside destination and arrival. Clients use the three values together for journey and recall timing; active fleets return all three as `null`.
 
 For example, replacing a pending move with an attack includes the order being confirmed for replacement:
 
@@ -60,7 +61,7 @@ Cycle responses expose `turnStage`. The value describes command acceptance and t
 
 Order and priority mutations outside `commandOpen` fail with `409 Conflict` and `code: "stateConflict"`. SQL-backed tick execution commits in one transaction, so a normal client may see `commandOpen` on either side of a completed tick without observing each intermediate value. Clients must tolerate every documented stage and disable command submission once the value leaves `commandOpen`.
 
-The sealed ledger resolves as resource income; due construction; programme spending and construction starts; arrivals and movement; combat; colonisation; derived state; next-window progression; then publication. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
+The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, and movement; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
 
 ## Trusted Development Selection
 

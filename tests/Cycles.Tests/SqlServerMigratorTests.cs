@@ -43,6 +43,7 @@ public sealed class SqlServerMigratorTests
         var galaxySectors = Assert.Single(migrations, migration => migration.MigrationId == "015_add_galaxy_sectors");
         var pendingFleetOrder = Assert.Single(migrations, migration => migration.MigrationId == "016_enforce_one_pending_fleet_order");
         var turnResolutionLedger = Assert.Single(migrations, migration => migration.MigrationId == "019_add_turn_resolution_ledger");
+        var fleetDepartureTick = Assert.Single(migrations, migration => migration.MigrationId == "020_add_fleet_departure_tick");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -79,5 +80,7 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CommandSource", turnResolutionLedger.Script, StringComparison.Ordinal);
         Assert.Contains("SealedTick", turnResolutionLedger.Script, StringComparison.Ordinal);
         Assert.Contains("CK_FleetOrders_SealedTogether", turnResolutionLedger.Script, StringComparison.Ordinal);
+        Assert.Contains("DepartureTickNumber", fleetDepartureTick.Script, StringComparison.Ordinal);
+        Assert.Contains("link.TravelTicks", fleetDepartureTick.Script, StringComparison.Ordinal);
     }
 }

@@ -134,8 +134,14 @@ public sealed class TickEngine
         EconomyProcessor.CompleteShipConstruction(state, cycleId, tickNumber, now);
         EconomyProcessor.ApplyPrioritySpending(state, cycleId, tickNumber, now);
 
-        // Existing journeys arrive before newly sealed movement is dispatched. All
-        // order batches use ledger order (fleet ID, then order ID), never submission time.
+        // Recall intentions reverse existing journeys before passive arrivals. New
+        // movement then dispatches from the resulting world state. All order batches
+        // use ledger order (fleet ID, then order ID), never submission time.
+        foreach (var order in ledger.OrdersFor(FleetOrderType.RecallFleet))
+        {
+            ProcessRecallOrder(state, order, tickNumber, now);
+        }
+
         ProcessArrivals(state, cycleId, tickNumber, now);
         foreach (var order in ledger.OrdersFor(FleetOrderType.MoveFleet))
         {
@@ -193,8 +199,10 @@ public sealed class TickEngine
 
         foreach (var fleet in arrivingFleets)
         {
+            var wasReturning = fleet.DestinationSystemId == fleet.CurrentSystemId;
             fleet.CurrentSystemId = fleet.DestinationSystemId!.Value;
             fleet.DestinationSystemId = null;
+            fleet.DepartureTickNumber = null;
             fleet.ArrivalTickNumber = null;
             fleet.Status = FleetStatus.Active;
 
@@ -203,11 +211,13 @@ public sealed class TickEngine
             {
                 CycleId = cycleId,
                 TickNumber = tickNumber,
-                EventType = EventType.FleetArrived,
+                EventType = wasReturning ? EventType.FleetReturned : EventType.FleetArrived,
                 SystemId = destination.SystemId,
                 EmpireId = fleet.EmpireId,
                 Severity = EventSeverity.Normal,
-                DisplayText = $"{fleet.FleetName} arrived at {destination.SystemName}.",
+                DisplayText = wasReturning
+                    ? $"{fleet.FleetName} returned to {destination.SystemName}."
+                    : $"{fleet.FleetName} arrived at {destination.SystemName}.",
                 FactJson = JsonSerializer.Serialize(new
                 {
                     fleetId = fleet.FleetId,
@@ -255,12 +265,14 @@ public sealed class TickEngine
             fleet.CurrentSystemId = target.SystemId;
             fleet.Status = FleetStatus.Active;
             fleet.DestinationSystemId = null;
+            fleet.DepartureTickNumber = null;
             fleet.ArrivalTickNumber = null;
         }
         else
         {
             fleet.Status = FleetStatus.InTransit;
             fleet.DestinationSystemId = target.SystemId;
+            fleet.DepartureTickNumber = tickNumber;
             fleet.ArrivalTickNumber = tickNumber + link.TravelTicks - 1;
         }
 
@@ -395,6 +407,66 @@ public sealed class TickEngine
         {
             ProcessAttackGroup(state, group.Key, group.ToArray(), tickNumber, now);
         }
+    }
+
+    private static void ProcessRecallOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now)
+    {
+        var fleet = state.Fleets.SingleOrDefault(item => item.FleetId == order.FleetId);
+        if (fleet is null
+            || fleet.Status != FleetStatus.InTransit
+            || !fleet.DestinationSystemId.HasValue
+            || !fleet.DepartureTickNumber.HasValue
+            || !fleet.ArrivalTickNumber.HasValue
+            || fleet.DestinationSystemId == fleet.CurrentSystemId)
+        {
+            RejectOrder(state, order, tickNumber, now, "Fleet is not on an outbound journey.");
+            return;
+        }
+
+        var origin = state.Systems.Single(system => system.SystemId == fleet.CurrentSystemId);
+        var outwardDestination = state.Systems.Single(system => system.SystemId == fleet.DestinationSystemId.Value);
+        var elapsedOutboundTicks = Math.Max(1, tickNumber - fleet.DepartureTickNumber.Value);
+        var returnArrivalTick = tickNumber + elapsedOutboundTicks - 1;
+
+        if (elapsedOutboundTicks <= 1)
+        {
+            fleet.Status = FleetStatus.Active;
+            fleet.DestinationSystemId = null;
+            fleet.DepartureTickNumber = null;
+            fleet.ArrivalTickNumber = null;
+        }
+        else
+        {
+            fleet.DestinationSystemId = origin.SystemId;
+            fleet.DepartureTickNumber = tickNumber;
+            fleet.ArrivalTickNumber = returnArrivalTick;
+        }
+
+        order.Status = FleetOrderStatus.Processed;
+        order.ProcessedTick = tickNumber;
+
+        state.Events.Add(new EventRecord
+        {
+            CycleId = order.CycleId,
+            TickNumber = tickNumber,
+            EventType = EventType.FleetRecalled,
+            SystemId = origin.SystemId,
+            EmpireId = fleet.EmpireId,
+            FactionId = fleet.FactionId,
+            Severity = EventSeverity.Normal,
+            DisplayText = elapsedOutboundTicks <= 1
+                ? $"{fleet.FleetName} reversed course and returned to {origin.SystemName}."
+                : $"{fleet.FleetName} reversed course from {outwardDestination.SystemName} and will return to {origin.SystemName} on tick {returnArrivalTick}.",
+            FactJson = JsonSerializer.Serialize(new
+            {
+                fleetId = fleet.FleetId,
+                originSystemId = origin.SystemId,
+                outwardDestinationSystemId = outwardDestination.SystemId,
+                elapsedOutboundTicks,
+                returnArrivalTick
+            }, GameStateJson.Options),
+            CreatedAt = now
+        });
     }
 
     private static void ProcessAttackGroup(
