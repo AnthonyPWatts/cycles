@@ -44,7 +44,7 @@ const mapBounds = Object.freeze({ x: 0, y: 0, width: 1586, height: 992 });
 const atlasBounds = Object.freeze({ x: -407, y: 0, width: 2400, height: 992 });
 const mapRanges = new Set(["galaxy", "sector", "local"]);
 const authoredGalaxyAtlas = Object.freeze({
-    galaxyAsset: "/assets/galaxy/galaxy-overview.png?v=20260716-wide-atlas-1",
+    galaxyAsset: "/assets/galaxy/galaxy-overview.webp?v=20260718-webp-1",
     galaxyRoutes: [
         ["Warden Line", "Hollow Crown", "M 515 200 C 585 210 625 210 700 200"],
         ["Warden Line", "Cinder March", "M 320 300 C 315 335 315 355 320 385"],
@@ -60,7 +60,7 @@ const authoredGalaxyAtlas = Object.freeze({
     ],
     sectors: Object.freeze({
         "Aster Reach": {
-            asset: "/assets/galaxy/sector-aster-reach.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-aster-reach.webp?v=20260718-webp-1",
             galaxy: [1115, 472],
             galaxyContour: "M 1014 409 C 1031 376 1073 360 1115 365 C 1156 350 1210 369 1242 397 C 1284 419 1315 453 1310 492 C 1321 530 1290 566 1250 582 C 1212 607 1162 598 1124 586 C 1082 600 1037 582 1016 551 C 991 526 987 486 1004 458 C 995 439 1000 422 1014 409 Z",
             systems: {
@@ -76,7 +76,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Cinder March": {
-            asset: "/assets/galaxy/sector-cinder-march.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-cinder-march.webp?v=20260718-webp-1",
             galaxy: [268, 468],
             galaxyContour: "M 101 424 C 129 389 172 373 216 377 C 260 358 321 373 354 402 C 397 422 422 456 417 492 C 427 531 397 567 357 582 C 320 608 268 604 232 590 C 190 603 139 584 113 551 C 78 527 69 486 86 454 C 78 443 85 432 101 424 Z",
             systems: {
@@ -92,7 +92,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Hollow Crown": {
-            asset: "/assets/galaxy/sector-hollow-crown.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-hollow-crown.webp?v=20260718-webp-1",
             galaxy: [808, 178],
             galaxyContour: "M 698 137 C 721 101 761 79 806 79 C 851 68 911 80 949 104 C 995 119 1037 154 1045 190 C 1061 225 1034 264 995 280 C 958 308 905 305 864 294 C 823 306 770 299 735 274 C 694 258 672 225 681 193 C 669 171 679 151 698 137 Z",
             systems: {
@@ -113,7 +113,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Lacuna Verge": {
-            asset: "/assets/galaxy/sector-lacuna-verge.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-lacuna-verge.webp?v=20260718-webp-1",
             galaxy: [1300, 182],
             galaxyContour: "M 1208 105 C 1230 66 1274 47 1317 51 C 1355 37 1410 54 1439 82 C 1475 99 1498 131 1493 164 C 1512 193 1497 234 1465 255 C 1441 292 1393 310 1352 302 C 1314 322 1262 309 1234 280 C 1196 262 1177 226 1189 194 C 1176 161 1183 130 1208 105 Z",
             systems: {
@@ -129,7 +129,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Orison Fold": {
-            asset: "/assets/galaxy/sector-orison-fold.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-orison-fold.webp?v=20260718-webp-1",
             galaxy: [1230, 782],
             galaxyContour: "M 1129 729 C 1152 697 1194 682 1232 688 C 1273 671 1323 687 1354 711 C 1396 722 1435 751 1444 786 C 1459 822 1438 860 1402 878 C 1375 917 1324 934 1281 920 C 1244 941 1191 931 1160 900 C 1119 884 1098 847 1109 812 C 1096 781 1105 749 1129 729 Z",
             systems: {
@@ -145,7 +145,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Red Lattice": {
-            asset: "/assets/galaxy/sector-red-lattice.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-red-lattice.webp?v=20260718-webp-1",
             galaxy: [696, 778],
             galaxyContour: "M 543 723 C 574 690 619 677 661 684 C 703 664 758 680 788 707 C 829 722 856 753 852 787 C 868 822 845 858 810 875 C 776 905 727 907 688 894 C 648 911 596 899 568 870 C 529 853 509 819 519 786 C 505 758 518 739 543 723 Z",
             systems: {
@@ -161,7 +161,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Umbral Marches": {
-            asset: "/assets/galaxy/sector-umbral-marches.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-umbral-marches.webp?v=20260718-webp-1",
             galaxy: [255, 784],
             galaxyContour: "M 105 735 C 133 706 175 694 215 702 C 253 684 306 696 337 721 C 377 732 403 761 401 794 C 415 827 394 862 360 879 C 328 913 279 923 238 908 C 201 929 151 917 121 890 C 82 875 61 841 72 808 C 58 779 77 750 105 735 Z",
             systems: {
@@ -177,7 +177,7 @@ const authoredGalaxyAtlas = Object.freeze({
             ]
         },
         "Warden Line": {
-            asset: "/assets/galaxy/sector-warden-line.png?v=20260716-wide-atlas-1",
+            asset: "/assets/galaxy/sector-warden-line.webp?v=20260718-webp-1",
             galaxy: [286, 178],
             galaxyContour: "M 119 105 C 153 62 202 40 254 40 C 307 25 374 38 418 62 C 470 78 511 116 522 155 C 541 196 517 241 476 263 C 437 297 378 307 329 294 C 280 315 218 301 176 273 C 129 258 99 222 106 183 C 91 153 99 124 119 105 Z",
             systems: {

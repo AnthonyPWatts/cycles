@@ -15,8 +15,8 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/media/cycles-promo-30s.mp4")]
     [InlineData("/media/cycles-promo-poster.jpg")]
     [InlineData("/media/promo/concept-treaty-gate-battle.png")]
-    [InlineData("/media/navigation-backgrounds/command.png")]
-    [InlineData("/assets/galaxy/galaxy-overview.png")]
+    [InlineData("/media/navigation-backgrounds/command.webp")]
+    [InlineData("/assets/galaxy/galaxy-overview.webp")]
     [InlineData("/health")]
     public async Task PublicLandingRequest_RemainsAvailableWithoutAPlaygroundCookie(string path)
     {

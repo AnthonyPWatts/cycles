@@ -9,8 +9,8 @@ test("public shell and media GET requests are edge assets", () => {
     "/index.html",
     "/site.css?v=20260716-1",
     "/media/cycles-promo.mp4",
-    "/media/navigation-backgrounds/command.png",
-    "/assets/galaxy/galaxy-overview.png"
+    "/media/navigation-backgrounds/command.webp",
+    "/assets/galaxy/galaxy-overview.webp"
   ]) {
     assert.equal(isEdgeAssetRequest(new Request(`https://cycles.example${path}`)), true, path);
   }

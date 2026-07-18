@@ -9,8 +9,8 @@ public sealed class EdgeAssetRedirectMiddlewareTests
     [Theory]
     [InlineData("/media/cycles-promo.mp4")]
     [InlineData("/media/cycles-promo-30s.mp4")]
-    [InlineData("/media/navigation-backgrounds/command.png")]
-    [InlineData("/assets/galaxy/galaxy-overview.png")]
+    [InlineData("/media/navigation-backgrounds/command.webp")]
+    [InlineData("/assets/galaxy/galaxy-overview.webp")]
     public async Task DirectOriginMediaRequest_RedirectsToTheConfiguredEdge(string path)
     {
         var nextCalled = false;

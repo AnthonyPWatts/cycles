@@ -1674,3 +1674,21 @@ Consequences:
 - The movement phase is now ordered Recall, passive arrivals, new Move, then Hold before combat. This is a deliberate gameplay-contract refinement rather than incidental implementation ordering.
 - The commitment calendar suppresses the original destination forecast after Recall is queued and shows the projected return instead.
 - Recall returns only to the last occupied system. Arbitrary diversion, stopping between systems, multi-hop return-home routing, interception, pursuit, and richer retreat rules remain separate product decisions.
+
+## 2026-07-18: Deliver Dashboard Artwork As WebP Derivatives
+
+Decision: retain the authored PNG files as artwork masters, but serve quality-90 WebP derivatives for the dashboard's navigation, resource, galaxy-overview, and sector artwork. Preserve the source dimensions and composition; change only the delivery encoding. Runtime CSS and JavaScript reference the WebP files, with a new version identifier for the JavaScript-owned atlas URLs and dashboard shell assets.
+
+Reasoning:
+
+- A measured cold or hard dashboard load transferred about 15.47 MiB of images, while in-UI refresh already transferred no image bodies and warm reloads reused cached bodies. The image encoding was therefore the dominant remaining UI-transfer cost.
+- Representative q90 derivatives preserved fine star fields, route lines, labels, and background detail in full-size inspection while reducing individual files by 86–94%.
+- Keeping the PNG masters avoids making a lossy delivery derivative the new source for later art, promo, or responsive-image work.
+- WebP has broad support across the modern browser set expected for the trusted playground. A PNG fallback would cause extra CSS and testing complexity without helping the supported target.
+
+Consequences:
+
+- The 17 runtime derivatives total 4.08 MiB instead of 39.26 MiB for their PNG masters, an 89.6% reduction with unchanged dimensions.
+- The nine authored images requested by the measured initial dashboard state fall from 15.38 MiB to 1.42 MiB before protocol overhead, a 90.8% reduction without changing the 23-request page shape.
+- Sector charts remain lazy and load one at a time. The measured Umbral Marches request is 313 KiB rather than the 2.88 MiB PNG master.
+- Retained masters still occupy the current Cloudflare upload set even though browsers no longer request them. The public-only bundle boundary in issue #144 may exclude source masters later; responsive derivatives and longer-lived cache policy remain separate backlog work.

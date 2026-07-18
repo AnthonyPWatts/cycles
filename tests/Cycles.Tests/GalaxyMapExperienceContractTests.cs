@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Cycles.Tests;
@@ -6,18 +7,27 @@ namespace Cycles.Tests;
 public sealed class GalaxyMapExperienceContractTests
 {
     [Fact]
-    public void Authored_atlas_contains_one_galaxy_and_eight_full_resolution_sector_charts()
+    public void Authored_atlas_contains_full_resolution_masters_and_smaller_web_delivery_assets()
     {
         var atlasDirectory = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dashboard", "assets", "galaxy");
-        var assets = Directory.GetFiles(atlasDirectory, "*.png");
+        var masters = Directory.GetFiles(atlasDirectory, "*.png");
+        var deliveryAssets = Directory.GetFiles(atlasDirectory, "*.webp");
 
-        Assert.Equal(9, assets.Length);
-        Assert.Contains(assets, path => Path.GetFileName(path) == "galaxy-overview.png");
-        foreach (var asset in assets)
+        Assert.Equal(9, masters.Length);
+        Assert.Equal(9, deliveryAssets.Length);
+        Assert.Contains(masters, path => Path.GetFileName(path) == "galaxy-overview.png");
+        Assert.Contains(deliveryAssets, path => Path.GetFileName(path) == "galaxy-overview.webp");
+        foreach (var master in masters)
         {
-            var header = File.ReadAllBytes(asset).AsSpan(0, 24);
+            var header = File.ReadAllBytes(master).AsSpan(0, 24);
             Assert.Equal(2400, BinaryPrimitives.ReadInt32BigEndian(header[16..20]));
             Assert.Equal(992, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
+
+            var deliveryAsset = Path.ChangeExtension(master, ".webp");
+            var deliveryHeader = File.ReadAllBytes(deliveryAsset).AsSpan(0, 12);
+            Assert.Equal("RIFF", Encoding.ASCII.GetString(deliveryHeader[..4]));
+            Assert.Equal("WEBP", Encoding.ASCII.GetString(deliveryHeader[8..12]));
+            Assert.True(new FileInfo(deliveryAsset).Length < new FileInfo(master).Length);
         }
     }
 
@@ -44,7 +54,7 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
         Assert.Contains("const authoredGalaxyAtlas", script);
-        Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.png?v=20260716-wide-atlas-1\"", script);
+        Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.webp?v=20260718-webp-1\"", script);
         Assert.Equal(8, Regex.Matches(script, "asset: \"/assets/galaxy/sector-").Count);
     }
 

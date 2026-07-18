@@ -36,6 +36,9 @@
     <None Include="..\..\src\Cycles.Api\wwwroot\assets\galaxy\*.png"
           Link="Fixtures\Dashboard\assets\galaxy\%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\assets\galaxy\*.webp"
+          Link="Fixtures\Dashboard\assets\galaxy\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\.github\workflows\deploy-playground.yml"
           Link="Fixtures\deploy-playground.yml"
           CopyToOutputDirectory="PreserveNewest" />

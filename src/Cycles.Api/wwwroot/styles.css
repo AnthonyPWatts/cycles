@@ -551,19 +551,19 @@ select {
 }
 
 .view-nav a[data-view-link="command"] {
-    --view-background: url("media/navigation-backgrounds/letterbox/command.png");
+    --view-background: url("media/navigation-backgrounds/letterbox/command.webp");
 }
 
 .view-nav a[data-view-link="galaxy"] {
-    --view-background: url("media/navigation-backgrounds/letterbox/galaxy.png");
+    --view-background: url("media/navigation-backgrounds/letterbox/galaxy.webp");
 }
 
 .view-nav a[data-view-link="fleets"] {
-    --view-background: url("media/navigation-backgrounds/letterbox/fleets.png");
+    --view-background: url("media/navigation-backgrounds/letterbox/fleets.webp");
 }
 
 .view-nav a[data-view-link="history"] {
-    --view-background: url("media/navigation-backgrounds/letterbox/history.png");
+    --view-background: url("media/navigation-backgrounds/letterbox/history.webp");
 }
 
 .view-nav a > * {
@@ -1491,15 +1491,15 @@ dl {
 }
 
 .resource-card-industry {
-    --resource-background: url("media/resource-backgrounds/industry.png");
+    --resource-background: url("media/resource-backgrounds/industry.webp");
 }
 
 .resource-card-research {
-    --resource-background: url("media/resource-backgrounds/research.png");
+    --resource-background: url("media/resource-backgrounds/research.webp");
 }
 
 .resource-card-population {
-    --resource-background: url("media/resource-backgrounds/population.png");
+    --resource-background: url("media/resource-backgrounds/population.webp");
 }
 
 .resource-card > dt,
@@ -3844,7 +3844,7 @@ select {
 .command-view {
     background:
         linear-gradient(180deg, rgba(6, 12, 15, 0.88), rgba(7, 13, 16, 0.97)),
-        url("media/navigation-backgrounds/command.png") center top / cover no-repeat;
+        url("media/navigation-backgrounds/command.webp") center top / cover no-repeat;
 }
 
 .command-workspace {

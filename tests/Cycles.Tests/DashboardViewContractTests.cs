@@ -48,6 +48,21 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Dashboard_requests_web_delivery_artwork_instead_of_png_masters()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("/assets/galaxy/galaxy-overview.webp", script);
+        Assert.Equal(8, Regex.Matches(script, @"/assets/galaxy/sector-[a-z-]+\.webp").Count);
+        Assert.Equal(4, Regex.Matches(css, @"navigation-backgrounds/letterbox/[a-z-]+\.webp").Count);
+        Assert.Equal(3, Regex.Matches(css, @"resource-backgrounds/[a-z-]+\.webp").Count);
+        Assert.Contains("navigation-backgrounds/command.webp", css);
+        Assert.DoesNotContain(".png", script);
+        Assert.DoesNotContain(".png", css);
+    }
+
+    [Fact]
     public void Galaxy_view_keeps_the_chart_anchored_and_supports_strategic_exploration()
     {
         var html = ReadDashboardAsset("app.html");
