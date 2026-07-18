@@ -1712,3 +1712,21 @@ Consequences:
 - In-UI refresh falls from nine requests, nine generic store loads, and 243 SQL commands to one request, one load, and 27 commands. Reload falls from ten loads and 270 commands to the same single-load path.
 - The decoded payload remains effectively flat at 61,610 versus 62,113 bytes; the improvement comes from eliminating duplicated request, locking, and store work rather than omitting player-visible data.
 - The remaining generic load still reads broad state. Issue #141 owns replacing it with a focused SQL projection behind this stable bootstrap boundary; validators, topology reuse, public asset routing, and abuse guardrails remain separately sequenced.
+
+## 2026-07-18: Present A Cycle As A 150-Turn Timeline
+
+Decision: give the playable dashboard a fixed bottom ribbon that presents the current Cycle as a 150-turn timeline. Drive its position from the authoritative current tick and keep it visible across the dashboard workspaces, including the maximised map.
+
+For now, treat 150 turns as a presentation boundary only. Reaching turn 150 does not automatically end a Cycle, calculate rankings, reject further commands, or replace the existing operator-owned `cycle end` boundary.
+
+Reasoning:
+
+- A persistent timeline gives the dashboard a stronger full-screen game shell and keeps long-horizon Cycle progress visible without consuming workspace navigation or card space.
+- Showing the complete 150-turn span makes early, middle, and late-Cycle position legible at a glance.
+- Keeping the first slice client-only avoids inventing automatic lifecycle behaviour before end timing, warnings, final-command handling, and post-Cycle transition receive explicit rules.
+
+Consequences:
+
+- The ribbon exposes accessible progressbar semantics, a current-turn label, 25-turn milestones, and 150 compact turn divisions.
+- Progress fills to the end of the ribbon at turn 150. A later tick remains visible in the text label without extending the fixed timeline.
+- Tutorial and narrow-screen layouts reserve the ribbon height so fixed controls do not cover playable content.

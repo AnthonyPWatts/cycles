@@ -78,6 +78,33 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Dashboard_presents_a_fixed_150_turn_progress_ribbon()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"turnProgressRibbon\" class=\"turn-progress-ribbon\"", html);
+        Assert.Contains("id=\"turnProgressStatus\">T0 / 150", html);
+        Assert.Contains("id=\"turnProgressTrack\"", html);
+        Assert.Contains("role=\"progressbar\"", html);
+        Assert.Contains("aria-valuemax=\"150\"", html);
+        Assert.Equal(7, Regex.Matches(html, @"<span>T(?:0|25|50|75|100|125|150)</span>").Count);
+
+        Assert.Contains("const cycleTurnLimit = 150;", script);
+        Assert.Contains("renderTurnTimeline(cycle.currentTickNumber);", script);
+        Assert.Contains("elements.turnProgressTrack.style.setProperty(\"--turn-progress\"", script);
+        Assert.Contains("document.body.classList.add(\"dashboard-active\");", script);
+        Assert.Contains("document.body.classList.remove(\"dashboard-active\");", script);
+
+        Assert.Matches(
+            new Regex(@"\.turn-progress-ribbon\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*0;", RegexOptions.Singleline),
+            css);
+        Assert.Contains("background-size: 0.6666667% 100%;", css);
+        Assert.Contains("padding-bottom: var(--turn-ribbon-height);", css);
+    }
+
+    [Fact]
     public void Dashboard_requests_web_delivery_artwork_instead_of_png_masters()
     {
         var script = ReadDashboardAsset("app.js");

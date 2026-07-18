@@ -37,6 +37,7 @@ const state = {
 };
 
 const viewIds = ["command", "galaxy", "fleets", "history"];
+const cycleTurnLimit = 150;
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
 const inactivePriorityKeys = ["industryWeight", "researchWeight"];
 const activePriorityKeys = ["militaryWeight", "expansionWeight"];
@@ -249,6 +250,8 @@ const elements = {
     historyViewBadge: document.querySelector("#historyViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
     nextTurnStatus: document.querySelector("#nextTurnStatus"),
+    turnProgressStatus: document.querySelector("#turnProgressStatus"),
+    turnProgressTrack: document.querySelector("#turnProgressTrack"),
     empireName: document.querySelector("#empireName"),
     homeSystemName: document.querySelector("#homeSystemName"),
     commandView: document.querySelector("#commandView"),
@@ -942,6 +945,7 @@ function applySession(login) {
     elements.sessionSummary.hidden = false;
     elements.appHeaderControls.hidden = false;
     elements.appShell.hidden = false;
+    document.body.classList.add("dashboard-active");
     activateView(resolveInitialView(), { updateLocation: true });
     activateFleetTab(state.fleetTab);
     activateFleetAction(state.fleetAction);
@@ -964,6 +968,7 @@ function showLogin(message) {
     elements.sessionSummary.hidden = true;
     elements.appHeaderControls.hidden = true;
     elements.appShell.hidden = true;
+    document.body.classList.remove("dashboard-active");
 }
 
 async function refresh({ applySessionFromBootstrap = false } = {}) {
@@ -1128,6 +1133,21 @@ function renderCycle(cycle) {
         ${statusChip(cycle.status)}
     `;
     elements.nextTurnStatus.textContent = `T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
+    renderTurnTimeline(cycle.currentTickNumber);
+}
+
+function renderTurnTimeline(currentTickNumber) {
+    const tickNumber = Math.max(0, Math.trunc(Number(currentTickNumber) || 0));
+    const boundedTickNumber = Math.min(cycleTurnLimit, tickNumber);
+    const progress = (boundedTickNumber / cycleTurnLimit) * 100;
+    const accessibleStatus = tickNumber > cycleTurnLimit
+        ? `Turn ${tickNumber}; the ${cycleTurnLimit}-turn timeline is complete`
+        : `Turn ${tickNumber} of ${cycleTurnLimit}`;
+
+    elements.turnProgressStatus.textContent = `T${tickNumber} / ${cycleTurnLimit}`;
+    elements.turnProgressTrack.style.setProperty("--turn-progress", `${progress}%`);
+    elements.turnProgressTrack.setAttribute("aria-valuenow", String(boundedTickNumber));
+    elements.turnProgressTrack.setAttribute("aria-valuetext", accessibleStatus);
 }
 
 function renderEmpire(empire) {

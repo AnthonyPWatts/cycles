@@ -15,6 +15,7 @@
     --danger: #e16d58;
     --system: #f3e7c7;
     --shadow: rgba(0, 0, 0, 0.35);
+    --turn-ribbon-height: 66px;
 }
 
 * {
@@ -3502,6 +3503,10 @@ body {
     background-size: 83px 83px, 131px 131px, 197px 197px, auto, auto;
 }
 
+body.dashboard-active {
+    padding-bottom: var(--turn-ribbon-height);
+}
+
 button {
     border-color: rgba(143, 180, 244, 0.48);
     border-radius: 2px;
@@ -3772,6 +3777,124 @@ select {
 .app-shell {
     grid-template-rows: auto auto minmax(0, 1fr);
     background: #080d10;
+}
+
+.turn-progress-ribbon {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1100;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(16px, 2.4vw, 34px);
+    height: var(--turn-ribbon-height);
+    padding: 8px clamp(14px, 2.2vw, 32px);
+    border-top: 1px solid rgba(217, 179, 93, 0.62);
+    background:
+        linear-gradient(90deg, rgba(217, 179, 93, 0.1), transparent 28%, rgba(90, 127, 187, 0.1) 76%, transparent),
+        rgba(6, 10, 12, 0.97);
+    box-shadow: 0 -16px 42px rgba(0, 0, 0, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    backdrop-filter: blur(14px);
+}
+
+.turn-progress-summary {
+    display: grid;
+    gap: 1px;
+    min-width: 118px;
+    padding-right: clamp(14px, 2vw, 28px);
+    border-right: 1px solid rgba(217, 179, 93, 0.26);
+}
+
+.turn-progress-summary span {
+    color: #a9a38f;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.turn-progress-summary strong {
+    color: #e3bd62;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+}
+
+.turn-progress-timeline {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.turn-progress-track {
+    position: relative;
+    height: 10px;
+    overflow: visible;
+    border: 1px solid rgba(143, 180, 244, 0.3);
+    background: rgba(143, 180, 244, 0.08);
+    box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.72);
+}
+
+.turn-progress-track::after {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background-image: linear-gradient(90deg, transparent calc(100% - 1px), rgba(187, 203, 218, 0.24) 0);
+    background-size: 0.6666667% 100%;
+    content: "";
+    pointer-events: none;
+}
+
+.turn-progress-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--turn-progress);
+    background: linear-gradient(90deg, rgba(120, 155, 216, 0.62), #d9b35d);
+    box-shadow: 0 0 16px rgba(217, 179, 93, 0.28);
+}
+
+.turn-progress-marker {
+    position: absolute;
+    top: 50%;
+    left: var(--turn-progress);
+    z-index: 3;
+    width: 11px;
+    height: 11px;
+    border: 1px solid #f2d27f;
+    border-radius: 50%;
+    background: #0a0f12;
+    box-shadow: 0 0 0 3px rgba(217, 179, 93, 0.12), 0 0 12px rgba(242, 210, 127, 0.68);
+    transform: translate(-50%, -50%);
+}
+
+.turn-progress-milestones {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    color: #778084;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.52rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+}
+
+.turn-progress-milestones span {
+    text-align: center;
+}
+
+.turn-progress-milestones span:first-child {
+    text-align: left;
+}
+
+.turn-progress-milestones span:last-child {
+    text-align: right;
+}
+
+.dashboard-active .tutorial-panel {
+    bottom: calc(var(--turn-ribbon-height) + 24px);
 }
 
 .view-nav {
@@ -4652,6 +4775,14 @@ select {
         background: rgba(6, 10, 12, 0.98);
     }
 
+    body.dashboard-active.tutorial-active {
+        padding-bottom: calc(min(42dvh, 360px) + var(--turn-ribbon-height));
+    }
+
+    .dashboard-active .tutorial-panel {
+        bottom: var(--turn-ribbon-height);
+    }
+
     .app-header-controls {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -4685,6 +4816,10 @@ select {
 }
 
 @media (max-width: 560px) {
+    :root {
+        --turn-ribbon-height: 60px;
+    }
+
     .brand-orbit {
         width: 31px;
         height: 31px;
@@ -4692,6 +4827,30 @@ select {
 
     .app-header-controls {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .turn-progress-ribbon {
+        gap: 10px;
+        padding-inline: 10px;
+    }
+
+    .turn-progress-summary {
+        min-width: 74px;
+        padding-right: 9px;
+    }
+
+    .turn-progress-summary span {
+        font-size: 0.5rem;
+        letter-spacing: 0.1em;
+    }
+
+    .turn-progress-summary strong {
+        font-size: 0.72rem;
+        letter-spacing: 0.03em;
+    }
+
+    .turn-progress-milestones {
+        font-size: 0.46rem;
     }
 
     .cycle-instrument {
