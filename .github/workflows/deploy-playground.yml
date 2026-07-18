@@ -50,6 +50,19 @@ jobs:
         with:
           ref: ${{ steps.revision.outputs.sha }}
 
+      - name: Verify required edge assets
+        shell: bash
+        run: |
+          for icon_path in src/Cycles.Api/wwwroot/assets/icons/*.svg; do
+            icon_name="$(basename "$icon_path")"
+            edge_asset_url="https://cycles.anthonypwatts.co.uk/assets/icons/${icon_name}"
+            status_code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$edge_asset_url" || true)"
+            if [ "$status_code" != "200" ]; then
+              echo "::error::Required edge asset ${edge_asset_url} returned HTTP ${status_code}. Deploy deploy/cloudflare before this Azure revision."
+              exit 1
+            fi
+          done
+
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:

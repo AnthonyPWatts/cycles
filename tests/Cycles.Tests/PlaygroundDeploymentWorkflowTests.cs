@@ -3,6 +3,21 @@ namespace Cycles.Tests;
 public sealed class PlaygroundDeploymentWorkflowTests
 {
     [Fact]
+    public void Deployment_refuses_to_publish_dashboard_code_before_required_edge_icons_are_live()
+    {
+        var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"));
+        var edgePreflightIndex = workflow.IndexOf("Verify required edge assets", StringComparison.Ordinal);
+        var stopIndex = workflow.IndexOf("Stop API for database maintenance", StringComparison.Ordinal);
+
+        Assert.True(edgePreflightIndex >= 0);
+        Assert.True(edgePreflightIndex < stopIndex);
+        Assert.Contains("src/Cycles.Api/wwwroot/assets/icons/*.svg", workflow, StringComparison.Ordinal);
+        Assert.Contains("https://cycles.anthonypwatts.co.uk/assets/icons/${icon_name}", workflow, StringComparison.Ordinal);
+        Assert.Contains("Required edge asset ${edge_asset_url} returned HTTP ${status_code}", workflow, StringComparison.Ordinal);
+        Assert.Contains("Deploy deploy/cloudflare before this Azure revision.", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Deployment_can_deliberately_reseed_disposable_state_before_publishing_the_new_api()
     {
         var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"));
