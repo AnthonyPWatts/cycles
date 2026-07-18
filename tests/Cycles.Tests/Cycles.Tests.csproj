@@ -27,6 +27,9 @@
     <None Include="..\..\src\Cycles.Api\wwwroot\styles.css"
           Link="Fixtures\Dashboard\styles.css"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\assets\icons\*.svg"
+          Link="Fixtures\Dashboard\assets\icons\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\Cycles.Api\wwwroot\index.html"
           Link="Fixtures\Landing\index.html"
           CopyToOutputDirectory="PreserveNewest" />

@@ -2368,11 +2368,13 @@ function hideTutorial() {
 }
 
 function updateTutorialButton() {
-    elements.tutorialButton.textContent = tutorial.active
+    const label = tutorial.active
         ? "Guide open"
         : tutorial.status === "paused" ? "Resume guide"
             : tutorial.status === "completed" || tutorial.status === "skipped" ? "Restart guide"
                 : "Guide";
+    elements.tutorialButton.setAttribute("aria-label", label);
+    elements.tutorialButton.title = label;
     elements.tutorialButton.setAttribute("aria-expanded", String(tutorial.active));
 }
 

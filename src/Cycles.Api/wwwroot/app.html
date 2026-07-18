@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260718-webp-1">
+    <link rel="stylesheet" href="styles.css?v=20260718-toolbar-icons-1">
 </head>
 <body>
     <header class="topbar">
@@ -31,9 +31,15 @@
                 <span class="turn-track" aria-hidden="true"><i></i></span>
             </div>
             <div class="toolbar-actions">
-                <button id="tutorialButton" type="button" aria-controls="tutorialPanel">Guide</button>
-                <button id="advanceTurnButton" type="button" title="Resolve one authoritative turn for the whole development galaxy." hidden>Advance turn</button>
-                <button id="refreshButton" type="button">Refresh</button>
+                <button id="tutorialButton" class="toolbar-icon-button" type="button" aria-label="Guide" aria-controls="tutorialPanel" title="Guide">
+                    <span class="toolbar-action-icon toolbar-action-icon-guide" aria-hidden="true"></span>
+                </button>
+                <button id="advanceTurnButton" class="toolbar-icon-button" type="button" aria-label="Advance turn" title="Advance turn — resolve one authoritative turn for the whole development galaxy." hidden>
+                    <span class="toolbar-action-icon toolbar-action-icon-advance" aria-hidden="true"></span>
+                </button>
+                <button id="refreshButton" class="toolbar-icon-button" type="button" aria-label="Refresh" title="Refresh">
+                    <span class="toolbar-action-icon toolbar-action-icon-refresh" aria-hidden="true"></span>
+                </button>
             </div>
         </div>
         <form id="loginForm" class="login-form">

@@ -48,6 +48,36 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Header_actions_use_square_icon_buttons_with_accessible_names()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+        var toolbarStart = html.IndexOf("<div class=\"toolbar-actions\">", StringComparison.Ordinal);
+        var toolbarEnd = html.IndexOf("</div>", toolbarStart, StringComparison.Ordinal);
+        var toolbar = html[toolbarStart..toolbarEnd];
+
+        Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
+        Assert.Contains("aria-label=\"Guide\"", toolbar);
+        Assert.Contains("aria-label=\"Advance turn\"", toolbar);
+        Assert.Contains("aria-label=\"Refresh\"", toolbar);
+        Assert.DoesNotContain(">Guide</button>", toolbar);
+        Assert.DoesNotContain(">Advance turn</button>", toolbar);
+        Assert.DoesNotContain(">Refresh</button>", toolbar);
+        Assert.Matches(
+            new Regex(@"\.toolbar-actions \.toolbar-icon-button\s*\{[^}]*inline-size:\s*36px;[^}]*block-size:\s*36px;", RegexOptions.Singleline),
+            css);
+        Assert.Contains("assets/icons/guide.svg", css);
+        Assert.Contains("assets/icons/advance-turn.svg", css);
+        Assert.Contains("assets/icons/refresh.svg", css);
+        Assert.Contains("elements.tutorialButton.setAttribute(\"aria-label\", label);", script);
+
+        Assert.Contains("viewBox=\"0 0 24 24\"", ReadDashboardAsset(Path.Combine("assets", "icons", "guide.svg")));
+        Assert.Contains("viewBox=\"0 0 24 24\"", ReadDashboardAsset(Path.Combine("assets", "icons", "advance-turn.svg")));
+        Assert.Contains("viewBox=\"0 0 24 24\"", ReadDashboardAsset(Path.Combine("assets", "icons", "refresh.svg")));
+    }
+
+    [Fact]
     public void Dashboard_requests_web_delivery_artwork_instead_of_png_masters()
     {
         var script = ReadDashboardAsset("app.js");
