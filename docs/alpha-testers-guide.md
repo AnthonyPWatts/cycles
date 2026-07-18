@@ -134,6 +134,26 @@ The server rechecks each order when it processes the tick. An order that was val
 
 Each fleet can have one pending intention for the next tick. Choosing a different action asks you to confirm replacement of the current pending order; repeating the same action is idempotent. Fleets without a submitted command Hold when the command window closes. Submission time does not grant initiative: resources and construction resolve first, then movement, combat, and colonisation.
 
+## How the server processes a turn
+
+The order below governs the result of your commands. Sending an order before another does not make its fleet act first.
+
+| Order | Processing phase | Plan around this consequence |
+| --- | --- | --- |
+| 1 | Resource income | Your active presence generates Industry, Research, and Population before due ships arrive. You can spend the new income in the same turn. |
+| 2 | Due construction | Ships whose delivery tick has arrived appear at home and can defend. They cannot inherit a fleet command that the server has already sealed. |
+| 3 | Programme spending | The server applies your committed priorities and starts new construction. New construction does not gain a tick of progress at once. |
+| 4 | Arrivals and movement | Existing journeys arrive before new Move orders. Movement establishes the fleet positions used by combat. |
+| 5 | Combat | Attacks use the post-movement fleets in each system. A target can move away; an arriving fleet can join the defence. |
+| 6 | Colonisation | The server checks the surviving colonising fleet and spends Population after the outpost succeeds. |
+| 7 | Derived state | Map-control metrics use the world left by movement, combat, and colonisation. |
+| 8 | Next-window progression | Research earned this turn can unlock Survey Projection, which applies from the next command window. |
+| 9 | Publication | The server commits one complete result and reopens commands. A failed resolution cannot expose half a turn. |
+
+One fleet still has one intention. A fleet ordered to Move can arrive in time to defend, but it cannot also Attack or Colonise in that turn. A fleet ordered to Colonise waits until combat finishes and must survive in the target system. Review the whole command queue as one plan rather than a list that executes from top to bottom.
+
+The current pre-alpha has one known contention limit. If an empire submits several eligible Colonise intentions but lacks the Population to fund all of them, stable internal identifiers decide which succeeds first. Players cannot set that priority. [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) gates the replacement rule; avoid oversubscribing Population when evaluating the present build.
+
 ## Influence and resources
 
 Active ships create presence in their current system. Each system divides its Industry, Research, and Population output between the empires present, in proportion to their effective presence.

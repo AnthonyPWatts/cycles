@@ -46,6 +46,22 @@ For example, replacing a pending move with an attack includes the order being co
 
 The confirmation ID makes a stale dashboard or competing submission fail safely instead of silently replacing a newer intention. `targetFactionId` is authoritative for attacks and permits neutral targets; `targetEmpireId` remains an optional compatibility input and response field for empire targets. `superseded` is an additive fleet-order status; clients must tolerate additive string-enum members as well as optional response fields.
 
+## Cycle Stage And Turn Processing Contract
+
+Cycle responses expose `turnStage`. The value describes command acceptance and the authoritative turn lifecycle:
+
+| Value | Meaning |
+| --- | --- |
+| `commandOpen` | Human order, replacement, cancellation, and priority mutations may be accepted. |
+| `closing` | Human commands are closed while internal planners fill their permitted intentions. |
+| `sealed` | The complete ledger is immutable. No command source may append or replace an intention. |
+| `resolving` | The server is processing the sealed ledger through the gameplay phases. |
+| `publishing` | Outcomes are complete and the server is committing facts before the next command window. |
+
+Order and priority mutations outside `commandOpen` fail with `409 Conflict` and `code: "stateConflict"`. SQL-backed tick execution commits in one transaction, so a normal client may see `commandOpen` on either side of a completed tick without observing each intermediate value. Clients must tolerate every documented stage and disable command submission once the value leaves `commandOpen`.
+
+The sealed ledger resolves as resource income; due construction; programme spending and construction starts; arrivals and movement; combat; colonisation; derived state; next-window progression; then publication. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
+
 ## Trusted Development Selection
 
 When `Cycles:TrustedPlayerSelection:Enabled` is deliberately enabled, `GET /auth/trusted-players` returns active human accounts participating in the current match. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector is intended only for an access-restricted Development host and does not replace external identity or create accounts.

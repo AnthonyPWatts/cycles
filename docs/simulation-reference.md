@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-18
 
-This reference records the simulation contracts that need more precision than the project-state summary: determinism, Cycle-end ranking, and the repeatable balance diagnostic. It describes current behaviour, not intended game balance.
+This reference records the simulation contracts that need more precision than the project-state summary: authoritative turn processing, determinism, Cycle-end ranking, and the repeatable balance diagnostic. It describes current behaviour, not intended game balance.
 
 ## Determinism Contract
 
@@ -31,21 +31,30 @@ The submission boundary permits at most one `Pending` order for a fleet at a par
 
 At closure, the engine snapshots the active fleets, labels submitted human intentions, generates deterministic Hold intentions for game-AI and neutral fleets, and fills every other missing command with an implicit Hold. Every ledger row records its command source, sealed tick, and sealed timestamp. Generated Hold identifiers derive from the Cycle, tick, fleet, and source, so retrying the same persisted state reproduces the ledger identity.
 
-The sealed ledger resolves in this order:
+### Authoritative Processing Order
 
-1. influence-derived resources;
-2. due construction;
-3. new programme spending and construction starts;
-4. existing arrivals, then new movement and Holds;
-5. combat;
-6. colonisation;
-7. derived map-control metrics;
-8. progression for the next command window;
-9. atomic publication and reopening.
+The phase sequence forms part of the gameplay rules. It determines whether income can be spent, which fleets meet in combat, whether a colony succeeds, and when a doctrine begins to affect influence. A code change must not reorder phases as incidental implementation work. Any proposed change needs a product decision, regression tests, and matching updates to player guidance and result presentation.
 
-Submission timestamps do not confer initiative. Fleets and orders use stable identifier ordering inside a phase. Same-faction attacks against the same opposing faction in one system are combined into one battle from the post-movement state. Combat involving more than two independently hostile factions remains a separate product decision; the current first-pass pairwise model does not invent alliance sides, interception, or pursuit.
+| Phase | Server processing | Gameplay consequence |
+| --- | --- | --- |
+| 1. Resource income | Calculate influence-derived Industry, Research, and Population from active presence in the sealed phase-start world. | Ships completed in phase 2 do not contribute income in this turn. The credited income is available in phase 3. |
+| 2. Due construction | Complete ship construction whose delivery tick has arrived. Add ships to a home fleet that sealed Hold, or create a separate reinforcement fleet. | Due ships can defend because combat comes later. They cannot move, attack, or colonise because the server sealed commands before those ships existed. |
+| 3. Programme spending | Apply the priorities committed before closure. Spend the current stockpile and start new construction. | Current income can fund current spending. A construction started here receives its first progress in a later tick. |
+| 4. Arrivals and movement | Complete existing journeys first, then process sealed Move and Hold intentions. One-tick links place the moving fleet at its destination in this phase; longer links leave it in transit. | Movement fixes the fleet positions used by combat. A fleet can leave a threatened system, and an arriving or one-tick moving fleet can defend at its destination. Its single sealed intention prevents it from moving and attacking in one turn. |
+| 5. Combat | Resolve attacks from the shared post-movement state. Combine same-faction attacks against the same opposing faction in one system into one battle. | The server rejects an attack if movement leaves no eligible target. Incoming defenders can fight. Submission time cannot make an attack happen before movement. |
+| 6. Colonisation | Revalidate each Colonise intention against the surviving fleet, system presence, and available Population. Consume Population only after success. | A fleet committed to colonisation must survive combat and remain eligible. Combat can prevent an outpost without consuming its cost. If one empire cannot fund all eligible Colonise intentions, the current build gives stable fleet/order traversal the first claim; issue #139 gates a player-controlled contention rule. |
+| 7. Derived state | Calculate post-action map-control metrics from the committed fleet, outpost, and influence state. | Rankings and turn summaries describe the world after movement, combat, and colonisation. |
+| 8. Next-window progression | Apply research unlocks reached by the turn's credited Research. | Survey Projection unlocked here affects the next command window and later resolution, not income, combat, or metrics from the turn that unlocked it. |
+| 9. Publication | Mark the tick complete, commit state and facts in one transaction, then reopen commands. | Players see one committed result. A failure enters recovery without exposing a partly resolved turn or accepting commands into it. |
 
-Current income is available to current programme spending. Construction due at the start of the tick may defend, but ships completed after sealing do not inherit a previously sealed command. Construction started in the tick cannot progress in the same tick. Colonisation follows combat and spends population only on success. A doctrine unlocked during progression affects the next command window, not earlier phases of the resolving tick.
+Submission timestamps do not confer initiative. Fleets and orders use stable identifier ordering inside a phase to reproduce the same state transition. The intended contract limits identifiers to implementation traversal rather than player priority. The current Colonise contention behaviour breaks that rule when several eligible intentions compete for insufficient Population; [issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) records the required decision. Same-faction attacks use the grouped combat rule above. Combat involving more than two independently hostile factions remains a separate product decision; the current pairwise model does not invent alliance sides, interception, or pursuit.
+
+These examples follow from the processing order:
+
+- A defender that submits Move can leave before a hostile Attack checks the system. If no eligible target remains, the attack is rejected.
+- A fleet that reaches a system during the movement phase can be drawn into defence there, even though its own intention was Move rather than Attack.
+- A home reinforcement delivered in phase 2 can defend in phase 5. It neither generated phase-1 income nor received the home fleet's sealed Move or Attack.
+- An empire can cross the research threshold with phase-1 income. Survey Projection still waits for phase 8 and changes play from the next command window.
 
 Combat pseudo-randomness derives from:
 

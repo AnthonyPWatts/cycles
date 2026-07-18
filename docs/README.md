@@ -9,6 +9,7 @@ The maintained documentation has one owner for each kind of information. Update 
 | [Gameplay Guide](alpha-testers-guide.md) | Player-facing Day One tutorial and development-build expectations. |
 | [Project State](project-state.md) | What is implemented, verified, and still limited. |
 | [Architecture Direction](architecture-direction.md) | System boundaries, invariants, and intended technical shape. |
+| [Simulation Reference](simulation-reference.md) | Authoritative turn processing order, determinism, final ranking, and repeatable balance-scenario contracts. |
 | [Player API Contract](api-contract.md) | JSON conventions, stable error codes, compatibility rules, and player-facing fact presentation. |
 | [Backlog](backlog.md) | Curated priorities, sequencing, decision gates, conditional risks, and links to authoritative GitHub issues. |
 | [Product Owner Questions](product-owner-questions.md) | Accepted product answers and active product-decision gates. |
@@ -20,7 +21,6 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 
 | Document | Owns |
 | --- | --- |
-| [Simulation Reference](simulation-reference.md) | Determinism, final ranking, and repeatable balance-scenario contracts. |
 | [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
 | [Trusted Playground Deployment](playground-deployment.md) | Free-tier hosted play-testing, CI deployment, and enforced cost guardrails. |
 | [Promo Film Production Notes](../src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) | The 30-second master and edge-delivery derivative, shot provenance, concept-image prompts, render command, and verification boundary. |

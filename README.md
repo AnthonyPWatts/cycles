@@ -29,6 +29,14 @@ The current pre-alpha development build supports a complete gameplay loop locall
 
 This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.
 
+## Turns Resolve In A Fixed Gameplay Order
+
+Players commit one intention per fleet before the command window closes. The server then seals one complete ledger and resolves it as `income -> due construction -> programme spending and construction starts -> arrivals and movement -> combat -> colonisation -> derived metrics -> next-window progression -> publication`.
+
+That sequence governs strategy. Submission time grants no initiative. A fleet that moves away leaves before combat checks its system; a fleet that arrives can take part in defence later in the turn. Ships whose construction was already due may defend, but they contributed no income and cannot inherit a command sealed before they existed. A colonising fleet must survive combat, and research unlocked during resolution applies when the next command window opens.
+
+[Simulation Reference](docs/simulation-reference.md#authoritative-processing-order) defines the precise processing contract. Changes to the sequence require an explicit gameplay decision, regression coverage, and matching player guidance.
+
 ## Start Here
 
 - [Gameplay Guide](docs/alpha-testers-guide.md) explains the curated opening and current gameplay loop.
