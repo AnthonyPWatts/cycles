@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-14
+Last updated: 2026-07-18
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -1618,3 +1618,31 @@ Consequences:
 - The normal curated seed is `development-match-v2`; it creates three empire factions, one neutral faction, three active participants, nine empire fleets, six neutral fleets, and one opening briefing per empire.
 - `Cycles:TrustedPlayerSelection:Enabled` must be deliberately enabled outside local Development, where it also requires the shared playground access code at startup. The trusted endpoints list active human accounts participating in the match, reject arbitrary or game-AI identities, and use a protected session cookie. Ended participants retain read-only access to the historical match but cannot mutate state.
 - The six-empire ceiling is a model limit, not evidence that the current dashboard or balance is proved for six concurrent human players.
+
+## 2026-07-18: Seal A Turn Ledger And Resolve Ticks In Explicit Batches
+
+Decision: close the human command window when the configured tick deadline expires, then generate game-AI and neutral intentions from the same pre-resolution world state before sealing one complete turn ledger. Resolve that sealed ledger through explicit, deterministic phases rather than submission order: resources; mandatory economy and scheduled construction; new programme spending and construction starts; movement and arrivals; combat; colonisation; derived control, visibility, and defeat state; progression for the next command window; then factual events and Chronicle selection.
+
+Use two distinct closure boundaries. The deadline first changes the Cycle from command-open to closing and rejects further human submissions. Internal AI and neutral planners may then append only their own commands. Validation, implicit Holds, and durable recording produce the final sealed ledger; no command may enter after that seal. **Advance turn** remains a Development or operator shortcut that invokes this same global closure pipeline early, not a player readiness mechanic.
+
+Treat `CommandOpen -> Closing -> Sealed -> Resolving -> Publishing -> CommandOpen` as the intended authoritative lifecycle. A failure during resolution or publication enters the existing recovery-required boundary rather than partially opening the next command window.
+
+Reasoning:
+
+- A human command accepted while AI planning is in progress would create a timing race and could let the AI act against a different state from the one the player saw.
+- AI must make decisions from information its empire could legitimately observe. It must not inspect hidden human intentions, and its generated commands must be persisted so a completed tick can be audited and reproduced.
+- Submission time must not create initiative. Each phase calculates simultaneous outcomes from a common phase-start snapshot where the rules describe simultaneous behaviour; stable identifiers may order deterministic implementation work without granting gameplay priority.
+- Explicit phases make economic timing, multi-tick journeys, combat participation, colonisation eligibility, progression effects, and event publication explainable to players and testable in isolation.
+- Events describe committed outcomes. They must not act as substitutes for idempotent state transitions such as a one-time doctrine unlock.
+
+Consequences:
+
+- Missing human, AI, or neutral fleet commands normalise to Hold for audit and resolution without requiring a player-level Ready state.
+- Current-tick income may fund current-tick programme spending. The command surface therefore needs to forecast expected income, reserved costs, automatic spending, and scheduled delivery clearly.
+- Construction already due may complete before movement and may defend during that tick, but newly completed ships cannot receive commands that were sealed before they existed. Construction commissioned in the current tick does not also progress in that tick.
+- Existing journeys advance and arrive within the movement phase; new movement dispatches are applied as a batch. Combat then forms from the post-movement system state. The first version has no route interception or pursuit; those require explicit later rules rather than hidden exceptions.
+- Battles resolve independently by system from a shared post-movement snapshot. A fleet cannot gain priority or fight twice because its battle happened to be processed first.
+- Colonisation resolves after combat. Its population cost is reserved during resolution and consumed only when an eligible surviving fleet successfully establishes the outpost.
+- Research and other progression achieved during the tick become effective in the next command window unless a future rule explicitly says otherwise.
+- Derived control, visibility, fleet availability, defeat conditions, facts, events, Chronicle entries, and the next command window are published only after authoritative phase outcomes are complete.
+- The tick remains one authoritative atomic operation with the existing recovery boundary. The current implementation does not yet provide this complete phase contract; implementation must preserve that distinction until verified.

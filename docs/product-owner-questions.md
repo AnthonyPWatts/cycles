@@ -1,6 +1,6 @@
 # Product Owner Questions
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
 
@@ -55,6 +55,8 @@ Q124 was answered on 2026-07-14 by locking camelCase properties and camelCase st
 Q125's earlier scale answers were explicitly superseded on 2026-07-15. The next player test now targets the canonical 8-sector, 64-system, four-empire territorial galaxy and its three curated map ranges.
 
 The 17 July development-match decision supersedes the four-empire opening without changing the 8-sector, 64-system map boundary. The current seed uses Tony and Will as persistent human players plus Ariadne as a game-AI player, each controlling one of three empires in distinct sectors. The match model permits up to six empire participants and never shares control of an empire. Complex identity, account email, invitations, matchmaking, and production game-AI policy remain deferred; the present Development selector offers only Tony or Will behind the existing access-code boundary.
+
+The 18 July turn-resolution decision closes the former relative-ordering gap. A command deadline closes human submissions without requiring player readiness; game-AI and neutral intentions are then generated from the same pre-resolution state and legitimate visibility before the complete ledger is sealed. Resolution uses deterministic resource, economy, construction, movement, combat, colonisation, derived-state, progression, and publication phases. The current engine has not yet implemented that complete contract.
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
@@ -210,6 +212,11 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Scheduled ticks belong to a Worker; ordinary production player actions must not execute ticks.
 - **Advance turn** is the only ordinary-player Development exception and invokes the same authoritative store operation without changing the player's role, visibility, or empire authority.
 - Shared/private-alpha manual lifecycle actions are limited to audited admins. Recovery and Cycle transitions remain operator-only until their audit and confirmation UX is designed.
+- The command deadline first rejects further human submissions. AI and neutral planners then append only their own visibility-respecting intentions before one complete turn ledger is sealed; they do not inspect hidden human commands.
+- Missing commands normalise to Hold. Submission time grants no initiative, and each simultaneous phase resolves from a common phase-start snapshot with stable ordering used only for reproducibility.
+- The accepted phase order is resources; mandatory economy and due construction; new programme spending and construction starts; movement and arrivals; combat; colonisation; derived control, visibility, availability, and defeat state; next-window progression; then facts, Events, and Chronicle selection.
+- Current income may fund current spending. Due ships may defend but cannot receive already-sealed commands; new construction does not progress immediately; successful colonisation alone consumes its reserved population; and progression unlocked during resolution applies from the next command window.
+- Movement precedes combat. Route interception and pursuit are not implicit first-version behaviour and require explicit future rules.
 
 ### API And Dashboard Contracts
 

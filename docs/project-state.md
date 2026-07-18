@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 Cycles is a local, runnable pre-alpha development MVP. It proves the server-authoritative loop from galaxy generation through orders, tick resolution, factual history, Cycle completion, and successor generation. It is not yet an alpha release, production game service, or balanced multiplayer game.
 
@@ -11,7 +11,7 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Galaxy | A deterministic 8-sector territorial graph with 64 systems, 91 routes, 16 gateway systems, distributed gateway fan-out, home systems, resources, strategic/history fields, and a curated three-empire development opening with six neutral fleets. | The canonical 64-system scale is browser- and SQL-verified. The model permits up to six empire participants, but larger matches and differently shaped galaxies remain unproved rather than an implied client contract. |
 | Tick execution | CLI tick runner, scheduled Worker, SQL-atomic due execution, accepted authenticated-development-player trigger, duplicate-running-tick guards, configurable persisted-running diagnostics, explicit inspected abandonment, and recovery state. | Production health, shutdown behaviour, multi-Cycle scheduling, and deployment monitoring remain tracked by #132. |
 | Influence and economy | Fleet-derived influence, home pressure, resource sharing, 100-point strategic-programme priorities, military ship construction, expansion projection, and one research unlock. | Development and Innovation are locked at zero until their accepted programme models receive bounded implementations; long-run resource sinks are incomplete. |
-| Orders | Durable move, hold, attack, colonise, cancellation, and supersession lifecycle with one confirmed next-tick intention per fleet plus submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. Relative resolution between different fleets is unchanged. |
+| Orders | Durable move, hold, attack, colonise, cancellation, and supersession lifecycle with one confirmed next-tick intention per fleet plus submission-time and processing-time validation. | The dashboard does not expose Hold, fleet creation, or fleet splitting. The accepted command-window closure and phased simultaneous-resolution contract is documented below but not yet implemented. |
 | Colonisation | Population-funded outposts that add supported local presence without binary ownership. | No capture, destruction, migration, infrastructure, or cross-Cycle inheritance. |
 | Combat | Deterministic first-pass combat, battle facts, losses, events, and admiral outcomes. | Deliberately primitive and not balanced. |
 | Diplomacy | Persisted Neutral, War, Non-Aggression Pact, and Alliance states; attacks record aggression and cancel breached treaties. | No player-facing offers or declarations. The accepted first-version Alliance friendly-fire guard and factual-history contract are not implemented; shared visibility remains governed separately by Q025. |
@@ -19,6 +19,21 @@ Cycles is a local, runnable pre-alpha development MVP. It proves the server-auth
 | Identity and visibility | Persistent human or game-AI players; one active match participant per empire and player in a Cycle; a maximum of six empires; a fixed Tony/Will Development selector; non-Development OIDC/cookie authentication; exact issuer/subject invitation mapping; Cycles-owned empire/admin authority; protected dashboard; active-fleet fog-of-war. | Complex identity, matchmaking, invitations, and production provider registration remain deferred. The selector is explicitly feature-gated and suitable only behind the trusted-playground access boundary. |
 | Persistence | Mandatory SQL Server API/Worker runtime, ordered migrations, transaction locks, focused SQL tick workspace, targeted tick writes, strict versioned JSON transfer, bounded legacy-file conversion, Azure SQL playground cutover, and proved point-in-time restore. | Generic API/admin SQL mutations still use the whole-state bridge. |
 | Client | Public landing page with a provenance-labelled 30-second development film at a stable Cloudflare media URL, plus a protected playable dashboard with an authored empire/Cycle shell; a Command triage hub with a data-driven council agenda, frontier schematic, command stream, strategic watch, programme controls, and turn calendar; focused Galaxy, Fleets, and History workspaces; an authored Galaxy/Sector atlas with live overlays; an admiral-led, resumable Day One guide including visibility and Cycle-history teaching; and responsive browser breakpoints. | Desktop/laptop command use is the accepted priority; narrow screens retain the core loop without equal mobile optimisation. The shell exposes only implemented workspaces; future Strategy or Diplomacy destinations remain decision-gated. The film's concept dramatisations show intended scale and tone, not simulated gameplay output. |
+
+## Accepted Next Tick-Resolution Contract
+
+This is approved implementation direction, not a description of the current tick engine.
+
+The intended authoritative lifecycle is `CommandOpen -> Closing -> Sealed -> Resolving -> Publishing -> CommandOpen`; a failed tick enters the existing recovery-required boundary instead of partially publishing a turn.
+
+1. The configured deadline closes human command submission. A Development or operator **Advance turn** invokes the same global closure early; it is not a readiness signal.
+2. The latest human intentions are snapshotted. Missing fleet commands normalise to Hold.
+3. Game-AI and neutral planners generate their own commands from the same pre-resolution world state and legitimate visibility, without reading hidden human intentions.
+4. The complete validated human, AI, neutral, and implicit-Hold turn ledger is durably sealed.
+5. Resolution proceeds in deterministic batches: resources; mandatory economy and due construction; new programme spending and construction starts; movement and arrivals; combat; colonisation; derived control, visibility, availability, and defeat state; next-window progression; factual events and Chronicle selection.
+6. The tick commits atomically through the existing recovery boundary, then publishes the next command window.
+
+Within a batch, submission time confers no initiative. Stable identifiers may make processing reproducible, but simultaneous outcomes use a shared phase-start snapshot. Current income may fund current spending; due ships may defend but cannot receive previously sealed commands; newly commissioned construction does not progress immediately; colonisation population is consumed only on success; and progression unlocked during resolution takes effect in the next command window. Movement precedes combat in the first version, with no implicit route interception or pursuit.
 
 ## Implemented Rules
 
