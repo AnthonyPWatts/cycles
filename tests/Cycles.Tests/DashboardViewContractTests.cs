@@ -220,6 +220,19 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
+    public void Attack_action_requires_a_visible_local_hostile()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("targetFactions.length === 0", script);
+        Assert.Contains("No hostile active fleet is present in this system.", script);
+        Assert.Contains("!fleetReady || targetFactions.length === 0", script);
+        Assert.Matches(
+            new Regex(@"function collectTargetFactions\(selectedFleet\).*activeFleetsInSystem.*fleet\.factionId !== selectedFleet\.fleet\.factionId", RegexOptions.Singleline),
+            script);
+    }
+
+    [Fact]
     public void Day_one_guide_points_to_the_required_fleet_before_its_action_form()
     {
         var script = ReadDashboardAsset("app.js");

@@ -735,8 +735,23 @@ elements.attackForm.addEventListener("submit", async event => {
     event.preventDefault();
     const fleetId = state.selectedFleetId;
     const targetFactionId = elements.targetEmpireSelect.value || null;
-    if (!fleetId) {
+    const selectedFleet = state.fleets.find(item => item.fleet.fleetId === fleetId) ?? null;
+    const targetFactions = collectTargetFactions(selectedFleet);
+    if (!fleetId
+        || !selectedFleet
+        || selectedFleet.fleet.status !== "active"
+        || selectedFleet.fleet.shipCount <= 0) {
         setMessage("Select an active fleet before attacking.");
+        return;
+    }
+
+    if (targetFactions.length === 0) {
+        setMessage("No hostile active fleet is present in this system.");
+        return;
+    }
+
+    if (targetFactionId && !targetFactions.some(faction => faction.factionId === targetFactionId)) {
+        setMessage("The selected hostile faction has no active fleet in this system.");
         return;
     }
 
@@ -1783,11 +1798,14 @@ function renderOrders() {
 
     const targetFactions = collectTargetFactions(selectedFleet);
     fillSelect(elements.targetEmpireSelect, targetFactions, item => item.factionId, item => item.factionName, true);
+    if (targetFactions.length === 0) {
+        elements.targetEmpireSelect.innerHTML = `<option value="">No local hostiles</option>`;
+    }
 
     const fleetReady = Boolean(selectedFleet);
     const awayFromHome = fleetReady && selectedFleet.fleet.currentSystemId !== state.empire.homeSystem.systemId;
     elements.moveForm.querySelector("button[type=submit]").disabled = !fleetReady || destinations.length === 0;
-    elements.attackForm.querySelector("button[type=submit]").disabled = !fleetReady;
+    elements.attackForm.querySelector("button[type=submit]").disabled = !fleetReady || targetFactions.length === 0;
     elements.coloniseForm.querySelector("button[type=submit]").disabled = !awayFromHome;
 
     elements.moveActionHint.textContent = !fleetReady
@@ -1798,7 +1816,7 @@ function renderOrders() {
     elements.attackActionHint.textContent = !fleetReady
         ? selectionHint ?? "Select an active fleet to prepare an attack."
         : targetFactions.length === 0
-            ? "No visible local rival; the order will target the nearest hostile faction."
+            ? "No hostile active fleet is present in this system."
             : `${formatCount(targetFactions.length, "visible local rival")} available, or choose nearest hostile.`;
     elements.coloniseActionHint.textContent = !fleetReady
         ? selectionHint ?? "Select an active fleet to assess colonisation."
@@ -2818,27 +2836,27 @@ function removeStoredValue(key) {
 }
 
 function collectTargetFactions(selectedFleet) {
-    if (!selectedFleet || !state.galaxy) {
+    if (!selectedFleet
+        || selectedFleet.fleet.status !== "active"
+        || selectedFleet.fleet.shipCount <= 0
+        || !state.fleetDetail
+        || state.fleetDetail.fleetId !== selectedFleet.fleet.fleetId
+        || !state.galaxy) {
         return [];
     }
 
-    const systemId = selectedFleet.fleet.currentSystemId;
-    const presence = state.galaxy.presence.find(item => item.systemId === systemId);
-    if (!presence) {
-        return [];
-    }
-
-    const factionIds = Object.keys(presence.effectivePresence)
-        .filter(id => id !== state.empire.factionId);
-
-    const visibleFactionNames = new Map(
-        (state.fleetDetail?.activeFleetsInSystem ?? []).map(fleet => [fleet.factionId, fleet.factionName]));
+    const visibleHostileFactions = new Map(
+        state.fleetDetail.activeFleetsInSystem
+            .filter(fleet => fleet.status === "active"
+                && fleet.shipCount > 0
+                && fleet.factionId !== selectedFleet.fleet.factionId)
+            .map(fleet => [fleet.factionId, fleet.factionName]));
     const knownFactionNames = new Map(
         (state.galaxy.factions ?? []).map(faction => [faction.factionId, faction.factionName]));
 
-    return factionIds.map(id => ({
+    return [...visibleHostileFactions.keys()].map(id => ({
         factionId: id,
-        factionName: visibleFactionNames.get(id) ?? knownFactionNames.get(id) ?? id.slice(0, 8)
+        factionName: visibleHostileFactions.get(id) ?? knownFactionNames.get(id) ?? id.slice(0, 8)
     }));
 }
 

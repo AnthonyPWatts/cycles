@@ -83,6 +83,19 @@ public static class OrderService
             throw new InvalidOperationException("A fleet cannot attack its own faction.");
         }
 
+        var hasLocalTarget = state.Fleets
+            .Where(item => item.CycleId == cycle.CycleId
+                           && item.CurrentSystemId == fleet.CurrentSystemId
+                           && item.Status == FleetStatus.Active
+                           && item.ShipCount > 0)
+            .Select(state.GetFactionId)
+            .Any(factionId => factionId != fleet.FactionId
+                              && (!targetFactionId.HasValue || factionId == targetFactionId.Value));
+        if (!hasLocalTarget)
+        {
+            throw new InvalidOperationException("No hostile active fleet is present in this system.");
+        }
+
         return AddFleetOrder(
             state,
             cycle,

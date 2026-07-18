@@ -82,6 +82,7 @@ Within a batch, submission time confers no initiative. Stable fleet and order id
 - Submitting the same intention again is idempotent. Replacing it with a different intention requires the current pending order ID as explicit confirmation.
 - A confirmed replacement stays in immutable history as `Superseded` and links to the new pending order.
 - Pending orders can be cancelled by the owning empire before their execution tick.
+- Attack submission requires an active opposing fleet in the attacker's current system. The dashboard disables and guards the action when its visible local fleet detail contains no valid target, while the API independently validates authoritative state.
 - Processing revalidates state, so an order that was valid when submitted can still be rejected later.
 - Missing player commands and the current first-pass game-AI and neutral plans become deterministic Hold ledger entries. Generated Holds are durable audit facts but do not create repetitive player-facing Hold events.
 - Submission timestamps do not order outcomes. Recalls, existing arrivals, and all moves resolve before any attack; attacks resolve before colonisation.

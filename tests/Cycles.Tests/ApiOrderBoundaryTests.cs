@@ -167,6 +167,67 @@ public sealed class ApiOrderBoundaryTests
     }
 
     [Fact]
+    public async Task AttackOrderEndpointRejectsWhenNoHostileFleetIsLocal()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var fleet = Assert.Single(state.Fleets);
+
+        var result = ApiOrderEndpoints.SubmitAttack(
+            new AttackFleetRequest(fleet.FleetId, null),
+            CreateAuthenticatedContext(state),
+            new InMemoryGameStateStore(state),
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Contains("No hostile active fleet is present in this system", response.Body, StringComparison.Ordinal);
+        Assert.Empty(state.FleetOrders);
+    }
+
+    [Fact]
+    public async Task AttackOrderEndpointRejectsTargetFactionWithoutLocalActiveFleet()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 30, defenderShips: 20);
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var attacker = state.Fleets.Single(fleet => fleet.EmpireId == firstEmpire.EmpireId);
+        var defender = state.Fleets.Single(fleet => fleet.EmpireId == secondEmpire.EmpireId);
+        defender.Status = FleetStatus.InTransit;
+        var neutralFaction = new Faction
+        {
+            CycleId = attacker.CycleId,
+            FactionName = "Local neutrals",
+            Kind = FactionKind.Neutral,
+            Status = FactionStatus.Active,
+            CreatedAt = TestState.Now
+        };
+        state.Factions.Add(neutralFaction);
+        state.Fleets.Add(new Fleet
+        {
+            CycleId = attacker.CycleId,
+            FactionId = neutralFaction.FactionId,
+            FleetName = "Local neutral fleet",
+            CurrentSystemId = attacker.CurrentSystemId,
+            ShipCount = 5,
+            Status = FleetStatus.Active,
+            CreatedAt = TestState.Now
+        });
+
+        var result = ApiOrderEndpoints.SubmitAttack(
+            new AttackFleetRequest(attacker.FleetId, secondEmpire.EmpireId),
+            CreateAuthenticatedContext(state, state.Players.Single(player => player.PlayerId == firstEmpire.PlayerId)),
+            new InMemoryGameStateStore(state),
+            TestState.Now);
+
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
+        Assert.Contains("No hostile active fleet is present in this system", response.Body, StringComparison.Ordinal);
+        Assert.Empty(state.FleetOrders);
+    }
+
+    [Fact]
     public async Task AttackOrderEndpointRequiresAndAppliesConfirmedReplacement()
     {
         var state = TestState.CreateTwoEmpireContest(attackerShips: 30, defenderShips: 20);
