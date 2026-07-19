@@ -82,6 +82,8 @@ Focused and running-application checks:
 
 The test helper writes build output under `%TEMP%\cycles-test-bin\`, avoiding locked assemblies when `Cycles.Api` is already running. The gameplay smoke check uses a dedicated disposable SQL database and exercises login, priority editing, movement, a development-player turn advance, resource generation, and visible events through the real API.
 
+When `CYCLES_SQL_INTEGRATION_CONNECTION_STRING` is absent, the helper explicitly excludes the SQL integration category. To run that category as mandatory evidence, configure the connection string and use `.\eng\test.ps1 -RequireSqlIntegration`; required mode writes a TRX result and fails if configuration is missing or zero SQL tests execute.
+
 ## Run Locally
 
 Normal local API and Worker development uses the SQL Server container described below. After the container is healthy, configure and migrate the database, then deliberately seed the curated opening:

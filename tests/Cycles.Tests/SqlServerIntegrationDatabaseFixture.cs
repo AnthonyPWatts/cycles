@@ -11,20 +11,19 @@ public sealed class SqlServerIntegrationCollection : ICollectionFixture<SqlServe
 
 public sealed class SqlServerIntegrationDatabaseFixture : IDisposable
 {
-    private const string ConnectionStringEnvironmentVariable = "CYCLES_SQL_INTEGRATION_CONNECTION_STRING";
     private readonly string? originalConnectionString;
     private readonly SqlServerIntegrationDatabase? database;
 
     public SqlServerIntegrationDatabaseFixture()
     {
-        originalConnectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        originalConnectionString = SqlIntegrationGuard.GetConnectionString();
         if (string.IsNullOrWhiteSpace(originalConnectionString))
         {
             return;
         }
 
         database = new SqlServerIntegrationDatabase(originalConnectionString);
-        Environment.SetEnvironmentVariable(ConnectionStringEnvironmentVariable, database.ConnectionString);
+        Environment.SetEnvironmentVariable(SqlIntegrationGuard.ConnectionStringEnvironmentVariable, database.ConnectionString);
     }
 
     public void Dispose()
@@ -35,7 +34,7 @@ public sealed class SqlServerIntegrationDatabaseFixture : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable(ConnectionStringEnvironmentVariable, originalConnectionString);
+            Environment.SetEnvironmentVariable(SqlIntegrationGuard.ConnectionStringEnvironmentVariable, originalConnectionString);
         }
     }
 

@@ -82,6 +82,8 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 .\eng\test.ps1
 ```
 
+Without that variable, the repository helper explicitly excludes the SQL integration category. For mandatory SQL evidence, use `.\eng\test.ps1 -RequireSqlIntegration`; this selects the SQL category, writes a TRX result, and fails on missing configuration or a zero-test result. CI uses required mode.
+
 The integration fixture never replaces the configured catalogue. It creates a `CyclesIntegration_*` database, writes a run-specific marker before migration, redirects the suite to that database, and drops it only when both the generated-name and marker checks match. The configured login therefore needs permission to create and drop test databases.
 
 See [Operations](../../docs/operations.md) for Worker paths, diagnostics, recovery, and the destructive `db profile` guard.

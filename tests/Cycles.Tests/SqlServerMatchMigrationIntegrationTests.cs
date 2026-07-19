@@ -4,9 +4,10 @@ using Microsoft.Data.SqlClient;
 namespace Cycles.Tests;
 
 [Collection(SqlServerIntegrationCollection.CollectionName)]
+[Trait(SqlIntegrationGuard.CategoryName, SqlIntegrationGuard.CategoryValue)]
 public sealed class SqlServerMatchMigrationIntegrationTests
 {
-    private const string ConnectionStringEnvironmentVariable = "CYCLES_SQL_INTEGRATION_CONNECTION_STRING";
+    private const string ConnectionStringEnvironmentVariable = SqlIntegrationGuard.ConnectionStringEnvironmentVariable;
 
     [Fact]
     public void Migration_017_backfills_populated_legacy_match_ownership()

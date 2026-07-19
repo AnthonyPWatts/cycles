@@ -6,9 +6,10 @@ using System.Text.Json;
 namespace Cycles.Tests;
 
 [Collection(SqlServerIntegrationCollection.CollectionName)]
+[Trait(SqlIntegrationGuard.CategoryName, SqlIntegrationGuard.CategoryValue)]
 public sealed class SqlServerGameStateStoreIntegrationTests
 {
-    private const string ConnectionStringEnvironmentVariable = "CYCLES_SQL_INTEGRATION_CONNECTION_STRING";
+    private const string ConnectionStringEnvironmentVariable = SqlIntegrationGuard.ConnectionStringEnvironmentVariable;
 
     [Fact]
     public void Store_runs_and_round_trips_a_neutral_faction_battle_without_inventing_diplomacy()

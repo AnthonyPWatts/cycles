@@ -45,6 +45,9 @@
     <None Include="..\..\.github\workflows\deploy-playground.yml"
           Link="Fixtures\deploy-playground.yml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\workflows\ci.yml"
+          Link="Fixtures\ci.yml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

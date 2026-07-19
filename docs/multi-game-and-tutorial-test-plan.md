@@ -198,7 +198,7 @@ Migration fixtures:
 
 The mandatory job starts from the last production migration, applies every new migration, and then exercises two operational Games. It covers concurrent start/tick/reset and one negative case for every row in the composite-relationship matrix; a green job with zero SQL tests executed is itself a failure.
 
-Centralise SQL availability in one `SqlIntegrationGuard` and tag every SQL suite consistently. Extend `eng/test.ps1` with `-RequireSqlIntegration`: it requires the connection string, sets the require switch, selects/reports the SQL category and writes a result file. Local runs without SQL report these tests as skipped rather than silently returning inside each test; required mode fails on missing SQL or a zero executed count. The existing `sql-server-integration` CI job uses this switch and retains its CLI/gameplay smoke steps.
+Centralise SQL availability in one `SqlIntegrationGuard` and tag every SQL suite consistently. Extend `eng/test.ps1` with `-RequireSqlIntegration`: it requires the connection string, sets the require switch, selects/reports the SQL category and writes a result file. Local helper runs without SQL explicitly exclude and report the category rather than counting early returns as passes; required mode fails on missing SQL or a zero executed count. The existing `sql-server-integration` CI job uses this switch and retains its CLI/gameplay smoke steps.
 
 Required evidence:
 

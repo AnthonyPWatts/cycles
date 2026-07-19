@@ -202,7 +202,7 @@ The automated coverage includes:
 - explicit API and Worker startup failures when SQL configuration is absent;
 - live Azure SQL migration/import/export round-trip evidence, deployed authenticated smoke checks, seven-day retention, and an isolated point-in-time restore.
 
-The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`; CI runs them against a migrated SQL Server service container. See the [SQL Server runbook](../database/sqldockerdeploykit/README.md).
+The SQL integration tests remain opt-in locally through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`. The repository helper now excludes and reports that category when SQL is absent rather than counting its early returns as passing tests. `-RequireSqlIntegration` selects the tagged SQL suites, writes a TRX result, and fails on missing configuration or zero executed tests; the mandatory SQL Server CI job uses that mode. The implementation gate passed 368 non-SQL tests and 32 live SQL tests against the disposable local SQL Server fixture, with the latter reported from the generated TRX result. See the [SQL Server runbook](../database/sqldockerdeploykit/README.md).
 
 ## Current Boundaries
 

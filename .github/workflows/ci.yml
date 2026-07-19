@@ -56,6 +56,7 @@ jobs:
 
     env:
       CYCLES_SQL_INTEGRATION_CONNECTION_STRING: Server=localhost,1433;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10
+      CYCLES_REQUIRE_SQL_INTEGRATION: "1"
 
     steps:
       - name: Check out repository
@@ -75,7 +76,7 @@ jobs:
 
       - name: Test with SQL Server
         shell: pwsh
-        run: ./eng/test.ps1
+        run: ./eng/test.ps1 -RequireSqlIntegration
 
       - name: CLI SQL smoke check
         shell: pwsh
