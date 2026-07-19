@@ -27,7 +27,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
             item => Assert.Equal("017_add_match_participants_and_factions", item.MigrationId),
             item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId),
             item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId),
-            item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId));
+            item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId),
+            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));
@@ -71,6 +72,29 @@ public sealed class SqlServerMatchMigrationIntegrationTests
 
         Assert.Equal(51018, error.Number);
         Assert.Contains("more than one Empire", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Migration_021_backfills_one_doctrine_record_without_rewriting_unlock_events()
+    {
+        var serverConnectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(serverConnectionString))
+        {
+            return;
+        }
+
+        using var database = new SqlServerIntegrationDatabase(serverConnectionString, "020_add_fleet_departure_tick");
+        var legacy = InsertLegacyDoctrineEvents(database.ConnectionString);
+
+        var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
+
+        var migration = Assert.Single(applied);
+        Assert.Equal("021_add_empire_doctrine_unlocks", migration.MigrationId);
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        Assert.Equal(1, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.EmpireDoctrineUnlocks WHERE CycleID = @ID;", legacy.CycleId));
+        Assert.Equal(1, Scalar<int>(connection, "SELECT UnlockedTickNumber FROM dbo.EmpireDoctrineUnlocks WHERE EmpireID = @ID;", legacy.EmpireId));
+        Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Events WHERE CycleID = @ID AND EventType = N'DoctrineUnlocked';", legacy.CycleId));
     }
 
     private static LegacyMatch InsertLegacyMatch(string connectionString)
@@ -118,6 +142,36 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         return ids;
     }
 
+    private static LegacyDoctrineState InsertLegacyDoctrineEvents(string connectionString)
+    {
+        var ids = new LegacyDoctrineState(Guid.NewGuid(), Guid.NewGuid());
+        var playerId = Guid.NewGuid();
+        var systemId = Guid.NewGuid();
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            DECLARE @Now DATETIMEOFFSET = SYSDATETIMEOFFSET();
+            INSERT INTO dbo.Players(PlayerID, Username, Email, PasswordHash, Role, CreatedAt, Status)
+            VALUES (@PlayerID, N'Legacy Researcher', N'', N'', N'Player', @Now, N'Active');
+            INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedAt)
+            VALUES (@CycleID, N'Legacy Doctrine Cycle', @Now, DATEADD(DAY, 90, @Now), 60, 2, N'Active', @Now);
+            INSERT INTO dbo.Systems(SystemID, CycleID, SystemName, X, Y, IndustryOutput, ResearchOutput, PopulationOutput, StrategicValue, HistoricalSignificance, CreatedAt)
+            VALUES (@SystemID, @CycleID, N'Research Home', 0, 0, 0, 0, 0, 10, 0, @Now);
+            INSERT INTO dbo.Empires(EmpireID, CycleID, PlayerID, EmpireName, HomeSystemID, CreatedAt, Status)
+            VALUES (@EmpireID, @CycleID, @PlayerID, N'Legacy Researchers', @SystemID, @Now, N'Active');
+            INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, EmpireID, Severity, FactJson, DisplayText, CreatedAt)
+            VALUES (NEWID(), @CycleID, 1, N'DoctrineUnlocked', @EmpireID, N'Normal', N'{"doctrine":"survey-projection"}', N'First unlock', @Now),
+                   (NEWID(), @CycleID, 2, N'DoctrineUnlocked', @EmpireID, N'Normal', N'{"doctrine":"survey-projection"}', N'Duplicate unlock', DATEADD(HOUR, 1, @Now));
+            """;
+        Add(command, "@PlayerID", playerId);
+        Add(command, "@CycleID", ids.CycleId);
+        Add(command, "@SystemID", systemId);
+        Add(command, "@EmpireID", ids.EmpireId);
+        command.ExecuteNonQuery();
+        return ids;
+    }
+
     private static T Scalar<T>(SqlConnection connection, string sql, Guid? id = null)
     {
         using var command = connection.CreateCommand();
@@ -144,4 +198,6 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Guid OrderId,
         Guid EventId,
         Guid BattleId);
+
+    private sealed record LegacyDoctrineState(Guid CycleId, Guid EmpireId);
 }

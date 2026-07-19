@@ -23,6 +23,7 @@ public static class GameStateRecordCounter
                + state.Factions.Count(item => item.CycleId == cycleId)
                + state.MatchParticipants.Count(item => item.CycleId == cycleId)
                + state.EmpireResources.Count(item => empireIds.Contains(item.EmpireId))
+               + state.EmpireDoctrineUnlocks.Count(item => item.CycleId == cycleId)
                + state.EmpirePriorities.Count(item => empireIds.Contains(item.EmpireId))
                + state.EmpireMetrics.Count(item => item.CycleId == cycleId)
                + state.CycleRankings.Count(item => item.CycleId == cycleId)

@@ -143,6 +143,14 @@ public static class EconomyProcessor
                 continue;
             }
 
+            state.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+            {
+                CycleId = cycleId,
+                EmpireId = empire.EmpireId,
+                DoctrineKey = SurveyProjectionDoctrineKey,
+                UnlockedTickNumber = tickNumber,
+                UnlockedAt = now
+            });
             state.Events.Add(new EventRecord
             {
                 CycleId = cycleId,
@@ -165,10 +173,12 @@ public static class EconomyProcessor
     }
 
     public static bool HasSurveyProjectionDoctrine(GameState state, Guid cycleId, Guid empireId) =>
-        state.Events.Any(item => item.CycleId == cycleId
-                                 && item.EmpireId == empireId
-                                 && item.EventType == EventType.DoctrineUnlocked
-                                 && item.FactJson.Contains(SurveyProjectionDoctrineKey, StringComparison.Ordinal));
+        state.EmpireDoctrineUnlocks.Any(item => item.CycleId == cycleId
+                                                && item.EmpireId == empireId
+                                                && string.Equals(
+                                                    item.DoctrineKey,
+                                                    SurveyProjectionDoctrineKey,
+                                                    StringComparison.Ordinal));
 
     private static Fleet GetOrCreateConstructionFleet(
         GameState state,

@@ -133,6 +133,14 @@ public sealed class GameStateTests
             IsFamousSystemAssociation = true,
             CreatedAt = TestState.Now
         });
+        state.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = attacker.EmpireId,
+            DoctrineKey = EconomyProcessor.SurveyProjectionDoctrineKey,
+            UnlockedTickNumber = 1,
+            UnlockedAt = TestState.Now
+        });
         state.Events.Add(eventRecord);
         state.BattleRecords.Add(battle);
         state.ChronicleEntries.Add(new ChronicleEntry
@@ -163,6 +171,8 @@ public sealed class GameStateTests
         Assert.Equal(state.Cycles.Count, clone.Cycles.Count);
         Assert.Equal(state.Empires.Count, clone.Empires.Count);
         Assert.Equal(state.EmpireResources.Count, clone.EmpireResources.Count);
+        Assert.Equal(state.EmpireDoctrineUnlocks.Count, clone.EmpireDoctrineUnlocks.Count);
+        Assert.NotSame(state.EmpireDoctrineUnlocks[0], clone.EmpireDoctrineUnlocks[0]);
         Assert.Equal(state.EmpirePriorities.Count, clone.EmpirePriorities.Count);
         Assert.Equal(state.Systems.Count, clone.Systems.Count);
         Assert.Equal(state.SystemLinks.Count, clone.SystemLinks.Count);

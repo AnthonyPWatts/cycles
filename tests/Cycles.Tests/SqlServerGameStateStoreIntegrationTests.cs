@@ -358,6 +358,41 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Contains(updated.Events, item => item.EventType == EventType.ColonialOutpostEstablished);
     }
 
+    [Fact]
+    public void Store_dedicated_tick_runner_publishes_doctrine_unlock_once_across_reload()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var resources = Assert.Single(state.EmpireResources);
+        resources.Research = EconomyProcessor.SurveyProjectionResearchThreshold;
+        foreach (var system in state.Systems)
+        {
+            system.IndustryOutput = 0;
+            system.ResearchOutput = 0;
+            system.PopulationOutput = 0;
+        }
+        store.Replace(state);
+
+        var first = store.RunTick(cycle.CycleId, TestState.Now);
+        var afterFirst = store.LoadOrCreate();
+        var second = store.RunTick(cycle.CycleId, TestState.Now.AddHours(1));
+        var afterSecond = store.LoadOrCreate();
+
+        Assert.Equal(TickLogStatus.Completed, first.Status);
+        Assert.Equal(TickLogStatus.Completed, second.Status);
+        Assert.Single(afterFirst.EmpireDoctrineUnlocks);
+        Assert.Single(afterFirst.Events, item => item.EventType == EventType.DoctrineUnlocked);
+        Assert.Single(afterSecond.EmpireDoctrineUnlocks);
+        Assert.Single(afterSecond.Events, item => item.EventType == EventType.DoctrineUnlocked);
+    }
+
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(100, 0, 0)]
@@ -1236,6 +1271,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             Factions = states.SelectMany(state => state.Factions).ToList(),
             MatchParticipants = states.SelectMany(state => state.MatchParticipants).ToList(),
             EmpireResources = states.SelectMany(state => state.EmpireResources).ToList(),
+            EmpireDoctrineUnlocks = states.SelectMany(state => state.EmpireDoctrineUnlocks).ToList(),
             EmpirePriorities = states.SelectMany(state => state.EmpirePriorities).ToList(),
             EmpireMetrics = states.SelectMany(state => state.EmpireMetrics).ToList(),
             CycleRankings = states.SelectMany(state => state.CycleRankings).ToList(),

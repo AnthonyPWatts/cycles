@@ -18,7 +18,7 @@ public sealed record GameStateValidationResult(IReadOnlyList<string> Errors)
 
 public static class GameStateTransfer
 {
-    public const int CurrentFormatVersion = 3;
+    public const int CurrentFormatVersion = 4;
 
     private static readonly JsonSerializerOptions TransferJsonOptions = CreateJsonOptions();
     private static readonly PropertyInfo[] PersistedCollections = typeof(GameState)
@@ -32,6 +32,7 @@ public static class GameStateTransfer
         ArgumentNullException.ThrowIfNull(destination);
         UpgradeLegacyOwnershipModel(state);
         UpgradeTransitTiming(state);
+        UpgradeDoctrineUnlocks(state);
         var validation = Validate(state);
         if (!validation.IsValid)
         {
@@ -91,6 +92,9 @@ public static class GameStateTransfer
                      && !stateElement.TryGetProperty(jsonName, out _))
                     || (formatVersion < 3
                         && property.Name is nameof(GameState.Factions) or nameof(GameState.MatchParticipants)
+                        && !stateElement.TryGetProperty(jsonName, out _))
+                    || (formatVersion < 4
+                        && property.Name == nameof(GameState.EmpireDoctrineUnlocks)
                         && !stateElement.TryGetProperty(jsonName, out _)))
                 {
                     continue;
@@ -116,6 +120,10 @@ public static class GameStateTransfer
 
             UpgradeLegacyOwnershipModel(document.State);
             UpgradeTransitTiming(document.State);
+            if (formatVersion < 4)
+            {
+                UpgradeDoctrineUnlocks(document.State);
+            }
             StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
             if (!validation.IsValid)
@@ -153,7 +161,8 @@ public static class GameStateTransfer
                 var jsonName = JsonNamingPolicy.CamelCase.ConvertName(property.Name);
                 if ((property.Name == nameof(GameState.Sectors)
                      || property.Name == nameof(GameState.Factions)
-                     || property.Name == nameof(GameState.MatchParticipants))
+                     || property.Name == nameof(GameState.MatchParticipants)
+                     || property.Name == nameof(GameState.EmpireDoctrineUnlocks))
                     && !root.TryGetProperty(jsonName, out _))
                 {
                     continue;
@@ -179,6 +188,7 @@ public static class GameStateTransfer
 
             UpgradeLegacyOwnershipModel(state);
             UpgradeTransitTiming(state);
+            UpgradeDoctrineUnlocks(state);
             StrategicPriorityPolicy.Normalize(state);
             var validation = Validate(state);
             if (!validation.IsValid)
@@ -311,6 +321,62 @@ public static class GameStateTransfer
         return new Guid(hash.AsSpan(0, 16));
     }
 
+    private static void UpgradeDoctrineUnlocks(GameState state)
+    {
+        foreach (var item in state.Events
+                     .Where(item => item.EventType == EventType.DoctrineUnlocked && item.EmpireId.HasValue)
+                     .OrderBy(item => item.TickNumber)
+                     .ThenBy(item => item.CreatedAt)
+                     .ThenBy(item => item.EventId))
+        {
+            var doctrineKey = ReadDoctrineKey(item.FactJson);
+            var empireId = item.EmpireId.GetValueOrDefault();
+            if (string.IsNullOrWhiteSpace(doctrineKey)
+                || state.EmpireDoctrineUnlocks.Any(unlock => unlock.CycleId == item.CycleId
+                                                             && unlock.EmpireId == empireId
+                                                             && string.Equals(
+                                                                 unlock.DoctrineKey,
+                                                                 doctrineKey,
+                                                                 StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            state.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+            {
+                EmpireDoctrineUnlockId = CreateLegacyDoctrineUnlockId(item.CycleId, empireId, doctrineKey),
+                CycleId = item.CycleId,
+                EmpireId = empireId,
+                DoctrineKey = doctrineKey,
+                UnlockedTickNumber = item.TickNumber,
+                UnlockedAt = item.CreatedAt
+            });
+        }
+    }
+
+    private static string? ReadDoctrineKey(string factJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(factJson);
+            return document.RootElement.TryGetProperty("doctrine", out var doctrine)
+                   && doctrine.ValueKind == JsonValueKind.String
+                ? doctrine.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static Guid CreateLegacyDoctrineUnlockId(Guid cycleId, Guid empireId, string doctrineKey)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"cycles-doctrine-unlock:{cycleId:N}:{empireId:N}:{doctrineKey}"));
+        return new Guid(hash.AsSpan(0, 16));
+    }
+
     public static int CountRecords(GameState state) =>
         PersistedCollections.Sum(property => ((System.Collections.ICollection)property.GetValue(state)!).Count);
 
@@ -323,6 +389,7 @@ public static class GameStateTransfer
         Unique(state.Factions, item => item.FactionId, "factions", errors);
         Unique(state.MatchParticipants, item => item.MatchParticipantId, "matchParticipants", errors);
         Unique(state.EmpireResources, item => item.EmpireResourceId, "empireResources", errors);
+        Unique(state.EmpireDoctrineUnlocks, item => item.EmpireDoctrineUnlockId, "empireDoctrineUnlocks", errors);
         Unique(state.EmpirePriorities, item => item.EmpirePriorityId, "empirePriorities", errors);
         Unique(state.EmpireMetrics, item => item.EmpireMetricId, "empireMetrics", errors);
         Unique(state.CycleRankings, item => item.CycleRankingId, "cycleRankings", errors);
@@ -851,6 +918,35 @@ public static class GameStateTransfer
         foreach (var resource in state.EmpireResources)
         {
             Reference(empireIds, resource.EmpireId, $"Empire resource {resource.EmpireResourceId} empire", errors);
+        }
+
+        foreach (var unlock in state.EmpireDoctrineUnlocks)
+        {
+            Reference(cycleIds, unlock.CycleId, $"Empire doctrine unlock {unlock.EmpireDoctrineUnlockId} Cycle", errors);
+            Reference(empireIds, unlock.EmpireId, $"Empire doctrine unlock {unlock.EmpireDoctrineUnlockId} empire", errors);
+            EnsureEmpireCycle(
+                state,
+                unlock.EmpireId,
+                unlock.CycleId,
+                $"Empire doctrine unlock {unlock.EmpireDoctrineUnlockId}",
+                errors);
+            Required(unlock.DoctrineKey, $"Empire doctrine unlock {unlock.EmpireDoctrineUnlockId} has no doctrine key.", errors);
+            if (unlock.UnlockedTickNumber < 0)
+            {
+                errors.Add($"Empire doctrine unlock {unlock.EmpireDoctrineUnlockId} tick cannot be negative.");
+            }
+        }
+
+        foreach (var duplicate in state.EmpireDoctrineUnlocks
+                     .GroupBy(item => new
+                     {
+                         item.CycleId,
+                         item.EmpireId,
+                         DoctrineKey = item.DoctrineKey.Trim().ToUpperInvariant()
+                     })
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add($"Empire {duplicate.Key.EmpireId} has more than one {duplicate.First().DoctrineKey} doctrine unlock in Cycle {duplicate.Key.CycleId}.");
         }
 
         foreach (var priority in state.EmpirePriorities)

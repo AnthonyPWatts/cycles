@@ -77,6 +77,7 @@ public sealed class TickEngine
 
     private readonly record struct AppendOnlyCounts(
         int ColonialOutposts,
+        int EmpireDoctrineUnlocks,
         int AdmiralBattleHistories,
         int TickLogs,
         int Events,
@@ -85,6 +86,7 @@ public sealed class TickEngine
     {
         public static AppendOnlyCounts Capture(GameState state) => new(
             state.ColonialOutposts.Count,
+            state.EmpireDoctrineUnlocks.Count,
             state.AdmiralBattleHistories.Count,
             state.TickLogs.Count,
             state.Events.Count,
@@ -94,6 +96,7 @@ public sealed class TickEngine
         public void RollBack(GameState state)
         {
             TrimToCount(state.ColonialOutposts, ColonialOutposts);
+            TrimToCount(state.EmpireDoctrineUnlocks, EmpireDoctrineUnlocks);
             TrimToCount(state.AdmiralBattleHistories, AdmiralBattleHistories);
             TrimToCount(state.TickLogs, TickLogs);
             TrimToCount(state.Events, Events);

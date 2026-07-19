@@ -27,6 +27,14 @@ public sealed class GameStateRecordCounterTests
             State = DiplomaticRelationshipState.Neutral,
             UpdatedAt = TestState.Now
         });
+        state.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = empire.EmpireId,
+            DoctrineKey = EconomyProcessor.SurveyProjectionDoctrineKey,
+            UnlockedTickNumber = 1,
+            UnlockedAt = TestState.Now
+        });
 
         var expected = state.Players.Count
                        + state.AdminRoleAuditRecords.Count
@@ -37,6 +45,7 @@ public sealed class GameStateRecordCounterTests
                        + state.Factions.Count
                        + state.MatchParticipants.Count
                        + state.EmpireResources.Count
+                       + state.EmpireDoctrineUnlocks.Count
                        + state.EmpirePriorities.Count
                        + state.EmpireMetrics.Count
                        + state.CycleRankings.Count

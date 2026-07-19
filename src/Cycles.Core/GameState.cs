@@ -13,6 +13,7 @@ public sealed class GameState
     public List<Faction> Factions { get; set; } = [];
     public List<MatchParticipant> MatchParticipants { get; set; } = [];
     public List<EmpireResource> EmpireResources { get; set; } = [];
+    public List<EmpireDoctrineUnlock> EmpireDoctrineUnlocks { get; set; } = [];
     public List<EmpirePriority> EmpirePriorities { get; set; } = [];
     public List<EmpireMetric> EmpireMetrics { get; set; } = [];
     public List<CycleRanking> CycleRankings { get; set; } = [];
@@ -49,6 +50,7 @@ public sealed class GameState
             Factions = Factions.Select(Clone).ToList(),
             MatchParticipants = MatchParticipants.Select(Clone).ToList(),
             EmpireResources = EmpireResources.Select(Clone).ToList(),
+            EmpireDoctrineUnlocks = EmpireDoctrineUnlocks.Select(Clone).ToList(),
             EmpirePriorities = EmpirePriorities.Select(Clone).ToList(),
             EmpireMetrics = EmpireMetrics.Select(Clone).ToList(),
             CycleRankings = CycleRankings.Select(Clone).ToList(),
@@ -114,6 +116,7 @@ public sealed class GameState
             // Tick processing only appends to these lists. TickEngine rolls additions
             // back on failure, avoiding an O(history) copy on every successful tick.
             ColonialOutposts = ColonialOutposts,
+            EmpireDoctrineUnlocks = EmpireDoctrineUnlocks,
             AdmiralBattleHistories = AdmiralBattleHistories,
             TickLogs = TickLogs,
             Events = Events,
@@ -131,6 +134,7 @@ public sealed class GameState
         Factions = other.Factions;
         MatchParticipants = other.MatchParticipants;
         EmpireResources = other.EmpireResources;
+        EmpireDoctrineUnlocks = other.EmpireDoctrineUnlocks;
         EmpirePriorities = other.EmpirePriorities;
         EmpireMetrics = other.EmpireMetrics;
         CycleRankings = other.CycleRankings;
@@ -240,6 +244,16 @@ public sealed class GameState
         LastSpentResearch = item.LastSpentResearch,
         LastSpentPopulation = item.LastSpentPopulation,
         UpdatedAt = item.UpdatedAt
+    };
+
+    private static EmpireDoctrineUnlock Clone(EmpireDoctrineUnlock item) => new()
+    {
+        EmpireDoctrineUnlockId = item.EmpireDoctrineUnlockId,
+        CycleId = item.CycleId,
+        EmpireId = item.EmpireId,
+        DoctrineKey = item.DoctrineKey,
+        UnlockedTickNumber = item.UnlockedTickNumber,
+        UnlockedAt = item.UnlockedAt
     };
 
     private static EmpirePriority Clone(EmpirePriority item) => new()
@@ -611,6 +625,16 @@ public sealed class EmpireResource
     public decimal LastSpentResearch { get; set; }
     public decimal LastSpentPopulation { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class EmpireDoctrineUnlock
+{
+    public Guid EmpireDoctrineUnlockId { get; set; } = Guid.NewGuid();
+    public Guid CycleId { get; set; }
+    public Guid EmpireId { get; set; }
+    public string DoctrineKey { get; set; } = "";
+    public int UnlockedTickNumber { get; set; }
+    public DateTimeOffset UnlockedAt { get; set; }
 }
 
 public sealed class EmpirePriority

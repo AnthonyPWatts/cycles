@@ -117,10 +117,37 @@ public sealed class EconomyTests
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
 
+        var doctrine = Assert.Single(state.EmpireDoctrineUnlocks);
+        Assert.Equal(cycle.CycleId, doctrine.CycleId);
+        Assert.Equal(resources.EmpireId, doctrine.EmpireId);
+        Assert.Equal(EconomyProcessor.SurveyProjectionDoctrineKey, doctrine.DoctrineKey);
+        Assert.Equal(1, doctrine.UnlockedTickNumber);
         var unlock = Assert.Single(state.Events, item => item.EventType == EventType.DoctrineUnlocked);
         Assert.Equal(resources.EmpireId, unlock.EmpireId);
         Assert.Contains(EconomyProcessor.SurveyProjectionDoctrineKey, unlock.FactJson, StringComparison.Ordinal);
         Assert.Contains(EconomyProcessor.SurveyProjectionResearchThreshold.ToString("0"), unlock.FactJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ResearchThresholdUnlocksSurveyProjectionOnceForEachEmpire()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 20, defenderShips: 20);
+        var cycle = state.GetActiveCycle()!;
+        foreach (var resources in state.EmpireResources)
+        {
+            resources.Research = EconomyProcessor.SurveyProjectionResearchThreshold;
+        }
+
+        EconomyProcessor.ApplyResearchUnlocks(state, cycle.CycleId, tickNumber: 1, TestState.Now);
+        EconomyProcessor.ApplyResearchUnlocks(state, cycle.CycleId, tickNumber: 2, TestState.Now.AddHours(1));
+
+        Assert.Equal(2, state.EmpireDoctrineUnlocks.Count);
+        Assert.Equal(2, state.Events.Count(item => item.EventType == EventType.DoctrineUnlocked));
+        Assert.All(state.Empires, empire =>
+        {
+            Assert.Single(state.EmpireDoctrineUnlocks, item => item.EmpireId == empire.EmpireId);
+            Assert.Single(state.Events, item => item.EmpireId == empire.EmpireId && item.EventType == EventType.DoctrineUnlocked);
+        });
     }
 
     private static GameState CreateShipBuildingState(decimal industry)

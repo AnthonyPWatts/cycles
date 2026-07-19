@@ -95,6 +95,41 @@ public sealed class GameStateTransferTests
     }
 
     [Fact]
+    public void Reader_backfills_doctrine_state_from_version_three_unlock_events()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        state.Events.Add(new EventRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 3,
+            EventType = EventType.DoctrineUnlocked,
+            EmpireId = empire.EmpireId,
+            Severity = EventSeverity.Normal,
+            FactJson = JsonSerializer.Serialize(
+                new { doctrine = EconomyProcessor.SurveyProjectionDoctrineKey },
+                GameStateJson.Options),
+            DisplayText = "Survey Projection unlocked.",
+            CreatedAt = TestState.Now
+        });
+        var root = JsonSerializer.SerializeToNode(
+            new GameStateTransferDocument(3, TestState.Now, state),
+            GameStateJson.Options)!.AsObject();
+        root["formatVersion"] = 3;
+        root["state"]!.AsObject().Remove("empireDoctrineUnlocks");
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString(GameStateJson.Options)));
+        var document = GameStateTransfer.Read(stream);
+
+        var unlock = Assert.Single(document.State.EmpireDoctrineUnlocks);
+        Assert.Equal(cycle.CycleId, unlock.CycleId);
+        Assert.Equal(empire.EmpireId, unlock.EmpireId);
+        Assert.Equal(EconomyProcessor.SurveyProjectionDoctrineKey, unlock.DoctrineKey);
+        Assert.Equal(3, unlock.UnlockedTickNumber);
+    }
+
+    [Fact]
     public void Legacy_reader_accepts_runtime_state_from_before_sector_persistence()
     {
         var root = JsonSerializer.SerializeToNode(
@@ -360,6 +395,14 @@ public sealed class GameStateTransferTests
             TickNumber = 1,
             Rank = 1,
             CreatedAt = TestState.Now
+        });
+        state.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = firstEmpire.EmpireId,
+            DoctrineKey = EconomyProcessor.SurveyProjectionDoctrineKey,
+            UnlockedTickNumber = 1,
+            UnlockedAt = TestState.Now
         });
         state.CycleRankings.Add(new CycleRanking
         {
