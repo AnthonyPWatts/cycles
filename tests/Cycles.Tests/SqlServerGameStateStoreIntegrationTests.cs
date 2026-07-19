@@ -853,6 +853,33 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_legacy_unspecified_tick_rejects_ambiguous_active_cycles_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var firstState = TestState.CreateMovementState(linkSystems: true);
+        var secondState = TestState.CreateSingleEmpireState();
+        var firstCycle = firstState.GetActiveCycle() ?? throw new InvalidOperationException("First state must contain an active Cycle.");
+        var secondCycle = secondState.GetActiveCycle() ?? throw new InvalidOperationException("Second state must contain an active Cycle.");
+        secondCycle.StartAt = firstCycle.StartAt.AddHours(1);
+        store.Replace(CombineStates(firstState, secondState));
+
+        var error = Assert.Throws<InvalidOperationException>(() => store.RunTick(TestState.Now));
+
+        Assert.Equal(
+            "Legacy active-Cycle selection is ambiguous because more than one active Cycle exists. Use an explicit Cycle identifier.",
+            error.Message);
+        var loaded = store.LoadOrCreate();
+        Assert.All(loaded.Cycles, cycle => Assert.Equal(0, cycle.CurrentTickNumber));
+        Assert.Empty(loaded.TickLogs);
+    }
+
+    [Fact]
     public async Task Store_run_tick_if_due_advances_cycle_once_across_concurrent_workers()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);

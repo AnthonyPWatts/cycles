@@ -2029,7 +2029,7 @@ After plan approval, create one programme epic and these bounded issues. Identif
 
 | Label | Increment | Scope and exit evidence | Depends on |
 |---|---:|---|---|
-| MG-00 | 0 | baseline pilots; route/global-store inventory; agreed contexts, lifecycle and estimate | none |
+| MG-00 | 0 | baseline pilots; route/global-store inventory; fail-closed singleton selector and frozen online whole-state call-site allowance; agreed contexts, lifecycle and estimate | none |
 | MG-01 | 1 | additive Game/config/enrolment schema, restartable legacy backfill and v4 adapter | MG-00 |
 | MG-02 | 1 | exhaustive same-scope keys/FKs plus normalised battle fleets; production-fixture migration evidence | MG-01 |
 | MG-03 | 1 | focused account/Game/Cycle stores; no online whole-state mutation | MG-01 |

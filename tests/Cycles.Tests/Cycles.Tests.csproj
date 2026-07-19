@@ -48,6 +48,14 @@
     <None Include="..\..\.github\workflows\ci.yml"
           Link="Fixtures\ci.yml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\**\*.cs"
+          Exclude="..\..\src\Cycles.Api\bin\**;..\..\src\Cycles.Api\obj\**"
+          Link="Fixtures\OnlineSource\Api\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Worker\**\*.cs"
+          Exclude="..\..\src\Cycles.Worker\bin\**;..\..\src\Cycles.Worker\obj\**"
+          Link="Fixtures\OnlineSource\Worker\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

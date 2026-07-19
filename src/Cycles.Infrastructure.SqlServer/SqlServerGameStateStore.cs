@@ -2012,15 +2012,27 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static Guid? ReadActiveCycleIdUnsafe(SqlConnection connection, SqlTransaction transaction)
     {
         using var command = CreateCommand(connection, transaction, """
-            SELECT TOP (1) CycleID
+            SELECT TOP (2) CycleID
             FROM dbo.Cycles
             WHERE Status = @Status
-            ORDER BY StartAt DESC;
+            ORDER BY StartAt DESC, CycleID;
             """);
         AddString(command, "@Status", CycleStatus.Active.ToString(), 32);
 
-        var value = command.ExecuteScalar();
-        return value is Guid cycleId ? cycleId : null;
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        var cycleId = reader.GetGuid(0);
+        if (reader.Read())
+        {
+            throw new InvalidOperationException(
+                "Legacy active-Cycle selection is ambiguous because more than one active Cycle exists. Use an explicit Cycle identifier.");
+        }
+
+        return cycleId;
     }
 
     private static DateTimeOffset? ReadLastCompletedTickAtUnsafe(

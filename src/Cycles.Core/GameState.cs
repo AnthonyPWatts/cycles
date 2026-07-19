@@ -34,11 +34,23 @@ public sealed class GameState
     public List<BattleRecord> BattleRecords { get; set; } = [];
     public List<ChronicleEntry> ChronicleEntries { get; set; } = [];
 
-    public Cycle? GetActiveCycle() =>
-        Cycles
+    public Cycle? GetActiveCycle()
+    {
+        var activeCycles = Cycles
             .Where(cycle => cycle.Status == CycleStatus.Active)
             .OrderByDescending(cycle => cycle.StartAt)
-            .FirstOrDefault();
+            .ThenBy(cycle => cycle.CycleId)
+            .Take(2)
+            .ToArray();
+
+        return activeCycles.Length switch
+        {
+            0 => null,
+            1 => activeCycles[0],
+            _ => throw new InvalidOperationException(
+                "Legacy active-Cycle selection is ambiguous because more than one active Cycle exists. Use an explicit Cycle identifier.")
+        };
+    }
 
     public GameState DeepClone() =>
         new()

@@ -57,6 +57,8 @@ The [multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [tes
 
 No second durable Game may exist until scoped routes and stores, explicit Worker selection, resource authorisation, antiforgery, same-Cycle SQL constraints, migration evidence, and mandatory SQL tests pass the approved hard gate. This decision does not authorise a new paid Worker host for the cost-capped playground.
 
+During the transition, legacy global active-Cycle selection fails closed if the database contains more than one Active Cycle, and an executable source allowance freezes the remaining online whole-state and unspecified-tick call sites. This guard exposes unsafe growth; it does not relax the hard gate or make those paths multi-Game safe.
+
 ## Project Boundaries
 
 ### `Cycles.Core`

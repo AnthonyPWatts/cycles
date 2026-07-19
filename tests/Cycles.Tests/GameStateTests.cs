@@ -5,6 +5,73 @@ namespace Cycles.Tests;
 public sealed class GameStateTests
 {
     [Fact]
+    public void GetActiveCycle_returns_null_when_no_active_cycle_exists()
+    {
+        var state = new GameState
+        {
+            Cycles =
+            [
+                new Cycle
+                {
+                    Name = "Completed Cycle",
+                    Status = CycleStatus.Completed,
+                    StartAt = TestState.Now,
+                    CreatedAt = TestState.Now
+                }
+            ]
+        };
+
+        Assert.Null(state.GetActiveCycle());
+    }
+
+    [Fact]
+    public void GetActiveCycle_returns_the_only_active_cycle()
+    {
+        var expected = new Cycle
+        {
+            Name = "Active Cycle",
+            Status = CycleStatus.Active,
+            StartAt = TestState.Now,
+            CreatedAt = TestState.Now
+        };
+        var state = new GameState
+        {
+            Cycles =
+            [
+                new Cycle
+                {
+                    Name = "Completed Cycle",
+                    Status = CycleStatus.Completed,
+                    StartAt = TestState.Now.AddDays(1),
+                    CreatedAt = TestState.Now
+                },
+                expected
+            ]
+        };
+
+        Assert.Same(expected, state.GetActiveCycle());
+    }
+
+    [Fact]
+    public void GetActiveCycle_rejects_ambiguous_legacy_selection()
+    {
+        var state = new GameState
+        {
+            Cycles =
+            [
+                new Cycle { Name = "First", Status = CycleStatus.Active, StartAt = TestState.Now },
+                new Cycle { Name = "Second", Status = CycleStatus.Active, StartAt = TestState.Now.AddHours(1) }
+            ]
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(() => state.GetActiveCycle());
+
+        Assert.Equal(
+            "Legacy active-Cycle selection is ambiguous because more than one active Cycle exists. Use an explicit Cycle identifier.",
+            error.Message);
+    }
+
+    [Fact]
     public void DeepClone_preserves_values_without_sharing_mutable_entities()
     {
         var state = GameSeeder.CreateDefault(systemCount: 8, empireCount: 2, seed: 612);
