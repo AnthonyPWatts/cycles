@@ -25,6 +25,20 @@ public sealed class ApiResponseContractTests
     }
 
     [Fact]
+    public void Move_contracts_expose_legal_destination_and_queued_journey_projections()
+    {
+        Assert.Equal(
+            typeof(IReadOnlyCollection<LegalMoveDestinationResponse>),
+            typeof(FleetDetailResponse).GetProperty(nameof(FleetDetailResponse.LegalMoveDestinations))!.PropertyType);
+        Assert.Equal(
+            typeof(MoveJourneyProjectionResponse),
+            typeof(FleetOrderResponse).GetProperty(nameof(FleetOrderResponse.MoveJourneyProjection))!.PropertyType);
+        Assert.Equal(
+            typeof(MoveJourneyProjectionResponse),
+            typeof(FleetOrderCommandResponse).GetProperty(nameof(FleetOrderCommandResponse.MoveJourneyProjection))!.PropertyType);
+    }
+
+    [Fact]
     public void Public_response_contracts_do_not_expose_domain_entities()
     {
         Type[] responseTypes =
@@ -45,6 +59,8 @@ public sealed class ApiResponseContractTests
             typeof(SystemPresenceResponse),
             typeof(FleetResponse),
             typeof(FleetDetailResponse),
+            typeof(LegalMoveDestinationResponse),
+            typeof(MoveJourneyProjectionResponse),
             typeof(SystemSummaryResponse),
             typeof(SystemDetailResponse),
             typeof(ColonialOutpostResponse),

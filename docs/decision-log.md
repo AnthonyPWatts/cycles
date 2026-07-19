@@ -1869,3 +1869,20 @@ Consequences:
 - The product must present explicit game selection before concurrent memberships become playable; commands, forecasts, visibility, and history must remain scoped to the selected game.
 - Product decisions still need to settle Game-to-Cycle cardinality, queue and start transitions, capacity and under-filled starts, no-shows and withdrawal, game-AI seat filling, concurrent-game limits, and successor-Cycle re-enrolment.
 - The current single-operational-Cycle API and Worker policy remains in force. This direction authorises no schema, queue, scheduler, lobby, or runtime-topology implementation and does not require an implementation issue until the unresolved gates produce bounded scope.
+
+## 2026-07-19: Project Move Arrival Without Promising Route State
+
+Decision: show every legal direct Move destination's journey duration, projected next-tick dispatch, and inclusive projected arrival before submission. Repeat the same current-state projection on the pending intention. Calculate planning and resolution timing through one rule, `arrival = dispatch + travel - 1`, while keeping the resolver's authoritative route lookup at activation.
+
+Reasoning:
+
+- Command activation and journey duration are separate concepts. A two-tick route still activates next tick, then remains in transit until the following tick.
+- Players need to distinguish a one-tick relocation from a longer commitment before choosing a destination.
+- Route topology and timing belong to authoritative state. A planning estimate must not become a stored promise that bypasses later validation.
+
+Consequences:
+
+- Selected-fleet responses expose typed legal Move destinations with duration, projected dispatch, and projected arrival. Pending Move responses repeat a typed journey projection, including an explicit unavailable-route state.
+- The dashboard uses projected timing before submission and in the commitment calendar, then uses authoritative dispatched/arrival wording for an in-transit fleet. Recall uses projected reversal/return wording until it resolves.
+- A changed route updates the next response and controls actual arrival. A removed route retains the command's activation tick but exposes no claimed dispatch or arrival; resolution rejects it through the existing order boundary.
+- This does not change one-intention-per-fleet rules, next-tick command activation, pathfinding, interception, pursuit, diversion, or map topology.

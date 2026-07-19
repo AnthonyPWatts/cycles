@@ -104,7 +104,7 @@ Research still matters even though Innovation has no direct effect. At 200 resea
 
 Change the balance between Military and Expansion to experiment with the current priority system. Existing saves are normalised to preserve their previous Military-to-Expansion ratio when the inactive allocations are removed.
 
-The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick. **Processed** means the Move dispatched successfully, not that a multi-tick journey has finished. Until arrival, the navigation count, Command agenda and calendar, Fleets roster, and selected journey panel continue to show that commitment. Select an outbound fleet in **Fleets** to review its journey or queue **Recall to origin**.
+The order appears as **Pending** in the **Command** view's order queue and says which tick can process it. Resolved orders move to **Fleets** > **Resolved orders**, where they can be scoped to the selected fleet or all fleets and filtered by outcome. A fleet must target an adjacent linked system. Before submission, each destination shows its journey duration and projected arrival; the selected summary and queued order repeat the projected dispatch and arrival ticks. These values use the current route and are revalidated when the command activates. Some routes complete during the processing tick; longer routes leave the fleet in transit until its arrival tick. **Processed** means the Move dispatched successfully, not that a multi-tick journey has finished. Until arrival, the navigation count, Command agenda and calendar, Fleets roster, and selected journey panel continue to show that commitment. Select an outbound fleet in **Fleets** to review its journey or queue **Recall to origin**.
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
@@ -177,6 +177,8 @@ The dashboard shows each total alongside the amount generated and spent during t
 ### Move
 
 A move order sends an active fleet along one linked route. Queue another move after the fleet arrives if the destination is more than one route away.
+
+Read command activation and travel separately. The Move activates and is projected to dispatch on the next tick. Its arrival is that dispatch tick plus the route duration minus one, so a one-tick route arrives during dispatch while a two-tick route arrives on the following tick. The destination selector, selected-route summary, queued intention, and in-transit journey use the same dispatch/arrival vocabulary. The server still rechecks the route at resolution, so treat every pre-dispatch arrival as a projection rather than a guarantee.
 
 Movement changes what you can see and which systems contribute resources to your empire. An outpost stops projecting its five presence when your empire has no active fleet in its system.
 

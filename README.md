@@ -39,6 +39,8 @@ That sequence governs strategy. Submission time grants no initiative. A fleet th
 
 The Command workspace presents all nine phases beside the current command-window stage. Its forecast separates values calculated from the present state from ship deliveries whose Industry is already committed. The commitment calendar includes player orders, journeys, projected automatic effects, and queued deliveries. History groups factual Events by authoritative phase by default, so timestamps and display order cannot imply initiative.
 
+Move destinations show route duration plus projected dispatch and arrival before submission. The queued intention repeats that estimate, while the resolver revalidates the direct link and publishes authoritative in-transit timing after dispatch.
+
 [Simulation Reference](docs/simulation-reference.md#authoritative-processing-order) defines the precise processing contract. Changes to the sequence require an explicit gameplay decision, regression coverage, and matching player guidance.
 
 ## Start Here

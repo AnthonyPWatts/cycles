@@ -10,10 +10,15 @@ public sealed class ApiOrderBoundaryTests
 {
     private static readonly IServiceProvider ResultServices = CreateResultServices();
 
-    [Fact]
-    public async Task MoveOrderEndpointAcceptsAdjacentActiveFleet()
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(4, 4)]
+    public async Task MoveOrderEndpointReturnsProjectedTimingForAdjacentActiveFleet(
+        int travelTicks,
+        int expectedArrivalTick)
     {
-        var state = TestState.CreateMovementState(linkSystems: true);
+        var state = TestState.CreateMovementState(linkSystems: true, travelTicks: travelTicks);
         var fleet = Assert.Single(state.Fleets);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
         var store = new InMemoryGameStateStore(state);
@@ -34,6 +39,12 @@ public sealed class ApiOrderBoundaryTests
         Assert.Equal(fleet.FleetId, order.FleetId);
         Assert.Equal(destination.SystemId, order.TargetSystemId);
         Assert.Equal(1, order.ExecuteAfterTick);
+        using var document = JsonDocument.Parse(response.Body);
+        var projection = document.RootElement.GetProperty("moveJourneyProjection");
+        Assert.True(projection.GetProperty("routeAvailable").GetBoolean());
+        Assert.Equal(travelTicks, projection.GetProperty("travelTicks").GetInt32());
+        Assert.Equal(1, projection.GetProperty("dispatchTickNumber").GetInt32());
+        Assert.Equal(expectedArrivalTick, projection.GetProperty("arrivalTickNumber").GetInt32());
     }
 
     [Fact]

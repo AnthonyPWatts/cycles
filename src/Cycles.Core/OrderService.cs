@@ -17,7 +17,12 @@ public static class OrderService
         var target = state.Systems.SingleOrDefault(system => system.CycleId == cycle.CycleId && system.SystemId == targetSystemId)
             ?? throw new InvalidOperationException("Target system does not exist in the active cycle.");
 
-        if (!state.SystemLinks.Any(link => link.CycleId == cycle.CycleId && link.Connects(fleet.CurrentSystemId, target.SystemId)))
+        if (MoveJourneyTiming.TryProject(
+                state,
+                cycle.CycleId,
+                fleet.CurrentSystemId,
+                target.SystemId,
+                cycle.CurrentTickNumber + 1) is null)
         {
             throw new InvalidOperationException("Move orders must target an adjacent linked system.");
         }

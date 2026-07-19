@@ -34,6 +34,10 @@ Move, attack, and colonise requests accept an optional `replacesOrderId` alongsi
 - Historical order responses can include `supersededByOrderId`, linking the superseded record to the replacement.
 - Order responses expose `commandSource` plus optional `sealedTick` and `sealedAt` fields. Human submissions are `human`; completed ledgers may also contain `gameAiPlanner`, `neutralPlanner`, and `implicitHold` records.
 - Fleet responses expose an optional `departureTickNumber` alongside destination and arrival. Clients use the three values together for journey and recall timing; active fleets return all three as `null`.
+- Selected-fleet detail exposes `legalMoveDestinations`. Each item gives the adjacent system, route duration, projected dispatch tick, and projected arrival tick for the current command window.
+- A pending Move order exposes `moveJourneyProjection`. `activationTickNumber` remains present even if the current route has disappeared; `routeAvailable`, `travelTicks`, `dispatchTickNumber`, and `arrivalTickNumber` distinguish a usable projection from an intention that the resolver is likely to reject.
+
+Move timing is inclusive: `arrivalTickNumber = dispatchTickNumber + travelTicks - 1`. A one-tick journey dispatches and arrives in the same resolution tick. Projections are recalculated from the current authoritative link and explicitly remain projections; the resolver rechecks route existence and duration when the intention activates. A changed route therefore changes the refreshed estimate and actual journey, while a removed route leaves activation visible but no longer claims a dispatch or arrival.
 
 Order outcome and fleet transit are separate state. A Move can be `processed` because dispatch succeeded while its fleet remains `inTransit` until the recorded arrival tick. Clients must keep that journey visible as an ongoing commitment rather than treating the historical order outcome as fleet readiness.
 

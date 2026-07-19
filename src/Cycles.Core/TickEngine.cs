@@ -262,8 +262,9 @@ public sealed class TickEngine
             return;
         }
 
+        var journey = MoveJourneyTiming.Project(link.TravelTicks, tickNumber);
         var origin = state.Systems.Single(system => system.SystemId == fleet.CurrentSystemId);
-        if (link.TravelTicks <= 1)
+        if (journey.TravelTicks == 1)
         {
             fleet.CurrentSystemId = target.SystemId;
             fleet.Status = FleetStatus.Active;
@@ -275,8 +276,8 @@ public sealed class TickEngine
         {
             fleet.Status = FleetStatus.InTransit;
             fleet.DestinationSystemId = target.SystemId;
-            fleet.DepartureTickNumber = tickNumber;
-            fleet.ArrivalTickNumber = tickNumber + link.TravelTicks - 1;
+            fleet.DepartureTickNumber = journey.DispatchTickNumber;
+            fleet.ArrivalTickNumber = journey.ArrivalTickNumber;
         }
 
         order.Status = FleetOrderStatus.Processed;
@@ -301,7 +302,7 @@ public sealed class TickEngine
                 fleetId = fleet.FleetId,
                 originSystemId = origin.SystemId,
                 targetSystemId = target.SystemId,
-                travelTicks = link.TravelTicks,
+                travelTicks = journey.TravelTicks,
                 arrivalTick = fleet.ArrivalTickNumber
             }, GameStateJson.Options),
             CreatedAt = now

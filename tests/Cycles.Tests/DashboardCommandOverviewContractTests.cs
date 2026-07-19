@@ -139,6 +139,30 @@ public sealed class DashboardCommandOverviewContractTests
     }
 
     [Fact]
+    public void Move_command_repeats_projected_journey_timing_before_and_after_submission()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("id=\"destinationSelect\" aria-describedby=\"moveActionHint\"", html);
+        Assert.Contains("id=\"moveActionHint\" class=\"form-hint\" role=\"status\"", html);
+        Assert.Contains("state.fleetDetail.legalMoveDestinations", script);
+        Assert.Contains("function moveDestinationOptionLabel(destination)", script);
+        Assert.Contains("function renderMoveActionHint()", script);
+        Assert.Contains("function formatJourneyDuration(travelTicks)", script);
+        Assert.Contains("projected dispatch T${formatNumber(destination.projectedDispatchTickNumber)}", script);
+        Assert.Contains("projected arrival T${formatNumber(destination.projectedArrivalTickNumber)}", script);
+        Assert.Contains("The route and timing are revalidated when the command activates.", script);
+        Assert.Contains("elements.destinationSelect.addEventListener(\"change\", renderMoveActionHint);", script);
+        Assert.Contains("order.moveJourneyProjection", script);
+        Assert.Contains("current route unavailable; dispatch and arrival will be revalidated", script);
+        Assert.Contains("formatJourneyDuration(projection.travelTicks)", script);
+        Assert.Contains("Dispatched T${formatTickNumber(transit?.dispatchedTickNumber)}", script);
+        Assert.Contains("Projected reversal T${formatTickNumber(transit.recallExecuteTickNumber)}", script);
+        Assert.Contains("item.fleet.arrivalTickNumber !== null", script);
+    }
+
+    [Fact]
     public void Active_priority_sliders_transfer_points_between_each_other()
     {
         var script = ReadDashboardAsset("app.js");

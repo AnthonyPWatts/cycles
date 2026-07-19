@@ -65,6 +65,8 @@ Submission timestamps do not confer initiative. Fleets and orders use stable ide
 
 Recall is distinct from cancelling a pending Move. The original Move remains processed history after dispatch. An outbound in-transit fleet may instead queue one Recall to its last occupied system; cancelling that still-pending Recall leaves the outward journey unchanged. Recall does not provide arbitrary diversion, a mid-route holding position, interception, pursuit, or multi-hop routing.
 
+Move planning and resolution share one inclusive timing rule: `arrival tick = dispatch tick + travel ticks - 1`. The command activates on the next tick. One-tick routes arrive within that movement phase; longer routes record the dispatch and later arrival. Player-facing destination and queued-order projections are calculated from the current direct link, but the movement phase re-reads that authoritative link. A changed duration changes the actual arrival; a removed link rejects the intention rather than honouring a stale estimate.
+
 These examples follow from the processing order:
 
 - A defender that submits Move can leave before a hostile Attack checks the system. If no eligible target remains, the attack is rejected.

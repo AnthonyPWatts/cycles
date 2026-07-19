@@ -377,9 +377,9 @@
                                     <form id="moveForm" class="order-form fleet-action-panel" role="tabpanel" aria-labelledby="moveActionTab" data-fleet-action-panel="move">
                                         <label>
                                             Destination
-                                            <select id="destinationSelect"></select>
+                                            <select id="destinationSelect" aria-describedby="moveActionHint"></select>
                                         </label>
-                                        <span id="moveActionHint" class="form-hint">Choose an adjacent system.</span>
+                                        <span id="moveActionHint" class="form-hint" role="status">Choose an adjacent system.</span>
                                         <button type="submit">Queue move</button>
                                     </form>
                                     <form id="attackForm" class="order-form fleet-action-panel" role="tabpanel" aria-labelledby="attackActionTab" data-fleet-action-panel="attack" hidden>
@@ -601,6 +601,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260719-turn-contract-1"></script>
+    <script src="app.js?v=20260719-move-projection-1"></script>
 </body>
 </html>

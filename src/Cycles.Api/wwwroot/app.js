@@ -629,6 +629,8 @@ bindTabList(elements.fleetTabs, elements.fleetTabButtons, "fleetTab", activateFl
 bindTabList(elements.fleetActionTabs, elements.fleetActionButtons, "fleetAction", activateFleetAction);
 bindTabList(elements.historyTabs, elements.historyTabButtons, "historyTab", activateHistoryTab);
 
+elements.destinationSelect.addEventListener("change", renderMoveActionHint);
+
 elements.orderHistoryScope.addEventListener("change", () => {
     state.orderHistoryScope = elements.orderHistoryScope.value;
     state.orderHistoryLimit = 20;
@@ -752,7 +754,7 @@ elements.moveForm.addEventListener("submit", async event => {
         return;
     }
 
-    const targetName = elements.destinationSelect.selectedOptions[0]?.textContent?.trim() ?? "the selected system";
+    const targetName = selectedMoveDestination()?.systemName ?? "the selected system";
     const replacement = confirmOrderReplacement(fleetId, {
         orderType: "moveFleet",
         targetSystemId,
@@ -1360,6 +1362,8 @@ function transitCommitments() {
         .filter(item => item.fleet.status === "inTransit"
             && item.fleet.shipCount > 0
             && item.fleet.destinationSystemId
+            && item.fleet.arrivalTickNumber !== null
+            && item.fleet.arrivalTickNumber !== undefined
             && Number.isFinite(Number(item.fleet.arrivalTickNumber)))
         .map(item => {
             const processedMoves = state.orders
@@ -1425,6 +1429,14 @@ function transitCommitmentForOrder(order) {
 
 function transitEffectiveArrivalTick(transit) {
     return transit.projectedReturnArrivalTickNumber ?? transit.arrivalTickNumber;
+}
+
+function transitJourneyDuration(transit) {
+    if (!transit || transit.departureTickNumber === null || transit.departureTickNumber === undefined) {
+        return null;
+    }
+
+    return Math.max(1, transit.arrivalTickNumber - transit.departureTickNumber + 1);
 }
 
 function setViewBadge(element, value, label, displayValue = formatNumber(value)) {
@@ -1801,11 +1813,11 @@ function renderFleets(fleets) {
                 ? `${item.currentSystemName} → ${item.destinationSystemName}`
             : item.currentSystemName;
         const transitSummary = transit?.pendingRecallOrderId
-            ? `<span class="fleet-transit-summary">Recall ordered T${formatTickNumber(transit.recallExecuteTickNumber)} · projected return T${formatTickNumber(transit.projectedReturnArrivalTickNumber)}</span>`
+            ? `<span class="fleet-transit-summary">Projected reversal T${formatTickNumber(transit.recallExecuteTickNumber)} · projected return T${formatTickNumber(transit.projectedReturnArrivalTickNumber)}</span>`
             : transit?.isReturning
-                ? `<span class="fleet-transit-summary">Returning to origin · arrives T${formatTickNumber(transit.arrivalTickNumber)}</span>`
+                ? `<span class="fleet-transit-summary">Recalled T${formatTickNumber(transit.departureTickNumber)} · arrives T${formatTickNumber(transit.arrivalTickNumber)}</span>`
                 : inTransit
-                    ? `<span class="fleet-transit-summary">Arrives T${formatTickNumber(fleet.arrivalTickNumber)} · recall available</span>`
+                    ? `<span class="fleet-transit-summary">Dispatched T${formatTickNumber(transit?.dispatchedTickNumber)} · arrives T${formatTickNumber(fleet.arrivalTickNumber)} · recall available</span>`
             : "";
         const selectedClass = fleet.fleetId === state.selectedFleetId ? " selected" : "";
         const transitClass = inTransit ? " is-in-transit" : "";
@@ -1878,12 +1890,13 @@ function renderFleetDetails() {
     const pendingOrders = detail.orders.filter(order => order.status === "pending");
     const pendingRecall = pendingOrders.find(order => order.orderType === "recallFleet") ?? null;
     const resolvedOrderCount = detail.orders.length - pendingOrders.length;
+    const journeyTicks = transitJourneyDuration(transitCommitment);
     const orders = pendingRecall && transitCommitment
-        ? `<span><strong>Recall ordered</strong> · reverses T${formatTickNumber(pendingRecall.executeAfterTick)} · projected return T${formatTickNumber(transitCommitment.projectedReturnArrivalTickNumber)}.</span>`
+        ? `<span><strong>Recall ordered</strong> · projected reversal T${formatTickNumber(pendingRecall.executeAfterTick)} · projected return T${formatTickNumber(transitCommitment.projectedReturnArrivalTickNumber)}.</span>`
         : transitCommitment?.isReturning
-            ? `<span><strong>Recall underway</strong> · returning to ${escapeHtml(transitCommitment.originSystemName)} · arrives T${formatNumber(transitCommitment.arrivalTickNumber)}.</span>`
+            ? `<span><strong>Recall underway</strong> · returning to ${escapeHtml(transitCommitment.originSystemName)} · recalled T${formatTickNumber(transitCommitment.departureTickNumber)} · arrives T${formatNumber(transitCommitment.arrivalTickNumber)}.</span>`
             : transitCommitment
-                ? `<span><strong>Move underway</strong> · ${escapeHtml(transitCommitment.outwardDestinationSystemName)} · arrives T${formatNumber(transitCommitment.arrivalTickNumber)}. Transit continues automatically unless recalled.</span>`
+                ? `<span><strong>Move underway</strong> · ${escapeHtml(transitCommitment.outwardDestinationSystemName)} · ${escapeHtml(formatJourneyDuration(journeyTicks ?? 1))} · dispatched T${formatTickNumber(transitCommitment.dispatchedTickNumber)} · arrives T${formatNumber(transitCommitment.arrivalTickNumber)}. Transit continues automatically unless recalled.</span>`
         : pendingOrders.length === 0
             ? `<span>No current intention. This fleet is available for a command.</span>`
             : pendingOrders.map(order => {
@@ -1892,9 +1905,6 @@ function renderFleetDetails() {
             return `<span>${escapeHtml(formatOrderType(order.orderType))} | ${escapeHtml(target)} | ${escapeHtml(timing)}</span>`;
         }).join("");
 
-    const journeyTicks = transitCommitment?.departureTickNumber === null || transitCommitment?.departureTickNumber === undefined
-        ? null
-        : Math.max(1, transitCommitment.arrivalTickNumber - transitCommitment.departureTickNumber + 1);
     const journeyProgress = journeyTicks === null
         ? null
         : Math.min(100, Math.max(0, Math.round((((state.cycle?.currentTickNumber ?? 0) - transitCommitment.departureTickNumber + 1) / journeyTicks) * 100)));
@@ -1904,11 +1914,11 @@ function renderFleetDetails() {
             ? `${transitCommitment.originSystemName} → ${transitCommitment.outwardDestinationSystemName}`
             : "";
     const journeyTiming = pendingRecall && transitCommitment
-        ? `Recall T${formatTickNumber(pendingRecall.executeAfterTick)} · projected return T${formatTickNumber(transitCommitment.projectedReturnArrivalTickNumber)}`
+        ? `Projected reversal T${formatTickNumber(pendingRecall.executeAfterTick)} · projected return T${formatTickNumber(transitCommitment.projectedReturnArrivalTickNumber)}`
         : transitCommitment?.isReturning
-            ? `Recalled T${formatTickNumber(transitCommitment.departureTickNumber)} · T${formatTickNumber(transitCommitment.arrivalTickNumber)} return`
+            ? `Recalled T${formatTickNumber(transitCommitment.departureTickNumber)} · arrives T${formatTickNumber(transitCommitment.arrivalTickNumber)}`
             : transitCommitment
-                ? `T${formatTickNumber(transitCommitment.dispatchedTickNumber)} dispatch · T${formatTickNumber(transitCommitment.arrivalTickNumber)} arrival`
+                ? `${formatJourneyDuration(journeyTicks ?? 1)} · dispatched T${formatTickNumber(transitCommitment.dispatchedTickNumber)} · arrives T${formatTickNumber(transitCommitment.arrivalTickNumber)}`
                 : "";
     const journeyAction = pendingRecall
         ? `<button type="button" class="inline-action" data-cancel-order-id="${pendingRecall.fleetOrderId}">Cancel recall</button>`
@@ -1978,8 +1988,10 @@ function renderOrders() {
         : null;
     elements.selectedFleetActionName.textContent = selectedFleetRecord?.fleet.fleetName ?? "selected fleet";
 
-    const destinations = selectedFleet ? linkedSystems(selectedFleet.fleet.currentSystemId) : [];
-    fillSelect(elements.destinationSelect, destinations, item => item.systemId, item => item.systemName);
+    const destinations = selectedFleet && state.fleetDetail?.fleetId === selectedFleet.fleet.fleetId
+        ? state.fleetDetail.legalMoveDestinations ?? []
+        : [];
+    fillSelect(elements.destinationSelect, destinations, item => item.systemId, moveDestinationOptionLabel);
     if (destinations.length === 0) {
         elements.destinationSelect.innerHTML = `<option value="">No linked destinations</option>`;
     }
@@ -1996,11 +2008,7 @@ function renderOrders() {
     elements.attackForm.querySelector("button[type=submit]").disabled = !fleetReady || targetFactions.length === 0;
     elements.coloniseForm.querySelector("button[type=submit]").disabled = !awayFromHome;
 
-    elements.moveActionHint.textContent = !fleetReady
-        ? selectionHint ?? "Select an active fleet to see available routes."
-        : destinations.length === 0
-            ? "This fleet has no linked destination available."
-            : `${formatCount(destinations.length, "adjacent destination")} available from ${selectedFleet.currentSystemName}.`;
+    renderMoveActionHint();
     elements.attackActionHint.textContent = !fleetReady
         ? selectionHint ?? "Select an active fleet to prepare an attack."
         : targetFactions.length === 0
@@ -2011,6 +2019,49 @@ function renderOrders() {
         : !awayFromHome
             ? "Move this fleet beyond its home system before establishing an outpost."
             : colonisationReservationHint();
+}
+
+function moveDestinationOptionLabel(destination) {
+    return `${destination.systemName} · ${formatJourneyDuration(destination.travelTicks)} · projected arrival T${formatNumber(destination.projectedArrivalTickNumber)}`;
+}
+
+function selectedMoveDestination() {
+    if (!state.fleetDetail || state.fleetDetail.fleetId !== state.selectedFleetId) {
+        return null;
+    }
+
+    return (state.fleetDetail.legalMoveDestinations ?? [])
+        .find(item => item.systemId === elements.destinationSelect.value) ?? null;
+}
+
+function renderMoveActionHint() {
+    const selectedFleet = state.fleets.find(item => item.fleet.fleetId === state.selectedFleetId) ?? null;
+    if (!selectedFleet || selectedFleet.fleet.status !== "active" || selectedFleet.fleet.shipCount <= 0) {
+        elements.moveActionHint.textContent = selectedFleet?.fleet.status === "inTransit"
+            ? `${selectedFleet.fleet.fleetName} is in transit until T${selectedFleet.fleet.arrivalTickNumber ?? "?"}.`
+            : "Select an active fleet to see available routes.";
+        return;
+    }
+
+    const destinations = state.fleetDetail?.fleetId === selectedFleet.fleet.fleetId
+        ? state.fleetDetail.legalMoveDestinations ?? []
+        : [];
+    const destination = selectedMoveDestination();
+    if (!destination) {
+        elements.moveActionHint.textContent = destinations.length === 0
+            ? "This fleet has no linked destination available."
+            : `${formatCount(destinations.length, "adjacent destination")} available from ${selectedFleet.currentSystemName}.`;
+        return;
+    }
+
+    elements.moveActionHint.textContent = `${formatJourneyDuration(destination.travelTicks)} · `
+        + `projected dispatch T${formatNumber(destination.projectedDispatchTickNumber)} · `
+        + `projected arrival T${formatNumber(destination.projectedArrivalTickNumber)}. `
+        + "The route and timing are revalidated when the command activates.";
+}
+
+function formatJourneyDuration(travelTicks) {
+    return `${formatNumber(travelTicks)}-tick journey`;
 }
 
 function colonisationReservationHint() {
@@ -2302,12 +2353,15 @@ function calendarEffectCard(glyph, title, detail, kind) {
 
 function transitCalendarCard(transit) {
     const returning = transit.isReturning;
+    const timing = returning
+        ? `Recalled T${formatTickNumber(transit.departureTickNumber)} · arrives T${formatNumber(transit.arrivalTickNumber)}`
+        : `${formatJourneyDuration(transitJourneyDuration(transit) ?? 1)} · dispatched T${formatTickNumber(transit.dispatchedTickNumber)} · arrives T${formatNumber(transit.arrivalTickNumber)}`;
     return `
         <article class="calendar-order order-intransit">
             <span class="calendar-order-glyph" aria-hidden="true">${returning ? "R" : "M"}</span>
             <div>
                 <strong>${returning ? "Return underway" : "Move underway"}: ${escapeHtml(transit.fleetName)}</strong>
-                <span>${escapeHtml(returning ? transit.originSystemName : transit.outwardDestinationSystemName)} · Arrives T${formatNumber(transit.arrivalTickNumber)}</span>
+                <span>${escapeHtml(returning ? transit.originSystemName : transit.outwardDestinationSystemName)} · ${escapeHtml(timing)}</span>
             </div>
         </article>
     `;
@@ -2319,7 +2373,7 @@ function projectedReturnCalendarCard(transit) {
             <span class="calendar-order-glyph" aria-hidden="true">R</span>
             <div>
                 <strong>Projected return: ${escapeHtml(transit.fleetName)}</strong>
-                <span>${escapeHtml(transit.originSystemName)} · T${formatNumber(transit.projectedReturnArrivalTickNumber)}</span>
+                <span>${escapeHtml(transit.originSystemName)} · projected return T${formatNumber(transit.projectedReturnArrivalTickNumber)}</span>
             </div>
         </article>
     `;
@@ -2332,8 +2386,10 @@ function orderCalendarCard(order) {
         ? transitCommitments().find(transit => transit.pendingRecallOrderId === order.fleetOrderId) ?? null
         : null;
     const timing = recallTransit
-        ? `Reverses T${formatNumber(order.executeAfterTick)} · projected return T${formatTickNumber(recallTransit.projectedReturnArrivalTickNumber)}`
-        : `${escapeHtml(target)} · Earliest T${formatNumber(order.executeAfterTick)}`;
+        ? `Projected reversal T${formatNumber(order.executeAfterTick)} · projected return T${formatTickNumber(recallTransit.projectedReturnArrivalTickNumber)}`
+        : order.orderType === "moveFleet"
+            ? `${escapeHtml(target)} · ${escapeHtml(formatOrderTiming(order))}`
+            : `${escapeHtml(target)} · Earliest T${formatNumber(order.executeAfterTick)}`;
     return `
         <article class="calendar-order order-${statusClass(order.status)}">
             <span class="calendar-order-glyph" aria-hidden="true">${glyph}</span>
@@ -4206,6 +4262,7 @@ function selectCommandMoveTarget(targetSystemId) {
     const targetIsAvailable = Boolean(targetSystemId)
         && [...elements.destinationSelect.options].some(option => option.value === targetSystemId);
     elements.destinationSelect.value = targetIsAvailable ? targetSystemId : "";
+    renderMoveActionHint();
     if (!targetIsAvailable) {
         setMessage("The briefing destination is no longer available from this fleet's current system.");
     }
@@ -4226,10 +4283,17 @@ function formatOrderTiming(order) {
     if (transit) {
         return order.orderType === "recallFleet"
             ? `recalled T${order.processedTick} · returns T${transit.arrivalTickNumber}`
-            : `dispatched T${order.processedTick} · arrives T${transit.arrivalTickNumber}`;
+            : `${formatJourneyDuration(transitJourneyDuration(transit) ?? 1)} · dispatched T${order.processedTick} · arrives T${transit.arrivalTickNumber}`;
     }
 
     if (order.status === "pending") {
+        if (order.orderType === "moveFleet") {
+            const projection = order.moveJourneyProjection;
+            return projection?.routeAvailable
+                ? `${formatJourneyDuration(projection.travelTicks)} · projected dispatch T${projection.dispatchTickNumber} · projected arrival T${projection.arrivalTickNumber}`
+                : `activates T${projection?.activationTickNumber ?? order.executeAfterTick} · current route unavailable; dispatch and arrival will be revalidated`;
+        }
+
         return `executes after T${order.executeAfterTick}`;
     }
 

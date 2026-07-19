@@ -637,6 +637,7 @@ static FleetDetailResponse ToFleetDetailResponse(
         fleet.DepartureTickNumber,
         fleet.ArrivalTickNumber,
         linkedSystems,
+        MoveJourneyPresentationContract.CreateLegalDestinations(state, cycle, fleet),
         orders,
         activeFleetsInSystem);
 }
@@ -909,7 +910,8 @@ static FleetOrderResponse ToOrderResponse(GameState state, FleetOrder order)
         order.TargetFactionId,
         fleet?.FleetName ?? "Unknown fleet",
         targetSystem?.SystemName,
-        targetFaction?.FactionName ?? targetEmpire?.EmpireName);
+        targetFaction?.FactionName ?? targetEmpire?.EmpireName,
+        MoveJourneyPresentationContract.CreateOrderProjection(state, order));
 }
 
 static AdmiralSummaryResponse? ToAdmiralSummary(GameState state, Guid? admiralId)
@@ -1086,6 +1088,7 @@ public sealed record FleetDetailResponse(
     int? DepartureTickNumber,
     int? ArrivalTickNumber,
     IReadOnlyCollection<SystemSummaryResponse> LinkedSystems,
+    IReadOnlyCollection<LegalMoveDestinationResponse> LegalMoveDestinations,
     IReadOnlyCollection<FleetOrderResponse> Orders,
     IReadOnlyCollection<FleetAtSystemResponse> ActiveFleetsInSystem);
 
@@ -1161,7 +1164,8 @@ public sealed record FleetOrderResponse(
     Guid? TargetFactionId,
     string FleetName,
     string? TargetSystemName,
-    string? TargetFactionName);
+    string? TargetFactionName,
+    MoveJourneyProjectionResponse? MoveJourneyProjection);
 
 public sealed record LastTickSummaryResponse(
     Guid CycleId,
