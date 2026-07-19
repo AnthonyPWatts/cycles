@@ -1792,21 +1792,23 @@ Consequences:
 - Successful colonisation alone consumes its reservation. A later eligibility failure does not transfer that reservation to an intention already rejected for oversubscription.
 - Issue #139 records the answered product decision. Issue #154 implements the bounded rule through the shared closure and resource-generation boundaries, with domain and SQL-backed contention tests plus dashboard forecasting, durable rejection reasons, simulation reference, and player guidance.
 
-## 2026-07-19: Preserve Cycle History Without Successor Mechanics
+## 2026-07-19: Reset Players While Preserving Galaxy Echoes
 
-Decision: retain the selected top 10% of major battles and historical systems as completed-Cycle history, but reset every mechanical input for the successor Cycle. Do not grant the winner inherited recognition, prestige, flavour, starting benefit, or another successor-specific advantage.
+Decision: retain the selected top 10% of major battles and historical systems, reset player and empire mechanics for each successor Cycle, and allow accumulated factual history to change the successor galaxy. Do not grant the winner inherited recognition, prestige, starting benefit, or another participant-specific advantage.
 
 Reasoning:
 
-- A Cycle should stand as a complete competitive reset while the accumulated historical record remains the long-term reward.
-- Historical significance currently participates in strategic presentation and AI objective scoring, so carrying it into a successor can become a mechanical echo even without an explicit empire bonus.
-- Rankings, famous systems, and major events can remain authoritative historical facts without influencing the next simulation.
+- The original phrase "complete reset" conflated two different concerns. The intended fairness rule resets participants; it does not erase the world they changed.
+- Successive Cycles are roughly a century apart and repeat an equivalent mission in an evolving galaxy. The narrative cause of the break and restart remains open.
+- Persistent map consequences are part of the core concept. Accepted examples include repeated major wars eventually burning out a system and an extensively travelled route later taking an admiral's name.
+- Galaxy echoes are shared world state under the successor Cycle's ordinary rules. They must not become a disguised head start for a prior winner or participant.
 
 Consequences:
 
-- Issue #156 must audit and remove prior-Cycle inputs from successor strategic value, AI choice, economy, influence, combat, starting position, doctrine, and permissions.
-- Completed-Cycle rankings, selected battles, historical-system records, and Chronicle evidence remain preserved.
-- Q085-Q093 still own end disclosure, cutoff handling, lifecycle controls, successor identity, summaries, name evolution, and export.
+- Issue #156 must prove that fleets, resources, population, outposts, doctrines, permissions, and starting power reset while preserving intentional deterministic name, significance, and strategic galaxy echoes.
+- Q058 permits factual economic and physical history to change successor systems; Q081 lets notable-figure associations change both the figure's record and later galaxy naming; Q092 permits historical names to evolve.
+- Q091 still owns decay, caps, compounding, and multi-Cycle thresholds. Richer burned-system and route-naming mechanics require bounded follow-up work.
+- Q085-Q090 and Q093 still own end disclosure, cutoff handling, lifecycle controls, successor identity, summaries, and export. Supplemental issue #157 owns the transition fiction.
 
 ## 2026-07-19: Keep Admirals Narrative-First And Narrative Providers Replaceable
 
@@ -1820,6 +1822,6 @@ Reasoning:
 
 Consequences:
 
-- Q072-Q081 still select admiral bonus scope, transfers, management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, display detail, and famous-system effects.
+- Q072-Q080 still select admiral bonus scope, transfers, management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, and display detail. Q081 permits notable-admiral associations to change both the figure's history and later galaxy naming.
 - Q094-Q096 and Q098-Q106 still select the first queued records, fallback and failure behaviour, tone, inference, mandatory facts, review, thresholds, interactions, privacy, and versioning.
 - No production narrative queue or live provider is authorised until those runtime boundaries are settled.
