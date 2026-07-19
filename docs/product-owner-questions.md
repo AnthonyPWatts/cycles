@@ -72,7 +72,7 @@ The 18 July turn-resolution decision closes the former relative-ordering gap. A 
 
 The 18 July game-AI decision in [issue #146](https://github.com/AnthonyPWatts/cycles/issues/146) replaces Ariadne's first-pass Hold behaviour with an ordered deterministic policy: attack a locally visible faction only with a 25% strength advantage, otherwise Hold against that threat; then prefer an affordable eligible outpost; then advance towards the highest-value reachable expansion objective. The planner may use public system value and topology plus its own state and locally visible fleets, but not hidden human intentions or remote enemy fleet positions. It respects non-aggression pacts and Alliances. Neutral factions remain positional Hold obstacles. Production difficulty, roles, diplomacy, coordinated strategy, forecasting, and adaptive behaviour remain deferred.
 
-[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) received an accepted direction on 2026-07-18: reserve Colonise Population at command closure and reject intentions that would oversubscribe the phase budget. One blocking detail remains: when the budget can fund only part of an otherwise eligible set, the answer must identify whether the whole conflicting set is rejected or another player-controlled rule selects the retained intentions. Submission time and stable identifiers cannot create hidden priority. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns implementation after that clarification.
+[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) was answered on 2026-07-19: reserve Colonise Population at command closure and reject the whole otherwise-eligible set when the empire cannot fund every intention in it. No partially affordable intention survives through submission time, stable identifiers, or another hidden priority. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns the bounded implementation.
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
@@ -135,11 +135,11 @@ The colonisation slice and stored diplomacy foundation authorised by these answe
 | [Q084](https://github.com/AnthonyPWatts/cycles/issues/72) | The winner receives no inherited title, banner, home-system flavour, prestige, or other next-Cycle benefit. Their benefit is the impact recorded in overall history. | End-of-Cycle rankings and history remain authoritative, but the next Cycle does not confer winner-specific recognition or advantage. Q085-Q093 still own disclosure, summaries, naming evolution, and exports. |
 | [Q097](https://github.com/AnthonyPWatts/cycles/issues/85) | Keep narrative generation provider-neutral through a small interface with replaceable connectors for live providers. Retain a deterministic connector for development and testing rather than coupling the model to one vendor. | Do not select a concrete vendor or build an offline-only content library as the product boundary. Q094-Q096 must still settle the first queued records and runtime failure/fallback behaviour; Q098-Q106 own tone, inference, required facts, review, thresholds, interactions, privacy, and versioning. |
 
-## Accepted Same-Phase Resource Contention Direction
+## Accepted Same-Phase Resource Contention Rule
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
-| [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure and reject intentions that would oversubscribe the phase budget. | Clarify how partial affordability selects rejections without submission-time or stable-ID priority. Until then, [issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) is the bounded but blocked implementation owner. |
+| [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure. If the budget cannot fund every otherwise-eligible intention in the empire's set, reject the whole set. | A budget sufficient for zero or only some rejects all; a budget sufficient for every intention reserves all. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns implementation and player-facing explanation. |
 
 ## Accepted Q014-Q018 Answers
 
@@ -255,7 +255,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - The accepted phase order is resources; mandatory economy and due construction; new programme spending and construction starts; arrivals and movement; combat; colonisation; derived control, visibility, availability, and defeat state; next-window progression; then facts, Events, and Chronicle selection.
 - Any proposal to reorder those phases requires a product decision, focused regression evidence, and updated command forecasts, result presentation, and player guidance.
 - Current income may fund current spending. Due ships may defend but cannot receive already-sealed commands; new construction does not progress immediately; successful colonisation alone consumes its reserved population; and progression unlocked during resolution applies from the next command window.
-- Colonise Population will be reserved at command closure and oversubscribed intentions rejected. The partial-affordability selection rule remains open; submission time and stable identifiers cannot create priority.
+- Colonise Population will be reserved at command closure. When the budget cannot fund every otherwise-eligible Colonise intention for the empire, the whole set is rejected; submission time and stable identifiers cannot create a partial winner.
 - Movement precedes combat. Route interception and pursuit are not implicit first-version behaviour and require explicit future rules.
 
 ### API And Dashboard Contracts

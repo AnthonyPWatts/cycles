@@ -1771,22 +1771,24 @@ Consequences:
 - Q026-Q034 continue to own stale or estimated contacts, destroyed-fleet intelligence, Chronicle disclosure, sensors, historical visibility, and live rankings.
 - Richer combat choices remain sequenced after diplomacy and visibility. Q060 does not silently settle the specific Hold, posture, targeting, retreat, or fleet-management questions.
 
-## 2026-07-19: Reserve Shared Phase Budgets At Command Closure
+## 2026-07-19: Reserve Colonise Population At Command Closure
 
-Decision direction: reserve Population for Colonise intentions when the command window closes and reject oversubscribed intentions. Before implementation, settle which intentions are rejected when the budget can fund only part of an otherwise eligible set; submission time and stable fleet or order identifiers cannot choose a strategic winner.
+Decision: reserve Population for otherwise-eligible Colonise intentions when the command window closes. If the empire's closure budget cannot fund the complete set, reject every intention in that set as oversubscribed. Do not retain a partial set by submission time, stable fleet or order identifier, or another hidden priority. Keep this rule bounded to Colonise until another concrete command shares an empire-level phase budget.
 
 Reasoning:
 
 - Stable identifiers are suitable for deterministic implementation order but are not a player-controlled priority.
 - Closure is the first point at which the complete set of human, game-AI, neutral, replacement, and cancellation outcomes can be assessed before sealing.
-- A rejected intention must be explicit and auditable; silently selecting one affordable Colonise action would make an invisible implementation detail decide strategy.
+- When every intention is otherwise eligible, the server has no player-controlled basis for choosing the strategically correct survivor. Rejecting the whole conflicting set makes that ambiguity explicit and auditable.
+- An explicit command-priority feature would add gameplay and interface complexity that is not needed to correct the present Colonise case.
 
 Consequences:
 
-- Current-turn income remains available under the accepted phase order when the closure budget is calculated.
+- The closure budget includes current-turn income and any earlier-phase commitments under the accepted processing order.
 - Cancellation and replacement before closure change the reservation set naturally.
-- A later eligibility failure does not revive an intention already rejected for oversubscription.
-- Issue #139 remains open for the partial-affordability selection rule. Issue #154 owns the bounded Colonise implementation, tests, forecasting, result presentation, and player guidance after that clarification. Other command types adopt the rule only when they present a concrete shared-budget case.
+- A budget sufficient for none or only some of the set rejects the whole set; a budget sufficient for all reserves every intention in the set.
+- Successful colonisation alone consumes its reservation. A later eligibility failure does not transfer that reservation to an intention already rejected for oversubscription.
+- Issue #139 records the answered product decision. Issue #154 owns the bounded Colonise implementation, domain and SQL-backed tests, forecasting, result presentation, simulation reference, and player guidance.
 
 ## 2026-07-19: Preserve Cycle History Without Successor Mechanics
 
