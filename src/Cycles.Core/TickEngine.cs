@@ -82,6 +82,7 @@ public sealed class TickEngine
         int TickLogs,
         int Events,
         int BattleRecords,
+        int BattleFleetParticipants,
         int ChronicleEntries)
     {
         public static AppendOnlyCounts Capture(GameState state) => new(
@@ -91,6 +92,7 @@ public sealed class TickEngine
             state.TickLogs.Count,
             state.Events.Count,
             state.BattleRecords.Count,
+            state.BattleFleetParticipants.Count,
             state.ChronicleEntries.Count);
 
         public void RollBack(GameState state)
@@ -101,6 +103,7 @@ public sealed class TickEngine
             TrimToCount(state.TickLogs, TickLogs);
             TrimToCount(state.Events, Events);
             TrimToCount(state.BattleRecords, BattleRecords);
+            TrimToCount(state.BattleFleetParticipants, BattleFleetParticipants);
             TrimToCount(state.ChronicleEntries, ChronicleEntries);
         }
 

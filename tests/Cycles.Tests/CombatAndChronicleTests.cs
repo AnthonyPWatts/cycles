@@ -17,6 +17,25 @@ public sealed class CombatAndChronicleTests
         Assert.Equal(TickLogStatus.Completed, result.Status);
         var battle = Assert.Single(state.BattleRecords);
         Assert.Contains(attackerFleet.FleetId.ToString(), battle.AttackerFleetIds, StringComparison.Ordinal);
+        var participants = state.BattleFleetParticipants
+            .Where(item => item.BattleId == battle.BattleId)
+            .OrderBy(item => item.Side)
+            .ThenBy(item => item.FleetId)
+            .ToArray();
+        Assert.Collection(
+            participants,
+            item =>
+            {
+                Assert.Equal(cycle.CycleId, item.CycleId);
+                Assert.Equal(attackerFleet.FleetId, item.FleetId);
+                Assert.Equal(BattleFleetSide.Attacker, item.Side);
+            },
+            item =>
+            {
+                Assert.Equal(cycle.CycleId, item.CycleId);
+                Assert.Equal(state.Fleets.Single(fleet => fleet.EmpireId == state.Empires[1].EmpireId).FleetId, item.FleetId);
+                Assert.Equal(BattleFleetSide.Defender, item.Side);
+            });
         Assert.Contains(state.Events, item => item.EventType == EventType.CombatResolved && item.FactJson == battle.FactJson);
         var entry = Assert.Single(state.ChronicleEntries, entry => entry.SourceBattleId == battle.BattleId);
         Assert.NotEqual(entry.FactualSummary, entry.NarrativeText);
@@ -111,6 +130,12 @@ public sealed class CombatAndChronicleTests
         var battle = Assert.Single(state.BattleRecords);
         Assert.Equal(2, battle.DefenderShipsBefore);
         Assert.True(battle.DefenderLosses >= 1);
+        var participants = state.BattleFleetParticipants.Where(item => item.BattleId == battle.BattleId).ToArray();
+        Assert.Single(participants, item => item.Side == BattleFleetSide.Attacker);
+        Assert.Equal(
+            state.Fleets.Where(fleet => fleet.EmpireId == defenderEmpireId).Select(fleet => fleet.FleetId).Order(),
+            participants.Where(item => item.Side == BattleFleetSide.Defender).Select(item => item.FleetId).Order());
+        Assert.All(participants, item => Assert.Equal(cycle.CycleId, item.CycleId));
         Assert.All(state.Fleets.Where(fleet => fleet.EmpireId == defenderEmpireId && fleet.ShipCount == 0), fleet =>
         {
             Assert.Equal(FleetStatus.Destroyed, fleet.Status);

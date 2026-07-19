@@ -45,6 +45,7 @@ public sealed class SqlServerMigratorTests
         var turnResolutionLedger = Assert.Single(migrations, migration => migration.MigrationId == "019_add_turn_resolution_ledger");
         var fleetDepartureTick = Assert.Single(migrations, migration => migration.MigrationId == "020_add_fleet_departure_tick");
         var doctrineUnlocks = Assert.Single(migrations, migration => migration.MigrationId == "021_add_empire_doctrine_unlocks");
+        var gameScopeIntegrity = Assert.Single(migrations, migration => migration.MigrationId == "023_enforce_cycle_scope_integrity");
 
         Assert.Contains("SchemaMigrations", initialSchema.Script, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE dbo.Players", initialSchema.Script, StringComparison.Ordinal);
@@ -86,5 +87,9 @@ public sealed class SqlServerMigratorTests
         Assert.Contains("CREATE TABLE dbo.EmpireDoctrineUnlocks", doctrineUnlocks.Script, StringComparison.Ordinal);
         Assert.Contains("ROW_NUMBER()", doctrineUnlocks.Script, StringComparison.Ordinal);
         Assert.Contains("DoctrineUnlocked", doctrineUnlocks.Script, StringComparison.Ordinal);
+        Assert.Contains("BattleFleetParticipants", gameScopeIntegrity.Script, StringComparison.Ordinal);
+        Assert.Contains("MatchParticipants", gameScopeIntegrity.Script, StringComparison.Ordinal);
+        Assert.Contains("GameID", gameScopeIntegrity.Script, StringComparison.Ordinal);
+        Assert.Contains("WITH CHECK", gameScopeIntegrity.Script, StringComparison.Ordinal);
     }
 }

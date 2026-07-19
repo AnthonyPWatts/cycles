@@ -279,6 +279,7 @@ public static class CycleContinuityService
         state.TickLogs.AddRange(generated.TickLogs);
         state.Events.AddRange(generated.Events);
         state.BattleRecords.AddRange(generated.BattleRecords);
+        state.BattleFleetParticipants.AddRange(generated.BattleFleetParticipants);
         state.ChronicleEntries.AddRange(generated.ChronicleEntries);
     }
 

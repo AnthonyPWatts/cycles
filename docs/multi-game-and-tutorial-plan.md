@@ -1,6 +1,6 @@
 # Multi-game and tutorial platform plan
 
-Status: approved on 19 July 2026; implementation has not started
+Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 and MG-02 are implemented, while the second-Game runtime, account shell, Training profile, and tutorial journey are not.
 
 Last reviewed: 19 July 2026
 
@@ -13,7 +13,7 @@ This plan turns two accepted directions into one coherent product and technical 
 
 It covers the player experience, information architecture, tutorial content, authored map profiles, domain model, SQL persistence, API boundaries, Worker scheduling, concurrency, security, migration, rollout, observability, and verification.
 
-This is not an implementation issue and it does not mark any of the proposed systems as delivered. Once the load-bearing premises are agreed, the reviewed plan should be split into bounded GitHub issues with explicit dependencies and acceptance criteria.
+This remains a programme plan rather than one implementation issue. Approval alone does not mark a proposed system as delivered; implemented behaviour and remaining gates are recorded in `project-state.md` and `backlog.md`. Further delivery should continue as bounded slices with explicit dependencies and acceptance criteria.
 
 ## 2. Existing decisions and constraints
 

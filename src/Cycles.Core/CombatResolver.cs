@@ -66,8 +66,10 @@ public static class CombatResolver
             DefenderEmpireId = defenderFaction.EmpireId ?? Guid.Empty,
             AttackerFactionId = attackerFaction.FactionId,
             DefenderFactionId = defenderFaction.FactionId,
-            AttackerFleetIds = string.Join(",", orderedAttackers.Select(fleet => fleet.FleetId)),
-            DefenderFleetIds = string.Join(",", orderedDefenders.Select(fleet => fleet.FleetId)),
+            AttackerFleetIds = BattleFleetParticipantCompatibility.FormatLegacyFleetIds(
+                orderedAttackers.Select(fleet => fleet.FleetId)),
+            DefenderFleetIds = BattleFleetParticipantCompatibility.FormatLegacyFleetIds(
+                orderedDefenders.Select(fleet => fleet.FleetId)),
             AttackerShipsBefore = attackerShipsBefore,
             DefenderShipsBefore = defenderShipsBefore,
             AttackerLosses = attackerLosses,
@@ -113,6 +115,20 @@ public static class CombatResolver
         }, GameStateJson.Options);
 
         state.BattleRecords.Add(battle);
+        state.BattleFleetParticipants.AddRange(orderedAttackers.Select(fleet => new BattleFleetParticipant
+        {
+            BattleId = battle.BattleId,
+            CycleId = battle.CycleId,
+            FleetId = fleet.FleetId,
+            Side = BattleFleetSide.Attacker
+        }));
+        state.BattleFleetParticipants.AddRange(orderedDefenders.Select(fleet => new BattleFleetParticipant
+        {
+            BattleId = battle.BattleId,
+            CycleId = battle.CycleId,
+            FleetId = fleet.FleetId,
+            Side = BattleFleetSide.Defender
+        }));
         return battle;
     }
 

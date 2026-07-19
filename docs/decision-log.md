@@ -1934,3 +1934,27 @@ Consequences:
 - A Player has no platform-wide concurrent-Game cap at launch. The project measures overcommitment before adding queue-specific limits.
 - No second durable Game may exist until player routes, online stores, Worker selection, authorisation, antiforgery, SQL constraints, and mandatory SQL evidence satisfy the approved hard gate.
 - The current single-Game runtime remains authoritative until bounded implementation issues deliver and verify those changes. `docs/project-state.md` must continue to describe the current runtime rather than this approved future design.
+
+## 2026-07-19: Enforce The Same-Scope Graph And Normalise Battle Membership
+
+Decision: make `Cycles.GameID`, `Cycles.CycleConfigurationID`, and `MatchParticipants.GameID` non-null after deterministic backfill, then enforce every currently representable same-Game or same-Cycle relationship with ordered composite keys and foreign keys. Add `BattleFleetParticipants` as the authoritative battle-membership relation while retaining the attacker and defender list columns as exact compatibility projections.
+
+Migration 023 may derive normalised battle rows only when a battle has none. If any rows already exist, their complete side-specific sets must exactly match the legacy projections. Compatibility parsing accepts trimmed canonical D-format GUIDs in CSV or JSON string arrays and rejects empty, malformed, duplicate, overlapping, missing, partial, or cross-Cycle membership. Historical battle side is not inferred from a fleet's mutable current faction.
+
+Status: implemented by migration 023, the v6 state-transfer contract, normalised combat and SQL persistence, the regenerated Development seed, and the exhaustive scope matrix. This remains a single-Game runtime prerequisite rather than a multi-game release.
+
+Reasoning:
+
+- A Cycle identifier alone cannot prevent a row from pointing at an entity owned by another Cycle when every table also uses independent GUID primary keys.
+- Composite relationships make the database, transfer boundary, and focused stores enforce the same isolation rule before a second Game can exist.
+- Structured battle membership is queryable and enforceable; opaque identifier lists are retained only to preserve the current API and historical transfer compatibility.
+- Silently filling a partial normalised set would hide interrupted or conflicting writes. Exact-set validation makes the migration restartable without turning uncertainty into durable facts.
+
+Consequences:
+
+- The database enforces 50 relationships across Game/configuration lineage, participation, empires, systems, fleets, orders, events, battles, Chronicle, history, diplomacy, construction, doctrine, metrics, rankings, admirals, and outposts. `TutorialRuns` remains deferred because its table is not implemented.
+- `MatchParticipant` now carries explicit Game scope and must refer to both the Cycle in that Game and the Player's enrolment in that Game.
+- State-transfer format v6 includes participant Game scope and normalised battle membership, validates the same relationship graph, and adapts v1-v5 input before strict validation.
+- Combat, cloning, continuity, rollback, provisioning, seeding, generic SQL saves, and focused tick persistence preserve the new relation. Deletion order clears supersession references and removes child membership before parent orders, battles, fleets, enrolments, or Games.
+- Migration deployment requires gameplay writes to be quiesced; the existing deployment workflow stops the API before applying migrations. Once a durable v6 write occurs, rollback is a forward-repair operation rather than an old-writer compatibility promise.
+- This completes MG-02's persistence contract but does not authorise a second durable Game. Focused Player/Game/Cycle stores, scoped routes, explicit Worker selection, resource authorisation, and antiforgery remain hard prerequisites.

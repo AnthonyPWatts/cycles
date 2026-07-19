@@ -218,8 +218,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         }
     }
 
-    private static GameState LoadUnsafe(SqlConnection connection, SqlTransaction transaction) =>
-        new()
+    private static GameState LoadUnsafe(SqlConnection connection, SqlTransaction transaction)
+    {
+        var state = new GameState
         {
             Players = ReadRows(connection, transaction, "SELECT * FROM dbo.Players", ReadPlayer),
             AdminRoleAuditRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.AdminRoleAuditRecords", ReadAdminRoleAuditRecord),
@@ -251,8 +252,13 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             TickLogs = ReadRows(connection, transaction, "SELECT * FROM dbo.TickLogs", ReadTickLog),
             Events = ReadRows(connection, transaction, "SELECT * FROM dbo.Events", ReadEvent),
             BattleRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.BattleRecords", ReadBattleRecord),
+            BattleFleetParticipants = ReadRows(connection, transaction, "SELECT * FROM dbo.BattleFleetParticipants", ReadBattleFleetParticipant),
             ChronicleEntries = ReadRows(connection, transaction, "SELECT * FROM dbo.ChronicleEntries", ReadChronicleEntry)
         };
+
+        BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
+        return state;
+    }
 
     private static GameState LoadFocusedTickStateUnsafe(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
         new()
@@ -427,7 +433,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                     || !state.CycleConfigurations.Any(configuration =>
                         configuration.CycleConfigurationId == cycle.CycleConfigurationId.Value))
                 || state.MatchParticipants.Any(participant =>
-                    !state.GameEnrolments.Any(enrolment =>
+                    participant.GameId == Guid.Empty
+                    || !state.GameEnrolments.Any(enrolment =>
                         enrolment.GameId == GameFoundationConstants.LegacyGameId
                         && enrolment.PlayerId == participant.PlayerId))
                 || state.GameLifecycleEvents.All(gameEvent =>
@@ -456,6 +463,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
         EnsureGameFoundations(state);
+        BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
+        BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
         DeleteRowsMissingFromState(connection, transaction, state);
 
         foreach (var item in state.Players)
@@ -558,10 +567,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertFleet(connection, transaction, item);
         }
 
-        foreach (var item in state.FleetOrders)
-        {
-            UpsertFleetOrder(connection, transaction, item);
-        }
+        UpsertFleetOrders(connection, transaction, state.FleetOrders);
 
         foreach (var item in state.ShipConstructions)
         {
@@ -581,6 +587,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.BattleRecords)
         {
             UpsertBattleRecord(connection, transaction, item);
+        }
+
+        foreach (var item in state.BattleFleetParticipants)
+        {
+            UpsertBattleFleetParticipant(connection, transaction, item);
         }
 
         foreach (var item in state.AdmiralBattleHistories)
@@ -617,6 +628,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
     private static void SaveTickOutcomeUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state, Guid cycleId)
     {
+        BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
+        BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
         var empireIds = state.Empires
             .Where(empire => empire.CycleId == cycleId)
             .Select(empire => empire.EmpireId)
@@ -652,10 +665,10 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertFleet(connection, transaction, item);
         }
 
-        foreach (var item in state.FleetOrders.Where(order => order.CycleId == cycleId))
-        {
-            UpsertFleetOrder(connection, transaction, item);
-        }
+        UpsertFleetOrders(
+            connection,
+            transaction,
+            state.FleetOrders.Where(order => order.CycleId == cycleId));
 
         foreach (var item in state.ColonialOutposts.Where(outpost => outpost.CycleId == cycleId))
         {
@@ -690,6 +703,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         foreach (var item in state.BattleRecords.Where(item => item.CycleId == cycleId))
         {
             UpsertBattleRecord(connection, transaction, item);
+        }
+
+        foreach (var item in state.BattleFleetParticipants.Where(item => item.CycleId == cycleId))
+        {
+            UpsertBattleFleetParticipant(connection, transaction, item);
         }
 
         foreach (var item in state.AdmiralBattleHistories.Where(item => item.CycleId == cycleId))
@@ -890,6 +908,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static MatchParticipant ReadMatchParticipant(SqlDataReader reader) => new()
     {
         MatchParticipantId = GetGuid(reader, "MatchParticipantID"),
+        GameId = GetGuid(reader, "GameID"),
         CycleId = GetGuid(reader, "CycleID"),
         PlayerId = GetGuid(reader, "PlayerID"),
         EmpireId = GetGuid(reader, "EmpireID"),
@@ -1157,6 +1176,14 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         Outcome = GetEnum<BattleOutcome>(reader, "Outcome"),
         FactJson = GetString(reader, "FactJson"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static BattleFleetParticipant ReadBattleFleetParticipant(SqlDataReader reader) => new()
+    {
+        BattleId = GetGuid(reader, "BattleID"),
+        CycleId = GetGuid(reader, "CycleID"),
+        FleetId = GetGuid(reader, "FleetID"),
+        Side = GetEnum<BattleFleetSide>(reader, "Side")
     };
 
     private static ChronicleEntry ReadChronicleEntry(SqlDataReader reader) => new()
@@ -1697,7 +1724,8 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     private static void UpsertMatchParticipant(SqlConnection connection, SqlTransaction transaction, MatchParticipant item) =>
         Execute(connection, transaction, """
             UPDATE dbo.MatchParticipants
-            SET CycleID = @CycleID,
+            SET GameID = @GameID,
+                CycleID = @CycleID,
                 PlayerID = @PlayerID,
                 EmpireID = @EmpireID,
                 Status = @Status,
@@ -1707,12 +1735,13 @@ public sealed class SqlServerGameStateStore : IGameStateStore
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.MatchParticipants(MatchParticipantID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt)
-            VALUES (@MatchParticipantID, @CycleID, @PlayerID, @EmpireID, @Status, @JoinedAt, @EndedAt);
+            INSERT INTO dbo.MatchParticipants(MatchParticipantID, GameID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt)
+            VALUES (@MatchParticipantID, @GameID, @CycleID, @PlayerID, @EmpireID, @Status, @JoinedAt, @EndedAt);
             END;
             """, command =>
         {
             AddGuid(command, "@MatchParticipantID", item.MatchParticipantId);
+            AddGuid(command, "@GameID", item.GameId);
             AddGuid(command, "@CycleID", item.CycleId);
             AddGuid(command, "@PlayerID", item.PlayerId);
             AddGuid(command, "@EmpireID", item.EmpireId);
@@ -1969,7 +1998,36 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void UpsertFleetOrder(SqlConnection connection, SqlTransaction transaction, FleetOrder item) =>
+    private static void UpsertFleetOrders(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<FleetOrder> items)
+    {
+        var orders = items.ToArray();
+        foreach (var item in orders)
+        {
+            UpsertFleetOrder(connection, transaction, item, supersededByOrderId: null);
+        }
+
+        foreach (var item in orders.Where(item => item.SupersededByOrderId.HasValue))
+        {
+            Execute(
+                connection,
+                transaction,
+                "UPDATE dbo.FleetOrders SET SupersededByOrderID = @SupersededByOrderID WHERE FleetOrderID = @FleetOrderID;",
+                command =>
+                {
+                    AddGuid(command, "@FleetOrderID", item.FleetOrderId);
+                    AddGuid(command, "@SupersededByOrderID", item.SupersededByOrderId!.Value);
+                });
+        }
+    }
+
+    private static void UpsertFleetOrder(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        FleetOrder item,
+        Guid? supersededByOrderId) =>
         Execute(connection, transaction, """
             UPDATE dbo.FleetOrders
             SET CycleID = @CycleID,
@@ -2012,7 +2070,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddNullableInt(command, "@SealedTick", item.SealedTick);
             AddNullableDateTimeOffset(command, "@SealedAt", item.SealedAt);
             AddNullableString(command, "@RejectionReason", item.RejectionReason, 512);
-            AddNullableGuid(command, "@SupersededByOrderID", item.SupersededByOrderId);
+            AddNullableGuid(command, "@SupersededByOrderID", supersededByOrderId);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
@@ -2158,6 +2216,30 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddString(command, "@Outcome", item.Outcome.ToString(), 64);
             AddMaxString(command, "@FactJson", item.FactJson);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
+    private static void UpsertBattleFleetParticipant(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        BattleFleetParticipant item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.BattleFleetParticipants
+            SET CycleID = @CycleID,
+                Side = @Side
+            WHERE BattleID = @BattleID
+                AND FleetID = @FleetID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+            INSERT INTO dbo.BattleFleetParticipants(BattleID, CycleID, FleetID, Side)
+            VALUES (@BattleID, @CycleID, @FleetID, @Side);
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@BattleID", item.BattleId);
+            AddGuid(command, "@CycleID", item.CycleId);
+            AddGuid(command, "@FleetID", item.FleetId);
+            AddString(command, "@Side", item.Side.ToString(), 16);
         });
 
     private static void UpsertAdmiralBattleHistory(SqlConnection connection, SqlTransaction transaction, AdmiralBattleHistory item) =>
@@ -2423,12 +2505,14 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         GameState state,
         bool deleteGameLifecycleEvents = false)
     {
+        DeleteMissingBattleFleetParticipants(connection, transaction, state.BattleFleetParticipants);
         DeleteMissingRows(connection, transaction, "dbo.AdminRoleAuditRecords", "AdminRoleAuditRecordID", state.AdminRoleAuditRecords.Select(item => item.AdminRoleAuditRecordId));
         if (deleteGameLifecycleEvents)
         {
             DeleteMissingRows(connection, transaction, "dbo.GameLifecycleEvents", "GameLifecycleEventID", state.GameLifecycleEvents.Select(item => item.GameLifecycleEventId));
         }
 
+        DeleteMissingRows(connection, transaction, "dbo.MatchParticipants", "MatchParticipantID", state.MatchParticipants.Select(item => item.MatchParticipantId));
         DeleteMissingRows(connection, transaction, "dbo.GameEnrolments", "GameEnrolmentID", state.GameEnrolments.Select(item => item.GameEnrolmentId));
         DeleteMissingRows(connection, transaction, "dbo.AdmiralBattleHistories", "AdmiralBattleHistoryID", state.AdmiralBattleHistories.Select(item => item.AdmiralBattleHistoryId));
         DeleteMissingRows(connection, transaction, "dbo.DiplomaticRelationships", "DiplomaticRelationshipID", state.DiplomaticRelationships.Select(item => item.DiplomaticRelationshipId));
@@ -2441,6 +2525,7 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.Events", "EventID", state.Events.Select(item => item.EventId));
         DeleteMissingRows(connection, transaction, "dbo.TickLogs", "TickLogID", state.TickLogs.Select(item => item.TickLogId));
         DeleteMissingRows(connection, transaction, "dbo.ShipConstructions", "ShipConstructionID", state.ShipConstructions.Select(item => item.ShipConstructionId));
+        ClearReferencesToMissingFleetOrders(connection, transaction, state.FleetOrders.Select(item => item.FleetOrderId));
         DeleteMissingRows(connection, transaction, "dbo.FleetOrders", "FleetOrderID", state.FleetOrders.Select(item => item.FleetOrderId));
         DeleteMissingRows(connection, transaction, "dbo.Fleets", "FleetID", state.Fleets.Select(item => item.FleetId));
         DeleteMissingRows(connection, transaction, "dbo.Admirals", "AdmiralID", state.Admirals.Select(item => item.AdmiralId));
@@ -2449,7 +2534,6 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.CycleRankings", "CycleRankingID", state.CycleRankings.Select(item => item.CycleRankingId));
         DeleteMissingRows(connection, transaction, "dbo.EmpirePriorities", "EmpirePriorityID", state.EmpirePriorities.Select(item => item.EmpirePriorityId));
         DeleteMissingRows(connection, transaction, "dbo.EmpireResources", "EmpireResourceID", state.EmpireResources.Select(item => item.EmpireResourceId));
-        DeleteMissingRows(connection, transaction, "dbo.MatchParticipants", "MatchParticipantID", state.MatchParticipants.Select(item => item.MatchParticipantId));
         DeleteMissingRows(connection, transaction, "dbo.Factions", "FactionID", state.Factions.Select(item => item.FactionId));
         DeleteMissingRows(connection, transaction, "dbo.Empires", "EmpireID", state.Empires.Select(item => item.EmpireId));
         DeleteMissingRows(connection, transaction, "dbo.Systems", "SystemID", state.Systems.Select(item => item.SystemId));
@@ -2466,6 +2550,41 @@ public sealed class SqlServerGameStateStore : IGameStateStore
     {
         Visiting,
         Visited
+    }
+
+    private static void DeleteMissingBattleFleetParticipants(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<BattleFleetParticipant> retainedParticipants)
+    {
+        var retainedKeys = retainedParticipants
+            .Select(item => (item.BattleId, item.FleetId))
+            .ToHashSet();
+        var existingKeys = new List<(Guid BattleId, Guid FleetId)>();
+        using (var command = CreateCommand(
+                   connection,
+                   transaction,
+                   "SELECT BattleID, FleetID FROM dbo.BattleFleetParticipants;"))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                existingKeys.Add((reader.GetGuid(0), reader.GetGuid(1)));
+            }
+        }
+
+        foreach (var key in existingKeys.Where(key => !retainedKeys.Contains(key)))
+        {
+            Execute(
+                connection,
+                transaction,
+                "DELETE FROM dbo.BattleFleetParticipants WHERE BattleID = @BattleID AND FleetID = @FleetID;",
+                command =>
+                {
+                    AddGuid(command, "@BattleID", key.BattleId);
+                    AddGuid(command, "@FleetID", key.FleetId);
+                });
+        }
     }
 
     private static void ClearReferencesToMissingSectors(
@@ -2486,6 +2605,27 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 transaction,
                 "UPDATE dbo.Systems SET SectorID = NULL WHERE SectorID = @SectorID;",
                 command => AddGuid(command, "@SectorID", existingId));
+        }
+    }
+
+    private static void ClearReferencesToMissingFleetOrders(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<Guid> retainedFleetOrderIds)
+    {
+        var retainedIdSet = retainedFleetOrderIds.ToHashSet();
+        foreach (var existingId in ReadIds(connection, transaction, "dbo.FleetOrders", "FleetOrderID"))
+        {
+            if (retainedIdSet.Contains(existingId))
+            {
+                continue;
+            }
+
+            Execute(
+                connection,
+                transaction,
+                "UPDATE dbo.FleetOrders SET SupersededByOrderID = NULL WHERE SupersededByOrderID = @FleetOrderID;",
+                command => AddGuid(command, "@FleetOrderID", existingId));
         }
     }
 

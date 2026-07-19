@@ -51,8 +51,8 @@ public static class SqlServerDevelopmentSeedScript
             $"({Sql(item.EmpireId)}, {Sql(item.CycleId)}, {Sql(item.PlayerId)}, {Sql(item.EmpireName)}, {Sql(item.HomeSystemId)}, {SqlSeedTime(item.CreatedAt)}, {Sql(item.Status)})");
         AppendInsert(script, "dbo.Factions", "FactionID, CycleID, EmpireID, FactionName, Kind, Status, CreatedAt", state.Factions.OrderBy(item => item.FactionName), item =>
             $"({Sql(item.FactionId)}, {Sql(item.CycleId)}, {Sql(item.EmpireId)}, {Sql(item.FactionName)}, {Sql(item.Kind)}, {Sql(item.Status)}, {SqlSeedTime(item.CreatedAt)})");
-        AppendInsert(script, "dbo.MatchParticipants", "MatchParticipantID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt", state.MatchParticipants.OrderBy(item => item.PlayerId), item =>
-            $"({Sql(item.MatchParticipantId)}, {Sql(item.CycleId)}, {Sql(item.PlayerId)}, {Sql(item.EmpireId)}, {Sql(item.Status)}, {SqlSeedTime(item.JoinedAt)}, {SqlSeedTime(item.EndedAt)})");
+        AppendInsert(script, "dbo.MatchParticipants", "MatchParticipantID, GameID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt", state.MatchParticipants.OrderBy(item => item.PlayerId), item =>
+            $"({Sql(item.MatchParticipantId)}, {Sql(item.GameId)}, {Sql(item.CycleId)}, {Sql(item.PlayerId)}, {Sql(item.EmpireId)}, {Sql(item.Status)}, {SqlSeedTime(item.JoinedAt)}, {SqlSeedTime(item.EndedAt)})");
         AppendInsert(script, "dbo.EmpireResources", "EmpireResourceID, EmpireID, Industry, Research, Population, LastGeneratedIndustry, LastGeneratedResearch, LastGeneratedPopulation, LastSpentIndustry, LastSpentResearch, LastSpentPopulation, UpdatedAt", state.EmpireResources, item =>
             $"({Sql(item.EmpireResourceId)}, {Sql(item.EmpireId)}, {Sql(item.Industry)}, {Sql(item.Research)}, {Sql(item.Population)}, {Sql(item.LastGeneratedIndustry)}, {Sql(item.LastGeneratedResearch)}, {Sql(item.LastGeneratedPopulation)}, {Sql(item.LastSpentIndustry)}, {Sql(item.LastSpentResearch)}, {Sql(item.LastSpentPopulation)}, {SqlSeedTime(item.UpdatedAt)})");
         AppendInsert(script, "dbo.EmpirePriorities", "EmpirePriorityID, EmpireID, IndustryWeight, ResearchWeight, MilitaryWeight, ExpansionWeight, UpdatedAt", state.EmpirePriorities, item =>
@@ -86,6 +86,10 @@ public static class SqlServerDevelopmentSeedScript
             || state.CycleConfigurations.Count != state.Cycles.Count
             || state.GameLifecycleEvents.Count != 1
             || state.Cycles.Any(cycle => cycle.GameId is null || cycle.CycleConfigurationId is null)
+            || state.MatchParticipants.Any(participant =>
+                participant.GameId == Guid.Empty
+                || state.Cycles.All(cycle =>
+                    cycle.CycleId != participant.CycleId || cycle.GameId != participant.GameId))
             || state.GameEnrolments.Count != state.MatchParticipants.Select(item => item.PlayerId).Distinct().Count())
         {
             throw new InvalidOperationException("The curated cold start must contain one complete legacy Game foundation.");
@@ -102,6 +106,7 @@ public static class SqlServerDevelopmentSeedScript
                                  + state.ShipConstructions.Count
                                  + state.TickLogs.Count
                                  + state.BattleRecords.Count
+                                 + state.BattleFleetParticipants.Count
                                  + state.ChronicleEntries.Count;
         if (unsupportedRecords != 0)
         {

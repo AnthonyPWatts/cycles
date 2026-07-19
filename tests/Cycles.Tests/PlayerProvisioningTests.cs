@@ -8,6 +8,7 @@ public sealed class PlayerProvisioningTests
     public void New_players_receive_distinct_personal_admiral_names()
     {
         var state = TestState.CreateSingleEmpireState();
+        LegacyGameFoundation.Apply(state);
         var cycle = state.GetActiveCycle()!;
         var firstPlayer = AddPlayer(state, "player-1");
         var secondPlayer = AddPlayer(state, "player-2");
@@ -26,6 +27,7 @@ public sealed class PlayerProvisioningTests
     public void Legacy_username_based_admiral_name_is_replaced_once()
     {
         var state = TestState.CreateSingleEmpireState();
+        LegacyGameFoundation.Apply(state);
         var cycle = state.GetActiveCycle()!;
         var player = AddPlayer(state, "player-1");
         var empire = PlayerProvisioning.AddEmpireForPlayer(state, cycle, player, null, TestState.Now);

@@ -23,7 +23,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
 
-        var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
+        var applied = new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
 
         var migration = Assert.Single(applied);
         Assert.Equal("022_add_game_foundations", migration.MigrationId);
@@ -75,7 +75,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var cycleId = InsertCanonicalFactState(database.ConnectionString);
 
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
 
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
@@ -115,7 +115,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
                 """, ("@CycleID", cycleId));
         }
 
-        var error = Assert.Throws<SqlException>(() => new SqlServerMigrator(database.ConnectionString).Migrate());
+        var error = Assert.Throws<SqlException>(() => new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations"));
 
         Assert.Equal(51024, error.Number);
         Assert.Contains(cycleId.ToString(), error.Message, StringComparison.OrdinalIgnoreCase);
@@ -150,7 +150,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
             }
         }
 
-        var error = Assert.Throws<SqlException>(() => new SqlServerMigrator(database.ConnectionString).Migrate());
+        var error = Assert.Throws<SqlException>(() => new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations"));
 
         Assert.Equal(expectedError, error.Number);
         Assert.Contains(expectedMessage, error.Message, StringComparison.OrdinalIgnoreCase);
@@ -172,7 +172,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
         var migrator = new SqlServerMigrator(database.ConnectionString);
-        migrator.Migrate();
+        migrator.MigrateThrough("022_add_game_foundations");
         byte[] firstRowVersion;
         using (var connection = new SqlConnection(database.ConnectionString))
         {
@@ -183,7 +183,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
                 "DELETE FROM dbo.SchemaMigrations WHERE MigrationID = N'022_add_game_foundations';");
         }
 
-        var reapplied = migrator.Migrate();
+        var reapplied = migrator.MigrateThrough("022_add_game_foundations");
 
         Assert.Equal("022_add_game_foundations", Assert.Single(reapplied).MigrationId);
         using (var connection = new SqlConnection(database.ConnectionString))
@@ -215,7 +215,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
                 """);
         }
 
-        var resumed = migrator.Migrate();
+        var resumed = migrator.MigrateThrough("022_add_game_foundations");
 
         Assert.Equal("022_add_game_foundations", Assert.Single(resumed).MigrationId);
         using var verification = new SqlConnection(database.ConnectionString);
@@ -241,7 +241,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         var secondGameId = Guid.NewGuid();
@@ -303,7 +303,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         }
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         var gameId = Guid.NewGuid();
@@ -361,7 +361,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         }
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
 
@@ -404,7 +404,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
 
@@ -434,7 +434,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Execute(connection, """
@@ -486,7 +486,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
             InsertCycle(connection, cycleId, "RecoveryRequired", 0);
         }
 
-        new SqlServerMigrator(database.ConnectionString).Migrate();
+        new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
 
         using var verification = new SqlConnection(database.ConnectionString);
         verification.Open();
@@ -515,7 +515,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
         var legacy = InsertLegacyLineage(database.ConnectionString);
         var migrator = new SqlServerMigrator(database.ConnectionString);
-        migrator.Migrate();
+        migrator.MigrateThrough("022_add_game_foundations");
         using (var connection = new SqlConnection(database.ConnectionString))
         {
             connection.Open();
@@ -549,7 +549,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
                 "DELETE FROM dbo.SchemaMigrations WHERE MigrationID = N'022_add_game_foundations';");
         }
 
-        var error = Assert.Throws<SqlException>(() => migrator.Migrate());
+        var error = Assert.Throws<SqlException>(() => migrator.MigrateThrough("022_add_game_foundations"));
 
         Assert.Equal(expectedError, error.Number);
         using var verification = new SqlConnection(database.ConnectionString);
@@ -569,7 +569,7 @@ public sealed class SqlServerGameFoundationMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "021_add_empire_doctrine_unlocks");
 
-        var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
+        var applied = new SqlServerMigrator(database.ConnectionString).MigrateThrough("022_add_game_foundations");
 
         Assert.Equal("022_add_game_foundations", Assert.Single(applied).MigrationId);
         using var connection = new SqlConnection(database.ConnectionString);

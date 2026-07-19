@@ -98,6 +98,11 @@ public static class LegacyGameFoundation
             }
         }
 
+        foreach (var participant in state.MatchParticipants)
+        {
+            participant.GameId = GameFoundationConstants.LegacyGameId;
+        }
+
         foreach (var derivedEnrolment in CreateEnrolments(
                      state,
                      operationalCycles.SingleOrDefault()?.CycleId,
@@ -308,6 +313,8 @@ public static class LegacyGameFoundation
                 configuration.GameId != GameFoundationConstants.LegacyGameId)
             || state.GameEnrolments.Any(enrolment =>
                 enrolment.GameId != GameFoundationConstants.LegacyGameId)
+            || state.MatchParticipants.Any(participant =>
+                participant.GameId != GameFoundationConstants.LegacyGameId)
             || state.GameLifecycleEvents.Any(gameEvent =>
                 gameEvent.GameId != GameFoundationConstants.LegacyGameId))
         {
@@ -354,6 +361,9 @@ public static class LegacyGameFoundation
                 enrolment.GameId != GameFoundationConstants.LegacyGameId
                 || (enrolment.Origin == GameEnrolmentOrigin.LegacyImport
                     && enrolment.GameEnrolmentId != enrolment.PlayerId))
+            || state.MatchParticipants.Any(participant =>
+                participant.GameId != Guid.Empty
+                && participant.GameId != GameFoundationConstants.LegacyGameId)
             || state.GameLifecycleEvents.Any(gameEvent => gameEvent.GameId != GameFoundationConstants.LegacyGameId))
         {
             throw new InvalidOperationException(

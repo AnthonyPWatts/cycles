@@ -39,6 +39,7 @@ public static class GameStateRecordCounter
                + state.TickLogs.Count(item => item.CycleId == cycleId)
                + state.Events.Count(item => item.CycleId == cycleId)
                + state.BattleRecords.Count(item => item.CycleId == cycleId)
+               + state.BattleFleetParticipants.Count(item => item.CycleId == cycleId)
                + state.ChronicleEntries.Count(item => item.CycleId == cycleId);
     }
 }

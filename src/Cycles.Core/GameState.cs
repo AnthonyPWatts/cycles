@@ -36,6 +36,7 @@ public sealed class GameState
     public List<TickLog> TickLogs { get; set; } = [];
     public List<EventRecord> Events { get; set; } = [];
     public List<BattleRecord> BattleRecords { get; set; } = [];
+    public List<BattleFleetParticipant> BattleFleetParticipants { get; set; } = [];
     public List<ChronicleEntry> ChronicleEntries { get; set; } = [];
 
     public Cycle? GetActiveCycle()
@@ -89,6 +90,7 @@ public sealed class GameState
             TickLogs = TickLogs.Select(Clone).ToList(),
             Events = Events.Select(Clone).ToList(),
             BattleRecords = BattleRecords.Select(Clone).ToList(),
+            BattleFleetParticipants = BattleFleetParticipants.Select(Clone).ToList(),
             ChronicleEntries = ChronicleEntries.Select(Clone).ToList()
         };
 
@@ -145,6 +147,7 @@ public sealed class GameState
             TickLogs = TickLogs,
             Events = Events,
             BattleRecords = BattleRecords,
+            BattleFleetParticipants = BattleFleetParticipants,
             ChronicleEntries = ChronicleEntries
         };
     }
@@ -181,6 +184,7 @@ public sealed class GameState
         TickLogs = other.TickLogs;
         Events = other.Events;
         BattleRecords = other.BattleRecords;
+        BattleFleetParticipants = other.BattleFleetParticipants;
         ChronicleEntries = other.ChronicleEntries;
     }
 
@@ -345,6 +349,7 @@ public sealed class GameState
     private static MatchParticipant Clone(MatchParticipant item) => new()
     {
         MatchParticipantId = item.MatchParticipantId,
+        GameId = item.GameId,
         CycleId = item.CycleId,
         PlayerId = item.PlayerId,
         EmpireId = item.EmpireId,
@@ -640,6 +645,14 @@ public sealed class GameState
         CreatedAt = item.CreatedAt
     };
 
+    private static BattleFleetParticipant Clone(BattleFleetParticipant item) => new()
+    {
+        BattleId = item.BattleId,
+        CycleId = item.CycleId,
+        FleetId = item.FleetId,
+        Side = item.Side
+    };
+
     private static ChronicleEntry Clone(ChronicleEntry item) => new()
     {
         ChronicleEntryId = item.ChronicleEntryId,
@@ -741,6 +754,7 @@ public sealed class Faction
 public sealed class MatchParticipant
 {
     public Guid MatchParticipantId { get; set; } = Guid.NewGuid();
+    public Guid GameId { get; set; }
     public Guid CycleId { get; set; }
     public Guid PlayerId { get; set; }
     public Guid EmpireId { get; set; }
@@ -1040,6 +1054,14 @@ public sealed class BattleRecord
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class BattleFleetParticipant
+{
+    public Guid BattleId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid FleetId { get; set; }
+    public BattleFleetSide Side { get; set; }
+}
+
 public sealed class ChronicleEntry
 {
     public Guid ChronicleEntryId { get; set; } = Guid.NewGuid();
@@ -1242,6 +1264,12 @@ public enum BattleOutcome
     AttackerVictory,
     DefenderVictory,
     MutualDestruction
+}
+
+public enum BattleFleetSide
+{
+    Attacker,
+    Defender
 }
 
 public enum ChronicleEntryType

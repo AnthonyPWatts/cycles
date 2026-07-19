@@ -10,6 +10,7 @@ public sealed class ExternalAuthenticationTests
     public void Invited_identity_is_provisioned_by_stable_issuer_and_subject()
     {
         var state = TestState.CreateSingleEmpireState();
+        LegacyGameFoundation.Apply(state);
         var options = Options(invited: "https://identity.example|subject-2");
 
         var player = ExternalIdentityAdmission.SignIn(
@@ -51,6 +52,7 @@ public sealed class ExternalAuthenticationTests
     public void Explicit_bootstrap_identity_receives_audited_admin_role_once()
     {
         var state = TestState.CreateSingleEmpireState();
+        LegacyGameFoundation.Apply(state);
         var options = Options(bootstrap: "https://identity.example|admin-subject");
 
         var first = ExternalIdentityAdmission.SignIn(

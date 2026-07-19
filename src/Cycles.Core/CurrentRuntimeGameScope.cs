@@ -14,6 +14,8 @@ public static class CurrentRuntimeGameScope
                 configuration.GameId == GameFoundationConstants.LegacyGameId)
             && state.GameEnrolments.All(enrolment =>
                 enrolment.GameId == GameFoundationConstants.LegacyGameId)
+            && state.MatchParticipants.All(participant =>
+                participant.GameId == GameFoundationConstants.LegacyGameId)
             && state.GameLifecycleEvents.All(gameEvent =>
                 gameEvent.GameId == GameFoundationConstants.LegacyGameId);
 
@@ -23,7 +25,7 @@ public static class CurrentRuntimeGameScope
         }
 
         throw new InvalidOperationException(
-            "State transfer v5 can represent multiple Games, but this runtime can currently import only "
+            "State transfer v6 can represent multiple Games, but this runtime can currently import only "
             + $"the deterministic legacy Game {GameFoundationConstants.LegacyGameId}. "
             + "Game-scoped API, Worker, store, and player-selection paths must be implemented before "
             + "importing an additional or non-legacy Game.");

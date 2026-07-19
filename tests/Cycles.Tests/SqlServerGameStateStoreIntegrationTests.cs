@@ -166,6 +166,179 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_round_trips_normalised_battle_fleet_membership()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var retained = CreateStateWithRetainedBattle();
+        var store = new SqlServerGameStateStore(connectionString);
+
+        store.Replace(retained.State);
+        var loaded = store.LoadOrCreate();
+
+        Assert.Equal(
+            retained.State.BattleFleetParticipants
+                .Select(item => (item.BattleId, item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.Side),
+            loaded.BattleFleetParticipants
+                .Where(item => item.BattleId == retained.Battle.BattleId)
+                .Select(item => (item.BattleId, item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.Side));
+        var battle = Assert.Single(loaded.BattleRecords, item => item.BattleId == retained.Battle.BattleId);
+        Assert.Equal(retained.AttackerFleet.FleetId.ToString("D"), battle.AttackerFleetIds);
+        Assert.Equal(retained.DefenderFleet.FleetId.ToString("D"), battle.DefenderFleetIds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Store_rejects_incomplete_normalised_battle_membership_on_load(bool removeBothSides)
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var retained = CreateStateWithRetainedBattle();
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(retained.State);
+        using (var connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = removeBothSides
+                ? "DELETE FROM dbo.BattleFleetParticipants WHERE BattleID = @BattleID;"
+                : "DELETE FROM dbo.BattleFleetParticipants WHERE BattleID = @BattleID AND Side = N'Defender';";
+            command.Parameters.AddWithValue("@BattleID", retained.Battle.BattleId);
+            Assert.Equal(removeBothSides ? 2 : 1, command.ExecuteNonQuery());
+        }
+
+        try
+        {
+            var error = Assert.Throws<InvalidOperationException>(() => store.LoadOrCreate());
+            Assert.Contains("at least one fleet on each side", error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            store.Replace(retained.State);
+        }
+    }
+
+    [Fact]
+    public void Store_replace_deletes_a_battle_its_membership_and_a_former_participant_fleet()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var retained = CreateStateWithRetainedBattle();
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(retained.State);
+        retained.State.BattleFleetParticipants.Clear();
+        retained.State.BattleRecords.Clear();
+        retained.State.FleetOrders.RemoveAll(item => item.FleetId == retained.AttackerFleet.FleetId);
+        retained.State.AdmiralBattleHistories.RemoveAll(item => item.FleetId == retained.AttackerFleet.FleetId);
+        retained.State.Fleets.Remove(retained.AttackerFleet);
+
+        store.Replace(retained.State);
+
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                (SELECT COUNT(*) FROM dbo.BattleRecords WHERE BattleID = @BattleID),
+                (SELECT COUNT(*) FROM dbo.BattleFleetParticipants WHERE BattleID = @BattleID),
+                (SELECT COUNT(*) FROM dbo.Fleets WHERE FleetID = @FleetID);
+            """;
+        command.Parameters.AddWithValue("@BattleID", retained.Battle.BattleId);
+        command.Parameters.AddWithValue("@FleetID", retained.AttackerFleet.FleetId);
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(0, reader.GetInt32(0));
+        Assert.Equal(0, reader.GetInt32(1));
+        Assert.Equal(0, reader.GetInt32(2));
+    }
+
+    [Fact]
+    public void Store_focused_tick_persists_target_battle_membership_without_touching_another_cycle()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var target = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 55, strategicValue: 35);
+        var targetCycle = target.GetActiveCycle()!;
+        var targetAttacker = target.Empires.Single(item => item.EmpireName == "First");
+        var targetDefender = target.Empires.Single(item => item.EmpireName == "Second");
+        targetDefender.HomeSystemId = target.Systems.Single().SystemId;
+        var targetFleet = target.Fleets.Single(item => item.EmpireId == targetAttacker.EmpireId);
+        OrderService.SubmitAttackOrder(target, targetFleet.FleetId, targetDefender.EmpireId, TestState.Now);
+        var unrelated = CreateStateWithRetainedBattle();
+        var unrelatedMembership = unrelated.State.BattleFleetParticipants
+            .Select(item => (item.BattleId, item.CycleId, item.FleetId, item.Side))
+            .OrderBy(item => item.Side)
+            .ToArray();
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(CombineStates(target, unrelated.State));
+
+        var result = store.RunTick(targetCycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var loaded = store.LoadOrCreate();
+        var targetBattle = Assert.Single(loaded.BattleRecords, item => item.CycleId == targetCycle.CycleId);
+        Assert.Equal(2, loaded.BattleFleetParticipants.Count(item => item.BattleId == targetBattle.BattleId));
+        Assert.Equal(
+            unrelatedMembership,
+            loaded.BattleFleetParticipants
+                .Where(item => item.CycleId == unrelated.Cycle.CycleId)
+                .Select(item => (item.BattleId, item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.Side));
+    }
+
+    [Fact]
+    public void Store_replace_can_delete_a_superseding_order_after_clearing_its_reference()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = TestState.CreateMovementState(linkSystems: true);
+        var fleet = state.Fleets.Single();
+        var destination = state.Systems.Single(item => item.SystemName == "Destination");
+        var original = OrderService.SubmitHoldOrder(state, fleet.FleetId, TestState.Now);
+        var replacement = OrderService.SubmitMoveOrder(
+            state,
+            fleet.FleetId,
+            destination.SystemId,
+            TestState.Now.AddSeconds(1),
+            original.FleetOrderId);
+        state.FleetOrders.Remove(replacement);
+        state.FleetOrders.Insert(0, replacement);
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(state);
+        state.FleetOrders.Remove(replacement);
+        original.SupersededByOrderId = null;
+
+        store.Replace(state);
+
+        var loaded = store.LoadOrCreate();
+        Assert.DoesNotContain(loaded.FleetOrders, item => item.FleetOrderId == replacement.FleetOrderId);
+        Assert.Null(Assert.Single(loaded.FleetOrders, item => item.FleetOrderId == original.FleetOrderId).SupersededByOrderId);
+    }
+
+    [Fact]
     public void Store_round_trips_legacy_systems_without_sector_membership_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -803,6 +976,18 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         var fleet = state.Fleets.Single();
         var system = state.Systems.Single();
         cycle.CurrentTickNumber = 1;
+        var defenderFleet = new Fleet
+        {
+            CycleId = cycle.CycleId,
+            EmpireId = empire.EmpireId,
+            FactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
+            FleetName = "Historical defender",
+            CurrentSystemId = system.SystemId,
+            ShipCount = 1,
+            Status = FleetStatus.Active,
+            CreatedAt = TestState.Now
+        };
+        state.Fleets.Add(defenderFleet);
 
         var historicalEvent = new EventRecord
         {
@@ -827,7 +1012,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             AttackerFactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             DefenderFactionId = state.GetEmpireFaction(empire.EmpireId).FactionId,
             AttackerFleetIds = fleet.FleetId.ToString(),
-            DefenderFleetIds = fleet.FleetId.ToString(),
+            DefenderFleetIds = defenderFleet.FleetId.ToString(),
             AttackerShipsBefore = 1,
             DefenderShipsBefore = 1,
             Outcome = BattleOutcome.MutualDestruction,
@@ -1475,6 +1660,54 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Contains(updated.Events, item => item.CycleId == successor.CycleId && item.EventType == EventType.CycleSeeded);
     }
 
+    private static RetainedBattleState CreateStateWithRetainedBattle()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 20, defenderShips: 15, strategicValue: 20);
+        var cycle = state.GetActiveCycle()!;
+        var firstEmpire = state.Empires.Single(item => item.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(item => item.EmpireName == "Second");
+        var attackerFleet = state.Fleets.Single(item => item.EmpireId == firstEmpire.EmpireId);
+        var defenderFleet = state.Fleets.Single(item => item.EmpireId == secondEmpire.EmpireId);
+        var system = state.Systems.Single();
+        secondEmpire.HomeSystemId = system.SystemId;
+        var battle = new BattleRecord
+        {
+            CycleId = cycle.CycleId,
+            TickNumber = 0,
+            SystemId = system.SystemId,
+            AttackerEmpireId = firstEmpire.EmpireId,
+            DefenderEmpireId = secondEmpire.EmpireId,
+            AttackerFactionId = attackerFleet.FactionId,
+            DefenderFactionId = defenderFleet.FactionId,
+            AttackerFleetIds = attackerFleet.FleetId.ToString("D"),
+            DefenderFleetIds = defenderFleet.FleetId.ToString("D"),
+            AttackerShipsBefore = attackerFleet.ShipCount,
+            DefenderShipsBefore = defenderFleet.ShipCount,
+            Outcome = BattleOutcome.AttackerVictory,
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        };
+        state.BattleRecords.Add(battle);
+        state.BattleFleetParticipants.AddRange(
+        [
+            new BattleFleetParticipant
+            {
+                BattleId = battle.BattleId,
+                CycleId = cycle.CycleId,
+                FleetId = attackerFleet.FleetId,
+                Side = BattleFleetSide.Attacker
+            },
+            new BattleFleetParticipant
+            {
+                BattleId = battle.BattleId,
+                CycleId = cycle.CycleId,
+                FleetId = defenderFleet.FleetId,
+                Side = BattleFleetSide.Defender
+            }
+        ]);
+        return new RetainedBattleState(state, cycle, battle, attackerFleet, defenderFleet);
+    }
+
     private static GameState CombineStates(params GameState[] states)
     {
         for (var index = 0; index < states.Length; index++)
@@ -1502,6 +1735,11 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             foreach (var enrolment in states[index].GameEnrolments)
             {
                 enrolment.GameId = gameId;
+            }
+
+            foreach (var participant in states[index].MatchParticipants)
+            {
+                participant.GameId = gameId;
             }
 
             foreach (var gameEvent in states[index].GameLifecycleEvents)
@@ -1542,6 +1780,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             TickLogs = states.SelectMany(state => state.TickLogs).ToList(),
             Events = states.SelectMany(state => state.Events).ToList(),
             BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),
+            BattleFleetParticipants = states.SelectMany(state => state.BattleFleetParticipants).ToList(),
             ChronicleEntries = states.SelectMany(state => state.ChronicleEntries).ToList()
         };
     }
@@ -1654,6 +1893,13 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         configure(command);
         return Convert.ToInt32(command.ExecuteScalar(), null);
     }
+
+    private sealed record RetainedBattleState(
+        GameState State,
+        Cycle Cycle,
+        BattleRecord Battle,
+        Fleet AttackerFleet,
+        Fleet DefenderFleet);
 
     private sealed class HeldSqlApplicationLock : IDisposable
     {

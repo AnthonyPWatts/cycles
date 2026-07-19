@@ -64,6 +64,8 @@ public static class PlayerProvisioning
         state.Factions.Add(faction);
         state.MatchParticipants.Add(new MatchParticipant
         {
+            GameId = cycle.GameId
+                ?? throw new InvalidOperationException($"Cycle {cycle.CycleId} has no Game scope."),
             CycleId = cycle.CycleId,
             PlayerId = player.PlayerId,
             EmpireId = empire.EmpireId,

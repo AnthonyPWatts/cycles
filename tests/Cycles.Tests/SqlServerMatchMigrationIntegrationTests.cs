@@ -30,7 +30,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
             item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId),
             item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId),
             item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
-            item => Assert.Equal("022_add_game_foundations", item.MigrationId));
+            item => Assert.Equal("022_add_game_foundations", item.MigrationId),
+            item => Assert.Equal("023_enforce_cycle_scope_integrity", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));
@@ -93,7 +94,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Assert.Collection(
             applied,
             item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
-            item => Assert.Equal("022_add_game_foundations", item.MigrationId));
+            item => Assert.Equal("022_add_game_foundations", item.MigrationId),
+            item => Assert.Equal("023_enforce_cycle_scope_integrity", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(1, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.EmpireDoctrineUnlocks WHERE CycleID = @ID;", legacy.CycleId));
@@ -105,7 +107,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
     {
         var ids = new LegacyMatch(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid());
         using var connection = new SqlConnection(connectionString);
         connection.Open();
         using var command = connection.CreateCommand();
@@ -123,13 +126,16 @@ public sealed class SqlServerMatchMigrationIntegrationTests
             VALUES (@FirstEmpireID, @CycleID, @FirstPlayerID, N'First Empire', @FirstSystemID, @Now, N'Active'),
                    (@SecondEmpireID, @CycleID, @SecondPlayerID, N'Second Empire', @SecondSystemID, @Now, N'Active');
             INSERT INTO dbo.Fleets(FleetID, CycleID, EmpireID, FleetName, CurrentSystemID, ShipCount, Status, CreatedAt)
-            VALUES (@FleetID, @CycleID, @FirstEmpireID, N'Legacy Fleet', @FirstSystemID, 10, N'Active', @Now);
+            VALUES (@FleetID, @CycleID, @FirstEmpireID, N'Legacy Fleet', @FirstSystemID, 10, N'Active', @Now),
+                   (@DefenderFleetID, @CycleID, @SecondEmpireID, N'Legacy Defender', @SecondSystemID, 8, N'Active', @Now);
             INSERT INTO dbo.FleetOrders(FleetOrderID, CycleID, FleetID, OrderType, TargetEmpireID, SubmitTick, ExecuteAfterTick, Status, CreatedAt)
             VALUES (@OrderID, @CycleID, @FleetID, N'Attack', @SecondEmpireID, 0, 1, N'Pending', @Now);
             INSERT INTO dbo.Events(EventID, CycleID, TickNumber, EventType, EmpireID, Severity, FactJson, DisplayText, CreatedAt)
             VALUES (@EventID, @CycleID, 0, N'CycleSeeded', @FirstEmpireID, N'Low', N'{}', N'Legacy event', @Now);
             INSERT INTO dbo.BattleRecords(BattleID, CycleID, TickNumber, SystemID, AttackerEmpireID, DefenderEmpireID, AttackerFleetIDs, DefenderFleetIDs, AttackerShipsBefore, DefenderShipsBefore, AttackerLosses, DefenderLosses, Outcome, FactJson, CreatedAt)
-            VALUES (@BattleID, @CycleID, 0, @FirstSystemID, @FirstEmpireID, @SecondEmpireID, N'[]', N'[]', 10, 8, 1, 2, N'AttackerVictory', N'{}', @Now);
+            VALUES (@BattleID, @CycleID, 0, @FirstSystemID, @FirstEmpireID, @SecondEmpireID,
+                    CONVERT(NVARCHAR(36), @FleetID), CONVERT(NVARCHAR(36), @DefenderFleetID),
+                    10, 8, 1, 2, N'AttackerVictory', N'{}', @Now);
             """;
         Add(command, "@FirstPlayerID", ids.FirstPlayerId);
         Add(command, "@SecondPlayerID", ids.SecondPlayerId);
@@ -139,6 +145,7 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Add(command, "@FirstEmpireID", ids.FirstEmpireId);
         Add(command, "@SecondEmpireID", ids.SecondEmpireId);
         Add(command, "@FleetID", ids.FleetId);
+        Add(command, "@DefenderFleetID", ids.DefenderFleetId);
         Add(command, "@OrderID", ids.OrderId);
         Add(command, "@EventID", ids.EventId);
         Add(command, "@BattleID", ids.BattleId);
@@ -199,6 +206,7 @@ public sealed class SqlServerMatchMigrationIntegrationTests
         Guid FirstEmpireId,
         Guid SecondEmpireId,
         Guid FleetId,
+        Guid DefenderFleetId,
         Guid OrderId,
         Guid EventId,
         Guid BattleId);

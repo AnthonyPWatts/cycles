@@ -438,6 +438,33 @@ public sealed class OrderAndTickTests
         Assert.Equal(eventsBefore, state.Events.Count);
         Assert.Single(state.TickLogs, item => item.Status == TickLogStatus.Failed);
         Assert.Empty(state.BattleRecords);
+        Assert.Empty(state.BattleFleetParticipants);
+        Assert.Empty(state.ChronicleEntries);
+    }
+
+    [Fact]
+    public void FailedTickRollsBackNormalisedBattleFleetMembershipAppendedBeforeLateFailure()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 90, defenderShips: 60, strategicValue: 35);
+        var cycle = state.GetActiveCycle()!;
+        var attacker = state.Empires.Single(item => item.EmpireName == "First");
+        var defender = state.Empires.Single(item => item.EmpireName == "Second");
+        var attackerFleet = state.Fleets.Single(item => item.EmpireId == attacker.EmpireId);
+        OrderService.SubmitAttackOrder(state, attackerFleet.FleetId, defender.EmpireId, TestState.Now);
+        var engine = new TickEngine(
+            static (source, cycleId, tickNumber) =>
+            {
+                var working = source.CreateTickWorkingCopy(cycleId, tickNumber);
+                working.EmpireMetrics = null!;
+                return working;
+            },
+            rollbackSharedAppends: true);
+
+        var result = engine.RunTick(state, cycle.CycleId, TestState.Now);
+
+        Assert.Equal(TickLogStatus.Failed, result.Status);
+        Assert.Empty(state.BattleRecords);
+        Assert.Empty(state.BattleFleetParticipants);
         Assert.Empty(state.ChronicleEntries);
     }
 
@@ -609,6 +636,21 @@ public sealed class OrderAndTickTests
                 (item.TickNumber, item.AttackerEmpireId, item.DefenderEmpireId, item.AttackerLosses, item.DefenderLosses, item.Outcome)),
             actual.BattleRecords.Select(item =>
                 (item.TickNumber, item.AttackerEmpireId, item.DefenderEmpireId, item.AttackerLosses, item.DefenderLosses, item.Outcome)));
+        var expectedBattleOrder = expected.BattleRecords
+            .Select((item, index) => (item.BattleId, index))
+            .ToDictionary(item => item.BattleId, item => item.index);
+        var actualBattleOrder = actual.BattleRecords
+            .Select((item, index) => (item.BattleId, index))
+            .ToDictionary(item => item.BattleId, item => item.index);
+        Assert.All(expected.BattleFleetParticipants, item => Assert.Contains(item.BattleId, expectedBattleOrder.Keys));
+        Assert.All(actual.BattleFleetParticipants, item => Assert.Contains(item.BattleId, actualBattleOrder.Keys));
+        Assert.Equal(
+            expected.BattleFleetParticipants.Select(item =>
+                    (BattleIndex: expectedBattleOrder[item.BattleId], item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.BattleIndex).ThenBy(item => item.Side).ThenBy(item => item.FleetId),
+            actual.BattleFleetParticipants.Select(item =>
+                    (BattleIndex: actualBattleOrder[item.BattleId], item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.BattleIndex).ThenBy(item => item.Side).ThenBy(item => item.FleetId));
         Assert.Equal(
             expected.ChronicleEntries.Select(item => (item.Title, item.ImportanceScore, item.FactualSummary, item.NarrativeText)),
             actual.ChronicleEntries.Select(item => (item.Title, item.ImportanceScore, item.FactualSummary, item.NarrativeText)));

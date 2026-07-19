@@ -1,6 +1,6 @@
 # Multi-game and tutorial test plan
 
-Status: approved planning baseline; implementation has not started.
+Status: approved baseline; prerequisite implementation is in progress. MG-01 and MG-02 provide the legacy Game foundation, mandatory SQL evidence, same-scope relationship contract, and normalised battle membership. The account shell, second-Game runtime, Training profile, and tutorial journey are not implemented.
 
 Companion plan: [Multi-game and tutorial programme](multi-game-and-tutorial-plan.md).
 
@@ -212,7 +212,7 @@ Required evidence:
 - scoped loads never return rows from another Cycle;
 - focused tick persistence changes only its Cycle plus the required containing-Game lifecycle row/events;
 - the administrative global save rejects or clearly labels partial state and remains absent from player routes;
-- v4 import deterministically creates the legacy Game; v5 round-trip preserves Games, enrolments, configurations, runs and several operational Games;
+- v1-v5 import deterministically applies the required compatibility foundation; v6 round-trip preserves Games, enrolments, configurations, battle membership and several operational Games;
 - rollback of a pre-contract deployment leaves old columns/data readable.
 
 ## 10. Concurrency and hostile-timing suites

@@ -881,6 +881,7 @@ public static class GameSeeder
             state.MatchParticipants.Add(new MatchParticipant
             {
                 MatchParticipantId = nextId(),
+                GameId = GameFoundationConstants.LegacyGameId,
                 CycleId = cycle.CycleId,
                 PlayerId = player.PlayerId,
                 EmpireId = empire.EmpireId,

@@ -99,6 +99,67 @@ public sealed class GameStateTransferTests
     }
 
     [Fact]
+    public void Version_five_import_derives_participant_game_scope_and_normalised_battle_membership()
+    {
+        var state = CreateCompleteValidState();
+        var battle = Assert.Single(state.BattleRecords);
+        var attacker = Assert.Single(state.BattleFleetParticipants, item => item.Side == BattleFleetSide.Attacker);
+        var defender = Assert.Single(state.BattleFleetParticipants, item => item.Side == BattleFleetSide.Defender);
+        battle.AttackerFleetIds = attacker.FleetId.ToString("D");
+        battle.DefenderFleetIds = $"[\"{defender.FleetId:D}\"]";
+        var root = JsonSerializer.SerializeToNode(
+            new GameStateTransferDocument(5, TestState.Now, state),
+            GameStateJson.Options)!.AsObject();
+        var stateNode = root["state"]!.AsObject();
+        stateNode.Remove("battleFleetParticipants");
+        foreach (var participant in stateNode["matchParticipants"]!.AsArray().Select(item => item!.AsObject()))
+        {
+            participant.Remove("gameId");
+        }
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString(GameStateJson.Options)));
+        var document = GameStateTransfer.Read(stream);
+
+        Assert.Equal(5, document.FormatVersion);
+        Assert.All(document.State.MatchParticipants, participant =>
+            Assert.Equal(
+                document.State.Cycles.Single(cycle => cycle.CycleId == participant.CycleId).GameId,
+                participant.GameId));
+        Assert.Equal(
+            new[]
+            {
+                (battle.BattleId, battle.CycleId, attacker.FleetId, BattleFleetSide.Attacker),
+                (battle.BattleId, battle.CycleId, defender.FleetId, BattleFleetSide.Defender)
+            }.OrderBy(item => item.Item4).ThenBy(item => item.FleetId),
+            document.State.BattleFleetParticipants
+                .Select(item => (item.BattleId, item.CycleId, item.FleetId, item.Side))
+                .OrderBy(item => item.Side)
+                .ThenBy(item => item.FleetId));
+        Assert.Equal(attacker.FleetId.ToString("D"), Assert.Single(document.State.BattleRecords).AttackerFleetIds);
+        Assert.Equal(defender.FleetId.ToString("D"), Assert.Single(document.State.BattleRecords).DefenderFleetIds);
+    }
+
+    [Fact]
+    public void Version_six_validation_requires_exact_battle_membership_and_match_participant_game_scope()
+    {
+        var state = CreateCompleteValidState();
+        var participant = state.MatchParticipants[0];
+        participant.GameId = Guid.NewGuid();
+        state.BattleFleetParticipants.RemoveAt(state.BattleFleetParticipants.Count - 1);
+
+        var validation = GameStateTransfer.Validate(state);
+
+        Assert.False(validation.IsValid);
+        Assert.Contains(validation.Errors, error =>
+            error.Contains("Match participant", StringComparison.Ordinal)
+            && error.Contains("Game", StringComparison.Ordinal));
+        Assert.Contains(validation.Errors, error =>
+            error.Contains("Battle", StringComparison.Ordinal)
+            && error.Contains("fleet", StringComparison.OrdinalIgnoreCase)
+            && error.Contains("membership", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Version_five_allows_one_operational_cycle_in_each_game_but_not_two_in_one_game()
     {
         var valid = new GameState();
@@ -656,6 +717,163 @@ public sealed class GameStateTransferTests
         Assert.Contains(validation.Errors, error => error.Contains("Battle", StringComparison.Ordinal) && error.Contains("defender faction", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Validation_rejects_every_audited_cross_cycle_reference_before_sql_persistence()
+    {
+        var state = CreateCompleteValidState();
+        var mainCycle = state.GetActiveCycle()!;
+        var foreignCycleId = Guid.NewGuid();
+        var foreignSystem = new GalaxySystem
+        {
+            CycleId = foreignCycleId,
+            SectorId = state.Sectors[0].SectorId,
+            SystemName = "Foreign system",
+            CreatedAt = TestState.Now
+        };
+        var foreignEmpire = new Empire
+        {
+            CycleId = foreignCycleId,
+            PlayerId = state.Players[0].PlayerId,
+            EmpireName = "Foreign empire",
+            HomeSystemId = foreignSystem.SystemId,
+            CreatedAt = TestState.Now
+        };
+        var foreignFaction = new Faction
+        {
+            CycleId = foreignCycleId,
+            EmpireId = foreignEmpire.EmpireId,
+            FactionName = "Foreign faction",
+            Kind = FactionKind.Empire,
+            CreatedAt = TestState.Now
+        };
+        var foreignAdmiral = new Admiral
+        {
+            CycleId = foreignCycleId,
+            EmpireId = foreignEmpire.EmpireId,
+            AdmiralName = "Foreign admiral",
+            CreatedAt = TestState.Now,
+            UpdatedAt = TestState.Now
+        };
+        var foreignFleet = new Fleet
+        {
+            CycleId = foreignCycleId,
+            EmpireId = foreignEmpire.EmpireId,
+            FactionId = foreignFaction.FactionId,
+            AdmiralId = foreignAdmiral.AdmiralId,
+            FleetName = "Foreign fleet",
+            CurrentSystemId = foreignSystem.SystemId,
+            ShipCount = 1,
+            CreatedAt = TestState.Now
+        };
+        var foreignDefenderFleet = new Fleet
+        {
+            CycleId = foreignCycleId,
+            EmpireId = foreignEmpire.EmpireId,
+            FactionId = foreignFaction.FactionId,
+            FleetName = "Foreign defender fleet",
+            CurrentSystemId = foreignSystem.SystemId,
+            ShipCount = 1,
+            CreatedAt = TestState.Now
+        };
+        var foreignBattle = new BattleRecord
+        {
+            CycleId = foreignCycleId,
+            SystemId = foreignSystem.SystemId,
+            AttackerEmpireId = foreignEmpire.EmpireId,
+            DefenderEmpireId = foreignEmpire.EmpireId,
+            AttackerFactionId = foreignFaction.FactionId,
+            DefenderFactionId = foreignFaction.FactionId,
+            AttackerFleetIds = foreignFleet.FleetId.ToString("D"),
+            DefenderFleetIds = foreignDefenderFleet.FleetId.ToString("D"),
+            AttackerShipsBefore = 1,
+            DefenderShipsBefore = 1,
+            FactJson = "{}",
+            CreatedAt = TestState.Now
+        };
+        state.Systems.Add(foreignSystem);
+        state.Empires.Add(foreignEmpire);
+        state.Factions.Add(foreignFaction);
+        state.Admirals.Add(foreignAdmiral);
+        state.Fleets.AddRange([foreignFleet, foreignDefenderFleet]);
+        state.BattleRecords.Add(foreignBattle);
+        state.BattleFleetParticipants.AddRange(
+        [
+            new BattleFleetParticipant
+            {
+                BattleId = foreignBattle.BattleId,
+                CycleId = foreignCycleId,
+                FleetId = foreignFleet.FleetId,
+                Side = BattleFleetSide.Attacker
+            },
+            new BattleFleetParticipant
+            {
+                BattleId = foreignBattle.BattleId,
+                CycleId = foreignCycleId,
+                FleetId = foreignDefenderFleet.FleetId,
+                Side = BattleFleetSide.Defender
+            }
+        ]);
+
+        var fleet = state.Fleets.First(item => item.CycleId == mainCycle.CycleId);
+        fleet.DestinationSystemId = foreignSystem.SystemId;
+        var order = state.FleetOrders.First(item => item.CycleId == mainCycle.CycleId);
+        order.TargetSystemId = foreignSystem.SystemId;
+        order.TargetEmpireId = foreignEmpire.EmpireId;
+        var history = state.AdmiralBattleHistories.Single(item => item.CycleId == mainCycle.CycleId);
+        history.AdmiralId = foreignAdmiral.AdmiralId;
+        history.SystemId = foreignSystem.SystemId;
+        history.FleetId = foreignFleet.FleetId;
+        var gameEvent = state.Events.First(item => item.CycleId == mainCycle.CycleId);
+        gameEvent.EmpireId = foreignEmpire.EmpireId;
+        var battle = state.BattleRecords.Single(item => item.CycleId == mainCycle.CycleId);
+        battle.AttackerEmpireId = foreignEmpire.EmpireId;
+        battle.DefenderEmpireId = foreignEmpire.EmpireId;
+        var chronicle = state.ChronicleEntries.Single(item => item.CycleId == mainCycle.CycleId);
+        chronicle.SystemId = foreignSystem.SystemId;
+        var majorEvent = state.CycleMajorEvents.Single(item => item.CycleId == mainCycle.CycleId);
+        majorEvent.SystemId = foreignSystem.SystemId;
+        majorEvent.SourceBattleId = foreignBattle.BattleId;
+        var signal = state.SystemHistoricalSignals.Single(item => item.CycleId == mainCycle.CycleId);
+        signal.SystemId = foreignSystem.SystemId;
+        signal.SourceBattleId = foreignBattle.BattleId;
+        var outpost = state.ColonialOutposts.Single(item => item.CycleId == mainCycle.CycleId);
+        outpost.SystemId = foreignSystem.SystemId;
+
+        var errors = GameStateTransfer.Validate(state).Errors;
+
+        Assert.Contains(errors, error => error.Contains($"Fleet {fleet.FleetId} and its destination system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Fleet order {order.FleetOrderId} and its target system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Fleet order {order.FleetOrderId} and its target empire", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Admiral battle history {history.AdmiralBattleHistoryId} and its admiral", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Admiral battle history {history.AdmiralBattleHistoryId} and its system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Admiral battle history {history.AdmiralBattleHistoryId} and its fleet", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Event {gameEvent.EventId} and its empire", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Battle {battle.BattleId} and its attacker empire", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Battle {battle.BattleId} and its defender empire", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Chronicle entry {chronicle.ChronicleEntryId} and its system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Cycle major event {majorEvent.CycleMajorEventId} and its system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Cycle major event {majorEvent.CycleMajorEventId} and its source battle", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"System historical signal {signal.SystemHistoricalSignalId} and its system", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"System historical signal {signal.SystemHistoricalSignalId} and its source battle", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains($"Colonial outpost {outpost.ColonialOutpostId} and its system", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Legacy_battle_fleet_parser_accepts_trimmed_D_guids_only()
+    {
+        var fleetId = Guid.NewGuid();
+
+        Assert.Equal([fleetId], BattleFleetParticipantCompatibility.ParseLegacyFleetIds($"  {fleetId:D}  ", "fleet list"));
+        Assert.Equal([fleetId], BattleFleetParticipantCompatibility.ParseLegacyFleetIds($"[\"  {fleetId:D}  \"]", "fleet list"));
+
+        foreach (var invalid in new[] { $"{fleetId:D}JUNK", fleetId.ToString("N"), fleetId.ToString("B") })
+        {
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                BattleFleetParticipantCompatibility.ParseLegacyFleetIds(invalid, "fleet list"));
+            Assert.Contains("invalid fleet identifier", error.Message, StringComparison.Ordinal);
+        }
+    }
+
     private static GameState CreateCompleteValidState()
     {
         var state = GameSeeder.CreateCuratedColdStart();
@@ -720,6 +938,23 @@ public sealed class GameStateTransferTests
             CreatedAt = TestState.Now
         };
         state.BattleRecords.Add(battle);
+        state.BattleFleetParticipants.AddRange(
+        [
+            new BattleFleetParticipant
+            {
+                BattleId = battle.BattleId,
+                CycleId = cycle.CycleId,
+                FleetId = firstFleet.FleetId,
+                Side = BattleFleetSide.Attacker
+            },
+            new BattleFleetParticipant
+            {
+                BattleId = battle.BattleId,
+                CycleId = cycle.CycleId,
+                FleetId = secondFleet.FleetId,
+                Side = BattleFleetSide.Defender
+            }
+        ]);
         state.CycleMajorEvents.Add(new CycleMajorEvent
         {
             CycleId = cycle.CycleId,

@@ -210,6 +210,13 @@ public sealed class GameStateTests
         });
         state.Events.Add(eventRecord);
         state.BattleRecords.Add(battle);
+        state.BattleFleetParticipants.Add(new BattleFleetParticipant
+        {
+            BattleId = battle.BattleId,
+            CycleId = cycle.CycleId,
+            FleetId = fleet.FleetId,
+            Side = BattleFleetSide.Attacker
+        });
         state.ChronicleEntries.Add(new ChronicleEntry
         {
             SourceEventId = eventRecord.EventId,
@@ -253,6 +260,11 @@ public sealed class GameStateTests
         Assert.Equal(state.AdmiralBattleHistories.Count, clone.AdmiralBattleHistories.Count);
         Assert.Equal(state.Events.Count, clone.Events.Count);
         Assert.Equal(state.BattleRecords.Count, clone.BattleRecords.Count);
+        Assert.Equal(state.BattleFleetParticipants.Count, clone.BattleFleetParticipants.Count);
+        Assert.NotSame(state.BattleFleetParticipants[0], clone.BattleFleetParticipants[0]);
+        Assert.Equal(state.BattleFleetParticipants[0].BattleId, clone.BattleFleetParticipants[0].BattleId);
+        Assert.Equal(state.BattleFleetParticipants[0].FleetId, clone.BattleFleetParticipants[0].FleetId);
+        Assert.Equal(BattleFleetSide.Attacker, clone.BattleFleetParticipants[0].Side);
         Assert.Equal(state.ChronicleEntries.Count, clone.ChronicleEntries.Count);
 
         Assert.Equal(state.Fleets[0].FleetId, clone.Fleets[0].FleetId);

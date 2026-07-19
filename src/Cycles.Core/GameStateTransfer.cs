@@ -18,7 +18,7 @@ public sealed record GameStateValidationResult(IReadOnlyList<string> Errors)
 
 public static class GameStateTransfer
 {
-    public const int CurrentFormatVersion = 5;
+    public const int CurrentFormatVersion = 6;
 
     private static readonly JsonSerializerOptions TransferJsonOptions = CreateJsonOptions();
     private static readonly PropertyInfo[] PersistedCollections = typeof(GameState)
@@ -34,6 +34,9 @@ public static class GameStateTransfer
         UpgradeTransitTiming(state);
         UpgradeDoctrineUnlocks(state);
         EnrichLegacyGameFoundationForWrite(state);
+        UpgradeLegacyMatchParticipantGameScope(state);
+        BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
+        BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
         var validation = Validate(state);
         if (!validation.IsValid)
         {
@@ -99,6 +102,9 @@ public static class GameStateTransfer
                         && !stateElement.TryGetProperty(jsonName, out _))
                     || (formatVersion < 5
                         && IsGameFoundationCollection(property.Name)
+                        && !stateElement.TryGetProperty(jsonName, out _))
+                    || (formatVersion < 6
+                        && property.Name == nameof(GameState.BattleFleetParticipants)
                         && !stateElement.TryGetProperty(jsonName, out _)))
                 {
                     continue;
@@ -131,6 +137,12 @@ public static class GameStateTransfer
             if (formatVersion < 5)
             {
                 LegacyGameFoundation.Apply(document.State);
+            }
+            if (formatVersion < 6)
+            {
+                UpgradeLegacyMatchParticipantGameScope(document.State);
+                BattleFleetParticipantCompatibility.UpgradeLegacyMembership(document.State);
+                BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(document.State);
             }
             StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
@@ -171,6 +183,7 @@ public static class GameStateTransfer
                      || property.Name == nameof(GameState.Factions)
                      || property.Name == nameof(GameState.MatchParticipants)
                      || property.Name == nameof(GameState.EmpireDoctrineUnlocks)
+                     || property.Name == nameof(GameState.BattleFleetParticipants)
                      || IsGameFoundationCollection(property.Name))
                     && !root.TryGetProperty(jsonName, out _))
                 {
@@ -199,6 +212,9 @@ public static class GameStateTransfer
             UpgradeTransitTiming(state);
             UpgradeDoctrineUnlocks(state);
             LegacyGameFoundation.Apply(state);
+            UpgradeLegacyMatchParticipantGameScope(state);
+            BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
+            BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
             StrategicPriorityPolicy.Normalize(state);
             var validation = Validate(state);
             if (!validation.IsValid)
@@ -266,6 +282,7 @@ public static class GameStateTransfer
                 state.MatchParticipants.Add(new MatchParticipant
                 {
                     MatchParticipantId = CreateLegacyParticipantId(empire.CycleId, empire.PlayerId),
+                    GameId = cycle.GameId ?? Guid.Empty,
                     CycleId = empire.CycleId,
                     PlayerId = empire.PlayerId,
                     EmpireId = empire.EmpireId,
@@ -381,7 +398,8 @@ public static class GameStateTransfer
                     || !state.CycleConfigurations.Any(configuration =>
                         configuration.CycleConfigurationId == cycle.CycleConfigurationId.Value))
                 || state.MatchParticipants.Any(participant =>
-                    !state.GameEnrolments.Any(enrolment =>
+                    participant.GameId == Guid.Empty
+                    || !state.GameEnrolments.Any(enrolment =>
                         enrolment.GameId == GameFoundationConstants.LegacyGameId
                         && enrolment.PlayerId == participant.PlayerId))
                 || state.GameLifecycleEvents.All(gameEvent =>
@@ -390,6 +408,24 @@ public static class GameStateTransfer
         if (isUnadaptedLegacyState || isIncompleteLegacyFoundation)
         {
             LegacyGameFoundation.Apply(state);
+        }
+    }
+
+    private static void UpgradeLegacyMatchParticipantGameScope(GameState state)
+    {
+        var cyclesById = state.Cycles
+            .GroupBy(item => item.CycleId)
+            .ToDictionary(group => group.Key, group => group.First());
+        foreach (var participant in state.MatchParticipants.Where(item => item.GameId == Guid.Empty))
+        {
+            if (!cyclesById.TryGetValue(participant.CycleId, out var cycle)
+                || !cycle.GameId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    $"Match participant {participant.MatchParticipantId} has no legacy Game scope to adapt.");
+            }
+
+            participant.GameId = cycle.GameId.Value;
         }
     }
 
@@ -457,6 +493,22 @@ public static class GameStateTransfer
         Unique(state.TickLogs, item => item.TickLogId, "tickLogs", errors);
         Unique(state.Events, item => item.EventId, "events", errors);
         Unique(state.BattleRecords, item => item.BattleId, "battleRecords", errors);
+        foreach (var item in state.BattleFleetParticipants)
+        {
+            if (item.BattleId == Guid.Empty || item.CycleId == Guid.Empty || item.FleetId == Guid.Empty)
+            {
+                errors.Add("state.battleFleetParticipants contains an empty identifier.");
+            }
+        }
+        foreach (var duplicate in state.BattleFleetParticipants
+                     .GroupBy(item => (item.BattleId, item.FleetId))
+                     .Where(group => group.Key.BattleId != Guid.Empty
+                                     && group.Key.FleetId != Guid.Empty
+                                     && group.Count() > 1))
+        {
+            errors.Add(
+                $"state.battleFleetParticipants contains duplicate Battle/Fleet membership {duplicate.Key.BattleId}/{duplicate.Key.FleetId}.");
+        }
         Unique(state.ChronicleEntries, item => item.ChronicleEntryId, "chronicleEntries", errors);
     }
 
@@ -673,12 +725,18 @@ public static class GameStateTransfer
 
         foreach (var participant in state.MatchParticipants)
         {
+            Reference(gamesById.Keys, participant.GameId, $"Match participant {participant.MatchParticipantId} Game", errors);
             var cycle = cyclesById.GetValueOrDefault(participant.CycleId);
-            if (cycle?.GameId is { } gameId
-                && !state.GameEnrolments.Any(enrolment => enrolment.GameId == gameId
+            if (cycle?.GameId is { } cycleGameId && cycleGameId != participant.GameId)
+            {
+                errors.Add(
+                    $"Match participant {participant.MatchParticipantId} and Cycle {participant.CycleId} belong to different Games.");
+            }
+            if (!state.GameEnrolments.Any(enrolment => enrolment.GameId == participant.GameId
                                                           && enrolment.PlayerId == participant.PlayerId))
             {
-                errors.Add($"Match participant {participant.MatchParticipantId} has no enrolment in Game {gameId}.");
+                errors.Add(
+                    $"Match participant {participant.MatchParticipantId} has no enrolment in Game {participant.GameId}.");
             }
         }
 
@@ -1180,6 +1238,11 @@ public static class GameStateTransfer
             if (fleet.DestinationSystemId.HasValue)
             {
                 Reference(systemsById.Keys, fleet.DestinationSystemId.Value, $"Fleet {fleet.FleetId} destination system", errors);
+                if (systemsById.TryGetValue(fleet.DestinationSystemId.Value, out var destinationSystem)
+                    && destinationSystem.CycleId != fleet.CycleId)
+                {
+                    errors.Add($"Fleet {fleet.FleetId} and its destination system belong to different Cycles.");
+                }
             }
 
             if (fleet.Status == FleetStatus.InTransit)
@@ -1209,9 +1272,16 @@ public static class GameStateTransfer
             if (fleet.AdmiralId.HasValue)
             {
                 Reference(admiralsById.Keys, fleet.AdmiralId.Value, $"Fleet {fleet.FleetId} admiral", errors);
-                if (admiralsById.TryGetValue(fleet.AdmiralId.Value, out var admiral) && admiral.EmpireId != fleet.EmpireId)
+                if (admiralsById.TryGetValue(fleet.AdmiralId.Value, out var admiral))
                 {
-                    errors.Add($"Fleet {fleet.FleetId} is assigned to another empire's admiral.");
+                    if (admiral.CycleId != fleet.CycleId)
+                    {
+                        errors.Add($"Fleet {fleet.FleetId} and its admiral belong to different Cycles.");
+                    }
+                    else if (admiral.EmpireId != fleet.EmpireId)
+                    {
+                        errors.Add($"Fleet {fleet.FleetId} is assigned to another empire's admiral.");
+                    }
                 }
             }
 
@@ -1247,11 +1317,21 @@ public static class GameStateTransfer
             if (order.TargetSystemId.HasValue)
             {
                 Reference(systemsById.Keys, order.TargetSystemId.Value, $"Fleet order {order.FleetOrderId} target system", errors);
+                if (systemsById.TryGetValue(order.TargetSystemId.Value, out var targetSystem)
+                    && targetSystem.CycleId != order.CycleId)
+                {
+                    errors.Add($"Fleet order {order.FleetOrderId} and its target system belong to different Cycles.");
+                }
             }
 
             if (order.TargetEmpireId.HasValue)
             {
                 Reference(empireIds, order.TargetEmpireId.Value, $"Fleet order {order.FleetOrderId} target empire", errors);
+                if (state.Empires.FirstOrDefault(item => item.EmpireId == order.TargetEmpireId.Value) is { } targetEmpire
+                    && targetEmpire.CycleId != order.CycleId)
+                {
+                    errors.Add($"Fleet order {order.FleetOrderId} and its target empire belong to different Cycles.");
+                }
             }
 
             if (order.TargetFactionId.HasValue)
@@ -1337,6 +1417,21 @@ public static class GameStateTransfer
             {
                 errors.Add($"Admiral battle history {history.AdmiralBattleHistoryId} and its battle belong to different Cycles.");
             }
+            if (admiralsById.TryGetValue(history.AdmiralId, out var historyAdmiral)
+                && historyAdmiral.CycleId != history.CycleId)
+            {
+                errors.Add($"Admiral battle history {history.AdmiralBattleHistoryId} and its admiral belong to different Cycles.");
+            }
+            if (systemsById.TryGetValue(history.SystemId, out var historySystem)
+                && historySystem.CycleId != history.CycleId)
+            {
+                errors.Add($"Admiral battle history {history.AdmiralBattleHistoryId} and its system belong to different Cycles.");
+            }
+            if (fleetsById.TryGetValue(history.FleetId, out var historyFleet)
+                && historyFleet.CycleId != history.CycleId)
+            {
+                errors.Add($"Admiral battle history {history.AdmiralBattleHistoryId} and its fleet belong to different Cycles.");
+            }
         }
 
         foreach (var item in state.Events)
@@ -1355,6 +1450,12 @@ public static class GameStateTransfer
             {
                 errors.Add($"Event {item.EventId} and its faction belong to different Cycles.");
             }
+            if (item.EmpireId.HasValue
+                && state.Empires.FirstOrDefault(empire => empire.EmpireId == item.EmpireId.Value) is { } eventEmpire
+                && eventEmpire.CycleId != item.CycleId)
+            {
+                errors.Add($"Event {item.EventId} and its empire belong to different Cycles.");
+            }
         }
 
         foreach (var battle in state.BattleRecords)
@@ -1371,8 +1472,7 @@ public static class GameStateTransfer
             }
             Reference(factionIds, battle.AttackerFactionId, $"Battle {battle.BattleId} attacker faction", errors);
             Reference(factionIds, battle.DefenderFactionId, $"Battle {battle.BattleId} defender faction", errors);
-            ValidateFleetIdList(battle.AttackerFleetIds, fleetsById.Keys, $"Battle {battle.BattleId} attacker fleets", errors);
-            ValidateFleetIdList(battle.DefenderFleetIds, fleetsById.Keys, $"Battle {battle.BattleId} defender fleets", errors);
+            ValidateBattleFleetMembership(state, battle, errors);
             if (systemsById.TryGetValue(battle.SystemId, out var battleSystem) && battleSystem.CycleId != battle.CycleId)
             {
                 errors.Add($"Battle {battle.BattleId} and its system belong to different Cycles.");
@@ -1387,12 +1487,46 @@ public static class GameStateTransfer
             {
                 errors.Add($"Battle {battle.BattleId} and its defender faction belong to different Cycles.");
             }
+            if (state.Empires.FirstOrDefault(item => item.EmpireId == battle.AttackerEmpireId) is { } attackerEmpire
+                && attackerEmpire.CycleId != battle.CycleId)
+            {
+                errors.Add($"Battle {battle.BattleId} and its attacker empire belong to different Cycles.");
+            }
+            if (state.Empires.FirstOrDefault(item => item.EmpireId == battle.DefenderEmpireId) is { } defenderEmpire
+                && defenderEmpire.CycleId != battle.CycleId)
+            {
+                errors.Add($"Battle {battle.BattleId} and its defender empire belong to different Cycles.");
+            }
 
             if (battle.AttackerLosses < 0 || battle.DefenderLosses < 0
                 || battle.AttackerLosses > battle.AttackerShipsBefore
                 || battle.DefenderLosses > battle.DefenderShipsBefore)
             {
                 errors.Add($"Battle {battle.BattleId} has invalid retained ship losses.");
+            }
+        }
+
+        foreach (var participant in state.BattleFleetParticipants)
+        {
+            Reference(battleIds, participant.BattleId, $"Battle fleet participant {participant.FleetId} Battle", errors);
+            Reference(cycleIds, participant.CycleId, $"Battle fleet participant {participant.BattleId}/{participant.FleetId} Cycle", errors);
+            Reference(fleetsById.Keys, participant.FleetId, $"Battle fleet participant {participant.BattleId} fleet", errors);
+            if (!Enum.IsDefined(participant.Side))
+            {
+                errors.Add(
+                    $"Battle fleet participant {participant.BattleId}/{participant.FleetId} has invalid side '{participant.Side}'.");
+            }
+            if (state.BattleRecords.FirstOrDefault(item => item.BattleId == participant.BattleId) is { } participantBattle
+                && participantBattle.CycleId != participant.CycleId)
+            {
+                errors.Add(
+                    $"Battle {participant.BattleId} and fleet {participant.FleetId} membership belong to different Cycles.");
+            }
+            if (fleetsById.TryGetValue(participant.FleetId, out var participantFleet)
+                && participantFleet.CycleId != participant.CycleId)
+            {
+                errors.Add(
+                    $"Battle fleet participant {participant.BattleId}/{participant.FleetId} and its Fleet belong to different Cycles.");
             }
         }
 
@@ -1411,6 +1545,12 @@ public static class GameStateTransfer
             if (entry.SourceBattleId.HasValue && state.BattleRecords.FirstOrDefault(item => item.BattleId == entry.SourceBattleId.Value) is { } sourceBattle && sourceBattle.CycleId != entry.CycleId)
             {
                 errors.Add($"Chronicle entry {entry.ChronicleEntryId} and its source battle belong to different Cycles.");
+            }
+            if (entry.SystemId.HasValue
+                && systemsById.TryGetValue(entry.SystemId.Value, out var chronicleSystem)
+                && chronicleSystem.CycleId != entry.CycleId)
+            {
+                errors.Add($"Chronicle entry {entry.ChronicleEntryId} and its system belong to different Cycles.");
             }
         }
     }
@@ -1518,6 +1658,8 @@ public static class GameStateTransfer
             Reference(cycleIds, item.CycleId, $"Cycle major event {item.CycleMajorEventId} Cycle", errors);
             OptionalReference(systemIds, item.SystemId, $"Cycle major event {item.CycleMajorEventId} system", errors);
             OptionalReference(battleIds, item.SourceBattleId, $"Cycle major event {item.CycleMajorEventId} source battle", errors);
+            EnsureSystemCycle(state, item.SystemId, item.CycleId, $"Cycle major event {item.CycleMajorEventId}", errors);
+            EnsureBattleCycle(state, item.SourceBattleId, item.CycleId, $"Cycle major event {item.CycleMajorEventId}", errors);
         }
 
         foreach (var signal in state.SystemHistoricalSignals)
@@ -1525,6 +1667,8 @@ public static class GameStateTransfer
             Reference(cycleIds, signal.CycleId, $"System historical signal {signal.SystemHistoricalSignalId} Cycle", errors);
             Reference(systemIds, signal.SystemId, $"System historical signal {signal.SystemHistoricalSignalId} system", errors);
             OptionalReference(battleIds, signal.SourceBattleId, $"System historical signal {signal.SystemHistoricalSignalId} source battle", errors);
+            EnsureSystemCycle(state, signal.SystemId, signal.CycleId, $"System historical signal {signal.SystemHistoricalSignalId}", errors);
+            EnsureBattleCycle(state, signal.SourceBattleId, signal.CycleId, $"System historical signal {signal.SystemHistoricalSignalId}", errors);
         }
 
         foreach (var outpost in state.ColonialOutposts)
@@ -1533,6 +1677,7 @@ public static class GameStateTransfer
             Reference(empireIds, outpost.EmpireId, $"Colonial outpost {outpost.ColonialOutpostId} empire", errors);
             Reference(systemIds, outpost.SystemId, $"Colonial outpost {outpost.ColonialOutpostId} system", errors);
             EnsureEmpireCycle(state, outpost.EmpireId, outpost.CycleId, $"Colonial outpost {outpost.ColonialOutpostId}", errors);
+            EnsureSystemCycle(state, outpost.SystemId, outpost.CycleId, $"Colonial outpost {outpost.ColonialOutpostId}", errors);
         }
 
         foreach (var relationship in state.DiplomaticRelationships)
@@ -1561,6 +1706,36 @@ public static class GameStateTransfer
         if (state.Empires.FirstOrDefault(item => item.EmpireId == empireId) is { } empire && empire.CycleId != cycleId)
         {
             errors.Add($"{label} and its empire belong to different Cycles.");
+        }
+    }
+
+    private static void EnsureSystemCycle(
+        GameState state,
+        Guid? systemId,
+        Guid cycleId,
+        string label,
+        List<string> errors)
+    {
+        if (systemId.HasValue
+            && state.Systems.FirstOrDefault(item => item.SystemId == systemId.Value) is { } system
+            && system.CycleId != cycleId)
+        {
+            errors.Add($"{label} and its system belong to different Cycles.");
+        }
+    }
+
+    private static void EnsureBattleCycle(
+        GameState state,
+        Guid? battleId,
+        Guid cycleId,
+        string label,
+        List<string> errors)
+    {
+        if (battleId.HasValue
+            && state.BattleRecords.FirstOrDefault(item => item.BattleId == battleId.Value) is { } battle
+            && battle.CycleId != cycleId)
+        {
+            errors.Add($"{label} and its source battle belong to different Cycles.");
         }
     }
 
@@ -1682,25 +1857,60 @@ public static class GameStateTransfer
         }
     }
 
-    private static void ValidateFleetIdList(string value, IEnumerable<Guid> fleetIds, string label, List<string> errors)
+    private static void ValidateBattleFleetMembership(
+        GameState state,
+        BattleRecord battle,
+        List<string> errors)
     {
-        var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
+        var participants = state.BattleFleetParticipants
+            .Where(item => item.BattleId == battle.BattleId)
+            .ToArray();
+        var attackerFleetIds = participants
+            .Where(item => item.Side == BattleFleetSide.Attacker)
+            .Select(item => item.FleetId)
+            .ToHashSet();
+        var defenderFleetIds = participants
+            .Where(item => item.Side == BattleFleetSide.Defender)
+            .Select(item => item.FleetId)
+            .ToHashSet();
+        if (attackerFleetIds.Count == 0 || defenderFleetIds.Count == 0)
         {
-            errors.Add($"{label} is empty.");
-            return;
+            errors.Add($"Battle {battle.BattleId} must retain at least one normalized fleet on each side.");
         }
 
-        foreach (var part in parts)
+        IReadOnlyList<Guid>? legacyAttackerFleetIds = null;
+        IReadOnlyList<Guid>? legacyDefenderFleetIds = null;
+        try
         {
-            if (!Guid.TryParse(part, out var fleetId))
-            {
-                errors.Add($"{label} contains invalid fleet identifier '{part}'.");
-            }
-            else
-            {
-                Reference(fleetIds, fleetId, label, errors);
-            }
+            legacyAttackerFleetIds = BattleFleetParticipantCompatibility.ParseLegacyFleetIds(
+                battle.AttackerFleetIds,
+                $"Battle {battle.BattleId} attacker fleets");
+        }
+        catch (InvalidOperationException exception)
+        {
+            errors.Add(exception.Message);
+        }
+
+        try
+        {
+            legacyDefenderFleetIds = BattleFleetParticipantCompatibility.ParseLegacyFleetIds(
+                battle.DefenderFleetIds,
+                $"Battle {battle.BattleId} defender fleets");
+        }
+        catch (InvalidOperationException exception)
+        {
+            errors.Add(exception.Message);
+        }
+
+        if (legacyAttackerFleetIds is not null
+            && !attackerFleetIds.SetEquals(legacyAttackerFleetIds))
+        {
+            errors.Add($"Battle {battle.BattleId} attacker fleet membership does not match its retained legacy list.");
+        }
+        if (legacyDefenderFleetIds is not null
+            && !defenderFleetIds.SetEquals(legacyDefenderFleetIds))
+        {
+            errors.Add($"Battle {battle.BattleId} defender fleet membership does not match its retained legacy list.");
         }
     }
 

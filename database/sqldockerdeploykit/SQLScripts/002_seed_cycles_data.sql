@@ -133,11 +133,11 @@ BEGIN
         ('98428db6-ba14-1fb9-14c1-86a6d38348b7', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Khepri Mandate', N'Empire', N'Active', @SeededAt),
         ('f60b5f1e-a53f-9d22-3396-4b36a9b25571', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Novan League', N'Empire', N'Active', @SeededAt);
 
-    INSERT INTO dbo.MatchParticipants(MatchParticipantID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt)
+    INSERT INTO dbo.MatchParticipants(MatchParticipantID, GameID, CycleID, PlayerID, EmpireID, Status, JoinedAt, EndedAt)
     VALUES
-        ('40a59e85-1d96-90c1-201b-70f33711ba04', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Active', @SeededAt, NULL),
-        ('219c6de2-f38e-d076-47c3-d09adf3dee9a', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '3ecfbf78-b6b3-42cd-a811-85efb916cc03', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Active', @SeededAt, NULL),
-        ('828573b7-ce4b-b890-5065-b80574c14fc0', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Active', @SeededAt, NULL);
+        ('40a59e85-1d96-90c1-201b-70f33711ba04', '01fcdded-9718-4436-b585-d97d504b1d57', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', '1b12558d-ff5e-d372-e4c1-94f63137b642', N'Active', @SeededAt, NULL),
+        ('219c6de2-f38e-d076-47c3-d09adf3dee9a', '01fcdded-9718-4436-b585-d97d504b1d57', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '3ecfbf78-b6b3-42cd-a811-85efb916cc03', 'f60b5f1e-a53f-9d22-3396-4b36a9b25571', N'Active', @SeededAt, NULL),
+        ('828573b7-ce4b-b890-5065-b80574c14fc0', '01fcdded-9718-4436-b585-d97d504b1d57', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', '8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', '98428db6-ba14-1fb9-14c1-86a6d38348b7', N'Active', @SeededAt, NULL);
 
     INSERT INTO dbo.EmpireResources(EmpireResourceID, EmpireID, Industry, Research, Population, LastGeneratedIndustry, LastGeneratedResearch, LastGeneratedPopulation, LastSpentIndustry, LastSpentResearch, LastSpentPopulation, UpdatedAt)
     VALUES
