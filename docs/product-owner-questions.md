@@ -70,6 +70,8 @@ Q125's earlier scale answers were explicitly superseded on 2026-07-15. The next 
 
 The 17 July development-match decision supersedes the four-empire opening without changing the 8-sector, 64-system map boundary. The current seed uses Tony and Will as persistent human players plus Ariadne as a game-AI player, each controlling one of three empires in distinct sectors. The match model permits up to six empire participants and never shares control of an empire. Complex identity, account email, invitations, matchmaking, and production game-AI policy remain deferred; the present Development selector offers only Tony or Will behind the existing access-code boundary.
 
+The 19 July tutorial and match-enrolment direction separates future training from standard games. The tutorial will use a standalone compact game with one human seat and the same authoritative mechanics; standard games will select separate, larger map profiles. A persistent player may join several future game instances through one enrolment model that supports manual and scheduled population. Game-to-Cycle cardinality, queue and start transitions, capacity, under-filled starts, no-shows, withdrawal, game-AI seat filling, concurrent-game limits, and successor re-enrolment remain unanswered. The current Day One guide remains the implemented training path, and this direction adds no scope to issue #138.
+
 The 18 July turn-resolution decision closes the former relative-ordering gap. A command deadline closes human submissions without requiring player readiness; game-AI and neutral intentions are then generated from the same pre-resolution state before the complete ledger is sealed. Resolution uses deterministic resource, economy, construction, movement, combat, colonisation, derived-state, progression, and publication phases. The sequence is an accepted gameplay rule. Engineering cannot adjust it as incidental implementation work because it governs spendable income, reinforcements, escape and defence, colony survival, rankings, and progression timing. Issue #137 implements the boundary and issue #138 owns player-facing explanation.
 
 The 18 July game-AI decision in [issue #146](https://github.com/AnthonyPWatts/cycles/issues/146) replaces Ariadne's first-pass Hold behaviour with an ordered deterministic policy: attack a locally visible faction only with a 25% strength advantage, otherwise Hold against that threat; then prefer an affordable eligible outpost; then advance towards the highest-value reachable expansion objective. The planner may use public system value and topology plus its own state and locally visible fleets, but not hidden human intentions or remote enemy fleet positions. It respects non-aggression pacts and Alliances. Neutral factions remain positional Hold obstacles. Production difficulty, roles, diplomacy, coordinated strategy, forecasting, and adaptive behaviour remain deferred.
@@ -146,6 +148,16 @@ The colonisation slice and stored diplomacy foundation authorised by these answe
 | --- | --- | --- |
 | [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure. If the budget cannot fund every otherwise-eligible intention in the empire's set, reject the whole set. | A budget sufficient for zero or only some rejects all; a budget sufficient for every intention reserves all. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) implements the rule and player-facing explanation. |
 
+## Accepted Tutorial And Match-Enrolment Direction
+
+| Direction | Accepted answer | Remaining gate |
+| --- | --- | --- |
+| Tutorial game | Teach concepts in a standalone compact game with one human seat, using the same authoritative simulation and command rules as standard play. | Select the compact map profile, deterministic teaching participants, pacing, persistence, completion, and reset contract. |
+| Standard games | Select larger map profiles independently from the tutorial. | Select the first supported profiles, participant counts, balance target, and rendering evidence required for each. |
+| Persistent participation | Allow one persistent player to enrol in several game instances through future manual or scheduled population. Keep per-game empire control separate from account identity. | Settle Game-to-Cycle cardinality, queue/start lifecycle, capacity and under-filled policy, no-shows and withdrawal, optional game-AI fill, concurrent-game limits, explicit game selection, and successor-Cycle re-enrolment. |
+
+These answers record direction rather than implementation scope. Do not create a lobby, queue, scheduler, map-profile system, or multi-Cycle runtime as part of #138, and do not create an implementation issue until the remaining gates define a bounded slice.
+
 ## Accepted Q014-Q018 Answers
 
 | Question | Accepted answer | Consequence |
@@ -162,13 +174,13 @@ The colonisation slice and stored diplomacy foundation authorised by these answe
 | --- | --- | --- |
 | [Q107](https://github.com/AnthonyPWatts/cycles/issues/95) | Create `Cycles.Worker` before the next gameplay system. | The existing scheduled tick host is confirmed as the correct sequencing choice. This does not settle production hosting, authentication, backup, or Worker deployment topology. |
 | [Q108](https://github.com/AnthonyPWatts/cycles/issues/96) | Schedule ticks using the active Cycle's configured `TickLengthMinutes`. The first tick is due at Cycle start; later ticks are due one cadence after the last completed tick. | The Worker runs at most one due tick per check, does not process a catch-up backlog, and does not schedule recovery-required or non-active Cycles. |
-| [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Advance turn** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
+| [Q109](https://github.com/AnthonyPWatts/cycles/issues/97) | Allow any authenticated player to use **Close command window and advance** in Development. In shared private-alpha and Production environments, scheduled Worker timing is normal and only audited admins may trigger a manual tick. | Ordinary Production players cannot execute ticks. The Development exception uses the authoritative store boundary without changing player role, visibility, or empire authority. |
 
 ## Accepted Q110 And Q120-Q130 Answers
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
-| [Q110](https://github.com/AnthonyPWatts/cycles/issues/98) | Accept the current lifecycle-control default. **Advance turn** remains the only ordinary-player Development exception. Shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed. | The current Development capability is confirmed without broadening player roles or exposing recovery, Cycle end, successor creation, pause, or diagnostics controls. Production operations remain gated by the unanswered auth, hosting, Worker, recovery, and audit decisions. |
+| [Q110](https://github.com/AnthonyPWatts/cycles/issues/98) | Accept the current lifecycle-control default. **Close command window and advance** remains the only ordinary-player Development exception. Shared/private-alpha timing belongs to the Worker, manual lifecycle actions are limited to audited admins, and recovery or Cycle transitions remain operator-only until their audit and confirmation UX is designed. | The current Development capability is confirmed without broadening player roles or exposing recovery, Cycle end, successor creation, pause, or diagnostics controls. Production operations remain gated by the unanswered auth, hosting, Worker, recovery, and audit decisions. |
 | [Q120](https://github.com/AnthonyPWatts/cycles/issues/108) | All player-facing API endpoints use explicit response DTOs before online testing. | The implemented DTO-only boundary and its regression coverage are accepted product contracts. Future player-facing endpoints must follow the same boundary. |
 | [Q121](https://github.com/AnthonyPWatts/cycles/issues/109) | Raw domain entities remain internal and are not returned to the dashboard. | Dashboard contracts may expose purpose-built representations, but must not leak `Cycles.Core` entities. |
 | [Q122](https://github.com/AnthonyPWatts/cycles/issues/110) | Keep `FactJson` as flexible internal storage for another stage. Introduce a typed or validated fact contract when a payload becomes mechanically consumed, queried, migrated, or publicly exposed, rather than merely because it is displayed. | Do not begin a broad typed-fact migration before diplomacy and narrative shapes stabilise. The opening briefing is the current contract candidate because the dashboard consumes its fields; Q123 subsequently settles its public API boundary. |
@@ -237,7 +249,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Private-alpha and Production identity use an external OpenID Connect provider through ASP.NET Core cookie authentication. Stable issuer and subject identify the local player; the concrete provider remains environment-configurable.
 - Invitations or an allowlist may control admission, but empire ownership, admin role, and operational permissions remain Cycles-owned authorisation data.
 - Shared environments bootstrap named admins explicitly, then audit every local admin grant and revocation with actor, target, reason, and timestamp. Emergency operator access remains separate from routine player-admin accounts.
-- One player controls one empire.
+- One participant controls one empire within a game or Cycle. A persistent player may hold memberships in several future game instances; the current runtime still supports one operational active Cycle.
 - Admins may inspect all empires and act for support or repair.
 - Team/shared control is parked.
 - Players see the full galaxy topology.
@@ -252,7 +264,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Processed, rejected, cancelled, and superseded order history remains durable.
 - Cancellation records an event.
 - Scheduled ticks belong to a Worker; ordinary production player actions must not execute ticks.
-- **Advance turn** is the only ordinary-player Development exception and invokes the same authoritative store operation without changing the player's role, visibility, or empire authority.
+- **Close command window and advance** is the only ordinary-player Development exception and invokes the same authoritative store operation without changing the player's role, visibility, or empire authority. Its confirmation describes a current-game closure rather than player readiness.
 - Shared/private-alpha manual lifecycle actions are limited to audited admins. Recovery and Cycle transitions remain operator-only until their audit and confirmation UX is designed.
 - The command deadline first rejects further human submissions. AI and neutral planners then append only their own visibility-respecting intentions before one complete turn ledger is sealed; they do not inspect hidden human commands.
 - Missing commands normalise to Hold. Submission time grants no initiative, and each simultaneous phase resolves from a common phase-start snapshot with stable ordering used only for reproducibility.
@@ -273,6 +285,8 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Ordinary player responses and the normal dashboard do not expose raw fact storage. Display text is the default presentation; useful structured detail uses a purpose-built typed contract, while raw inspection is limited to an explicit authorised operator surface.
 - Player API property names use camelCase and enum wire values use camelCase strings; numeric enum values are not accepted as part of the public contract.
 - Handled player API errors retain the correct HTTP status and use a stable machine-readable code plus a safe human-readable message. Optional structured validation detail and trace correlation may be added without exposing internal exception data.
+- The player-scoped dashboard bootstrap exposes typed turn stage, command acceptance, complete phase metadata, empire forecast, and aggregate current-Cycle closure counts. Aggregate game counts do not expose another empire's orders or include another Cycle.
+- Forecast income, Colonise reservation, Military programme effects, and next-window progression are labelled as projections; queued construction deliveries are labelled as existing commitments. Event phase metadata may group factual results but does not grant initiative or change simulation order.
 - The next player test targets the curated 8-sector, 64-system galaxy with three empire participants and neutral pressure. The model permits up to six empire participants, but support beyond the current three-player Development setup or for materially denser topologies is not implied and requires fresh navigation, balance, and rendering evidence.
 - Desktop and laptop browsers are the primary command surface. Narrow layouts retain a readable core loop without page-level horizontal scrolling, but equal mobile optimisation and native mobile clients are not current requirements.
 - The resumable Day One guide is the primary in-dashboard training path. It teaches the real command loop and must explicitly explain the accepted visibility model, Events versus Chronicle, and the current tick/Cycle boundary without becoming a separate help system.
@@ -335,6 +349,7 @@ Do not expand these areas until the referenced questions have accepted answers:
 | Admirals | Q072-Q080 | Bonus scope, transfers, player management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, and display detail. Q071 establishes narrative-first now with strategic effects later; Q081 permits an admiral association to change both the figure's history and later galaxy naming. |
 | Cycle continuity | Q085-Q091, Q093, and [#157](https://github.com/AnthonyPWatts/cycles/issues/157) | Disclosure, cutoff handling, lifecycle controls, successor identity, defeated-empire flavour, summaries, significance evolution, export, and the narrative reason for the break between Cycles. Q082-Q084 reset participants while retaining selected history and galaxy echoes; Q092 permits names to evolve. |
 | Chronicle AI | Q094-Q096 and Q098-Q106 | Queue ownership, retry/fallback, failure display, tone, inference, required facts, review, thresholds, interactions, privacy, and versioning. Q097 establishes a provider-neutral connector boundary without selecting a vendor. |
+| Tutorial and match enrolment | Future bounded product decisions; no implementation issue yet | Compact tutorial profile and reset, standard map profiles, Game-to-Cycle cardinality, queue/start/capacity/no-show/withdrawal/game-AI-fill policy, concurrent-game limits, explicit selection, and successor re-enrolment. |
 
 ## Engineering Defaults
 

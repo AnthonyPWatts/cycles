@@ -104,6 +104,82 @@ public sealed class ApiDashboardBootstrapTests
         Assert.DoesNotContain(context.Events, item => item.EventId == privateAlliedEvent.EventId);
     }
 
+    [Fact]
+    public void Bootstrap_context_keeps_the_complete_latest_visible_tick_with_a_bounded_recent_remainder()
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var cycle = state.GetActiveCycle()!;
+        var player = state.Players.Single(item => item.Username == "Tony");
+        var empire = state.Empires.Single(item => item.PlayerId == player.PlayerId);
+        var latestEventIds = new List<Guid>();
+        for (var index = 0; index < 30; index++)
+        {
+            var item = VisibleEmpireEvent(cycle.CycleId, empire.EmpireId, tickNumber: 7, index: index);
+            latestEventIds.Add(item.EventId);
+            state.Events.Add(item);
+        }
+
+        for (var index = 0; index < 100; index++)
+        {
+            state.Events.Add(VisibleEmpireEvent(cycle.CycleId, empire.EmpireId, tickNumber: 6, index: index));
+        }
+
+        var foreignEvent = VisibleEmpireEvent(Guid.NewGuid(), empire.EmpireId, tickNumber: 99, index: 0);
+        state.Events.Add(foreignEvent);
+        var context = DashboardBootstrapContextFactory.Load(
+            selectedFleetId: null,
+            TestHttpContextFactory.CreateAuthenticated(player),
+            new CountingGameStateStore(state));
+
+        Assert.Equal(100, context.Events.Count);
+        Assert.All(latestEventIds, eventId => Assert.Contains(context.Events, item => item.EventId == eventId));
+        Assert.DoesNotContain(context.Events, item => item.EventId == foreignEvent.EventId);
+        Assert.All(context.Events, item => Assert.Equal(cycle.CycleId, item.CycleId));
+    }
+
+    [Fact]
+    public void Bootstrap_context_does_not_cut_a_latest_visible_tick_that_exceeds_the_normal_limit()
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var cycle = state.GetActiveCycle()!;
+        var player = state.Players.Single(item => item.Username == "Tony");
+        var empire = state.Empires.Single(item => item.PlayerId == player.PlayerId);
+        var latestEventIds = Enumerable.Range(0, 110)
+            .Select(index => VisibleEmpireEvent(cycle.CycleId, empire.EmpireId, tickNumber: 8, index: index))
+            .Select(item =>
+            {
+                state.Events.Add(item);
+                return item.EventId;
+            })
+            .ToArray();
+
+        var context = DashboardBootstrapContextFactory.Load(
+            selectedFleetId: null,
+            TestHttpContextFactory.CreateAuthenticated(player),
+            new CountingGameStateStore(state));
+
+        Assert.Equal(110, context.Events.Count);
+        Assert.All(latestEventIds, eventId => Assert.Contains(context.Events, item => item.EventId == eventId));
+        Assert.All(context.Events, item => Assert.Equal(8, item.TickNumber));
+    }
+
+    private static EventRecord VisibleEmpireEvent(
+        Guid cycleId,
+        Guid empireId,
+        int tickNumber,
+        int index) =>
+        new()
+        {
+            CycleId = cycleId,
+            TickNumber = tickNumber,
+            EventType = EventType.ResourcesGenerated,
+            EmpireId = empireId,
+            Severity = EventSeverity.Low,
+            DisplayText = $"Visible event {tickNumber}-{index}",
+            FactJson = "{}",
+            CreatedAt = TestState.Now.AddMinutes(index)
+        };
+
     private sealed class CountingGameStateStore(GameState state) : IGameStateStore
     {
         public string Description => "counting dashboard bootstrap store";

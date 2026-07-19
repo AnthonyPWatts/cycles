@@ -417,7 +417,8 @@ static DashboardBootstrapResponse ToDashboardBootstrapResponse(
         context.Orders.Select(order => ToOrderResponse(context.State, order)).ToArray(),
         context.Events.Select(ToEventResponse).ToArray(),
         ToChronicleEntryResponsesFromEntries(context.State, context.Cycle, context.ChronicleEntries),
-        context.OpeningBriefing);
+        context.OpeningBriefing,
+        TurnResolutionPresentationContract.Create(context.State, context.Cycle, context.Empire));
 }
 
 static GalaxyResponse ToGalaxyResponse(
@@ -721,8 +722,10 @@ static FleetDataResponse ToFleetDataResponse(Fleet fleet) =>
         fleet.Status,
         fleet.CreatedAt);
 
-static EventResponse ToEventResponse(EventRecord item) =>
-    new(
+static EventResponse ToEventResponse(EventRecord item)
+{
+    var phase = TurnResolutionPresentationContract.GetEventPhase(item.EventType);
+    return new(
         item.EventId,
         item.CycleId,
         item.TickNumber,
@@ -731,7 +734,10 @@ static EventResponse ToEventResponse(EventRecord item) =>
         item.EmpireId,
         item.Severity,
         item.DisplayText,
-        item.CreatedAt);
+        item.CreatedAt,
+        phase.Phase,
+        phase.Order);
+}
 
 static BattleResponse ToBattleResponse(BattleRecord item) =>
     new(
@@ -1016,7 +1022,8 @@ public sealed record DashboardBootstrapResponse(
     IReadOnlyCollection<FleetOrderResponse> Orders,
     IReadOnlyCollection<EventResponse> Events,
     IReadOnlyCollection<ChronicleEntryResponse> Chronicle,
-    OpeningBriefingResponse? OpeningBriefing);
+    OpeningBriefingResponse? OpeningBriefing,
+    TurnResolutionPresentationResponse TurnResolution);
 
 public sealed record EmpireResponse(
     Guid EmpireId,
@@ -1251,7 +1258,9 @@ public sealed record EventResponse(
     Guid? EmpireId,
     EventSeverity Severity,
     string DisplayText,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    TurnResolutionPhase? ResolutionPhase,
+    int? ResolutionPhaseOrder);
 
 public sealed record BattleResponse(
     Guid BattleId,

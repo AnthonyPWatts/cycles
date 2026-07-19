@@ -7,7 +7,7 @@ The hosted playground is a deliberately constrained development environment for 
 - `Cycles.Api` targets .NET 10 LTS and runs on the Azure App Service **F1 Free** plan.
 - Authoritative state is stored in Azure SQL database `CyclesDb` on logical server `cycles-sql-b366b760` in France Central. The UK regions do not permit this subscription to provision the selected tier.
 - The database uses the Azure SQL free serverless offer: General Purpose Gen5, 2 vCores maximum, 0.5 vCores minimum, the provider-required 60-minute auto-pause, 32 GB maximum data size, locally redundant backup storage, and `AutoPause` when the monthly free allowance is exhausted.
-- `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Advance turn** capability.
+- `Cycles.Worker` is not deployed. Invited players advance the simulation manually through the Development-only **Close command window and advance** capability.
 - The application uses `ASPNETCORE_ENVIRONMENT=Development` so an empty store receives the canonical 8-sector, 64-system Day One seed.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan fronts `https://cycles.anthonypwatts.co.uk`. Its static-assets binding serves the public landing shell plus image and video files directly from Cloudflare; all other routes continue through the Worker to the App Service origin. It uses no R2, KV, paid observability, or paid Worker features.

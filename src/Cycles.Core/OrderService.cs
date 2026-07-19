@@ -423,6 +423,30 @@ public static class OrderService
             .All(item => empirePresence > item.Value);
     }
 
+    internal static bool IsColonisationEligibleAtClosure(
+        GameState state,
+        FleetOrder order,
+        IReadOnlyDictionary<Guid, Fleet> fleetsById)
+    {
+        if (!fleetsById.TryGetValue(order.FleetId, out var fleet)
+            || fleet.Status != FleetStatus.Active
+            || fleet.ShipCount <= 0
+            || !order.TargetSystemId.HasValue
+            || fleet.CurrentSystemId != order.TargetSystemId.Value)
+        {
+            return false;
+        }
+
+        var empire = state.Empires.SingleOrDefault(item => item.CycleId == order.CycleId
+                                                            && item.EmpireId == fleet.EmpireId);
+        return empire is not null
+               && fleet.CurrentSystemId != empire.HomeSystemId
+               && !state.ColonialOutposts.Any(item => item.CycleId == order.CycleId
+                                                       && item.EmpireId == fleet.EmpireId
+                                                       && item.SystemId == fleet.CurrentSystemId)
+               && HasLeadingPresence(state, order.CycleId, fleet.CurrentSystemId, fleet.EmpireId);
+    }
+
     private static (Cycle Cycle, Fleet Fleet) GetActiveFleetForOrder(GameState state, Guid fleetId)
     {
         var cycle = state.GetActiveCycle()

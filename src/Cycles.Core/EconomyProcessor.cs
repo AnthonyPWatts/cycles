@@ -72,27 +72,28 @@ public static class EconomyProcessor
             resources.LastSpentResearch = 0;
             resources.LastSpentPopulation = 0;
 
-            var militaryBudget = decimal.Round(resources.Industry * priorities.MilitaryWeight / 100m, 2);
-            var shipCount = (int)Math.Floor(militaryBudget / ShipIndustryCost);
-            if (shipCount <= 0)
+            var projection = ProjectMilitaryProgramme(
+                resources.Industry,
+                priorities.MilitaryWeight,
+                tickNumber);
+            if (projection.ShipCount <= 0)
             {
                 resources.UpdatedAt = now;
                 continue;
             }
 
-            var spentIndustry = shipCount * ShipIndustryCost;
-            resources.Industry = Math.Max(0, resources.Industry - spentIndustry);
-            resources.LastSpentIndustry = spentIndustry;
+            resources.Industry = Math.Max(0, resources.Industry - projection.IndustrySpent);
+            resources.LastSpentIndustry = projection.IndustrySpent;
             resources.UpdatedAt = now;
 
             var construction = new ShipConstruction
             {
                 CycleId = cycleId,
                 EmpireId = empire.EmpireId,
-                ShipCount = shipCount,
-                IndustrySpent = spentIndustry,
+                ShipCount = projection.ShipCount,
+                IndustrySpent = projection.IndustrySpent,
                 StartedTick = tickNumber,
-                CompleteAfterTick = tickNumber + ShipBuildDelayTicks,
+                CompleteAfterTick = projection.DeliveryTick,
                 Status = ShipConstructionStatus.Queued,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -108,7 +109,7 @@ public static class EconomyProcessor
                 SystemId = homeSystem.SystemId,
                 EmpireId = empire.EmpireId,
                 Severity = EventSeverity.Low,
-                DisplayText = $"{empire.EmpireName} committed {spentIndustry:0.##} industry to {shipCount} ship(s).",
+                DisplayText = $"{empire.EmpireName} committed {projection.IndustrySpent:0.##} industry to {projection.ShipCount} ship(s).",
                 FactJson = JsonSerializer.Serialize(new
                 {
                     construction.ShipConstructionId,
@@ -124,6 +125,26 @@ public static class EconomyProcessor
                 CreatedAt = now
             });
         }
+    }
+
+    public static MilitaryProgrammeProjection ProjectMilitaryProgramme(
+        decimal availableIndustry,
+        int militaryWeight,
+        int startedTick)
+    {
+        var clampedIndustry = Math.Max(0, availableIndustry);
+        var clampedWeight = Math.Clamp(militaryWeight, 0, StrategicPriorityPolicy.TotalWeight);
+        var militaryBudget = decimal.Round(
+            clampedIndustry * clampedWeight / StrategicPriorityPolicy.TotalWeight,
+            2);
+        var shipCount = (int)Math.Floor(militaryBudget / ShipIndustryCost);
+        var industrySpent = shipCount * ShipIndustryCost;
+
+        return new MilitaryProgrammeProjection(
+            clampedWeight,
+            industrySpent,
+            shipCount,
+            startedTick + ShipBuildDelayTicks);
     }
 
     public static void ApplyResearchUnlocks(GameState state, Guid cycleId, int tickNumber, DateTimeOffset now)
@@ -233,3 +254,9 @@ public static class EconomyProcessor
         resources.Population = Math.Max(0, resources.Population);
     }
 }
+
+public readonly record struct MilitaryProgrammeProjection(
+    int MilitaryWeight,
+    decimal IndustrySpent,
+    int ShipCount,
+    int DeliveryTick);

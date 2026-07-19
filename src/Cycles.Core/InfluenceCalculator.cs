@@ -144,6 +144,24 @@ public static class InfluenceCalculator
         return generatedByEmpire;
     }
 
+    public static ResourceDelta CalculateEmpireResourceGeneration(
+        GameState state,
+        Guid cycleId,
+        Guid empireId)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        if (!state.Empires.Any(empire => empire.CycleId == cycleId && empire.EmpireId == empireId))
+        {
+            throw new InvalidOperationException("Empire was not found in the requested Cycle.");
+        }
+
+        var generatedByEmpire = CalculateResourceGeneration(state, cycleId);
+        return generatedByEmpire.TryGetValue(empireId, out var delta)
+            ? delta
+            : new ResourceDelta(0, 0, 0);
+    }
+
     private static decimal CalculateExpansionProjectionBonus(GameState state, Guid empireId)
     {
         var priority = state.EmpirePriorities.SingleOrDefault(item => item.EmpireId == empireId);

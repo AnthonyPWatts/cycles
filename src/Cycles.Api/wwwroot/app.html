@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260718-turn-ribbon-1">
+    <link rel="stylesheet" href="styles.css?v=20260719-turn-contract-1">
 </head>
 <body>
     <header class="topbar">
@@ -34,7 +34,7 @@
                 <button id="tutorialButton" class="toolbar-icon-button" type="button" aria-label="Guide" aria-controls="tutorialPanel" title="Guide">
                     <span class="toolbar-action-icon toolbar-action-icon-guide" aria-hidden="true"></span>
                 </button>
-                <button id="advanceTurnButton" class="toolbar-icon-button" type="button" aria-label="Advance turn" title="Advance turn — resolve one authoritative turn for the whole development galaxy." hidden>
+                <button id="advanceTurnButton" class="toolbar-icon-button" type="button" aria-label="Close command window and advance" title="Close this game's command window and resolve one authoritative turn." hidden>
                     <span class="toolbar-action-icon toolbar-action-icon-advance" aria-hidden="true"></span>
                 </button>
                 <button id="refreshButton" class="toolbar-icon-button" type="button" aria-label="Refresh" title="Refresh">
@@ -216,6 +216,33 @@
                         </aside>
                     </div>
 
+                    <section id="turnResolutionSection" class="view-card turn-resolution-contract" aria-labelledby="turnResolutionTitle">
+                        <div class="section-heading turn-resolution-heading">
+                            <div>
+                                <span class="section-kicker">Authoritative turn contract</span>
+                                <div class="section-title-row">
+                                    <h2 id="turnResolutionTitle">How the next turn resolves</h2>
+                                    <span id="turnStageBadge" class="turn-stage-badge">Loading stage</span>
+                                </div>
+                            </div>
+                            <p id="turnStageDescription" class="turn-stage-description">Loading the current command-window stage.</p>
+                        </div>
+                        <p id="turnInitiativeNote" class="turn-initiative-note">
+                            Submission time grants no initiative. Every phase uses the authoritative sealed ledger.
+                        </p>
+                        <ol id="turnPhaseOrder" class="turn-phase-order" aria-label="Authoritative turn processing order"></ol>
+                        <section class="turn-forecast" aria-labelledby="turnForecastTitle">
+                            <div class="turn-forecast-heading">
+                                <div>
+                                    <span class="section-kicker">Current command-window forecast</span>
+                                    <h3 id="turnForecastTitle">Projected and committed effects</h3>
+                                </div>
+                                <span>Projections can change before closure; committed deliveries are authoritative.</span>
+                            </div>
+                            <div id="turnForecastSummary" class="turn-forecast-grid" aria-live="polite"></div>
+                        </section>
+                    </section>
+
                     <section id="orderQueueSection" class="view-card command-queue">
                         <div class="section-heading command-queue-heading">
                             <div>
@@ -227,7 +254,7 @@
                             </div>
                             <div class="command-queue-actions">
                                 <a class="section-link" href="#fleets">Issue orders</a>
-                                <button id="commandAdvanceTurnButton" type="button" hidden>Advance turn</button>
+                                <button id="commandAdvanceTurnButton" type="button" hidden>Close command window and advance</button>
                             </div>
                         </div>
                         <div id="orders" class="turn-calendar"></div>
@@ -481,16 +508,18 @@
                                     <option value="historic">Historic</option>
                                 </select>
                             </label>
-                            <label>
-                                Sort
-                                <select id="eventSort">
-                                    <option value="newest">Newest first</option>
-                                    <option value="oldest">Oldest first</option>
-                                    <option value="severity-desc">Highest severity</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div id="events" class="list compact"></div>
+                                <label>
+                                    Sort
+                                    <select id="eventSort">
+                                        <option value="resolution">Resolution order</option>
+                                        <option value="newest">Newest first</option>
+                                        <option value="oldest">Oldest first</option>
+                                        <option value="severity-desc">Highest severity</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <p class="event-order-note">Results are grouped by authoritative phase. Timestamps and display order record publication; neither grants gameplay priority.</p>
+                            <div id="events" class="list compact"></div>
                     </section>
                 </div>
             </section>
@@ -527,6 +556,20 @@
         </footer>
     </main>
 
+    <dialog id="advanceTurnDialog" class="advance-turn-dialog" aria-labelledby="advanceTurnDialogTitle" aria-describedby="advanceTurnDialogBody advanceTurnDialogCounts">
+        <form method="dialog" class="advance-turn-dialog-card">
+            <span class="section-kicker">Development operator action</span>
+            <h2 id="advanceTurnDialogTitle">Close this game's command window?</h2>
+            <p id="advanceTurnDialogBody">No further player intentions can enter this turn after closure. Internal planners will finish, one game-wide ledger will seal, and every participant will resolve through the published phase order.</p>
+            <p id="advanceTurnDialogCounts" class="advance-turn-dialog-counts"></p>
+            <p class="advance-turn-dialog-warning">Submission time grants no initiative. This action advances the whole current game, not only your empire.</p>
+            <div class="advance-turn-dialog-actions">
+                <button id="cancelAdvanceTurnButton" class="secondary-action" type="submit" value="cancel">Keep commands open</button>
+                <button id="confirmAdvanceTurnButton" type="submit" value="confirm">Close command window and advance</button>
+            </div>
+        </form>
+    </dialog>
+
     <aside id="tutorialPanel" class="tutorial-panel" role="region" aria-live="polite" aria-labelledby="tutorialTitle" aria-describedby="tutorialBody tutorialRequirement" hidden>
         <div class="tutorial-heading-row">
             <div>
@@ -558,6 +601,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260719-opening-move-1"></script>
+    <script src="app.js?v=20260719-turn-contract-1"></script>
 </body>
 </html>

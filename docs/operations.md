@@ -52,7 +52,7 @@ Configuration keys:
 
 The Cycle's `TickLengthMinutes` controls simulation cadence. Recovery-required and non-active Cycles are not scheduled.
 
-Every authenticated Development session can run the same authoritative store operation from **Advance turn**. This is a temporary play-testing capability, not role promotion: normal players keep ordinary visibility and empire authority. In Production, ordinary players cannot advance turns and the endpoint remains admin-only. The CLI remains available for deliberate local operation:
+Every authenticated Development session can run the same authoritative store operation from **Close command window and advance**. This is a temporary play-testing capability, not role promotion: normal players keep ordinary visibility and empire authority. In Production, ordinary players cannot advance turns and the endpoint remains admin-only. The CLI remains available for deliberate local operation:
 
 ```powershell
 dotnet run --project src/Cycles.Cli -- tick "sqlserver:$connectionString"

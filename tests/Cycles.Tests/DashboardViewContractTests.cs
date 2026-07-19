@@ -59,7 +59,7 @@ public sealed class DashboardViewContractTests
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
-        Assert.Contains("aria-label=\"Advance turn\"", toolbar);
+        Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
         Assert.DoesNotContain(">Guide</button>", toolbar);
         Assert.DoesNotContain(">Advance turn</button>", toolbar);
@@ -251,9 +251,15 @@ public sealed class DashboardViewContractTests
         Assert.Contains("id=\"eventSearch\"", html);
         Assert.Contains("id=\"eventSeverity\"", html);
         Assert.Contains("id=\"eventSort\"", html);
+        Assert.Contains("<option value=\"resolution\">Resolution order</option>", html);
+        Assert.Contains("Results are grouped by authoritative phase.", html);
         Assert.Contains("Importance ${formatNumber(entry.importanceScore)}", script);
         Assert.Contains("T${entry.tickNumber ?? \"?\"}", script);
         Assert.Contains("class=\"chronicle-summary\"", script);
+        Assert.Contains("function renderPhaseOrderedEvents(events)", script);
+        Assert.Contains("eventResolutionPhaseOrder(left) - eventResolutionPhaseOrder(right)", script);
+        Assert.Contains("event.resolutionPhaseOrder", script);
+        Assert.Contains("event.resolutionPhase", script);
     }
 
     [Fact]
@@ -307,8 +313,8 @@ public sealed class DashboardViewContractTests
     {
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("version: \"v3\"", script);
-        Assert.Contains("openingBriefing } = bootstrap", script);
+        Assert.Contains("version: \"v4\"", script);
+        Assert.Contains("openingBriefing, turnResolution } = bootstrap", script);
         Assert.DoesNotContain("event.factJson", script);
         Assert.DoesNotContain("JSON.parse(event.factJson)", script);
         Assert.Contains("id: \"visibility\"", script);

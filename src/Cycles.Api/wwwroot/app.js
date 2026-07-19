@@ -15,6 +15,7 @@ const state = {
     events: [],
     chronicle: [],
     openingBriefing: null,
+    turnResolution: null,
     activeView: "command",
     fleetTab: "command",
     fleetAction: "move",
@@ -28,7 +29,7 @@ const state = {
     chronicleSort: "newest",
     eventQuery: "",
     eventSeverity: "all",
-    eventSort: "newest",
+    eventSort: "resolution",
     mapLens: "overview",
     mapPreset: "galaxy",
     mapMaximised: false,
@@ -215,7 +216,7 @@ const viewShortcuts = new Map([
 ]);
 
 const tutorial = {
-    version: "v3",
+    version: "v4",
     active: false,
     status: "available",
     storageKey: null,
@@ -257,6 +258,13 @@ const elements = {
     commandView: document.querySelector("#commandView"),
     commandAgendaCount: document.querySelector("#commandAgendaCount"),
     commandPendingCount: document.querySelector("#commandPendingCount"),
+    turnResolutionSection: document.querySelector("#turnResolutionSection"),
+    turnResolutionTitle: document.querySelector("#turnResolutionTitle"),
+    turnStageBadge: document.querySelector("#turnStageBadge"),
+    turnStageDescription: document.querySelector("#turnStageDescription"),
+    turnInitiativeNote: document.querySelector("#turnInitiativeNote"),
+    turnPhaseOrder: document.querySelector("#turnPhaseOrder"),
+    turnForecastSummary: document.querySelector("#turnForecastSummary"),
     councilAgenda: document.querySelector("#councilAgenda"),
     frontierSchematic: document.querySelector("#frontierSchematic"),
     commandStream: document.querySelector("#commandStream"),
@@ -325,6 +333,9 @@ const elements = {
     mapMaximise: document.querySelector("#mapMaximise"),
     advanceTurnButton: document.querySelector("#advanceTurnButton"),
     commandAdvanceTurnButton: document.querySelector("#commandAdvanceTurnButton"),
+    advanceTurnDialog: document.querySelector("#advanceTurnDialog"),
+    advanceTurnDialogCounts: document.querySelector("#advanceTurnDialogCounts"),
+    confirmAdvanceTurnButton: document.querySelector("#confirmAdvanceTurnButton"),
     turnMessage: document.querySelector("#turnMessage"),
     refreshButton: document.querySelector("#refreshButton"),
     tutorialButton: document.querySelector("#tutorialButton"),
@@ -392,29 +403,52 @@ window.addEventListener("hashchange", () => {
     });
 });
 
-elements.advanceTurnButton.addEventListener("click", async () => {
+elements.advanceTurnButton.addEventListener("click", () => {
     if (tutorial.active
         && tutorial.briefing
         && state.cycle?.currentTickNumber === 0
         && !curatedObjectiveOrdersReady()) {
-        setTurnMessage("Complete the three Day 1 commitments before advancing the turn.");
+        setTurnMessage("Complete the three Day 1 commitments before closing the command window.");
         syncTutorialDisplay();
         return;
     }
 
+    if (!commandsAreOpen()) {
+        setTurnMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept player commands.`);
+        return;
+    }
+
+    const turn = state.turnResolution;
+    elements.advanceTurnDialogCounts.textContent = turn
+        ? `Your queue: ${formatCount(turn.playerPendingOrderCount, "pending order")} · Current game: ${formatCount(turn.gamePendingHumanOrderCount, "human order")} queued · ${formatCount(turn.gameFleetIntentionCount, "fleet intention")} will be sealed.`
+        : "The current game's complete fleet ledger will be sealed.";
+    elements.advanceTurnDialog.returnValue = "";
+    elements.advanceTurnDialog.showModal();
+});
+
+elements.advanceTurnDialog.addEventListener("close", async () => {
+    if (elements.advanceTurnDialog.returnValue !== "confirm") {
+        return;
+    }
+
+    await advanceTurn();
+});
+
+async function advanceTurn() {
     elements.advanceTurnButton.disabled = true;
     elements.commandAdvanceTurnButton.disabled = true;
+    elements.confirmAdvanceTurnButton.disabled = true;
     try {
         const result = await postJson("/admin/tick", {});
-        setTurnMessage(`Advanced to T${result.tickNumber}: ${formatCount(result.ordersProcessed, "order")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}.`);
+        setTurnMessage(`Published T${result.tickNumber}: ${formatCount(result.ordersProcessed, "sealed fleet intention")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}. Display order did not grant initiative.`);
         await refresh();
     } catch (error) {
         setTurnMessage(error.message);
     } finally {
-        elements.advanceTurnButton.disabled = false;
-        elements.commandAdvanceTurnButton.disabled = false;
+        elements.confirmAdvanceTurnButton.disabled = false;
+        syncCommandWindowControls();
     }
-});
+}
 
 elements.commandView.addEventListener("click", async event => {
     const prioritiesButton = event.target.closest("[data-focus-priorities]");
@@ -645,7 +679,7 @@ elements.eventSort.addEventListener("change", () => {
 
 elements.priorityForm.addEventListener("input", event => {
     const input = event.target.closest("[data-priority-key]");
-    if (!input || !state.priorityDraft) {
+    if (!input || !state.priorityDraft || !commandsAreOpen()) {
         return;
     }
 
@@ -667,6 +701,11 @@ elements.priorityResetButton.addEventListener("click", () => {
 elements.priorityForm.addEventListener("submit", async event => {
     event.preventDefault();
     setPriorityMessage("");
+    if (!commandsAreOpen()) {
+        setPriorityMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept priority changes.`);
+        return;
+    }
+
     if (!state.empire) {
         setPriorityMessage("Login before updating priorities.");
         return;
@@ -701,6 +740,11 @@ elements.priorityForm.addEventListener("submit", async event => {
 
 elements.moveForm.addEventListener("submit", async event => {
     event.preventDefault();
+    if (!commandsAreOpen()) {
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept movement commands.`);
+        return;
+    }
+
     const fleetId = state.selectedFleetId;
     const targetSystemId = elements.destinationSelect.value;
     if (!fleetId || !targetSystemId) {
@@ -739,6 +783,11 @@ elements.moveForm.addEventListener("submit", async event => {
 
 elements.attackForm.addEventListener("submit", async event => {
     event.preventDefault();
+    if (!commandsAreOpen()) {
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept attack commands.`);
+        return;
+    }
+
     const fleetId = state.selectedFleetId;
     const targetFactionId = elements.targetEmpireSelect.value || null;
     const selectedFleet = state.fleets.find(item => item.fleet.fleetId === fleetId) ?? null;
@@ -792,6 +841,11 @@ elements.attackForm.addEventListener("submit", async event => {
 
 elements.coloniseForm.addEventListener("submit", async event => {
     event.preventDefault();
+    if (!commandsAreOpen()) {
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept colonisation commands.`);
+        return;
+    }
+
     const fleetId = state.selectedFleetId;
     if (!fleetId) {
         setMessage("Select an active fleet outside its home system.");
@@ -979,7 +1033,7 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
         ? `?selectedFleetId=${encodeURIComponent(state.selectedFleetId)}`
         : "";
     const bootstrap = await getJson(`/dashboard/bootstrap${selectedFleetQuery}`);
-    const { cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing } = bootstrap;
+    const { cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing, turnResolution } = bootstrap;
 
     if (applySessionFromBootstrap) {
         applySession({ ...bootstrap.session, empire });
@@ -993,6 +1047,7 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
     state.events = events;
     state.chronicle = chronicle;
     state.openingBriefing = openingBriefing;
+    state.turnResolution = turnResolution;
 
     state.fleetDetail = bootstrap.selectedFleet;
     state.selectedFleetId = bootstrap.selectedFleet?.fleetId ?? null;
@@ -1001,6 +1056,7 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
         state.selectedSystemId = empire.homeSystem.systemId;
     }
     renderCycle(cycle);
+    renderTurnResolution(turnResolution);
     renderEmpire(empire);
     renderSystemDetails();
     renderPriorities(empire.priorities);
@@ -1013,6 +1069,7 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
     renderGalaxy(galaxy, empire);
     renderViewBadges();
     renderCommandWorkspace();
+    syncCommandWindowControls();
     syncTutorialAfterRefresh();
 }
 
@@ -1130,13 +1187,123 @@ function syncTabSet(buttons, panels, dataKey, selected) {
 }
 
 function renderCycle(cycle) {
+    const stageLabel = state.turnResolution?.stageLabel ?? formatStatus(cycle.turnStage);
     elements.cycleStatus.innerHTML = `
         <span class="cycle-name">${escapeHtml(cycle.name)}</span>
         <span class="cycle-pill">T${cycle.currentTickNumber}</span>
+        <span class="turn-stage-inline">${escapeHtml(stageLabel)}</span>
         ${statusChip(cycle.status)}
     `;
-    elements.nextTurnStatus.textContent = `T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
+    elements.nextTurnStatus.textContent = `${stageLabel} · T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
     renderTurnTimeline(cycle.currentTickNumber);
+}
+
+function renderTurnResolution(turnResolution) {
+    if (!turnResolution) {
+        elements.turnStageBadge.textContent = formatStatus(state.cycle?.turnStage ?? "commandOpen");
+        elements.turnStageDescription.textContent = "Turn-stage details are unavailable.";
+        elements.turnPhaseOrder.innerHTML = "";
+        elements.turnForecastSummary.innerHTML = `<article class="turn-forecast-item"><strong>Forecast unavailable</strong><span>Refresh the current game state.</span></article>`;
+        return;
+    }
+
+    elements.turnResolutionTitle.textContent = `How T${formatNumber(turnResolution.nextTickNumber)} resolves`;
+    elements.turnStageBadge.textContent = turnResolution.stageLabel;
+    elements.turnStageBadge.className = `turn-stage-badge stage-${statusClass(turnResolution.stage)}`;
+    elements.turnStageDescription.textContent = turnResolution.stageDescription;
+    elements.turnInitiativeNote.textContent = turnResolution.submissionTimeGrantsInitiative
+        ? "The current rules grant initiative by submission time."
+        : "Submission time grants no initiative. Stable ordering only makes the sealed result reproducible.";
+    elements.turnPhaseOrder.innerHTML = turnResolution.phases.map(phase => `
+        <li data-turn-phase="${escapeHtml(phase.phase)}">
+            <span>${String(phase.order).padStart(2, "0")}</span>
+            <div>
+                <strong>${escapeHtml(phase.title)}</strong>
+                <p>${escapeHtml(phase.consequence)}</p>
+            </div>
+        </li>
+    `).join("");
+
+    const forecast = turnResolution.forecast;
+    const income = forecast.expectedIncome;
+    const reservation = forecast.colonisationReservation;
+    const programme = forecast.automaticMilitaryProgramme;
+    const deliveries = forecast.scheduledDeliveries;
+    const deliverySummary = deliveries.length === 0
+        ? "No authoritative ship deliveries are queued."
+        : deliveries
+            .map(delivery => `${formatCount(delivery.shipCount, "ship")} at T${formatNumber(delivery.deliveryTick)}`)
+            .join(" · ");
+    const reservationSummary = reservation.orderCount === 0
+        ? "No Colonise Population reservation is projected."
+        : `${formatCount(reservation.orderCount, "Colonise order")} require ${formatNumber(reservation.populationRequired)} Population; ${formatNumber(reservation.availablePopulationAfterIncome)} is projected after income.`;
+    const programmeSummary = programme.projectedShipCount > 0
+        ? `${formatCount(programme.projectedShipCount, "ship")} projected for delivery at T${formatNumber(programme.projectedDeliveryTick)}.`
+        : "No automatic Military construction start is projected.";
+    const progressionSummary = forecast.surveyProjectionExpectedNextWindow
+        ? `Survey Projection is expected to unlock after T${formatNumber(turnResolution.nextTickNumber)} and apply in the next command window.`
+        : "No new progression effect is currently projected for the next command window.";
+
+    elements.turnForecastSummary.innerHTML = `
+        <article class="turn-forecast-item is-projection">
+            <small>Projected income · T${formatNumber(turnResolution.nextTickNumber)}</small>
+            <strong>+${formatNumber(income.industry)} I · +${formatNumber(income.research)} R · +${formatNumber(income.population)} P</strong>
+            <span>Calculated from current influence before movement.</span>
+        </article>
+        <article class="turn-forecast-item is-projection${reservation.isFullyFunded ? "" : " has-warning"}">
+            <small>Projected reservation · closure</small>
+            <strong>${formatNumber(reservation.populationRequired)} Population</strong>
+            <span>${escapeHtml(reservationSummary)}</span>
+        </article>
+        <article class="turn-forecast-item is-projection">
+            <small>Projected programme · phase 3</small>
+            <strong>${formatNumber(programme.projectedIndustrySpend)} Industry · ${formatCount(programme.projectedShipCount, "ship")}</strong>
+            <span>${escapeHtml(programmeSummary)}</span>
+        </article>
+        <article class="turn-forecast-item is-commitment">
+            <small>Authoritative commitments</small>
+            <strong>${formatCount(deliveries.reduce((total, delivery) => total + delivery.shipCount, 0), "queued ship")}</strong>
+            <span>${escapeHtml(deliverySummary)}</span>
+        </article>
+        <article class="turn-forecast-item is-projection">
+            <small>Projected progression · phase 8</small>
+            <strong>${forecast.surveyProjectionExpectedNextWindow ? "Next-window unlock" : "No unlock projected"}</strong>
+            <span>${escapeHtml(progressionSummary)}</span>
+        </article>
+    `;
+}
+
+function commandsAreOpen() {
+    if (state.turnResolution) {
+        return state.turnResolution.commandsAccepted;
+    }
+
+    return state.cycle?.turnStage === "commandOpen";
+}
+
+function syncCommandWindowControls() {
+    const commandsOpen = commandsAreOpen();
+    const stageLabel = state.turnResolution?.stageLabel ?? formatStatus(state.cycle?.turnStage ?? "commandOpen");
+    elements.turnResolutionSection.classList.toggle("is-commands-closed", !commandsOpen);
+    elements.advanceTurnButton.hidden = !state.canAdvanceTurn;
+    elements.commandAdvanceTurnButton.hidden = !state.canAdvanceTurn;
+    elements.advanceTurnButton.disabled = !commandsOpen;
+    elements.commandAdvanceTurnButton.disabled = !commandsOpen;
+
+    for (const control of document.querySelectorAll("[data-cancel-order-id], [data-recall-fleet-id]")) {
+        control.disabled = !commandsOpen;
+        control.title = commandsOpen ? "" : `${stageLabel} does not accept command changes.`;
+    }
+
+    for (const form of [elements.moveForm, elements.attackForm, elements.coloniseForm]) {
+        form.classList.toggle("is-command-closed", !commandsOpen);
+        const submit = form.querySelector("button[type=submit]");
+        if (!commandsOpen) {
+            submit.disabled = true;
+        }
+    }
+
+    renderPriorityControls();
 }
 
 function renderTurnTimeline(currentTickNumber) {
@@ -1354,6 +1521,8 @@ function commandAgendaItems() {
     const uncommittedFleets = activeFleets.filter(item => !committedFleetIds.has(item.fleet.fleetId));
     const nextTick = (state.cycle?.currentTickNumber ?? 0) + 1;
     const priorities = state.empire?.priorities ?? { militaryWeight: 0, expansionWeight: 0 };
+    const forecast = state.turnResolution?.forecast ?? null;
+    const hasScheduledEffects = Boolean(forecast?.hasScheduledEffects);
     const commitmentCount = new Set([
         ...pendingOrders.map(order => order.fleetId),
         ...transits.map(transit => transit.fleetId)
@@ -1365,15 +1534,19 @@ function commandAgendaItems() {
         ? formatCount(commitmentCount, "ongoing commitment")
         : transits.length > 0
             ? formatCount(transits.length, "journey underway", "journeys underway")
-            : "Turn uncommitted";
+            : "No player orders queued";
     const queueDetail = commitmentCount === 0
-        ? "No intentions are queued for resolution"
+        ? hasScheduledEffects
+            ? "Automatic income, programmes, or deliveries still resolve"
+            : "No player orders or scheduled effects"
         : `${formatCount(pendingOrders.length, "order")} queued · ${formatCount(transits.length, "fleet")} in transit`;
     const queueConsequence = pendingOrders.length > 0
         ? `New orders process from T${nextTick}`
         : nextArrivalTick !== null
             ? `Transit continues automatically · next arrival T${nextArrivalTick}`
-            : "Fleets retain position";
+            : hasScheduledEffects
+                ? `Scheduled effects resolve at T${nextTick}`
+                : "Uncommitted fleets Hold";
 
     return [
         {
@@ -1382,8 +1555,8 @@ function commandAgendaItems() {
             detail: queueDetail,
             consequence: queueConsequence,
             timing: `T${state.cycle?.currentTickNumber ?? 0} → T${nextTick}`,
-            tone: commitmentCount === 0 ? "urgent" : "queued",
-            sigil: commitmentCount === 0 ? "!" : "Q",
+            tone: commitmentCount === 0 ? hasScheduledEffects ? "watch" : "urgent" : "queued",
+            sigil: commitmentCount === 0 ? hasScheduledEffects ? "S" : "!" : "Q",
             action: `<a class="agenda-action" href="#fleets">${commitmentCount === 0 ? "Issue orders" : "Review commitments"}</a>`
         },
         {
@@ -1403,8 +1576,12 @@ function commandAgendaItems() {
         {
             category: "Strategic programmes",
             title: `Military ${priorities.militaryWeight} · Expansion ${priorities.expansionWeight}`,
-            detail: "The active allocation applies at the next turn",
-            consequence: `Applies at T${nextTick}`,
+            detail: forecast?.automaticMilitaryProgramme?.projectedShipCount > 0
+                ? `${formatNumber(forecast.automaticMilitaryProgramme.projectedIndustrySpend)} Industry projected for ${formatCount(forecast.automaticMilitaryProgramme.projectedShipCount, "ship")}`
+                : "The active allocation applies at the next turn",
+            consequence: forecast?.automaticMilitaryProgramme?.projectedDeliveryTick
+                ? `Projected delivery T${forecast.automaticMilitaryProgramme.projectedDeliveryTick}`
+                : `Applies at T${nextTick}`,
             timing: `T${state.cycle?.currentTickNumber ?? 0} → T${nextTick}`,
             tone: "programme",
             sigil: "S",
@@ -2001,10 +2178,15 @@ function renderOrderQueue(orders) {
     const pendingOrders = orders.filter(order => order.status === "pending");
     const transits = transitCommitments();
     const currentTick = state.cycle?.currentTickNumber ?? 0;
+    const forecast = state.turnResolution?.forecast ?? null;
+    const scheduledDeliveries = forecast?.scheduledDeliveries ?? [];
+    const projectedDeliveryTick = forecast?.automaticMilitaryProgramme?.projectedDeliveryTick ?? null;
     const finalTick = Math.max(
         currentTick + 5,
         ...pendingOrders.map(order => Number(order.executeAfterTick ?? currentTick + 1)),
-        ...transits.map(transitEffectiveArrivalTick));
+        ...transits.map(transitEffectiveArrivalTick),
+        ...scheduledDeliveries.map(delivery => Number(delivery.deliveryTick)),
+        Number(projectedDeliveryTick ?? currentTick + 1));
     const turns = Array.from({ length: finalTick - currentTick + 1 }, (_, index) => currentTick + index);
     elements.orders.innerHTML = turns.map(tick => {
         const turnOrders = pendingOrders
@@ -2019,11 +2201,14 @@ function renderOrderQueue(orders) {
         const commitments = [
             ...turnOrders.map(orderCalendarCard),
             ...turnTransits.map(transitCalendarCard),
-            ...projectedReturns.map(projectedReturnCalendarCard)
+            ...projectedReturns.map(projectedReturnCalendarCard),
+            ...turnForecastCalendarCards(tick)
         ];
         const content = commitments.length > 0
             ? commitments.join("")
-            : `<p class="calendar-empty">${isCurrent ? "Current turn is resolving state." : "No orders queued"}</p>`;
+            : `<p class="calendar-empty">${isCurrent
+                ? commandsAreOpen() ? "Published state · commands open" : `${escapeHtml(state.turnResolution?.stageLabel ?? "Turn resolution")} underway`
+                : "No player orders or scheduled effects"}</p>`;
         return `
             <section class="calendar-turn${isCurrent ? " is-current" : ""}${isNext ? " is-next" : ""}" aria-label="Turn ${tick}">
                 <header>
@@ -2036,6 +2221,83 @@ function renderOrderQueue(orders) {
     }).join("");
 
     renderOrderHistory();
+}
+
+function turnForecastCalendarCards(tick) {
+    const turn = state.turnResolution;
+    if (!turn) {
+        return [];
+    }
+
+    const forecast = turn.forecast;
+    const cards = [];
+    if (tick === turn.nextTickNumber) {
+        const income = forecast.expectedIncome;
+        if (income.industry > 0 || income.research > 0 || income.population > 0) {
+            cards.push(calendarEffectCard(
+                "I",
+                "Projected income",
+                `+${formatNumber(income.industry)} Industry · +${formatNumber(income.research)} Research · +${formatNumber(income.population)} Population`,
+                "projection"));
+        }
+
+        const reservation = forecast.colonisationReservation;
+        if (reservation.orderCount > 0) {
+            cards.push(calendarEffectCard(
+                "O",
+                "Projected Colonise reservation",
+                `${formatNumber(reservation.populationRequired)} Population at closure · ${reservation.isFullyFunded ? "complete set funded" : "complete set at risk"}`,
+                reservation.isFullyFunded ? "projection" : "warning"));
+        }
+
+        const programme = forecast.automaticMilitaryProgramme;
+        if (programme.projectedShipCount > 0) {
+            cards.push(calendarEffectCard(
+                "P",
+                "Projected Military programme",
+                `${formatNumber(programme.projectedIndustrySpend)} Industry · starts ${formatCount(programme.projectedShipCount, "ship")}`,
+                "projection"));
+        }
+
+        if (forecast.surveyProjectionExpectedNextWindow) {
+            cards.push(calendarEffectCard(
+                "D",
+                "Projected progression",
+                "Survey Projection applies when the next command window opens",
+                "projection"));
+        }
+    }
+
+    for (const delivery of forecast.scheduledDeliveries.filter(item => item.deliveryTick === tick)) {
+        cards.push(calendarEffectCard(
+            "C",
+            "Committed ship delivery",
+            `${formatCount(delivery.shipCount, "ship")} · ${formatNumber(delivery.industryCommitted)} Industry already committed`,
+            "commitment"));
+    }
+
+    const projectedProgramme = forecast.automaticMilitaryProgramme;
+    if (projectedProgramme.projectedShipCount > 0 && projectedProgramme.projectedDeliveryTick === tick) {
+        cards.push(calendarEffectCard(
+            "C",
+            "Projected ship delivery",
+            `${formatCount(projectedProgramme.projectedShipCount, "ship")} if the current programme forecast seals`,
+            "projection"));
+    }
+
+    return cards;
+}
+
+function calendarEffectCard(glyph, title, detail, kind) {
+    return `
+        <article class="calendar-order calendar-effect is-${kind}">
+            <span class="calendar-order-glyph" aria-hidden="true">${glyph}</span>
+            <div>
+                <strong>${escapeHtml(title)}</strong>
+                <span>${escapeHtml(detail)}</span>
+            </div>
+        </article>
+    `;
 }
 
 function transitCalendarCard(transit) {
@@ -2143,6 +2405,11 @@ function orderCard(order, allowCancel) {
 }
 
 async function cancelOrder(fleetOrderId) {
+    if (!commandsAreOpen()) {
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept cancellations.`);
+        return;
+    }
+
     if (!state.empire) {
         setMessage("Login before cancelling orders.");
         return;
@@ -2158,6 +2425,11 @@ async function cancelOrder(fleetOrderId) {
 }
 
 async function recallFleet(fleetId) {
+    if (!commandsAreOpen()) {
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept Recall commands.`);
+        return;
+    }
+
     if (!state.empire) {
         setMessage("Login before recalling fleets.");
         return;
@@ -2685,12 +2957,20 @@ function tutorialSteps() {
 
     steps.push(
         {
+            id: "phase-order",
+            view: "command",
+            title: "Know how the sealed turn resolves",
+            body: "Income and due construction resolve before programme spending. Recall then acts before passive arrival and movement; those positions determine combat, and only surviving eligible fleets colonise. Control is recalculated, progression is prepared for the next command window, and one complete result is published. Submission time grants no initiative.",
+            target: () => document.querySelector("#turnResolutionSection"),
+            required: false
+        },
+        {
             id: "queue",
             view: "command",
             title: "Review your commitments",
             body: curated
-                ? "The queue should now hold three pending orders. You can cancel any pending intention before the turn resolves."
-                : "The queue records when the order will execute. You can cancel a pending intention before the turn resolves.",
+                ? "The queue should now hold three pending player orders alongside any automatic income, programme, construction, or journey effects. You can cancel a pending intention before closure; its submission time never grants initiative."
+                : "The queue separates pending player orders from projected and already-committed effects. You can cancel a pending intention before closure; its submission time never grants initiative.",
             target: () => document.querySelector("#orderQueueSection"),
             required: curated,
             requirement: curated ? "Keep exactly the three highlighted commitments ready for Day 1." : "",
@@ -2699,21 +2979,25 @@ function tutorialSteps() {
         {
             id: "advance",
             view: "command",
-            title: "Resolve the turn",
-            body: "Advance turn runs the same authoritative simulation boundary as the Worker and CLI. It resolves the whole development galaxy, not only your empire.",
+            title: "Close the command window",
+            body: "Close command window and advance is a temporary Development operator action. It closes this current game's shared window, lets internal planners finish, seals one fleet intention per eligible fleet, and resolves every participant through the same authoritative boundary as the Worker and CLI.",
             target: () => elements.advanceTurnButton,
             required: true,
-            requirement: "Advance the development galaxy by one turn.",
+            requirement: "Close the current game's command window and publish one complete turn.",
             isSatisfied: () => state.cycle?.currentTickNumber > tutorial.initialTick
         },
         {
-            id: "events",
+            id: "resolution-results",
             view: "history",
             historyTab: "events",
-            title: "Read what actually happened",
-            body: "Events are the factual audit trail. Check which orders processed, what resources changed, and whether anything was rejected when the world moved underneath an intention.",
+            title: "Trace what actually happened",
+            body: curated
+                ? `Your real Day One outcomes are ${tutorialObjectiveOutcomeSummary()}. Read them in authoritative phase order: income and construction first, movement before combat, combat before colonisation, then next-window progression and publication. Event timestamps do not grant priority.`
+                : "Events are the factual audit trail, grouped by authoritative phase rather than submission or display time. Check which orders processed, what resources changed, and whether anything was rejected when the world changed underneath an intention.",
             target: () => document.querySelector("#eventsSection"),
-            required: false
+            required: curated,
+            requirement: curated ? "Confirm that the move, attack, and colonisation intentions have recorded real processed or rejected outcomes." : "",
+            isSatisfied: () => !curated || curatedObjectiveOutcomesRecorded()
         }
     );
 
@@ -2890,6 +3174,57 @@ function collectTargetFactions(selectedFleet) {
     }));
 }
 
+function curatedObjectiveOutcomesRecorded() {
+    const objectives = tutorial.briefing?.objectives;
+    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
+        return false;
+    }
+
+    return tutorialObjectiveOrders(objectives).every(expected => state.orders.some(order =>
+        order.orderType === expected.orderType
+        && order.fleetId === expected.fleetId
+        && (!expected.targetProperty || order[expected.targetProperty] === expected.targetId)
+        && (order.status === "processed" || order.status === "rejected")
+        && Number(order.processedTick ?? 0) > tutorial.initialTick));
+}
+
+function tutorialObjectiveOutcomeSummary() {
+    const objectives = tutorial.briefing?.objectives;
+    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
+        return "not yet available";
+    }
+
+    return tutorialObjectiveOrders(objectives).map(expected => {
+        const order = state.orders
+            .filter(candidate => candidate.orderType === expected.orderType
+                && candidate.fleetId === expected.fleetId
+                && (!expected.targetProperty || candidate[expected.targetProperty] === expected.targetId))
+            .sort((left, right) => Number(right.processedTick ?? -1) - Number(left.processedTick ?? -1))[0];
+        return `${formatOrderType(expected.orderType)} ${order ? formatStatus(order.status) : "pending"}`;
+    }).join(", ");
+}
+
+function tutorialObjectiveOrders(objectives) {
+    return [
+        {
+            orderType: "moveFleet",
+            fleetId: objectives.move.fleetId,
+            targetProperty: "targetSystemId",
+            targetId: objectives.move.targetSystemId
+        },
+        {
+            orderType: "colonise",
+            fleetId: objectives.colonise.fleetId
+        },
+        {
+            orderType: "attack",
+            fleetId: objectives.attack.fleetId,
+            targetProperty: objectives.attack.targetFactionId ? "targetFactionId" : "targetEmpireId",
+            targetId: objectives.attack.targetFactionId ?? objectives.attack.targetEmpireId
+        }
+    ];
+}
+
 function renderEvents(events) {
     const filteredEvents = events
         .filter(event => state.eventSeverity === "all" || event.severity.toLowerCase() === state.eventSeverity)
@@ -2902,6 +3237,12 @@ function renderEvents(events) {
                 .some(value => String(value ?? "").toLowerCase().includes(state.eventQuery));
         })
         .sort((left, right) => {
+            if (state.eventSort === "resolution") {
+                return right.tickNumber - left.tickNumber
+                    || eventResolutionPhaseOrder(left) - eventResolutionPhaseOrder(right)
+                    || String(left.eventId).localeCompare(String(right.eventId));
+            }
+
             if (state.eventSort === "severity-desc") {
                 return eventSeverityRank(right.severity) - eventSeverityRank(left.severity)
                     || right.tickNumber - left.tickNumber;
@@ -2917,16 +3258,67 @@ function renderEvents(events) {
         ? events.length === 0
             ? `<article class="item empty-state"><strong>No events yet</strong><span>Events will appear after the galaxy advances.</span></article>`
             : `<article class="item empty-state"><strong>No matching events</strong><span>Adjust the search, severity, or sort controls.</span></article>`
-        : filteredEvents.map(event => `
-            <article class="item event-entry">
-                <header class="history-entry-header">
-                    <span class="history-tick">T${event.tickNumber}</span>
-                    <strong>${escapeHtml(formatStatus(event.eventType))}</strong>
-                    <span class="status-chip status-${statusClass(event.severity)}">${escapeHtml(formatStatus(event.severity))}</span>
-                </header>
-                <p>${escapeHtml(event.displayText)}</p>
-            </article>
-        `).join("");
+        : state.eventSort === "resolution"
+            ? renderPhaseOrderedEvents(filteredEvents)
+            : filteredEvents.map(eventCard).join("");
+}
+
+function renderPhaseOrderedEvents(events) {
+    const groups = [];
+    for (const event of events) {
+        const phaseOrder = eventResolutionPhaseOrder(event);
+        const groupKey = `${event.tickNumber}:${phaseOrder}`;
+        let group = groups.at(-1);
+        if (!group || group.key !== groupKey) {
+            group = {
+                key: groupKey,
+                tickNumber: event.tickNumber,
+                phaseOrder,
+                hasResolutionPhase: event.resolutionPhaseOrder !== null && event.resolutionPhaseOrder !== undefined,
+                phaseTitle: eventResolutionPhaseTitle(event),
+                events: []
+            };
+            groups.push(group);
+        }
+        group.events.push(event);
+    }
+
+    return groups.map(group => `
+        <section class="event-phase-group" aria-labelledby="event-phase-${group.tickNumber}-${group.phaseOrder}">
+            <header class="event-phase-heading">
+                <span>T${formatNumber(group.tickNumber)}</span>
+                <strong id="event-phase-${group.tickNumber}-${group.phaseOrder}">${group.hasResolutionPhase ? `Phase ${formatNumber(group.phaseOrder)} · ` : ""}${escapeHtml(group.phaseTitle)}</strong>
+            </header>
+            <div class="event-phase-records">${group.events.map(eventCard).join("")}</div>
+        </section>
+    `).join("");
+}
+
+function eventCard(event) {
+    const phaseTitle = eventResolutionPhaseTitle(event);
+    return `
+        <article class="item event-entry">
+            <header class="history-entry-header">
+                <span class="history-tick">T${event.tickNumber}</span>
+                <strong>${escapeHtml(formatStatus(event.eventType))}</strong>
+                <span class="event-phase-chip">${escapeHtml(phaseTitle)}</span>
+                <span class="status-chip status-${statusClass(event.severity)}">${escapeHtml(formatStatus(event.severity))}</span>
+            </header>
+            <p>${escapeHtml(event.displayText)}</p>
+        </article>
+    `;
+}
+
+function eventResolutionPhaseOrder(event) {
+    return Number.isFinite(Number(event.resolutionPhaseOrder))
+        && event.resolutionPhaseOrder !== null
+        ? Number(event.resolutionPhaseOrder)
+        : 99;
+}
+
+function eventResolutionPhaseTitle(event) {
+    const phase = state.turnResolution?.phases.find(item => item.phase === event.resolutionPhase);
+    return phase?.title ?? "Command window / operational boundary";
 }
 
 function renderChronicle(entries) {
@@ -3931,7 +4323,7 @@ function renderPriorityControls() {
         const isInactive = inactivePriorityKeys.includes(key);
         const sliderShell = input.closest(".priority-slider-shell");
         input.value = value;
-        input.disabled = state.prioritySaving || isInactive;
+        input.disabled = state.prioritySaving || isInactive || !commandsAreOpen();
         input.setAttribute("aria-valuetext", `${value} points; linked total 100`);
         sliderShell.style.setProperty("--priority-percent", `${value}%`);
         sliderShell.style.setProperty("--saved-percent", `${savedValue}%`);
@@ -3947,7 +4339,7 @@ function renderPriorityControls() {
     elements.prioritySection.classList.toggle("has-unsaved-changes", Boolean(isDirty));
     elements.priorityForm.setAttribute("aria-busy", state.prioritySaving.toString());
     elements.prioritySaveButton.textContent = state.prioritySaving ? "Saving…" : "Save priorities";
-    elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;
+    elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving || !commandsAreOpen();
     elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;
 }
 

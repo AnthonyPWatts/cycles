@@ -1825,3 +1825,47 @@ Consequences:
 - Q072-Q080 still select admiral bonus scope, transfers, management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, and display detail. Q081 permits notable-admiral associations to change both the figure's history and later galaxy naming.
 - Q094-Q096 and Q098-Q106 still select the first queued records, fallback and failure behaviour, tone, inference, mandatory facts, review, thresholds, interactions, privacy, and versioning.
 - No production narrative queue or live provider is authorised until those runtime boundaries are settled.
+
+## 2026-07-19: Present Turn Causality Before Closure And In Results
+
+Decision: add one typed, player-scoped turn-resolution presentation to the dashboard bootstrap. It reports the current command-window stage, whether commands are accepted, all nine authoritative phases, the authenticated empire's forecast, and aggregate current-game closure counts. Reuse the same phase metadata in Command, the Day One guide, and Event grouping.
+
+Label expected income, Colonise reservation, automatic Military spending, new ship delivery, and next-window progression as projections from the current snapshot. Label queued construction from earlier turns as an authoritative commitment. Keep another empire's order details private; the Development closure confirmation may show only aggregate current-Cycle human-order and fleet-intention counts.
+
+Reasoning:
+
+- Players need the processing order while planning because movement, combat, colonisation, construction, and progression depend on it.
+- A projected automatic programme changes the next turn even when the player has queued no order. Calling that state empty hid a material commitment decision.
+- Construction already queued has passed its spending boundary. Mixing it with a projection misstates what the player can still change.
+- Event timestamps record publication. Mapping factual Event types to the authoritative phases explains causality without treating database order as initiative.
+- The Development action closes one shared game window. A confirmation and private aggregate counts make that effect explicit without revealing sealed plans.
+
+Consequences:
+
+- Command presents the complete phase order, current stage, expected income, Colonise funding, Military programme, scheduled deliveries, and expected next-window doctrine state beside the controls.
+- Order, cancellation, Recall, priority, and Development closure controls become unavailable when the typed stage says commands are closed. The server retains independent enforcement.
+- The commitment calendar distinguishes player orders, journeys, projected automatic effects, and committed construction. Empty turns say that neither player orders nor scheduled effects exist.
+- History keeps the latest visible Event tick complete and groups mapped Events by phase by default. Command-window and operational facts remain visible without an invented phase.
+- The Day One guide teaches the phase order before closure and requires processed or rejected outcomes for its real Move, Attack, and Colonise objectives after the tick. A tick-number change alone does not complete the result step.
+- Issue #138 owns this bounded player-facing contract. It does not change the resolver, turn order, balance, multi-game topology, or tutorial scenario.
+
+## 2026-07-19: Use Separate Tutorial Games And Multi-Game Enrolment
+
+Decision: move the future tutorial into a standalone compact game with one human seat, built to teach concepts through the same authoritative mechanics as standard play. Let standard games select separate, larger map profiles. Keep `Player` as the persistent identity and allow one player to join several game instances through a future enrolment model that supports manual and scheduled population.
+
+Treat the current dashboard Day One guide and `development-match-v2` opening as the implemented training path until the standalone tutorial exists. Do not fold tutorial creation, map profiles, game selection, queues, or multi-game scheduling into issue #138.
+
+Reasoning:
+
+- A compact private teaching space can control cognitive load and pacing without reducing the strategic scale of standard games.
+- Reusing the real order, phase, visibility, economy, and result rules prevents the tutorial from teaching a scripted variant that diverges from play.
+- Persistent identity and per-game participation already have different lifecycles. A player can therefore hold several future memberships without making an empire an account property.
+- Manual and scheduled population need the same enrolment concepts so organisers and automation do not create incompatible game types.
+
+Consequences:
+
+- A future tutorial profile needs a compact topology, one human seat, deterministic teaching state, resumable progress, and reset behaviour. Any game-AI or neutral teaching factions remain part of that profile rather than extra human seats.
+- Standard games choose their own larger map profile instead of inheriting tutorial dimensions or tutorial-only branches.
+- The product must present explicit game selection before concurrent memberships become playable; commands, forecasts, visibility, and history must remain scoped to the selected game.
+- Product decisions still need to settle Game-to-Cycle cardinality, queue and start transitions, capacity and under-filled starts, no-shows and withdrawal, game-AI seat filling, concurrent-game limits, and successor-Cycle re-enrolment.
+- The current single-operational-Cycle API and Worker policy remains in force. This direction authorises no schema, queue, scheduler, lobby, or runtime-topology implementation and does not require an implementation issue until the unresolved gates produce bounded scope.

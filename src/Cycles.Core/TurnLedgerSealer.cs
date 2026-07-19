@@ -146,7 +146,7 @@ internal static class TurnLedgerSealer
         var projectedGeneration = InfluenceCalculator.CalculateResourceGeneration(state, cycleId);
         var eligibleOrdersByEmpire = dueOrders
             .Where(order => order.OrderType == FleetOrderType.Colonise
-                            && IsColonisationEligibleAtClosure(state, order, fleetsById))
+                            && OrderService.IsColonisationEligibleAtClosure(state, order, fleetsById))
             .GroupBy(order => fleetsById[order.FleetId].EmpireId)
             .OrderBy(group => group.Key)
             .ToArray();
@@ -175,30 +175,6 @@ internal static class TurnLedgerSealer
                 dueOrdersByFleet.Remove(order.FleetId);
             }
         }
-    }
-
-    private static bool IsColonisationEligibleAtClosure(
-        GameState state,
-        FleetOrder order,
-        IReadOnlyDictionary<Guid, Fleet> fleetsById)
-    {
-        if (!fleetsById.TryGetValue(order.FleetId, out var fleet)
-            || fleet.Status != FleetStatus.Active
-            || fleet.ShipCount <= 0
-            || !order.TargetSystemId.HasValue
-            || fleet.CurrentSystemId != order.TargetSystemId.Value)
-        {
-            return false;
-        }
-
-        var empire = state.Empires.SingleOrDefault(item => item.CycleId == order.CycleId
-                                                            && item.EmpireId == fleet.EmpireId);
-        return empire is not null
-               && fleet.CurrentSystemId != empire.HomeSystemId
-               && !state.ColonialOutposts.Any(item => item.CycleId == order.CycleId
-                                                       && item.EmpireId == fleet.EmpireId
-                                                       && item.SystemId == fleet.CurrentSystemId)
-               && OrderService.HasLeadingPresence(state, order.CycleId, fleet.CurrentSystemId, fleet.EmpireId);
     }
 
     private static FleetOrderCommandSource ResolveExistingCommandSource(GameState state, Fleet fleet)

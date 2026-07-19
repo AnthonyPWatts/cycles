@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 17 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 19 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -23,7 +23,7 @@ dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --conf
 
 Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-match-v2` opening in an 8-sector, 64-system galaxy. Tony, Will, and the game-AI Ariadne command three empires in distinct sectors; explicit non-canonical dimensions create a generic galaxy instead.
 
-For an organised hosted test, use the access code supplied by the organiser, then select Tony or Will. The trusted playground uses the same manual **Advance turn** flow as local Development; there is no scheduled shared turn in that environment. The selector cannot create players or select the game-AI participant. Use it only in a trusted environment.
+For an organised hosted test, use the access code supplied by the organiser, then select Tony or Will. The trusted playground uses the same manual **Close command window and advance** flow as local Development; there is no scheduled shared turn in that environment. The selector cannot create players or select the game-AI participant. Use it only in a trusted environment.
 
 ## Curated Day One
 
@@ -48,16 +48,16 @@ The guide takes you through this sequence:
 5. In **Fleets**, select the home guard. The guide opens **Move** and identifies the intended adjacent destination; select **Queue move**.
 6. Select the survey fleet. The guide opens **Colonise**; select **Queue outpost**.
 7. Select the vanguard. The guide opens **Attack** with the local Free Captains faction; select **Queue attack**.
-8. Check that the order queue contains the three commitments.
-9. Select **Advance turn**.
-10. Read the factual results in **Events**, then inspect any selective **Chronicle** account of the battle.
+8. Read the nine-phase turn contract, then check that the order queue contains the three player commitments alongside projected or already-committed automatic effects.
+9. Select **Close command window and advance**, review the current-game aggregate counts, and confirm the Development operator action.
+10. Read the real Move, Attack, and Colonise outcomes in phase-ordered **Events**, then inspect any selective **Chronicle** account of the battle.
 11. Read how the current tick fits into the operator-driven Cycle end, final ranking, and successor boundary.
 
 All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The neutral fleets are factions with ships and influence, but no empire economy, player participant, diplomacy, or resources.
 
 The guide remembers progress for each player and seeded Cycle instance in that browser. Reseeding creates a fresh tutorial. **Pause** or Escape closes it without losing the current step. **Skip guide** dismisses it. **Guide**, **Resume guide**, or **Restart guide** in the dashboard toolbar opens it again.
 
-**Advance turn** is a temporary Development capability for every authenticated player. It resolves the whole galaxy, not only your empire. It does not grant admin visibility or control of another empire, and ordinary players do not receive the capability in Production.
+**Close command window and advance** is a temporary Development capability for every authenticated player. Its confirmation closes the current game's shared command window and shows aggregate counts for your pending orders, all pending human orders in the game, and fleet intentions that will enter the sealed ledger. It does not reveal another empire's orders, grant admin visibility, or grant control of another empire. Ordinary players do not receive the capability in Production.
 
 If the curated briefing is unavailable, **Guide** presents a shorter generic version of the same loop: inspect, prioritise, move, advance, and review.
 
@@ -65,7 +65,7 @@ If the curated briefing is unavailable, **Guide** presents a shorter generic ver
 
 The dashboard keeps four views available at all times. Browser back and forward also move between them.
 
-- **Command** shows the information needed before the next tick: resources, priorities, pending orders, and a short status pulse.
+- **Command** shows the current command-window stage, the complete phase order, resources, priorities, pending orders, projected automatic effects, and authoritative construction commitments.
 - **Galaxy** gives the map the full workspace and keeps the selected system's details beside it.
 - **Fleets** uses the roster selection as the context for Move, Attack, and Colonise. **Fleet command** keeps those actions close to the selected fleet's detail; **Resolved orders** provides scoped outcome filters and loads 20 matches at a time.
 - **History** separates the narrative **Chronicle** from the factual **Events** record. Both tabs support search, filtering, and sorting.
@@ -108,14 +108,18 @@ The order appears as **Pending** in the **Command** view's order queue and says 
 
 Select a fleet in **Fleets** to see its current system, destination, admiral, adjacent routes, local fleets, and recent orders.
 
-After **Advance turn**, the dashboard refreshes automatically. Use **Refresh** if another host advanced the Cycle or if you want to reload the current state, then check:
+Before closure, read the forecast as planning evidence rather than a promise. Projected income uses current influence; projected Colonise reservations, Military spending, ship starts, and progression use the current orders and priorities. They can change before the server seals the turn. A queued ship delivery is an authoritative commitment because an earlier tick already spent its Industry, although later recovery or lifecycle intervention can still prevent publication.
+
+After **Close command window and advance**, the dashboard refreshes automatically. Use **Refresh** if another host advanced the Cycle or if you want to reload the current state, then check:
 
 - the tick number beside the Cycle name;
 - your fleet's location or arrival tick;
 - the order status and any rejection reason;
 - last-tick resource gains and spending;
-- new events;
+- new Events in authoritative phase order;
 - any Chronicle entry created by a major battle.
+
+The Day One result step checks the three briefing orders themselves. It unlocks only after the submitted Move, Attack, and Colonise intentions each record a `Processed` or `Rejected` outcome after the guide's starting tick; advancing the tick alone does not satisfy it. The guide then names those real outcomes before asking you to trace their causes through Events.
 
 You have now completed the main loop: inspect, decide, queue, resolve, and review.
 
@@ -143,7 +147,7 @@ The order below governs the result of your commands. Sending an order before ano
 | 1 | Resource income | Your active presence generates Industry, Research, and Population before due ships arrive. You can spend the new income in the same turn. |
 | 2 | Due construction | Ships whose delivery tick has arrived appear at home and can defend. They cannot inherit a fleet command that the server has already sealed. |
 | 3 | Programme spending | The server applies your committed priorities and starts new construction. New construction does not gain a tick of progress at once. |
-| 4 | Recall, arrivals, and movement | Recall intentions reverse outbound fleets before passive arrivals. Remaining journeys then arrive before new Move orders. Movement establishes the fleet positions used by combat. |
+| 4 | Recall, arrivals, movement, and Holds | Recall intentions reverse outbound fleets before passive arrivals. Remaining journeys then arrive before new Move orders, while explicit or implicit Holds keep fleets in place. Those results establish the fleet positions used by combat. |
 | 5 | Combat | Attacks use the post-movement fleets in each system. A target can move away; an arriving fleet can join the defence. |
 | 6 | Colonisation | The server checks each admitted colonising fleet and spends its reserved Population after the outpost succeeds. A failed eligibility check leaves that reservation unspent. |
 | 7 | Derived state | Map-control metrics use the world left by movement, combat, and colonisation. |
@@ -209,7 +213,7 @@ The Core simulation supports Hold orders, but the current dashboard has no Hold 
 
 ## Events, admirals, and the Chronicle
 
-**History** > **Events** shows the latest visible facts. Search the descriptions, filter by severity, or change the ordering to understand what a tick changed.
+**History** > **Events** shows the latest visible facts and keeps the latest visible tick complete. The default **Resolution order** groups them by tick and authoritative phase; facts created outside a resolution phase appear afterwards under **Command window / operational boundary**. Search the descriptions, filter by severity, or choose a timestamp or severity ordering for another view. Timestamps record publication and do not grant gameplay priority.
 
 The selected-fleet detail in **Fleets** names an assigned admiral and shows reputation and status. Battle results create an admiral history. A destroyed commanded fleet can kill its admiral.
 
@@ -255,7 +259,7 @@ Neither your empire nor a current ally has an active fleet there. The current bu
 
 ### Refresh did not advance the game
 
-Refresh reloads data without processing a tick. In Development, every authenticated player sees **Advance turn**. In Production, ordinary players must wait for the scheduled tick or contact the operator; only a trusted admin receives the manual capability.
+Refresh reloads data without processing a tick. In Development, every authenticated player sees **Close command window and advance**. In Production, ordinary players must wait for the scheduled tick or contact the operator; only a trusted admin receives the manual capability.
 
 ### My priorities will not save
 

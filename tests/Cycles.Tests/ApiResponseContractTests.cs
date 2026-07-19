@@ -32,6 +32,13 @@ public sealed class ApiResponseContractTests
             typeof(LoginResponse),
             typeof(DashboardSessionResponse),
             typeof(DashboardBootstrapResponse),
+            typeof(TurnResolutionPresentationResponse),
+            typeof(TurnForecastResponse),
+            typeof(ResourceProjectionResponse),
+            typeof(ColonisationReservationProjectionResponse),
+            typeof(AutomaticMilitaryProgrammeProjectionResponse),
+            typeof(ScheduledConstructionDeliveryResponse),
+            typeof(TurnResolutionPhaseResponse),
             typeof(EmpireResponse),
             typeof(GalaxyResponse),
             typeof(GalaxySectorResponse),
@@ -95,7 +102,21 @@ public sealed class ApiResponseContractTests
         Assert.Equal(
             typeof(IReadOnlyCollection<ChronicleEntryResponse>),
             typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.Chronicle))!.PropertyType);
+        Assert.Equal(
+            typeof(TurnResolutionPresentationResponse),
+            typeof(DashboardBootstrapResponse).GetProperty(nameof(DashboardBootstrapResponse.TurnResolution))!.PropertyType);
         Assert.Null(typeof(DashboardBootstrapResponse).GetProperty("GameState"));
+    }
+
+    [Fact]
+    public void Event_contract_exposes_optional_server_owned_resolution_order()
+    {
+        Assert.Equal(
+            typeof(TurnResolutionPhase?),
+            typeof(EventResponse).GetProperty(nameof(EventResponse.ResolutionPhase))!.PropertyType);
+        Assert.Equal(
+            typeof(int?),
+            typeof(EventResponse).GetProperty(nameof(EventResponse.ResolutionPhaseOrder))!.PropertyType);
     }
 
     [Fact]

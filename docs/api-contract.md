@@ -63,9 +63,11 @@ Cycle responses expose `turnStage`. The value describes command acceptance and t
 
 Order and priority mutations outside `commandOpen` fail with `409 Conflict` and `code: "stateConflict"`. SQL-backed tick execution commits in one transaction, so a normal client may see `commandOpen` on either side of a completed tick without observing each intermediate value. Clients must tolerate every documented stage and disable command submission once the value leaves `commandOpen`.
 
+The dashboard bootstrap's `turnResolution.stage` mirrors `cycle.turnStage`, while `turnResolution.commandsAccepted` gives clients the corresponding mutation gate directly. Clients should use that flag to disable order, replacement, cancellation, Recall, priority, and Development closure controls; the API still enforces the stage independently.
+
 Before sealing, each empire's otherwise-eligible Colonise orders are admitted as one reservation set. The closure budget is its Population stockpile plus projected current-turn Population income. A budget that cannot fund every order rejects the whole set before sealing; each rejected order exposes its durable `rejectionReason`, and the affected fleets receive implicit Holds. Cancellation and replacement during `commandOpen` change the set naturally.
 
-The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, and movement; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. Successful colonisation alone spends its reserved Population; a later eligibility failure leaves the amount unspent and cannot revive an order rejected at closure. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
+The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, movement, and Holds; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. Successful colonisation alone spends its reserved Population; a later eligibility failure leaves the amount unspent and cannot revive an order rejected at closure. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
 
 ## Trusted Development Selection
 
@@ -73,11 +75,49 @@ When `Cycles:TrustedPlayerSelection:Enabled` is deliberately enabled, `GET /auth
 
 ## Dashboard Bootstrap Contract
 
-`GET /dashboard/bootstrap` supplies the dashboard's initial player view and normal refresh from one authoritative store snapshot. The typed response contains the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, 20 recent visible Events, visible Chronicle entries, and the visible opening briefing.
+`GET /dashboard/bootstrap` supplies the dashboard's initial player view and normal refresh from one authoritative store snapshot. The typed response contains the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, visible Events, visible Chronicle entries, the visible opening briefing, and a player-scoped `turnResolution` presentation contract.
+
+The Event collection keeps the latest visible tick complete. It then adds older visible Events up to the normal 100-record bound; a latest tick containing more than 100 visible Events remains complete rather than being cut in half.
 
 The optional `selectedFleetId` query preserves the player's current fleet selection across a refresh. The server honours it only when the fleet belongs to the authenticated player's empire; a missing, stale, or foreign identifier falls back to the normal owned-fleet default without disclosing whether another fleet exists.
 
 The bootstrap applies the same actor, empire, visibility, and fog-of-war rules as the narrower source endpoints. It does not return `GameState`, domain entities, another empire's fleets or orders, or hidden Events and Chronicle entries. The narrower endpoints remain available for focused interactions and future clients; the bootstrap is a read-optimised composition contract rather than their replacement.
+
+### Turn-Resolution Presentation
+
+`turnResolution` contains the following typed fields:
+
+| Field | Contract |
+| --- | --- |
+| `cycleId`, `empireId`, `currentTickNumber`, `nextTickNumber` | Scope the presentation and forecast to the authenticated participant's current Cycle and empire. |
+| `stage`, `stageLabel`, `stageDescription`, `commandsAccepted` | Describe the authoritative command-window stage and whether player mutations may be accepted. |
+| `submissionTimeGrantsInitiative` | `false` under the current simultaneous-turn rules. Clients must not infer initiative from timestamps or collection order. |
+| `playerPendingOrderCount` | Count of pending orders belonging to the authenticated empire. |
+| `gamePendingHumanOrderCount` | Aggregate pending human-order count for the current Cycle. |
+| `gameFleetIntentionCount` | Aggregate current-Cycle fleet-intention count for the ledger that closure will seal. |
+| `forecast` | Empire-scoped planning projections and existing construction commitments. |
+| `phases` | The complete ordered phase metadata used by Command and result presentation. |
+
+The two game-wide counts are aggregate closure context for the Development confirmation. They do not expose another empire's fleet identifiers, order types, targets, timestamps, or outcomes, and they never include another Cycle.
+
+`forecast` contains:
+
+| Field | Meaning |
+| --- | --- |
+| `expectedIncome` | Projected Industry, Research, and Population from current phase-start influence. |
+| `colonisationReservation` | Current eligible Colonise order count, Population required, Population available after projected income, and whether the complete set is funded. |
+| `automaticMilitaryProgramme` | Current Military weight plus projected Industry spend, ship count, and delivery tick. |
+| `scheduledDeliveries` | Ships already queued for delivery, grouped by tick with the Industry committed when construction started. |
+| `surveyProjectionExpectedNextWindow` | Whether current Research plus projected income reaches the first doctrine threshold for the next command window. |
+| `hasScheduledEffects` | Whether the forecast, existing delivery queue, or ongoing journey contains an automatic effect even when the player has submitted no new order. |
+
+Expected income, Colonise reservation, automatic programme spending, new ship starts, and progression are projections from the current authoritative snapshot. A player can still change permitted orders or priorities before closure, and the resolver rechecks authoritative state. `scheduledDeliveries` describes construction that an earlier tick already committed; clients should label it separately from projections. Forecast calculation does not reserve resources, submit orders, or mutate game state.
+
+Each `phases` item contains `order`, `phase`, `title`, and `consequence`. The response always supplies the nine current phase values in gameplay order: `resourceIncome`, `dueConstruction`, `programmeSpending`, `recallArrivalsAndMovement`, `combat`, `colonisation`, `derivedState`, `nextWindowProgression`, and `publication`. Titles and consequence copy are presentation text; `phase` and `order` are the stable fields for grouping.
+
+### Event Phase Metadata
+
+Player Event responses add nullable `resolutionPhase` and `resolutionPhaseOrder` fields. Resolution facts map to the same phase enum and order supplied in `turnResolution.phases`. Command-window, lifecycle, and other operational Events that have no resolution-phase meaning return `null`; clients must keep them visible without inventing a gameplay position. The dashboard groups Events by descending tick and ascending authoritative phase by default. Timestamp and severity sorts remain alternative views and do not alter causality.
 
 ## Visibility Contract
 

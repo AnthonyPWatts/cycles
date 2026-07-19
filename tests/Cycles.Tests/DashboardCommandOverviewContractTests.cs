@@ -27,20 +27,89 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("class=\"priority-channel-name\"", html);
         Assert.Contains("class=\"priority-saved-marker\"", html);
         Assert.DoesNotContain("id=\"priorityHint\"", html);
-        Assert.DoesNotContain("<dialog", html);
+        Assert.Contains("id=\"advanceTurnDialog\" class=\"advance-turn-dialog\"", html);
+        Assert.Contains("elements.advanceTurnDialog.returnValue = \"\";", script);
         Assert.DoesNotContain("id=\"adjustPrioritiesButton\"", html);
 
         Assert.Contains("elements.homeSystemName.textContent = empire.homeSystem.systemName;", script);
         Assert.DoesNotContain("resource-home", script);
         Assert.Contains("rebalancePriorityDraft(input.dataset.priorityKey", script);
         Assert.Contains("const activePriorityKeys = [\"militaryWeight\", \"expansionWeight\"]", script);
-        Assert.Contains("input.disabled = state.prioritySaving || isInactive;", script);
+        Assert.Contains("input.disabled = state.prioritySaving || isInactive || !commandsAreOpen();", script);
         Assert.Contains("sliderShell.classList.toggle(\"has-saved-marker\", isChanged);", script);
         Assert.Contains("elements.priorityDraftStatus.textContent = state.prioritySaving ? \"Saving\" : isDirty ? \"Unsaved\" : \"Saved\";", script);
-        Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving;", script);
+        Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving || !commandsAreOpen();", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
         Assert.Contains("target: () => document.querySelector(\"#prioritySection\")", script);
         Assert.Contains("The 100 points represent strategic effort, not the three resource stockpiles.", script);
+    }
+
+    [Fact]
+    public void Command_explains_the_complete_turn_contract_and_distinguishes_forecasts_from_commitments()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"turnResolutionSection\"", html);
+        Assert.Contains("id=\"turnStageBadge\"", html);
+        Assert.Contains("id=\"turnPhaseOrder\"", html);
+        Assert.Contains("aria-label=\"Authoritative turn processing order\"", html);
+        Assert.Contains("Submission time grants no initiative", html);
+        Assert.Contains("Projections can change before closure; committed deliveries are authoritative.", html);
+        Assert.Contains("id=\"turnForecastSummary\"", html);
+
+        Assert.Contains("turnResolution.phases.map", script);
+        Assert.Contains("Stable ordering only makes the sealed result reproducible.", script);
+        Assert.Contains("Calculated from current influence before movement.", script);
+        Assert.Contains("Projected reservation · closure", script);
+        Assert.Contains("Projected programme · phase 3", script);
+        Assert.Contains("Authoritative commitments", script);
+        Assert.Contains("Projected progression · phase 8", script);
+        Assert.Contains("No player orders queued", script);
+        Assert.Contains("Automatic income, programmes, or deliveries still resolve", script);
+        Assert.Contains("No player orders or scheduled effects", script);
+        Assert.Contains("function turnForecastCalendarCards(tick)", script);
+        Assert.Contains("Committed ship delivery", script);
+        Assert.Contains("Projected ship delivery", script);
+
+        Assert.Contains(".turn-phase-order", css);
+        Assert.Contains("grid-template-columns: repeat(3, minmax(0, 1fr));", css);
+        Assert.Contains(".turn-forecast-grid", css);
+        Assert.Contains(".turn-forecast-item.is-commitment", css);
+        Assert.Contains("@media (max-width: 560px)", css);
+    }
+
+    [Fact]
+    public void Development_turn_action_warns_that_it_closes_the_current_game_globally()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("Close command window and advance", html);
+        Assert.Contains("Close this game's command window?", html);
+        Assert.Contains("one game-wide ledger will seal", html);
+        Assert.Contains("advances the whole current game, not only your empire", html);
+        Assert.Contains("turn.gamePendingHumanOrderCount", script);
+        Assert.Contains("turn.gameFleetIntentionCount", script);
+        Assert.Contains("elements.advanceTurnDialog.showModal();", script);
+        Assert.Contains("Published T${result.tickNumber}", script);
+        Assert.Contains("Display order did not grant initiative.", script);
+    }
+
+    [Fact]
+    public void Day_one_teaches_phase_order_and_checks_real_objective_outcomes()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("version: \"v4\"", script);
+        Assert.Contains("id: \"phase-order\"", script);
+        Assert.Contains("Recall then acts before passive arrival and movement", script);
+        Assert.Contains("id: \"resolution-results\"", script);
+        Assert.Contains("tutorialObjectiveOutcomeSummary()", script);
+        Assert.Contains("curatedObjectiveOutcomesRecorded()", script);
+        Assert.Contains("order.status === \"processed\" || order.status === \"rejected\"", script);
+        Assert.Contains("Event timestamps do not grant priority.", script);
     }
 
     [Fact]

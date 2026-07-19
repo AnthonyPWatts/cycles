@@ -20,6 +20,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;
 - submit durable movement, in-transit recall, attack, cancellation, and colonisation orders;
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
+- inspect the current command-window stage, the complete processing order, projected income and automatic spending, and construction already committed for delivery before closing the turn;
 - generate resources from influence and spend military industry on queued ships;
 - unlock the first research doctrine and establish population-funded outposts;
 - compete against Ariadne's deterministic game-AI policy as it attacks weaker local forces, establishes outposts, and advances towards valuable systems;
@@ -32,9 +33,11 @@ This is a working development MVP, not an alpha release or production game servi
 
 ## Turns Resolve In A Fixed Gameplay Order
 
-Players commit one intention per fleet before the command window closes. The server then seals one complete ledger and resolves it as `income -> due construction -> programme spending and construction starts -> recalls, arrivals, and movement -> combat -> colonisation -> derived metrics -> next-window progression -> publication`.
+Players commit one intention per fleet before the command window closes. The server then seals one complete ledger and resolves it as `income -> due construction -> programme spending and construction starts -> recalls, arrivals, movement, and Holds -> combat -> colonisation -> derived metrics -> next-window progression -> publication`.
 
 That sequence governs strategy. Submission time grants no initiative. A fleet that moves away leaves before combat checks its system; a fleet that arrives can take part in defence later in the turn. Ships whose construction was already due may defend, but they contributed no income and cannot inherit a command sealed before they existed. A colonising fleet must survive combat, and research unlocked during resolution applies when the next command window opens.
+
+The Command workspace presents all nine phases beside the current command-window stage. Its forecast separates values calculated from the present state from ship deliveries whose Industry is already committed. The commitment calendar includes player orders, journeys, projected automatic effects, and queued deliveries. History groups factual Events by authoritative phase by default, so timestamps and display order cannot imply initiative.
 
 [Simulation Reference](docs/simulation-reference.md#authoritative-processing-order) defines the precise processing contract. Changes to the sequence require an explicit gameplay decision, regression coverage, and matching player guidance.
 
@@ -153,7 +156,7 @@ dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v2.js
 
 ## Architectural Position
 
-Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Advance turn** without receiving admin visibility or cross-empire authority. Production players cannot use that capability.
+Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Close command window and advance** without receiving admin visibility or cross-empire authority. The confirmation identifies this as a game-wide closure rather than a player-ready action. Production players cannot use that capability.
 
 SQL Server is the mandatory gameplay and operator-store path for the API, Worker, and CLI. They fail clearly when a Cycles SQL connection string is absent. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export and the bounded legacy-file conversion remain explicit operator CLI paths; no executable file-backed game store remains.
 

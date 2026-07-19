@@ -44,7 +44,7 @@ internal static class DashboardBootstrapContextFactory
             fleets,
             selectedFleet,
             PlayerViewScope.SelectOrders(state, cycle, empireId),
-            PlayerViewScope.SelectEvents(state, cycle, actor, visibleSystemIds, 20),
+            PlayerViewScope.SelectDashboardEvents(state, cycle, actor, visibleSystemIds),
             PlayerViewScope.SelectChronicleEntries(state, cycle, actor, visibleSystemIds),
             OpeningBriefingContract.FindVisible(state, cycle, actor, visibleSystemIds));
     }
@@ -52,6 +52,8 @@ internal static class DashboardBootstrapContextFactory
 
 internal static class PlayerViewScope
 {
+    private const int DashboardRecentEventLimit = 100;
+
     public static IReadOnlyCollection<Fleet> SelectFleets(GameState state, Cycle cycle, Guid? empireId) =>
         state.Fleets
             .Where(fleet => fleet.CycleId == cycle.CycleId
@@ -83,6 +85,37 @@ internal static class PlayerViewScope
             .OrderByDescending(item => item.CreatedAt)
             .Take(Math.Clamp(limit, 1, 100))
             .ToArray();
+
+    public static IReadOnlyCollection<EventRecord> SelectDashboardEvents(
+        GameState state,
+        Cycle cycle,
+        DevelopmentActor actor,
+        IReadOnlySet<Guid> visibleSystemIds)
+    {
+        var visibleEvents = state.Events
+            .Where(item => item.CycleId == cycle.CycleId)
+            .Where(item => ApiVisibility.CanSeeEvent(item, actor, visibleSystemIds))
+            .OrderByDescending(item => item.TickNumber)
+            .ThenByDescending(item => item.CreatedAt)
+            .ToArray();
+        if (visibleEvents.Length == 0)
+        {
+            return [];
+        }
+
+        var latestTickNumber = visibleEvents[0].TickNumber;
+        var latestTickEvents = visibleEvents
+            .Where(item => item.TickNumber == latestTickNumber)
+            .ToArray();
+        var recentRemainder = visibleEvents
+            .Where(item => item.TickNumber != latestTickNumber)
+            .Take(Math.Max(0, DashboardRecentEventLimit - latestTickEvents.Length));
+
+        // Keep the latest visible tick complete. The older remainder is bounded so
+        // normal dashboard responses retain at most 100 Events without cutting a
+        // turn result in half.
+        return latestTickEvents.Concat(recentRemainder).ToArray();
+    }
 
     public static IReadOnlyCollection<ChronicleEntry> SelectChronicleEntries(
         GameState state,
