@@ -149,14 +149,14 @@ Complete exports are operator artefacts containing identities, audit context, hi
 
 ```powershell
 # One-time bridge for a retired raw runtime file; the input is not modified.
-dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v2.json
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v5.json
 
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v2.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v2.json
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v2.json "sqlserver:$connectionString" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v5.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v5.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v5.json "sqlserver:$connectionString" --confirm-import --confirm-replace
 ```
 
-`convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, references, tick/recovery invariants, and retained JSON before it opens the target. It imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
+`convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, references, Game lineage and provenance, tick/recovery invariants, and retained JSON before it opens the target. The v5 transfer contract can represent several Games for forward-compatible transfer and isolation evidence, but the current operational importer deliberately accepts only the fixed legacy Game identity until Game-scoped API, Worker, store, and player-selection paths exist. The identity check does not rederive or freeze mutable metadata from an otherwise valid v5 transfer. An accepted transfer imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
 
 ## Architectural Position
 

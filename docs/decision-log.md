@@ -1887,6 +1887,32 @@ Consequences:
 - A changed route updates the next response and controls actual arrival. A removed route retains the command's activation tick but exposes no claimed dispatch or arrival; resolution rejects it through the existing order boundary.
 - This does not change one-intention-per-fleet rules, next-tick command activation, pathfinding, interception, pursuit, diversion, or map topology.
 
+## 2026-07-19: Establish A Legacy-Only Game Foundation Before Multi-Game Runtime Work
+
+Decision: add the `Game`, `CycleConfiguration`, `GameEnrolment`, and `GameLifecycleEvent` persistence foundation before introducing any second-Game creation or selection path. Backfill every existing Cycle into one fixed legacy Game (`01fcdded-9718-4436-b585-d97d504b1d57`), use each Cycle ID as its materialised configuration ID, and use each imported Player ID as that Player's legacy enrolment ID. Do not infer historical predecessor links.
+
+Keep the first migration additive and its new Cycle references nullable. Record canonical map and Development-scenario keys only when authoritative facts and persisted topology agree; otherwise retain explicit `legacy-unclassified` and `LegacyUnverified` provenance. Enforce one operational Cycle per Game now, while deferring same-scope composite foreign keys and non-null contract tightening to the next migration slice.
+
+Status: implemented by migration 022, the v5 state-transfer contract, deterministic legacy adaptation, SQL dual-write/read support, and the generated Development seed. This foundation is not a multi-game runtime release.
+
+Reasoning:
+
+- Existing SQL and JSON state needs one deterministic interpretation before focused Game-aware stores can replace global whole-state paths.
+- Fixed legacy identities make the backfill restartable and make SQL, transfer, seed, and in-memory adaptation produce the same result.
+- Inventing predecessor links or verified profile versions from ordering alone would turn migration guesses into durable product facts.
+- Nullable additive columns preserve rollback and rehearsal safety while the only authorised writer remains the legacy compatibility path.
+- Per-Game operational uniqueness is safe to enforce independently of player routes and prevents one Game from acquiring two live Cycle epochs.
+
+Consequences:
+
+- v4 and retired-runtime imports are adapted before validation; v5 exports require complete Game-foundation collections and validate copied provenance, enrolments, lifecycle facts, and Game-scoped operational uniqueness.
+- A newly generated successor records its real source Cycle and receives the next configuration, while migrated historical Cycles keep `PreviousCycleID` null.
+- Conflicting partial Game, Cycle, configuration, enrolment, lifecycle, or profile state aborts migration 022 rather than being silently repaired.
+- Normal state updates append lifecycle audit events and cannot remove or rewrite them; explicit whole-state replacement remains the deliberately destructive recovery/import boundary. Materialised configuration snapshots, content-hash shape, complete seat bounds, and one-successor lineage are enforced in SQL as well as transfer/domain validation.
+- The canonical Development seed now inserts Players, Game, configuration, Cycle, enrolments, and lifecycle audit rows in dependency order.
+- Transfer validation remains broader than operational activation: v5 can prove isolated multi-Game representation, while `state import` rejects an additional or non-legacy Game before opening SQL until the scoped runtime prerequisites land.
+- The API, Worker, dashboard, authentication context, and normal CLI still operate as a single-Game runtime. MG-02 constraints and MG-03–05 focused stores, route scoping, and Worker selection remain hard prerequisites before a second durable Game is created.
+
 ## 2026-07-19: Approve The Multi-Game And Tutorial Programme
 
 Decision: define a player-visible `Game` as a lineage containing one or more `Cycle` epochs, with at most one operational Cycle in that Game. Require players to reconfirm participation during Intermission before a successor Cycle starts. Use in-app cross-Game urgency for the first release and defer email or push notifications until player-return evidence supports a new transport.

@@ -33,8 +33,16 @@ public static class SqlServerDevelopmentSeedScript
 
         AppendInsert(script, "dbo.Players", "PlayerID, Username, Email, PasswordHash, ExternalIssuer, ExternalSubject, PlayerKind, Role, CreatedAt, LastLoginAt, Status", state.Players, item =>
             $"({Sql(item.PlayerId)}, {Sql(item.Username)}, {Sql(item.Email)}, {Sql(item.PasswordHash)}, {Sql(item.ExternalIssuer)}, {Sql(item.ExternalSubject)}, {Sql(item.Kind)}, {Sql(item.Role)}, {SqlSeedTime(item.CreatedAt)}, {SqlSeedTime(item.LastLoginAt)}, {Sql(item.Status)})");
-        AppendInsert(script, "dbo.Cycles", "CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedByPlayerID, CreatedAt", state.Cycles, item =>
-            $"({Sql(item.CycleId)}, @CycleName, {SqlSeedTime(item.StartAt)}, {SqlSeedTime(item.EndAt)}, {item.TickLengthMinutes}, {item.CurrentTickNumber}, {Sql(item.Status)}, {Sql(item.CreatedByPlayerId)}, {SqlSeedTime(item.CreatedAt)})");
+        AppendInsert(script, "dbo.Games", "GameID, Name, Purpose, Status, Visibility, CreationSource, GamePolicyKey, GamePolicyVersion, GamePolicyContentHash, PolicyProvenanceStatus, CreatedByPlayerID, CreatedAt, FirstStartedAt, CompletedAt, CancelledAt, TerminatedAt", state.Games, item =>
+            $"({Sql(item.GameId)}, {Sql(item.Name)}, {Sql(item.Purpose)}, {Sql(item.Status)}, {Sql(item.Visibility)}, {Sql(item.CreationSource)}, {Sql(item.GamePolicyKey)}, {item.GamePolicyVersion}, {Sql(item.GamePolicyContentHash)}, {Sql(item.PolicyProvenanceStatus)}, {Sql(item.CreatedByPlayerId)}, {SqlSeedTime(item.CreatedAt)}, {SqlSeedTime(item.FirstStartedAt)}, {SqlSeedTime(item.CompletedAt)}, {SqlSeedTime(item.CancelledAt)}, {SqlSeedTime(item.TerminatedAt)})");
+        AppendInsert(script, "dbo.CycleConfigurations", "CycleConfigurationID, GameID, SequenceNumber, Status, ProvenanceStatus, MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed, ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, MinimumHumanSeats, MaximumHumanSeats, ScheduledStartAt, ScheduledEndAt, TickLengthMinutes, CreatedAt, LockedAt, MaterializedAt, CancelledAt", state.CycleConfigurations.OrderBy(item => item.SequenceNumber), item =>
+            $"({Sql(item.CycleConfigurationId)}, {Sql(item.GameId)}, {item.SequenceNumber}, {Sql(item.Status)}, {Sql(item.ProvenanceStatus)}, {Sql(item.MapProfileKey)}, {Sql(item.MapProfileVersion)}, {Sql(item.MapProfileContentHash)}, {Sql(item.MapSeed)}, {Sql(item.ScenarioProfileKey)}, {Sql(item.ScenarioProfileVersion)}, {Sql(item.ScenarioProfileContentHash)}, {Sql(item.ScenarioSeed)}, {Sql(item.CyclePolicyKey)}, {item.CyclePolicyVersion}, {Sql(item.CyclePolicyContentHash)}, {Sql(item.MinimumHumanSeats)}, {Sql(item.MaximumHumanSeats)}, {SqlSeedTime(item.ScheduledStartAt)}, {SqlSeedTime(item.ScheduledEndAt)}, {Sql(item.TickLengthMinutes)}, {SqlSeedTime(item.CreatedAt)}, {SqlSeedTime(item.LockedAt)}, {SqlSeedTime(item.MaterializedAt)}, {SqlSeedTime(item.CancelledAt)})");
+        AppendInsert(script, "dbo.Cycles", "CycleID, GameID, CycleConfigurationID, PreviousCycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, TurnStage, MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed, ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, ProfileProvenanceStatus, CreatedByPlayerID, CreatedAt", state.Cycles, item =>
+            $"({Sql(item.CycleId)}, {Sql(item.GameId)}, {Sql(item.CycleConfigurationId)}, {Sql(item.PreviousCycleId)}, @CycleName, {SqlSeedTime(item.StartAt)}, {SqlSeedTime(item.EndAt)}, {item.TickLengthMinutes}, {item.CurrentTickNumber}, {Sql(item.Status)}, {Sql(item.TurnStage)}, {Sql(item.MapProfileKey)}, {Sql(item.MapProfileVersion)}, {Sql(item.MapProfileContentHash)}, {Sql(item.MapSeed)}, {Sql(item.ScenarioProfileKey)}, {Sql(item.ScenarioProfileVersion)}, {Sql(item.ScenarioProfileContentHash)}, {Sql(item.ScenarioSeed)}, {Sql(item.CyclePolicyKey)}, {Sql(item.CyclePolicyVersion)}, {Sql(item.CyclePolicyContentHash)}, {Sql(item.ProfileProvenanceStatus)}, {Sql(item.CreatedByPlayerId)}, {SqlSeedTime(item.CreatedAt)})");
+        AppendInsert(script, "dbo.GameEnrolments", "GameEnrolmentID, GameID, PlayerID, Status, Origin, OriginatingRequestID, EnrolledAt, StatusChangedAt, EndedAt", state.GameEnrolments.OrderBy(item => item.PlayerId), item =>
+            $"({Sql(item.GameEnrolmentId)}, {Sql(item.GameId)}, {Sql(item.PlayerId)}, {Sql(item.Status)}, {Sql(item.Origin)}, {Sql(item.OriginatingRequestId)}, {SqlSeedTime(item.EnrolledAt)}, {SqlSeedTime(item.StatusChangedAt)}, {SqlSeedTime(item.EndedAt)})");
+        AppendInsert(script, "dbo.GameLifecycleEvents", "GameLifecycleEventID, GameID, EventType, SubjectPlayerID, ActorPlayerID, FromStatus, ToStatus, Reason, CorrelationID, FactJson, CreatedAt", state.GameLifecycleEvents.OrderBy(item => item.CreatedAt), item =>
+            $"({Sql(item.GameLifecycleEventId)}, {Sql(item.GameId)}, {Sql(item.Type)}, {Sql(item.SubjectPlayerId)}, {Sql(item.ActorPlayerId)}, {Sql(item.FromStatus)}, {Sql(item.ToStatus)}, {Sql(item.Reason)}, {Sql(item.CorrelationId)}, {Sql(item.FactJson)}, {SqlSeedTime(item.CreatedAt)})");
         AppendInsert(script, "dbo.GalaxySectors", "SectorID, CycleID, SectorName, CentreX, CentreY, SortOrder", state.Sectors.OrderBy(item => item.SortOrder), item =>
             $"({Sql(item.SectorId)}, {Sql(item.CycleId)}, {Sql(item.SectorName)}, {item.CentreX}, {item.CentreY}, {item.SortOrder})");
         AppendInsert(script, "dbo.Systems", "SystemID, CycleID, SectorID, SystemName, X, Y, IndustryOutput, ResearchOutput, PopulationOutput, StrategicValue, HistoricalSignificance, CreatedAt", state.Systems.OrderBy(item => item.SystemName), item =>
@@ -72,6 +80,15 @@ public static class SqlServerDevelopmentSeedScript
             || state.Systems.Any(item => item.SectorId == Guid.Empty || !sectorIds.Contains(item.SectorId)))
         {
             throw new InvalidOperationException("The curated cold start must assign every system to a persisted galaxy sector.");
+        }
+
+        if (state.Games.Count != 1
+            || state.CycleConfigurations.Count != state.Cycles.Count
+            || state.GameLifecycleEvents.Count != 1
+            || state.Cycles.Any(cycle => cycle.GameId is null || cycle.CycleConfigurationId is null)
+            || state.GameEnrolments.Count != state.MatchParticipants.Select(item => item.PlayerId).Distinct().Count())
+        {
+            throw new InvalidOperationException("The curated cold start must contain one complete legacy Game foundation.");
         }
 
         var unsupportedRecords = state.AdminRoleAuditRecords.Count
@@ -161,5 +178,6 @@ public static class SqlServerDevelopmentSeedScript
     private static string Sql(DateTimeOffset value) => $"CAST('{value:O}' AS DATETIMEOFFSET)";
     private static string Sql(DateTimeOffset? value) => value.HasValue ? Sql(value.Value) : "NULL";
     private static string Sql<TEnum>(TEnum value) where TEnum : struct, Enum => Sql(value.ToString());
+    private static string Sql<TEnum>(TEnum? value) where TEnum : struct, Enum => value.HasValue ? Sql(value.Value) : "NULL";
     private static string Sql(string? value) => value is null ? "NULL" : $"N'{value.Replace("'", "''", StringComparison.Ordinal)}'";
 }

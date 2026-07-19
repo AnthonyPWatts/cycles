@@ -12,6 +12,116 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     private const string ConnectionStringEnvironmentVariable = SqlIntegrationGuard.ConnectionStringEnvironmentVariable;
 
     [Fact]
+    public void Store_round_trips_the_legacy_game_foundation_when_connection_string_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var expectedCycle = Assert.Single(state.Cycles);
+        var expectedGameCreatedAt = Assert.Single(state.Games).CreatedAt.AddDays(-7);
+        Assert.Single(state.Games).CreatedAt = expectedGameCreatedAt;
+        var expectedStatusChangedAt = state.GameEnrolments[0].StatusChangedAt.AddMinutes(1);
+        state.GameEnrolments[0].StatusChangedAt = expectedStatusChangedAt;
+        var store = new SqlServerGameStateStore(connectionString);
+
+        store.Replace(state);
+
+        var loaded = store.LoadOrCreate();
+        var game = Assert.Single(loaded.Games);
+        var configuration = Assert.Single(loaded.CycleConfigurations);
+        var cycle = Assert.Single(loaded.Cycles);
+        Assert.Equal(GameFoundationConstants.LegacyGameId, game.GameId);
+        Assert.Equal(expectedGameCreatedAt, game.CreatedAt);
+        Assert.Equal(game.GameId, configuration.GameId);
+        Assert.Equal(game.GameId, cycle.GameId);
+        Assert.Equal(configuration.CycleConfigurationId, cycle.CycleConfigurationId);
+        Assert.Equal(GameSeeder.CanonicalGalaxyTopologyKey, cycle.MapProfileKey);
+        Assert.Equal(GameSeeder.CuratedColdStartScenarioKey, cycle.ScenarioProfileKey);
+        Assert.Equal(expectedCycle.MapSeed, cycle.MapSeed);
+        Assert.Equal(expectedCycle.ScenarioSeed, cycle.ScenarioSeed);
+        Assert.Equal(state.MatchParticipants.Select(item => item.PlayerId).OrderBy(item => item),
+            loaded.GameEnrolments.Select(item => item.PlayerId).OrderBy(item => item));
+        Assert.Equal(expectedStatusChangedAt, loaded.GameEnrolments.Single(item =>
+            item.GameEnrolmentId == state.GameEnrolments[0].GameEnrolmentId).StatusChangedAt);
+        Assert.Equal(GameFoundationConstants.LegacyLifecycleEventId,
+            Assert.Single(loaded.GameLifecycleEvents).GameLifecycleEventId);
+        Assert.NotEmpty(game.RowVersion);
+        Assert.NotEmpty(configuration.RowVersion);
+        Assert.All(loaded.GameEnrolments, enrolment => Assert.NotEmpty(enrolment.RowVersion));
+    }
+
+    [Fact]
+    public void Store_preserves_lifecycle_audit_events_on_update_but_replace_can_remove_them()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var auditEvent = new GameLifecycleEvent
+        {
+            GameId = GameFoundationConstants.LegacyGameId,
+            Type = GameLifecycleEventType.ConfigurationChanged,
+            Reason = "SQL append-only audit test.",
+            FactJson = "{}",
+            CreatedAt = TestState.Now.AddMinutes(1)
+        };
+        state.GameLifecycleEvents.Add(auditEvent);
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(state);
+
+        store.Update(current =>
+        {
+            current.GameLifecycleEvents.RemoveAll(item =>
+                item.GameLifecycleEventId == auditEvent.GameLifecycleEventId);
+            return 0;
+        });
+
+        var afterUpdate = store.LoadOrCreate();
+        Assert.Contains(afterUpdate.GameLifecycleEvents, item =>
+            item.GameLifecycleEventId == auditEvent.GameLifecycleEventId);
+
+        afterUpdate.GameLifecycleEvents.RemoveAll(item =>
+            item.GameLifecycleEventId == auditEvent.GameLifecycleEventId);
+        store.Replace(afterUpdate);
+
+        Assert.DoesNotContain(store.LoadOrCreate().GameLifecycleEvents, item =>
+            item.GameLifecycleEventId == auditEvent.GameLifecycleEventId);
+    }
+
+    [Fact]
+    public void Store_rejects_changes_to_materialized_configuration_provenance()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var configuration = Assert.Single(state.CycleConfigurations);
+        var originalMapSeed = configuration.MapSeed;
+        var store = new SqlServerGameStateStore(connectionString);
+        store.Replace(state);
+
+        var error = Assert.Throws<SqlException>(() => store.Update(current =>
+        {
+            var currentConfiguration = Assert.Single(current.CycleConfigurations);
+            currentConfiguration.MapSeed = (currentConfiguration.MapSeed ?? 0) + 1;
+            return 0;
+        }));
+
+        Assert.Equal(51030, error.Number);
+        Assert.Equal(originalMapSeed, Assert.Single(store.LoadOrCreate().CycleConfigurations).MapSeed);
+    }
+
+    [Fact]
     public void Store_runs_and_round_trips_a_neutral_faction_battle_without_inventing_diplomacy()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
@@ -1259,39 +1369,155 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             seed: 7722,
             createdAt: TestState.Now);
         var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var sourceConfigurationId = sourceCycle.CycleConfigurationId
+            ?? throw new InvalidOperationException("Seed Cycle must have a configuration.");
+        var sourceConfiguration = state.CycleConfigurations.Single(item =>
+            item.CycleConfigurationId == sourceConfigurationId);
+        var authoritativeGameCreatedAt = TestState.Now.AddDays(-40);
+        var authoritativeFirstStartedAt = TestState.Now.AddDays(-20);
+        var authoritativeEnrolledAt = TestState.Now.AddDays(-10);
+        const string authoritativeGameName = "The Long Campaign";
+        const string authoritativePolicyKey = "campaign-policy-v3";
+        const int authoritativePolicyVersion = 3;
+        var authoritativePolicyHash = new string('a', 64);
+        var authoritativeGame = Assert.Single(state.Games);
+        authoritativeGame.Name = authoritativeGameName;
+        authoritativeGame.GamePolicyKey = authoritativePolicyKey;
+        authoritativeGame.GamePolicyVersion = authoritativePolicyVersion;
+        authoritativeGame.GamePolicyContentHash = authoritativePolicyHash;
+        authoritativeGame.PolicyProvenanceStatus = ProvenanceStatus.Verified;
+        authoritativeGame.CreatedAt = authoritativeGameCreatedAt;
+        authoritativeGame.FirstStartedAt = authoritativeFirstStartedAt;
+        var authoritativeConfigurationId = Guid.NewGuid();
+        sourceConfiguration.CycleConfigurationId = authoritativeConfigurationId;
+        sourceCycle.CycleConfigurationId = authoritativeConfigurationId;
+        sourceConfigurationId = authoritativeConfigurationId;
+        foreach (var enrolment in state.GameEnrolments)
+        {
+            enrolment.GameEnrolmentId = Guid.NewGuid();
+            enrolment.EnrolledAt = authoritativeEnrolledAt;
+        }
+        sourceConfiguration.ScheduledStartAt = null;
+        sourceConfiguration.ScheduledEndAt = null;
+        sourceConfiguration.TickLengthMinutes = null;
         sourceCycle.CurrentTickNumber = 3;
+        var sourceCycleId = sourceCycle.CycleId;
         var sourcePlayers = state.Empires
-            .Where(empire => empire.CycleId == sourceCycle.CycleId)
+            .Where(empire => empire.CycleId == sourceCycleId)
             .Select(empire => empire.PlayerId)
             .Order()
             .ToArray();
-        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now.AddHours(3));
-        var continuity = CycleContinuityService.GenerateNextCycle(
-            state,
-            sourceCycle.CycleId,
-            TestState.Now.AddDays(1),
-            seed: 7723);
-
         store.Replace(state);
+        store.Update(current =>
+        {
+            CycleEndService.CompleteCycle(current, sourceCycleId, TestState.Now.AddHours(3));
+            return 0;
+        });
+        var continuity = store.Update(current =>
+        {
+            var result = CycleContinuityService.GenerateNextCycle(
+                current,
+                sourceCycleId,
+                TestState.Now.AddDays(1),
+                seed: 7723);
+            current.Cycles.Reverse();
+            Assert.Equal(result.CycleId, current.Cycles[0].CycleId);
+            return result;
+        });
 
         var updated = store.LoadOrCreate();
         var successor = updated.Cycles.Single(item => item.CycleId == continuity.CycleId);
         var successorEmpires = updated.Empires.Where(empire => empire.CycleId == successor.CycleId).ToArray();
 
-        Assert.Equal(CycleStatus.Completed, updated.Cycles.Single(item => item.CycleId == sourceCycle.CycleId).Status);
+        Assert.Equal(CycleStatus.Completed, updated.Cycles.Single(item => item.CycleId == sourceCycleId).Status);
         Assert.Equal(CycleStatus.Active, successor.Status);
+        Assert.Equal(sourceCycleId, successor.PreviousCycleId);
         Assert.Equal(2, updated.Cycles.Count);
-        Assert.Equal(2, updated.CycleRankings.Count(item => item.CycleId == sourceCycle.CycleId));
+        Assert.Equal(2, updated.CycleRankings.Count(item => item.CycleId == sourceCycleId));
         Assert.Equal(sourcePlayers, successorEmpires.Select(empire => empire.PlayerId).Order().ToArray());
+        var updatedGame = Assert.Single(updated.Games);
+        var updatedSourceConfiguration = updated.CycleConfigurations.Single(item =>
+            item.CycleConfigurationId == sourceConfigurationId);
+        Assert.Equal(authoritativeGameCreatedAt, updatedGame.CreatedAt);
+        Assert.Equal(authoritativeFirstStartedAt, updatedGame.FirstStartedAt);
+        Assert.Equal(authoritativeGameName, updatedGame.Name);
+        Assert.Equal(authoritativePolicyKey, updatedGame.GamePolicyKey);
+        Assert.Equal(authoritativePolicyVersion, updatedGame.GamePolicyVersion);
+        Assert.Equal(authoritativePolicyHash, updatedGame.GamePolicyContentHash);
+        Assert.Equal(ProvenanceStatus.Verified, updatedGame.PolicyProvenanceStatus);
+        Assert.All(updated.GameEnrolments, enrolment =>
+            Assert.Equal(authoritativeEnrolledAt, enrolment.EnrolledAt));
+        Assert.Null(updatedSourceConfiguration.ScheduledStartAt);
+        Assert.Null(updatedSourceConfiguration.ScheduledEndAt);
+        Assert.Null(updatedSourceConfiguration.TickLengthMinutes);
+        var statusEvents = updated.GameLifecycleEvents
+            .Where(item => item.Type == GameLifecycleEventType.StatusChanged)
+            .OrderBy(item => item.CreatedAt)
+            .ToArray();
+        Assert.Collection(
+            statusEvents,
+            gameEvent =>
+            {
+                Assert.Equal(GameLifecycleStatus.Active.ToString(), gameEvent.FromStatus);
+                Assert.Equal(GameLifecycleStatus.Completed.ToString(), gameEvent.ToStatus);
+                Assert.Equal(TestState.Now.AddHours(3), gameEvent.CreatedAt);
+                Assert.Contains(sourceCycleId.ToString(), gameEvent.FactJson, StringComparison.OrdinalIgnoreCase);
+            },
+            gameEvent =>
+            {
+                Assert.Equal(GameLifecycleStatus.Completed.ToString(), gameEvent.FromStatus);
+                Assert.Equal(GameLifecycleStatus.Active.ToString(), gameEvent.ToStatus);
+                Assert.Equal(TestState.Now.AddDays(1), gameEvent.CreatedAt);
+                Assert.Contains(continuity.CycleId.ToString(), gameEvent.FactJson, StringComparison.OrdinalIgnoreCase);
+            });
         Assert.Single(updated.Sectors, sector => sector.CycleId == successor.CycleId);
         Assert.Equal(8, updated.Systems.Count(system => system.CycleId == successor.CycleId));
         Assert.Contains(updated.Events, item => item.CycleId == successor.CycleId && item.EventType == EventType.CycleSeeded);
     }
 
-    private static GameState CombineStates(params GameState[] states) =>
-        new()
+    private static GameState CombineStates(params GameState[] states)
+    {
+        for (var index = 0; index < states.Length; index++)
+        {
+            LegacyGameFoundation.Apply(states[index]);
+            if (index == 0)
+            {
+                continue;
+            }
+
+            var gameId = Guid.NewGuid();
+            var game = states[index].Games.Single();
+            game.GameId = gameId;
+            game.Name = $"Independent test Game {index + 1}";
+            foreach (var configuration in states[index].CycleConfigurations)
+            {
+                configuration.GameId = gameId;
+            }
+
+            foreach (var cycle in states[index].Cycles)
+            {
+                cycle.GameId = gameId;
+            }
+
+            foreach (var enrolment in states[index].GameEnrolments)
+            {
+                enrolment.GameId = gameId;
+            }
+
+            foreach (var gameEvent in states[index].GameLifecycleEvents)
+            {
+                gameEvent.GameLifecycleEventId = Guid.NewGuid();
+                gameEvent.GameId = gameId;
+            }
+        }
+
+        return new GameState
         {
             Players = states.SelectMany(state => state.Players).ToList(),
+            Games = states.SelectMany(state => state.Games).ToList(),
+            CycleConfigurations = states.SelectMany(state => state.CycleConfigurations).ToList(),
+            GameEnrolments = states.SelectMany(state => state.GameEnrolments).ToList(),
+            GameLifecycleEvents = states.SelectMany(state => state.GameLifecycleEvents).ToList(),
             Cycles = states.SelectMany(state => state.Cycles).ToList(),
             Sectors = states.SelectMany(state => state.Sectors).ToList(),
             Systems = states.SelectMany(state => state.Systems).ToList(),
@@ -1318,6 +1544,7 @@ public sealed class SqlServerGameStateStoreIntegrationTests
             BattleRecords = states.SelectMany(state => state.BattleRecords).ToList(),
             ChronicleEntries = states.SelectMany(state => state.ChronicleEntries).ToList()
         };
+    }
 
     private static Admiral AssignAdmiral(GameState state, Fleet fleet, string name)
     {

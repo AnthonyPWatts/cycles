@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Cycles.Core;
 
 namespace Cycles.Tests;
@@ -12,6 +13,9 @@ public sealed class CycleEndTests
         cycle.CurrentTickNumber = 12;
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        LegacyGameFoundation.Apply(state);
+
+        Assert.Equal(GameLifecycleStatus.Active, Assert.Single(state.Games).Status);
 
         var rankings = CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now);
 
@@ -33,6 +37,69 @@ public sealed class CycleEndTests
         var completionEvent = Assert.Single(state.Events, item => item.EventType == EventType.CycleCompleted);
         Assert.Equal(EventSeverity.Historic, completionEvent.Severity);
         Assert.Equal(winner.EmpireId, completionEvent.EmpireId);
+        var game = Assert.Single(state.Games);
+        Assert.Equal(GameLifecycleStatus.Completed, game.Status);
+        Assert.Equal(TestState.Now, game.CompletedAt);
+        Assert.All(state.GameEnrolments, enrolment =>
+        {
+            Assert.Equal(GameEnrolmentStatus.Completed, enrolment.Status);
+            Assert.Equal(TestState.Now, enrolment.EndedAt);
+        });
+    }
+
+    [Fact]
+    public void CompleteCyclePreservesAuthoritativeFoundationMetadataAndNullableSchedule()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        LegacyGameFoundation.Apply(state);
+        var game = Assert.Single(state.Games);
+        var configuration = Assert.Single(state.CycleConfigurations);
+        var authoritativeGameCreatedAt = TestState.Now.AddDays(-40);
+        var authoritativeFirstStartedAt = TestState.Now.AddDays(-20);
+        var authoritativeEnrolledAt = TestState.Now.AddDays(-10);
+        const string authoritativeGameName = "The Long Campaign";
+        const string authoritativePolicyKey = "campaign-policy-v3";
+        const int authoritativePolicyVersion = 3;
+        var authoritativePolicyHash = new string('a', 64);
+        game.Name = authoritativeGameName;
+        game.GamePolicyKey = authoritativePolicyKey;
+        game.GamePolicyVersion = authoritativePolicyVersion;
+        game.GamePolicyContentHash = authoritativePolicyHash;
+        game.PolicyProvenanceStatus = ProvenanceStatus.Verified;
+        game.CreatedAt = authoritativeGameCreatedAt;
+        game.FirstStartedAt = authoritativeFirstStartedAt;
+        var authoritativeConfigurationId = Guid.NewGuid();
+        configuration.CycleConfigurationId = authoritativeConfigurationId;
+        cycle.CycleConfigurationId = authoritativeConfigurationId;
+        foreach (var enrolment in state.GameEnrolments)
+        {
+            enrolment.GameEnrolmentId = Guid.NewGuid();
+            enrolment.EnrolledAt = authoritativeEnrolledAt;
+        }
+        configuration.ScheduledStartAt = null;
+        configuration.ScheduledEndAt = null;
+        configuration.TickLengthMinutes = null;
+
+        CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now.AddHours(4));
+
+        Assert.Equal(authoritativeGameCreatedAt, game.CreatedAt);
+        Assert.Equal(authoritativeFirstStartedAt, game.FirstStartedAt);
+        Assert.Equal(authoritativeGameName, game.Name);
+        Assert.Equal(authoritativePolicyKey, game.GamePolicyKey);
+        Assert.Equal(authoritativePolicyVersion, game.GamePolicyVersion);
+        Assert.Equal(authoritativePolicyHash, game.GamePolicyContentHash);
+        Assert.Equal(ProvenanceStatus.Verified, game.PolicyProvenanceStatus);
+        Assert.All(state.GameEnrolments, enrolment => Assert.Equal(authoritativeEnrolledAt, enrolment.EnrolledAt));
+        Assert.Null(configuration.ScheduledStartAt);
+        Assert.Null(configuration.ScheduledEndAt);
+        Assert.Null(configuration.TickLengthMinutes);
+        AssertStatusChangedEvent(
+            Assert.Single(state.GameLifecycleEvents, item => item.Type == GameLifecycleEventType.StatusChanged),
+            cycle.CycleId,
+            TestState.Now.AddHours(4),
+            GameLifecycleStatus.Active,
+            GameLifecycleStatus.Completed);
     }
 
     [Fact]
@@ -150,6 +217,13 @@ public sealed class CycleEndTests
 
         Assert.Equal(CycleStatus.Active, nextCycle.Status);
         Assert.Equal(TestState.Now.AddDays(1), nextCycle.StartAt);
+        Assert.Equal(sourceCycle.CycleId, nextCycle.PreviousCycleId);
+        Assert.Equal(GameFoundationConstants.LegacyGameId, nextCycle.GameId);
+        Assert.Contains(state.CycleConfigurations, configuration =>
+            configuration.CycleConfigurationId == nextCycle.CycleConfigurationId
+            && configuration.GameId == nextCycle.GameId
+            && configuration.SequenceNumber == 2);
+        Assert.Equal(GameLifecycleStatus.Active, Assert.Single(state.Games).Status);
         Assert.Equal(9876, result.Seed);
         Assert.Equal(2, nextEmpires.Length);
         Assert.Equal(2, result.SuccessorEmpires.Count);
@@ -165,6 +239,98 @@ public sealed class CycleEndTests
         Assert.Contains("sourceCycleId", seedEvent.FactJson, StringComparison.Ordinal);
         Assert.Contains("preservedSystems", seedEvent.FactJson, StringComparison.Ordinal);
         Assert.Contains("successorEmpires", seedEvent.FactJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateNextCyclePreservesAuthoritativeFoundationMetadataAndPriorConfigurationSnapshot()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        LegacyGameFoundation.Apply(state);
+        var importedConfiguration = Assert.Single(state.CycleConfigurations);
+        var authoritativeConfigurationId = Guid.NewGuid();
+        importedConfiguration.CycleConfigurationId = authoritativeConfigurationId;
+        sourceCycle.CycleConfigurationId = authoritativeConfigurationId;
+        foreach (var enrolment in state.GameEnrolments)
+        {
+            enrolment.GameEnrolmentId = Guid.NewGuid();
+        }
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now.AddHours(4));
+        var sourceConfigurationId = sourceCycle.CycleConfigurationId
+            ?? throw new InvalidOperationException("Source Cycle must have a configuration.");
+        var sourceConfiguration = state.CycleConfigurations.Single(item =>
+            item.CycleConfigurationId == sourceConfigurationId);
+        var authoritativeGameCreatedAt = TestState.Now.AddDays(-40);
+        var authoritativeFirstStartedAt = TestState.Now.AddDays(-20);
+        var authoritativeEnrolledAt = TestState.Now.AddDays(-10);
+        const string authoritativeGameName = "The Long Campaign";
+        const string authoritativePolicyKey = "campaign-policy-v3";
+        const int authoritativePolicyVersion = 3;
+        var authoritativePolicyHash = new string('a', 64);
+        var authoritativeGame = Assert.Single(state.Games);
+        authoritativeGame.Name = authoritativeGameName;
+        authoritativeGame.GamePolicyKey = authoritativePolicyKey;
+        authoritativeGame.GamePolicyVersion = authoritativePolicyVersion;
+        authoritativeGame.GamePolicyContentHash = authoritativePolicyHash;
+        authoritativeGame.PolicyProvenanceStatus = ProvenanceStatus.Verified;
+        authoritativeGame.CreatedAt = authoritativeGameCreatedAt;
+        authoritativeGame.FirstStartedAt = authoritativeFirstStartedAt;
+        foreach (var enrolment in state.GameEnrolments)
+        {
+            enrolment.EnrolledAt = authoritativeEnrolledAt;
+        }
+        sourceConfiguration.ScheduledStartAt = null;
+        sourceConfiguration.ScheduledEndAt = null;
+        sourceConfiguration.TickLengthMinutes = null;
+
+        var result = CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 9876);
+
+        var game = Assert.Single(state.Games);
+        sourceConfiguration = state.CycleConfigurations.Single(item =>
+            item.CycleConfigurationId == sourceConfigurationId);
+        Assert.Equal(authoritativeGameCreatedAt, game.CreatedAt);
+        Assert.Equal(authoritativeFirstStartedAt, game.FirstStartedAt);
+        Assert.Equal(authoritativeGameName, game.Name);
+        Assert.Equal(authoritativePolicyKey, game.GamePolicyKey);
+        Assert.Equal(authoritativePolicyVersion, game.GamePolicyVersion);
+        Assert.Equal(authoritativePolicyHash, game.GamePolicyContentHash);
+        Assert.Equal(ProvenanceStatus.Verified, game.PolicyProvenanceStatus);
+        Assert.Null(game.CompletedAt);
+        Assert.All(state.GameEnrolments, enrolment =>
+        {
+            Assert.Equal(authoritativeEnrolledAt, enrolment.EnrolledAt);
+            Assert.Equal(GameEnrolmentStatus.Enrolled, enrolment.Status);
+            Assert.Null(enrolment.EndedAt);
+        });
+        Assert.Null(sourceConfiguration.ScheduledStartAt);
+        Assert.Null(sourceConfiguration.ScheduledEndAt);
+        Assert.Null(sourceConfiguration.TickLengthMinutes);
+        Assert.Contains(state.CycleConfigurations, configuration =>
+            configuration.CycleConfigurationId == result.CycleId
+            && configuration.SequenceNumber == 2);
+        Assert.Collection(
+            state.GameLifecycleEvents
+                .Where(item => item.Type == GameLifecycleEventType.StatusChanged)
+                .OrderBy(item => item.CreatedAt),
+            gameEvent => AssertStatusChangedEvent(
+                gameEvent,
+                sourceCycle.CycleId,
+                TestState.Now.AddHours(4),
+                GameLifecycleStatus.Active,
+                GameLifecycleStatus.Completed),
+            gameEvent => AssertStatusChangedEvent(
+                gameEvent,
+                result.CycleId,
+                TestState.Now.AddDays(1),
+                GameLifecycleStatus.Completed,
+                GameLifecycleStatus.Active));
+        LegacyGameFoundation.ApplyLifecycleTransition(state);
+        Assert.Equal(2, state.GameLifecycleEvents.Count(item =>
+            item.Type == GameLifecycleEventType.StatusChanged));
     }
 
     [Fact]
@@ -224,6 +390,102 @@ public sealed class CycleEndTests
             TestState.Now.AddDays(1)));
 
         Assert.Contains("another Cycle is active", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateNextCycleRejectsWhenAnotherCycleRequiresRecoveryWithoutChangingState()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+        state.Cycles.Add(new Cycle
+        {
+            Name = "Recovery required",
+            StartAt = TestState.Now,
+            EndAt = TestState.Now.AddDays(90),
+            Status = CycleStatus.RecoveryRequired,
+            CreatedAt = TestState.Now
+        });
+        var cycles = state.Cycles;
+        var before = Snapshot(state);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1)));
+
+        Assert.Contains("requires recovery", ex.Message, StringComparison.Ordinal);
+        Assert.Same(cycles, state.Cycles);
+        Assert.Equal(before, Snapshot(state));
+    }
+
+    [Fact]
+    public void GenerateNextCycleRejectsSecondSuccessorWithoutChangingState()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+        var firstSuccessor = CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 1234);
+        CycleEndService.CompleteCycle(state, firstSuccessor.CycleId, TestState.Now.AddDays(2));
+        var cycles = state.Cycles;
+        var before = Snapshot(state);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(3),
+            seed: 5678));
+
+        Assert.Contains("already has a successor", ex.Message, StringComparison.Ordinal);
+        Assert.Same(cycles, state.Cycles);
+        Assert.Equal(before, Snapshot(state));
+    }
+
+    [Fact]
+    public void GenerateNextCycleRollsBackWhenLifecycleTransitionIsTerminal()
+    {
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        CycleEndService.CompleteCycle(state, sourceCycle.CycleId, TestState.Now);
+        var game = Assert.Single(state.Games);
+        game.Status = GameLifecycleStatus.Cancelled;
+        game.CompletedAt = null;
+        game.CancelledAt = TestState.Now;
+        var cycles = state.Cycles;
+        var before = Snapshot(state);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CycleContinuityService.GenerateNextCycle(
+            state,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 9876));
+
+        Assert.Contains("cannot transition after cancellation", ex.Message, StringComparison.Ordinal);
+        Assert.Same(cycles, state.Cycles);
+        Assert.Equal(before, Snapshot(state));
+    }
+
+    private static string Snapshot(GameState state) =>
+        JsonSerializer.Serialize(state, GameStateJson.Options);
+
+    private static void AssertStatusChangedEvent(
+        GameLifecycleEvent gameEvent,
+        Guid cycleId,
+        DateTimeOffset transitionAt,
+        GameLifecycleStatus fromStatus,
+        GameLifecycleStatus toStatus)
+    {
+        Assert.Equal(GameLifecycleEventType.StatusChanged, gameEvent.Type);
+        Assert.Equal(fromStatus.ToString(), gameEvent.FromStatus);
+        Assert.Equal(toStatus.ToString(), gameEvent.ToStatus);
+        Assert.Equal(transitionAt, gameEvent.CreatedAt);
+        using var fact = JsonDocument.Parse(gameEvent.FactJson);
+        Assert.Equal(cycleId, fact.RootElement.GetProperty("cycleId").GetGuid());
+        Assert.Equal(transitionAt, fact.RootElement.GetProperty("transitionAt").GetDateTimeOffset());
     }
 
     private static BattleRecord CreateBattle(

@@ -874,6 +874,7 @@ static int RunStateTransferCommand(string[] args)
             var inputPath = Path.GetFullPath(ParseRequiredArgument(args, 2, "input JSON path"));
             using var input = File.OpenRead(inputPath);
             var document = GameStateTransfer.Read(input);
+            CurrentRuntimeGameScope.EnsureSupportedForOperationalImport(document.State);
             var connectionString = ParseRequiredSqlServerConnectionString(args, 3);
             new SqlServerMigrator(connectionString).Migrate();
             var store = new SqlServerGameStateStore(connectionString, () => new GameState());

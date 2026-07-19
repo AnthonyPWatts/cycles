@@ -20,9 +20,27 @@ BEGIN
         ('8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', N'Will', N'', N'', N'', N'', N'Human', N'Player', @SeededAt, NULL, N'Active'),
         ('3ecfbf78-b6b3-42cd-a811-85efb916cc03', N'Ariadne', N'', N'', N'', N'', N'AI', N'Player', @SeededAt, NULL, N'Active');
 
-    INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, CreatedByPlayerID, CreatedAt)
+    INSERT INTO dbo.Games(GameID, Name, Purpose, Status, Visibility, CreationSource, GamePolicyKey, GamePolicyVersion, GamePolicyContentHash, PolicyProvenanceStatus, CreatedByPlayerID, CreatedAt, FirstStartedAt, CompletedAt, CancelledAt, TerminatedAt)
     VALUES
-        ('fce1d96a-6a07-4559-cff6-dd6efde758ae', @CycleName, @SeededAt, DATEADD(DAY, 90, @SeededAt), 60, 0, N'Active', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', @SeededAt);
+        ('01fcdded-9718-4436-b585-d97d504b1d57', N'Legacy Standard Game', N'Standard', N'Active', N'Private', N'LegacyImport', N'legacy-single-lineage-v1', 1, NULL, N'LegacyUnverified', NULL, @SeededAt, @SeededAt, NULL, NULL, NULL);
+
+    INSERT INTO dbo.CycleConfigurations(CycleConfigurationID, GameID, SequenceNumber, Status, ProvenanceStatus, MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed, ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, MinimumHumanSeats, MaximumHumanSeats, ScheduledStartAt, ScheduledEndAt, TickLengthMinutes, CreatedAt, LockedAt, MaterializedAt, CancelledAt)
+    VALUES
+        ('fce1d96a-6a07-4559-cff6-dd6efde758ae', '01fcdded-9718-4436-b585-d97d504b1d57', 1, N'Materialized', N'LegacyUnverified', N'territorial-graph-v2', NULL, NULL, 71421, N'development-match-v2', NULL, NULL, 20260717, N'legacy-cycle-policy-v1', 1, NULL, NULL, NULL, @SeededAt, DATEADD(DAY, 90, @SeededAt), 60, @SeededAt, @SeededAt, @SeededAt, NULL);
+
+    INSERT INTO dbo.Cycles(CycleID, GameID, CycleConfigurationID, PreviousCycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, TurnStage, MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed, ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, ProfileProvenanceStatus, CreatedByPlayerID, CreatedAt)
+    VALUES
+        ('fce1d96a-6a07-4559-cff6-dd6efde758ae', '01fcdded-9718-4436-b585-d97d504b1d57', 'fce1d96a-6a07-4559-cff6-dd6efde758ae', NULL, @CycleName, @SeededAt, DATEADD(DAY, 90, @SeededAt), 60, 0, N'Active', N'CommandOpen', N'territorial-graph-v2', NULL, NULL, 71421, N'development-match-v2', NULL, NULL, 20260717, N'legacy-cycle-policy-v1', 1, NULL, N'LegacyUnverified', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', @SeededAt);
+
+    INSERT INTO dbo.GameEnrolments(GameEnrolmentID, GameID, PlayerID, Status, Origin, OriginatingRequestID, EnrolledAt, StatusChangedAt, EndedAt)
+    VALUES
+        ('2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', '01fcdded-9718-4436-b585-d97d504b1d57', '2bbf6b63-b50f-4fe3-bc11-913c2b74aa01', N'Enrolled', N'LegacyImport', NULL, @SeededAt, @SeededAt, NULL),
+        ('3ecfbf78-b6b3-42cd-a811-85efb916cc03', '01fcdded-9718-4436-b585-d97d504b1d57', '3ecfbf78-b6b3-42cd-a811-85efb916cc03', N'Enrolled', N'LegacyImport', NULL, @SeededAt, @SeededAt, NULL),
+        ('8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', '01fcdded-9718-4436-b585-d97d504b1d57', '8bf77462-f7ce-4c67-8c20-29e4e1e5bb02', N'Enrolled', N'LegacyImport', NULL, @SeededAt, @SeededAt, NULL);
+
+    INSERT INTO dbo.GameLifecycleEvents(GameLifecycleEventID, GameID, EventType, SubjectPlayerID, ActorPlayerID, FromStatus, ToStatus, Reason, CorrelationID, FactJson, CreatedAt)
+    VALUES
+        ('b283628d-2899-475c-9c6e-5dd8e20c2e91', '01fcdded-9718-4436-b585-d97d504b1d57', N'LegacyImported', NULL, NULL, NULL, N'Active', NULL, NULL, N'{"source":"legacy-single-lineage","schemaVersion":1}', @SeededAt);
 
     INSERT INTO dbo.GalaxySectors(SectorID, CycleID, SectorName, CentreX, CentreY, SortOrder)
     VALUES

@@ -158,7 +158,9 @@ public static class GameSeeder
         int seed = 71421,
         DateTimeOffset? createdAt = null)
     {
-        return Create(systemCount, empireCount, seed, createdAt, Guid.NewGuid);
+        var state = Create(systemCount, empireCount, seed, createdAt, Guid.NewGuid);
+        LegacyGameFoundation.Apply(state);
+        return state;
     }
 
     public static GameState CreateCuratedColdStart(DateTimeOffset? createdAt = null)
@@ -173,6 +175,7 @@ public static class GameSeeder
         var state = Create(CanonicalGalaxySystemCount, 3, CanonicalGalaxySeed, now, identitySequence.Next);
 
         ApplyDevelopmentMatch(state, scenarioSeed, now, identitySequence.Next);
+        LegacyGameFoundation.Apply(state);
         return state;
     }
 
@@ -183,7 +186,9 @@ public static class GameSeeder
         DateTimeOffset createdAt)
     {
         var identitySequence = new DeterministicIdentitySequence(seed);
-        return Create(systemCount, empireCount, seed, createdAt, identitySequence.Next);
+        var state = Create(systemCount, empireCount, seed, createdAt, identitySequence.Next);
+        LegacyGameFoundation.Apply(state);
+        return state;
     }
 
     public static GalaxyTopologyUpgradeResult UpgradeGalaxyTopology(GameState state)

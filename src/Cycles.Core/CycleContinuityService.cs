@@ -12,6 +12,20 @@ public static class CycleContinuityService
         DateTimeOffset startsAt,
         int? seed = null)
     {
+        ArgumentNullException.ThrowIfNull(state);
+
+        var workingState = state.DeepClone();
+        var result = GenerateNextCycleCore(workingState, completedCycleId, startsAt, seed);
+        state.ReplaceWith(workingState);
+        return result;
+    }
+
+    private static CycleContinuityResult GenerateNextCycleCore(
+        GameState state,
+        Guid completedCycleId,
+        DateTimeOffset startsAt,
+        int? seed)
+    {
         var sourceCycle = state.Cycles.SingleOrDefault(cycle => cycle.CycleId == completedCycleId)
             ?? throw new InvalidOperationException("Completed Cycle was not found.");
 
@@ -20,9 +34,15 @@ public static class CycleContinuityService
             throw new InvalidOperationException("Only completed Cycles can generate a successor Cycle.");
         }
 
-        if (state.Cycles.Any(cycle => cycle.Status == CycleStatus.Active))
+        if (state.Cycles.Any(cycle => cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired))
         {
-            throw new InvalidOperationException("A successor Cycle cannot be generated while another Cycle is active.");
+            throw new InvalidOperationException(
+                "A successor Cycle cannot be generated while another Cycle is active or requires recovery.");
+        }
+
+        if (state.Cycles.Any(cycle => cycle.PreviousCycleId == completedCycleId))
+        {
+            throw new InvalidOperationException("The completed Cycle already has a successor.");
         }
 
         var sourceSystems = state.Systems
@@ -46,11 +66,14 @@ public static class CycleContinuityService
         newCycle.TickLengthMinutes = sourceCycle.TickLengthMinutes;
         newCycle.CreatedByPlayerId = sourceCycle.CreatedByPlayerId;
         newCycle.CreatedAt = startsAt;
+        newCycle.PreviousCycleId = sourceCycle.CycleId;
 
         var successorEmpires = ApplySuccessorEmpires(generated, newCycle.CycleId, sourceEmpires);
         var preservedSystems = ApplyHistoricalSystems(generated, newCycle.CycleId, SelectHistoricalSystems(state, completedCycleId, sourceSystems.Length));
         UpdateSeedEvent(generated, newCycle, sourceCycle, seedValue, preservedSystems, successorEmpires);
+        PrepareSuccessorConfiguration(state, generated, newCycle);
         AppendGeneratedState(state, generated);
+        LegacyGameFoundation.ApplyLifecycleTransition(state);
 
         return new CycleContinuityResult(newCycle.CycleId, sourceCycle.CycleId, seedValue, preservedSystems, successorEmpires);
     }
@@ -239,6 +262,7 @@ public static class CycleContinuityService
     private static void AppendGeneratedState(GameState state, GameState generated)
     {
         state.Cycles.AddRange(generated.Cycles);
+        state.CycleConfigurations.AddRange(generated.CycleConfigurations);
         state.Empires.AddRange(generated.Empires);
         state.Factions.AddRange(generated.Factions);
         state.MatchParticipants.AddRange(generated.MatchParticipants);
@@ -256,6 +280,25 @@ public static class CycleContinuityService
         state.Events.AddRange(generated.Events);
         state.BattleRecords.AddRange(generated.BattleRecords);
         state.ChronicleEntries.AddRange(generated.ChronicleEntries);
+    }
+
+    private static void PrepareSuccessorConfiguration(
+        GameState state,
+        GameState generated,
+        Cycle newCycle)
+    {
+        var configuration = generated.CycleConfigurations.Single(item =>
+            item.CycleConfigurationId == newCycle.CycleConfigurationId);
+        var previousSequence = state.CycleConfigurations
+            .Where(item => item.GameId == GameFoundationConstants.LegacyGameId)
+            .Select(item => item.SequenceNumber)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        configuration.SequenceNumber = checked(previousSequence + 1);
+        configuration.ScheduledStartAt = newCycle.StartAt;
+        configuration.ScheduledEndAt = newCycle.EndAt;
+        configuration.TickLengthMinutes = newCycle.TickLengthMinutes;
     }
 
     private static int CreateContinuitySeed(Cycle sourceCycle)

@@ -18,7 +18,7 @@ public sealed record GameStateValidationResult(IReadOnlyList<string> Errors)
 
 public static class GameStateTransfer
 {
-    public const int CurrentFormatVersion = 4;
+    public const int CurrentFormatVersion = 5;
 
     private static readonly JsonSerializerOptions TransferJsonOptions = CreateJsonOptions();
     private static readonly PropertyInfo[] PersistedCollections = typeof(GameState)
@@ -33,6 +33,7 @@ public static class GameStateTransfer
         UpgradeLegacyOwnershipModel(state);
         UpgradeTransitTiming(state);
         UpgradeDoctrineUnlocks(state);
+        EnrichLegacyGameFoundationForWrite(state);
         var validation = Validate(state);
         if (!validation.IsValid)
         {
@@ -95,6 +96,9 @@ public static class GameStateTransfer
                         && !stateElement.TryGetProperty(jsonName, out _))
                     || (formatVersion < 4
                         && property.Name == nameof(GameState.EmpireDoctrineUnlocks)
+                        && !stateElement.TryGetProperty(jsonName, out _))
+                    || (formatVersion < 5
+                        && IsGameFoundationCollection(property.Name)
                         && !stateElement.TryGetProperty(jsonName, out _)))
                 {
                     continue;
@@ -123,6 +127,10 @@ public static class GameStateTransfer
             if (formatVersion < 4)
             {
                 UpgradeDoctrineUnlocks(document.State);
+            }
+            if (formatVersion < 5)
+            {
+                LegacyGameFoundation.Apply(document.State);
             }
             StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
@@ -162,7 +170,8 @@ public static class GameStateTransfer
                 if ((property.Name == nameof(GameState.Sectors)
                      || property.Name == nameof(GameState.Factions)
                      || property.Name == nameof(GameState.MatchParticipants)
-                     || property.Name == nameof(GameState.EmpireDoctrineUnlocks))
+                     || property.Name == nameof(GameState.EmpireDoctrineUnlocks)
+                     || IsGameFoundationCollection(property.Name))
                     && !root.TryGetProperty(jsonName, out _))
                 {
                     continue;
@@ -189,6 +198,7 @@ public static class GameStateTransfer
             UpgradeLegacyOwnershipModel(state);
             UpgradeTransitTiming(state);
             UpgradeDoctrineUnlocks(state);
+            LegacyGameFoundation.Apply(state);
             StrategicPriorityPolicy.Normalize(state);
             var validation = Validate(state);
             if (!validation.IsValid)
@@ -220,6 +230,7 @@ public static class GameStateTransfer
 
         ValidateIdentifiers(state, errors);
         ValidatePlayers(state, errors);
+        ValidateGameFoundation(state, errors);
         ValidateCyclesAndReferences(state, errors);
         ValidateTickAndRecoveryState(state, errors);
         ValidateEmbeddedJson(state, errors);
@@ -354,6 +365,40 @@ public static class GameStateTransfer
         }
     }
 
+    private static void EnrichLegacyGameFoundationForWrite(GameState state)
+    {
+        if (state.Cycles.Count == 0)
+        {
+            return;
+        }
+
+        var isUnadaptedLegacyState = state.Games.Count == 0;
+        var isIncompleteLegacyFoundation = state.Games.Count == 1
+            && state.Games[0].GameId == GameFoundationConstants.LegacyGameId
+            && (state.Cycles.Any(cycle =>
+                    cycle.GameId is null
+                    || cycle.CycleConfigurationId is null
+                    || !state.CycleConfigurations.Any(configuration =>
+                        configuration.CycleConfigurationId == cycle.CycleConfigurationId.Value))
+                || state.MatchParticipants.Any(participant =>
+                    !state.GameEnrolments.Any(enrolment =>
+                        enrolment.GameId == GameFoundationConstants.LegacyGameId
+                        && enrolment.PlayerId == participant.PlayerId))
+                || state.GameLifecycleEvents.All(gameEvent =>
+                    gameEvent.GameLifecycleEventId != GameFoundationConstants.LegacyLifecycleEventId));
+
+        if (isUnadaptedLegacyState || isIncompleteLegacyFoundation)
+        {
+            LegacyGameFoundation.Apply(state);
+        }
+    }
+
+    private static bool IsGameFoundationCollection(string propertyName) => propertyName is
+        nameof(GameState.Games)
+        or nameof(GameState.CycleConfigurations)
+        or nameof(GameState.GameEnrolments)
+        or nameof(GameState.GameLifecycleEvents);
+
     private static string? ReadDoctrineKey(string factJson)
     {
         try
@@ -384,6 +429,10 @@ public static class GameStateTransfer
     {
         Unique(state.Players, item => item.PlayerId, "players", errors);
         Unique(state.AdminRoleAuditRecords, item => item.AdminRoleAuditRecordId, "adminRoleAuditRecords", errors);
+        Unique(state.Games, item => item.GameId, "games", errors);
+        Unique(state.CycleConfigurations, item => item.CycleConfigurationId, "cycleConfigurations", errors);
+        Unique(state.GameEnrolments, item => item.GameEnrolmentId, "gameEnrolments", errors);
+        Unique(state.GameLifecycleEvents, item => item.GameLifecycleEventId, "gameLifecycleEvents", errors);
         Unique(state.Cycles, item => item.CycleId, "cycles", errors);
         Unique(state.Empires, item => item.EmpireId, "empires", errors);
         Unique(state.Factions, item => item.FactionId, "factions", errors);
@@ -450,6 +499,462 @@ public static class GameStateTransfer
         }
     }
 
+    private static void ValidateGameFoundation(GameState state, List<string> errors)
+    {
+        if (state.Games.Count == 0)
+        {
+            errors.Add("At least one Game is required.");
+        }
+
+        var playerIds = state.Players.Select(item => item.PlayerId).ToHashSet();
+        var gamesById = state.Games
+            .GroupBy(item => item.GameId)
+            .ToDictionary(group => group.Key, group => group.First());
+        var configurationsById = state.CycleConfigurations
+            .GroupBy(item => item.CycleConfigurationId)
+            .ToDictionary(group => group.Key, group => group.First());
+        var cyclesById = state.Cycles
+            .GroupBy(item => item.CycleId)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        foreach (var game in state.Games)
+        {
+            Required(game.Name, $"Game {game.GameId} has no name.", errors);
+            Required(game.GamePolicyKey, $"Game {game.GameId} has no policy key.", errors);
+            if (game.GamePolicyVersion <= 0)
+            {
+                errors.Add($"Game {game.GameId} has an invalid policy version.");
+            }
+
+            ValidateContentHash(
+                game.GamePolicyContentHash,
+                $"Game {game.GameId} policy content hash",
+                errors);
+            OptionalReference(playerIds, game.CreatedByPlayerId, $"Game {game.GameId} creator", errors);
+            if (game.PolicyProvenanceStatus == ProvenanceStatus.Verified)
+            {
+                Required(game.GamePolicyContentHash, $"Verified Game {game.GameId} has no policy content hash.", errors);
+            }
+            else if (game.CreationSource != GameCreationSource.LegacyImport)
+            {
+                errors.Add($"Game {game.GameId} uses legacy-unverified policy provenance without a legacy import source.");
+            }
+
+            ValidateGameLifecycle(game, state.Cycles, errors);
+        }
+
+        foreach (var duplicate in state.CycleConfigurations
+                     .GroupBy(item => (item.GameId, item.SequenceNumber))
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add($"Game {duplicate.Key.GameId} has more than one Cycle configuration at sequence {duplicate.Key.SequenceNumber}.");
+        }
+
+        foreach (var configuration in state.CycleConfigurations)
+        {
+            Reference(gamesById.Keys, configuration.GameId, $"Cycle configuration {configuration.CycleConfigurationId} Game", errors);
+            if (configuration.SequenceNumber <= 0)
+            {
+                errors.Add($"Cycle configuration {configuration.CycleConfigurationId} has an invalid sequence number.");
+            }
+
+            OptionalPositive(
+                configuration.TickLengthMinutes,
+                $"Cycle configuration {configuration.CycleConfigurationId} tick length",
+                errors);
+            ValidateHumanSeatBounds(configuration, errors);
+            if (configuration.ScheduledStartAt.HasValue
+                && configuration.ScheduledEndAt.HasValue
+                && configuration.ScheduledEndAt.Value <= configuration.ScheduledStartAt.Value)
+            {
+                errors.Add($"Cycle configuration {configuration.CycleConfigurationId} scheduled end must follow its scheduled start.");
+            }
+            ValidateConfigurationStatusTimestamps(configuration, errors);
+            ValidateProfileProvenance(configuration, gamesById, errors);
+
+            var materializedCycles = state.Cycles.Count(cycle =>
+                cycle.CycleConfigurationId == configuration.CycleConfigurationId);
+            if (configuration.Status == CycleConfigurationStatus.Materialized)
+            {
+                if (materializedCycles != 1)
+                {
+                    errors.Add($"Materialized Cycle configuration {configuration.CycleConfigurationId} must belong to exactly one Cycle.");
+                }
+            }
+            else if (materializedCycles != 0)
+            {
+                errors.Add($"Cycle configuration {configuration.CycleConfigurationId} is referenced by a Cycle while its status is {configuration.Status}.");
+            }
+        }
+
+        foreach (var duplicate in state.Cycles
+                     .Where(item => item.CycleConfigurationId.HasValue)
+                     .GroupBy(item => item.CycleConfigurationId!.Value)
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add($"Cycle configuration {duplicate.Key} materializes more than one Cycle.");
+        }
+
+        foreach (var cycle in state.Cycles)
+        {
+            if (!cycle.GameId.HasValue)
+            {
+                errors.Add($"Cycle {cycle.CycleId} has no Game.");
+            }
+            else
+            {
+                Reference(gamesById.Keys, cycle.GameId.Value, $"Cycle {cycle.CycleId} Game", errors);
+            }
+
+            if (!cycle.CycleConfigurationId.HasValue)
+            {
+                errors.Add($"Cycle {cycle.CycleId} has no Cycle configuration.");
+            }
+            else
+            {
+                Reference(
+                    configurationsById.Keys,
+                    cycle.CycleConfigurationId.Value,
+                    $"Cycle {cycle.CycleId} configuration",
+                    errors);
+                if (configurationsById.TryGetValue(cycle.CycleConfigurationId.Value, out var configuration))
+                {
+                    if (cycle.GameId != configuration.GameId)
+                    {
+                        errors.Add($"Cycle {cycle.CycleId} and its configuration belong to different Games.");
+                    }
+                    if (configuration.Status != CycleConfigurationStatus.Materialized)
+                    {
+                        errors.Add($"Cycle {cycle.CycleId} references a configuration that is not materialized.");
+                    }
+                    ValidateCycleProvenance(cycle, configuration, errors);
+                }
+            }
+
+            if (cycle.PreviousCycleId.HasValue)
+            {
+                Reference(cyclesById.Keys, cycle.PreviousCycleId.Value, $"Cycle {cycle.CycleId} predecessor", errors);
+                if (cycle.PreviousCycleId == cycle.CycleId)
+                {
+                    errors.Add($"Cycle {cycle.CycleId} cannot be its own predecessor.");
+                }
+                else if (cyclesById.TryGetValue(cycle.PreviousCycleId.Value, out var previous)
+                         && previous.GameId != cycle.GameId)
+                {
+                    errors.Add($"Cycle {cycle.CycleId} and its predecessor belong to different Games.");
+                }
+            }
+        }
+
+        ValidateCycleLineage(state.Cycles, cyclesById, configurationsById, errors);
+
+        foreach (var duplicate in state.GameEnrolments
+                     .GroupBy(item => (item.GameId, item.PlayerId))
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add($"Player {duplicate.Key.PlayerId} has more than one enrolment in Game {duplicate.Key.GameId}.");
+        }
+
+        foreach (var enrolment in state.GameEnrolments)
+        {
+            Reference(gamesById.Keys, enrolment.GameId, $"Game enrolment {enrolment.GameEnrolmentId} Game", errors);
+            Reference(playerIds, enrolment.PlayerId, $"Game enrolment {enrolment.GameEnrolmentId} player", errors);
+            if (enrolment.StatusChangedAt < enrolment.EnrolledAt)
+            {
+                errors.Add($"Game enrolment {enrolment.GameEnrolmentId} changes status before enrolment.");
+            }
+
+            var shouldHaveEnded = enrolment.Status is GameEnrolmentStatus.Completed or GameEnrolmentStatus.Withdrawn;
+            if (shouldHaveEnded != enrolment.EndedAt.HasValue)
+            {
+                errors.Add($"Game enrolment {enrolment.GameEnrolmentId} status and end timestamp disagree.");
+            }
+        }
+
+        foreach (var participant in state.MatchParticipants)
+        {
+            var cycle = cyclesById.GetValueOrDefault(participant.CycleId);
+            if (cycle?.GameId is { } gameId
+                && !state.GameEnrolments.Any(enrolment => enrolment.GameId == gameId
+                                                          && enrolment.PlayerId == participant.PlayerId))
+            {
+                errors.Add($"Match participant {participant.MatchParticipantId} has no enrolment in Game {gameId}.");
+            }
+        }
+
+        foreach (var gameEvent in state.GameLifecycleEvents)
+        {
+            Reference(gamesById.Keys, gameEvent.GameId, $"Game lifecycle event {gameEvent.GameLifecycleEventId} Game", errors);
+            OptionalReference(playerIds, gameEvent.SubjectPlayerId, $"Game lifecycle event {gameEvent.GameLifecycleEventId} subject player", errors);
+            OptionalReference(playerIds, gameEvent.ActorPlayerId, $"Game lifecycle event {gameEvent.GameLifecycleEventId} actor player", errors);
+            if (!Enum.IsDefined(typeof(GameLifecycleEventType), gameEvent.Type))
+            {
+                errors.Add($"Game lifecycle event {gameEvent.GameLifecycleEventId} has an invalid event type '{gameEvent.Type}'.");
+            }
+            ValidateLifecycleStatus(gameEvent.FromStatus, gameEvent.GameLifecycleEventId, "from", errors);
+            ValidateLifecycleStatus(gameEvent.ToStatus, gameEvent.GameLifecycleEventId, "to", errors);
+        }
+    }
+
+    private static void ValidateGameLifecycle(
+        Game game,
+        IReadOnlyCollection<Cycle> cycles,
+        List<string> errors)
+    {
+        var terminalTimestampsAgree = game.Status switch
+        {
+            GameLifecycleStatus.Completed => game.CompletedAt.HasValue
+                && !game.CancelledAt.HasValue
+                && !game.TerminatedAt.HasValue,
+            GameLifecycleStatus.Cancelled => !game.CompletedAt.HasValue
+                && game.CancelledAt.HasValue
+                && !game.TerminatedAt.HasValue,
+            GameLifecycleStatus.Terminated => !game.CompletedAt.HasValue
+                && !game.CancelledAt.HasValue
+                && game.TerminatedAt.HasValue,
+            GameLifecycleStatus.Forming
+                or GameLifecycleStatus.Starting
+                or GameLifecycleStatus.Active
+                or GameLifecycleStatus.Intermission => !game.CompletedAt.HasValue
+                    && !game.CancelledAt.HasValue
+                    && !game.TerminatedAt.HasValue,
+            _ => false
+        };
+        if (!terminalTimestampsAgree)
+        {
+            errors.Add($"Game {game.GameId} status and terminal timestamps disagree.");
+        }
+
+        if (game.Status is not (GameLifecycleStatus.Forming
+            or GameLifecycleStatus.Starting
+            or GameLifecycleStatus.Cancelled)
+            && !game.FirstStartedAt.HasValue)
+        {
+            errors.Add($"Game {game.GameId} status {game.Status} requires a first-start timestamp.");
+        }
+
+        var operationalCycleCount = cycles.Count(cycle =>
+            cycle.GameId == game.GameId
+            && cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired);
+        if (game.Status == GameLifecycleStatus.Active && operationalCycleCount != 1)
+        {
+            errors.Add($"Active Game {game.GameId} must have exactly one Active or RecoveryRequired Cycle.");
+        }
+        else if (game.Status != GameLifecycleStatus.Active && operationalCycleCount != 0)
+        {
+            errors.Add($"Game {game.GameId} cannot retain an Active or RecoveryRequired Cycle while its status is {game.Status}.");
+        }
+    }
+
+    private static void ValidateHumanSeatBounds(CycleConfiguration configuration, List<string> errors)
+    {
+        var bothAbsent = !configuration.MinimumHumanSeats.HasValue
+            && !configuration.MaximumHumanSeats.HasValue;
+        var validBounds = configuration.MinimumHumanSeats is > 0
+            && configuration.MaximumHumanSeats.HasValue
+            && configuration.MaximumHumanSeats.Value >= configuration.MinimumHumanSeats.Value;
+        if (!bothAbsent && !validBounds)
+        {
+            errors.Add(
+                $"Cycle configuration {configuration.CycleConfigurationId} human-seat bounds must both be absent or form a positive minimum/maximum range.");
+        }
+    }
+
+    private static void ValidateConfigurationStatusTimestamps(
+        CycleConfiguration configuration,
+        List<string> errors)
+    {
+        var timestampsAgree = configuration.Status switch
+        {
+            CycleConfigurationStatus.Draft => !configuration.LockedAt.HasValue
+                && !configuration.MaterializedAt.HasValue
+                && !configuration.CancelledAt.HasValue,
+            CycleConfigurationStatus.Locked => configuration.LockedAt.HasValue
+                && !configuration.MaterializedAt.HasValue
+                && !configuration.CancelledAt.HasValue,
+            CycleConfigurationStatus.Materialized => configuration.LockedAt.HasValue
+                && configuration.MaterializedAt.HasValue
+                && !configuration.CancelledAt.HasValue,
+            CycleConfigurationStatus.Cancelled => !configuration.MaterializedAt.HasValue
+                && configuration.CancelledAt.HasValue,
+            _ => false
+        };
+        if (!timestampsAgree)
+        {
+            errors.Add(
+                $"Cycle configuration {configuration.CycleConfigurationId} status and lock, materialization or cancellation timestamps disagree.");
+        }
+    }
+
+    private static void ValidateCycleLineage(
+        IReadOnlyCollection<Cycle> cycles,
+        IReadOnlyDictionary<Guid, Cycle> cyclesById,
+        IReadOnlyDictionary<Guid, CycleConfiguration> configurationsById,
+        List<string> errors)
+    {
+        foreach (var fork in cycles
+                     .Where(cycle => cycle.PreviousCycleId.HasValue)
+                     .GroupBy(cycle => cycle.PreviousCycleId!.Value)
+                     .Where(group => group.Count() > 1))
+        {
+            errors.Add($"Cycle {fork.Key} has more than one direct successor.");
+        }
+
+        foreach (var cycle in cycles.Where(item => item.PreviousCycleId.HasValue))
+        {
+            if (!cyclesById.TryGetValue(cycle.PreviousCycleId!.Value, out var previous)
+                || !cycle.CycleConfigurationId.HasValue
+                || !previous.CycleConfigurationId.HasValue
+                || !configurationsById.TryGetValue(cycle.CycleConfigurationId.Value, out var configuration)
+                || !configurationsById.TryGetValue(previous.CycleConfigurationId.Value, out var previousConfiguration))
+            {
+                continue;
+            }
+
+            if (previousConfiguration.SequenceNumber >= configuration.SequenceNumber)
+            {
+                errors.Add(
+                    $"Cycle {cycle.CycleId} must have a higher configuration sequence than predecessor {previous.CycleId}.");
+            }
+        }
+
+        var visitStates = new Dictionary<Guid, byte>();
+        var cycleReported = false;
+        foreach (var cycle in cycles)
+        {
+            Visit(cycle.CycleId);
+        }
+
+        void Visit(Guid cycleId)
+        {
+            if (visitStates.TryGetValue(cycleId, out var visitState))
+            {
+                if (visitState == 1 && !cycleReported)
+                {
+                    errors.Add($"Cycle lineage contains a predecessor cycle involving Cycle {cycleId}.");
+                    cycleReported = true;
+                }
+                return;
+            }
+
+            visitStates[cycleId] = 1;
+            if (cyclesById.TryGetValue(cycleId, out var cycle)
+                && cycle.PreviousCycleId.HasValue
+                && cyclesById.ContainsKey(cycle.PreviousCycleId.Value))
+            {
+                Visit(cycle.PreviousCycleId.Value);
+            }
+            visitStates[cycleId] = 2;
+        }
+    }
+
+    private static void ValidateProfileProvenance(
+        CycleConfiguration configuration,
+        IReadOnlyDictionary<Guid, Game> gamesById,
+        List<string> errors)
+    {
+        Required(configuration.MapProfileKey, $"Cycle configuration {configuration.CycleConfigurationId} has no map profile key.", errors);
+        Required(configuration.ScenarioProfileKey, $"Cycle configuration {configuration.CycleConfigurationId} has no scenario profile key.", errors);
+        Required(configuration.CyclePolicyKey, $"Cycle configuration {configuration.CycleConfigurationId} has no Cycle policy key.", errors);
+        ValidateContentHash(
+            configuration.MapProfileContentHash,
+            $"Cycle configuration {configuration.CycleConfigurationId} map profile content hash",
+            errors);
+        ValidateContentHash(
+            configuration.ScenarioProfileContentHash,
+            $"Cycle configuration {configuration.CycleConfigurationId} scenario profile content hash",
+            errors);
+        ValidateContentHash(
+            configuration.CyclePolicyContentHash,
+            $"Cycle configuration {configuration.CycleConfigurationId} Cycle policy content hash",
+            errors);
+        OptionalPositive(configuration.MapProfileVersion, $"Cycle configuration {configuration.CycleConfigurationId} map profile version", errors);
+        OptionalPositive(configuration.ScenarioProfileVersion, $"Cycle configuration {configuration.CycleConfigurationId} scenario profile version", errors);
+        if (configuration.CyclePolicyVersion <= 0)
+        {
+            errors.Add($"Cycle configuration {configuration.CycleConfigurationId} has an invalid Cycle policy version.");
+        }
+
+        if (configuration.ProvenanceStatus == ProvenanceStatus.Verified)
+        {
+            if (!configuration.MapProfileVersion.HasValue || !configuration.ScenarioProfileVersion.HasValue)
+            {
+                errors.Add($"Verified Cycle configuration {configuration.CycleConfigurationId} must retain map and scenario profile versions.");
+            }
+            Required(configuration.MapProfileContentHash, $"Verified Cycle configuration {configuration.CycleConfigurationId} has no map profile content hash.", errors);
+            Required(configuration.ScenarioProfileContentHash, $"Verified Cycle configuration {configuration.CycleConfigurationId} has no scenario profile content hash.", errors);
+            Required(configuration.CyclePolicyContentHash, $"Verified Cycle configuration {configuration.CycleConfigurationId} has no Cycle policy content hash.", errors);
+        }
+        else if (gamesById.TryGetValue(configuration.GameId, out var game)
+                 && game.CreationSource != GameCreationSource.LegacyImport)
+        {
+            errors.Add($"Cycle configuration {configuration.CycleConfigurationId} uses legacy-unverified provenance outside a legacy Game.");
+        }
+    }
+
+    private static void ValidateCycleProvenance(
+        Cycle cycle,
+        CycleConfiguration configuration,
+        List<string> errors)
+    {
+        ValidateContentHash(cycle.MapProfileContentHash, $"Cycle {cycle.CycleId} map profile content hash", errors);
+        ValidateContentHash(cycle.ScenarioProfileContentHash, $"Cycle {cycle.CycleId} scenario profile content hash", errors);
+        ValidateContentHash(cycle.CyclePolicyContentHash, $"Cycle {cycle.CycleId} Cycle policy content hash", errors);
+
+        if (!cycle.ProfileProvenanceStatus.HasValue)
+        {
+            errors.Add($"Cycle {cycle.CycleId} has no profile provenance status.");
+            return;
+        }
+
+        if (cycle.ProfileProvenanceStatus.Value != configuration.ProvenanceStatus
+            || !string.Equals(cycle.MapProfileKey, configuration.MapProfileKey, StringComparison.Ordinal)
+            || cycle.MapProfileVersion != configuration.MapProfileVersion
+            || !string.Equals(cycle.MapProfileContentHash, configuration.MapProfileContentHash, StringComparison.Ordinal)
+            || cycle.MapSeed != configuration.MapSeed
+            || !string.Equals(cycle.ScenarioProfileKey, configuration.ScenarioProfileKey, StringComparison.Ordinal)
+            || cycle.ScenarioProfileVersion != configuration.ScenarioProfileVersion
+            || !string.Equals(cycle.ScenarioProfileContentHash, configuration.ScenarioProfileContentHash, StringComparison.Ordinal)
+            || cycle.ScenarioSeed != configuration.ScenarioSeed
+            || !string.Equals(cycle.CyclePolicyKey, configuration.CyclePolicyKey, StringComparison.Ordinal)
+            || cycle.CyclePolicyVersion != configuration.CyclePolicyVersion
+            || !string.Equals(cycle.CyclePolicyContentHash, configuration.CyclePolicyContentHash, StringComparison.Ordinal)
+            || configuration.TickLengthMinutes.HasValue && configuration.TickLengthMinutes.Value != cycle.TickLengthMinutes
+            || configuration.ScheduledStartAt.HasValue && configuration.ScheduledStartAt.Value != cycle.StartAt
+            || (cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired
+                && configuration.ScheduledEndAt.HasValue
+                && configuration.ScheduledEndAt.Value != cycle.EndAt))
+        {
+            errors.Add($"Cycle {cycle.CycleId} provenance does not match its materialized configuration.");
+        }
+    }
+
+    private static void ValidateLifecycleStatus(string? value, Guid eventId, string label, List<string> errors)
+    {
+        if (!string.IsNullOrWhiteSpace(value)
+            && !Enum.GetNames<GameLifecycleStatus>().Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add($"Game lifecycle event {eventId} has an invalid {label} status '{value}'.");
+        }
+    }
+
+    private static void ValidateContentHash(string? value, string label, List<string> errors)
+    {
+        if (value is not null
+            && (value.Length != 64 || value.Any(character => !char.IsAsciiHexDigit(character))))
+        {
+            errors.Add($"{label} must contain exactly 64 hexadecimal characters when present.");
+        }
+    }
+
+    private static void OptionalPositive(int? value, string label, List<string> errors)
+    {
+        if (value.HasValue && value.Value <= 0)
+        {
+            errors.Add($"{label} must be positive when present.");
+        }
+    }
+
     private static void ValidateCyclesAndReferences(GameState state, List<string> errors)
     {
         if (state.Cycles.Count == 0)
@@ -458,10 +963,13 @@ public static class GameStateTransfer
             return;
         }
 
-        var operationalCycles = state.Cycles.Count(cycle => cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired);
-        if (operationalCycles > 1)
+        foreach (var operationalGame in state.Cycles
+                     .Where(cycle => cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired)
+                     .Where(cycle => cycle.GameId.HasValue)
+                     .GroupBy(cycle => cycle.GameId!.Value)
+                     .Where(group => group.Count() > 1))
         {
-            errors.Add("Only one Active or RecoveryRequired Cycle may exist.");
+            errors.Add($"Game {operationalGame.Key} has more than one Active or RecoveryRequired Cycle.");
         }
 
         foreach (var cycle in state.Cycles)
@@ -1115,7 +1623,9 @@ public static class GameStateTransfer
 
     private static void ValidateEmbeddedJson(GameState state, List<string> errors)
     {
-        foreach (var (value, label) in state.Events.Select(item => (item.FactJson, $"Event {item.EventId} fact JSON"))
+        foreach (var (value, label) in state.GameLifecycleEvents
+                     .Select(item => (item.FactJson, $"Game lifecycle event {item.GameLifecycleEventId} fact JSON"))
+                     .Concat(state.Events.Select(item => (item.FactJson, $"Event {item.EventId} fact JSON")))
                      .Concat(state.BattleRecords.Select(item => (item.FactJson, $"Battle {item.BattleId} fact JSON")))
                      .Concat(state.CycleMajorEvents.Select(item => (item.FactJson, $"Cycle major event {item.CycleMajorEventId} fact JSON")))
                      .Concat(state.SystemHistoricalSignals.Select(item => (item.FactJson, $"System historical signal {item.SystemHistoricalSignalId} fact JSON")))
@@ -1164,7 +1674,7 @@ public static class GameStateTransfer
         }
     }
 
-    private static void Required(string value, string error, List<string> errors)
+    private static void Required(string? value, string error, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

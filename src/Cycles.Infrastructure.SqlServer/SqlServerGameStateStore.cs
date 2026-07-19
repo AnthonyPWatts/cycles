@@ -105,7 +105,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         AcquireApplicationLock(connection, transaction);
 
         StrategicPriorityPolicy.Normalize(state);
-        DeleteRowsMissingFromState(connection, transaction, new GameState());
+        DeleteRowsMissingFromState(
+            connection,
+            transaction,
+            new GameState(),
+            deleteGameLifecycleEvents: true);
         SaveUnsafe(connection, transaction, state);
         transaction.Commit();
     }
@@ -219,7 +223,11 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         {
             Players = ReadRows(connection, transaction, "SELECT * FROM dbo.Players", ReadPlayer),
             AdminRoleAuditRecords = ReadRows(connection, transaction, "SELECT * FROM dbo.AdminRoleAuditRecords", ReadAdminRoleAuditRecord),
+            Games = ReadRows(connection, transaction, "SELECT * FROM dbo.Games", ReadGame),
+            CycleConfigurations = ReadRows(connection, transaction, "SELECT * FROM dbo.CycleConfigurations", ReadCycleConfiguration),
             Cycles = ReadRows(connection, transaction, "SELECT * FROM dbo.Cycles", ReadCycle),
+            GameEnrolments = ReadRows(connection, transaction, "SELECT * FROM dbo.GameEnrolments", ReadGameEnrolment),
+            GameLifecycleEvents = ReadRows(connection, transaction, "SELECT * FROM dbo.GameLifecycleEvents", ReadGameLifecycleEvent),
             Sectors = ReadRows(connection, transaction, "SELECT * FROM dbo.GalaxySectors", ReadSector),
             Systems = ReadRows(connection, transaction, "SELECT * FROM dbo.Systems", ReadSystem),
             Empires = ReadRows(connection, transaction, "SELECT * FROM dbo.Empires", ReadEmpire),
@@ -400,8 +408,54 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 ReadTickLog)
         };
 
+    private static void EnsureGameFoundations(GameState state)
+    {
+        if (state.Cycles.Count == 0)
+        {
+            return;
+        }
+
+        var hasNoGame = state.Games.Count == 0;
+        var hasOnlyLegacyGame = state.Games.Count == 1
+            && state.Games[0].GameId == GameFoundationConstants.LegacyGameId;
+        var hasOnlyLegacyCycleScope = state.Cycles.All(cycle =>
+            cycle.GameId is null || cycle.GameId == GameFoundationConstants.LegacyGameId);
+        var hasIncompleteLegacyFoundation = hasOnlyLegacyGame
+            && (state.Cycles.Any(cycle =>
+                    cycle.GameId is null
+                    || cycle.CycleConfigurationId is null
+                    || !state.CycleConfigurations.Any(configuration =>
+                        configuration.CycleConfigurationId == cycle.CycleConfigurationId.Value))
+                || state.MatchParticipants.Any(participant =>
+                    !state.GameEnrolments.Any(enrolment =>
+                        enrolment.GameId == GameFoundationConstants.LegacyGameId
+                        && enrolment.PlayerId == participant.PlayerId))
+                || state.GameLifecycleEvents.All(gameEvent =>
+                    gameEvent.GameLifecycleEventId != GameFoundationConstants.LegacyLifecycleEventId));
+
+        if (hasOnlyLegacyCycleScope && (hasNoGame || hasIncompleteLegacyFoundation))
+        {
+            LegacyGameFoundation.Apply(state);
+            return;
+        }
+
+        if (hasOnlyLegacyGame && hasOnlyLegacyCycleScope)
+        {
+            return;
+        }
+
+        var incompleteCycle = state.Cycles.FirstOrDefault(cycle =>
+            cycle.GameId is null || cycle.CycleConfigurationId is null);
+        if (incompleteCycle is not null)
+        {
+            throw new InvalidOperationException(
+                $"Cycle {incompleteCycle.CycleId} has no complete Game foundation and cannot be persisted outside the legacy adapter.");
+        }
+    }
+
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
+        EnsureGameFoundations(state);
         DeleteRowsMissingFromState(connection, transaction, state);
 
         foreach (var item in state.Players)
@@ -414,9 +468,29 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             UpsertAdminRoleAuditRecord(connection, transaction, item);
         }
 
-        foreach (var item in state.Cycles)
+        foreach (var item in state.Games)
+        {
+            UpsertGame(connection, transaction, item);
+        }
+
+        foreach (var item in state.CycleConfigurations)
+        {
+            UpsertCycleConfiguration(connection, transaction, item);
+        }
+
+        foreach (var item in OrderCyclesForPersistence(state.Cycles))
         {
             UpsertCycle(connection, transaction, item);
+        }
+
+        foreach (var item in state.GameEnrolments)
+        {
+            UpsertGameEnrolment(connection, transaction, item);
+        }
+
+        foreach (var item in state.GameLifecycleEvents)
+        {
+            UpsertGameLifecycleEvent(connection, transaction, item);
         }
 
         foreach (var item in state.Sectors)
@@ -656,9 +730,63 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
+    private static Game ReadGame(SqlDataReader reader) => new()
+    {
+        GameId = GetGuid(reader, "GameID"),
+        Name = GetString(reader, "Name"),
+        Purpose = GetEnum<GamePurpose>(reader, "Purpose"),
+        Status = GetEnum<GameLifecycleStatus>(reader, "Status"),
+        Visibility = GetEnum<GameVisibility>(reader, "Visibility"),
+        CreationSource = GetEnum<GameCreationSource>(reader, "CreationSource"),
+        GamePolicyKey = GetString(reader, "GamePolicyKey"),
+        GamePolicyVersion = GetInt(reader, "GamePolicyVersion"),
+        GamePolicyContentHash = GetNullableString(reader, "GamePolicyContentHash"),
+        PolicyProvenanceStatus = GetEnum<ProvenanceStatus>(reader, "PolicyProvenanceStatus"),
+        CreatedByPlayerId = GetNullableGuid(reader, "CreatedByPlayerID"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
+        FirstStartedAt = GetNullableDateTimeOffset(reader, "FirstStartedAt"),
+        CompletedAt = GetNullableDateTimeOffset(reader, "CompletedAt"),
+        CancelledAt = GetNullableDateTimeOffset(reader, "CancelledAt"),
+        TerminatedAt = GetNullableDateTimeOffset(reader, "TerminatedAt"),
+        RowVersion = GetBytes(reader, "RowVersion")
+    };
+
+    private static CycleConfiguration ReadCycleConfiguration(SqlDataReader reader) => new()
+    {
+        CycleConfigurationId = GetGuid(reader, "CycleConfigurationID"),
+        GameId = GetGuid(reader, "GameID"),
+        SequenceNumber = GetInt(reader, "SequenceNumber"),
+        Status = GetEnum<CycleConfigurationStatus>(reader, "Status"),
+        ProvenanceStatus = GetEnum<ProvenanceStatus>(reader, "ProvenanceStatus"),
+        MapProfileKey = GetNullableString(reader, "MapProfileKey"),
+        MapProfileVersion = GetNullableInt(reader, "MapProfileVersion"),
+        MapProfileContentHash = GetNullableString(reader, "MapProfileContentHash"),
+        MapSeed = GetNullableInt(reader, "MapSeed"),
+        ScenarioProfileKey = GetNullableString(reader, "ScenarioProfileKey"),
+        ScenarioProfileVersion = GetNullableInt(reader, "ScenarioProfileVersion"),
+        ScenarioProfileContentHash = GetNullableString(reader, "ScenarioProfileContentHash"),
+        ScenarioSeed = GetNullableInt(reader, "ScenarioSeed"),
+        CyclePolicyKey = GetString(reader, "CyclePolicyKey"),
+        CyclePolicyVersion = GetInt(reader, "CyclePolicyVersion"),
+        CyclePolicyContentHash = GetNullableString(reader, "CyclePolicyContentHash"),
+        MinimumHumanSeats = GetNullableInt(reader, "MinimumHumanSeats"),
+        MaximumHumanSeats = GetNullableInt(reader, "MaximumHumanSeats"),
+        ScheduledStartAt = GetNullableDateTimeOffset(reader, "ScheduledStartAt"),
+        ScheduledEndAt = GetNullableDateTimeOffset(reader, "ScheduledEndAt"),
+        TickLengthMinutes = GetNullableInt(reader, "TickLengthMinutes"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
+        LockedAt = GetNullableDateTimeOffset(reader, "LockedAt"),
+        MaterializedAt = GetNullableDateTimeOffset(reader, "MaterializedAt"),
+        CancelledAt = GetNullableDateTimeOffset(reader, "CancelledAt"),
+        RowVersion = GetBytes(reader, "RowVersion")
+    };
+
     private static Cycle ReadCycle(SqlDataReader reader) => new()
     {
         CycleId = GetGuid(reader, "CycleID"),
+        GameId = GetNullableGuid(reader, "GameID"),
+        CycleConfigurationId = GetNullableGuid(reader, "CycleConfigurationID"),
+        PreviousCycleId = GetNullableGuid(reader, "PreviousCycleID"),
         Name = GetString(reader, "Name"),
         StartAt = GetDateTimeOffset(reader, "StartAt"),
         EndAt = GetDateTimeOffset(reader, "EndAt"),
@@ -666,7 +794,48 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         CurrentTickNumber = GetInt(reader, "CurrentTickNumber"),
         Status = GetEnum<CycleStatus>(reader, "Status"),
         TurnStage = GetEnum<TurnResolutionStage>(reader, "TurnStage"),
+        MapProfileKey = GetNullableString(reader, "MapProfileKey"),
+        MapProfileVersion = GetNullableInt(reader, "MapProfileVersion"),
+        MapProfileContentHash = GetNullableString(reader, "MapProfileContentHash"),
+        MapSeed = GetNullableInt(reader, "MapSeed"),
+        ScenarioProfileKey = GetNullableString(reader, "ScenarioProfileKey"),
+        ScenarioProfileVersion = GetNullableInt(reader, "ScenarioProfileVersion"),
+        ScenarioProfileContentHash = GetNullableString(reader, "ScenarioProfileContentHash"),
+        ScenarioSeed = GetNullableInt(reader, "ScenarioSeed"),
+        CyclePolicyKey = GetNullableString(reader, "CyclePolicyKey"),
+        CyclePolicyVersion = GetNullableInt(reader, "CyclePolicyVersion"),
+        CyclePolicyContentHash = GetNullableString(reader, "CyclePolicyContentHash"),
+        ProfileProvenanceStatus = GetNullableEnum<ProvenanceStatus>(reader, "ProfileProvenanceStatus"),
         CreatedByPlayerId = GetNullableGuid(reader, "CreatedByPlayerID"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
+    };
+
+    private static GameEnrolment ReadGameEnrolment(SqlDataReader reader) => new()
+    {
+        GameEnrolmentId = GetGuid(reader, "GameEnrolmentID"),
+        GameId = GetGuid(reader, "GameID"),
+        PlayerId = GetGuid(reader, "PlayerID"),
+        Status = GetEnum<GameEnrolmentStatus>(reader, "Status"),
+        Origin = GetEnum<GameEnrolmentOrigin>(reader, "Origin"),
+        OriginatingRequestId = GetNullableString(reader, "OriginatingRequestID"),
+        EnrolledAt = GetDateTimeOffset(reader, "EnrolledAt"),
+        StatusChangedAt = GetDateTimeOffset(reader, "StatusChangedAt"),
+        EndedAt = GetNullableDateTimeOffset(reader, "EndedAt"),
+        RowVersion = GetBytes(reader, "RowVersion")
+    };
+
+    private static GameLifecycleEvent ReadGameLifecycleEvent(SqlDataReader reader) => new()
+    {
+        GameLifecycleEventId = GetGuid(reader, "GameLifecycleEventID"),
+        GameId = GetGuid(reader, "GameID"),
+        Type = GetEnum<GameLifecycleEventType>(reader, "EventType"),
+        SubjectPlayerId = GetNullableGuid(reader, "SubjectPlayerID"),
+        ActorPlayerId = GetNullableGuid(reader, "ActorPlayerID"),
+        FromStatus = GetNullableString(reader, "FromStatus"),
+        ToStatus = GetNullableString(reader, "ToStatus"),
+        Reason = GetNullableString(reader, "Reason"),
+        CorrelationId = GetNullableString(reader, "CorrelationID"),
+        FactJson = GetString(reader, "FactJson"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
     };
 
@@ -1088,28 +1257,199 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
+    private static void UpsertGame(SqlConnection connection, SqlTransaction transaction, Game item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.Games
+            SET Name = @Name,
+                Purpose = @Purpose,
+                Status = @Status,
+                Visibility = @Visibility,
+                CreationSource = @CreationSource,
+                GamePolicyKey = @GamePolicyKey,
+                GamePolicyVersion = @GamePolicyVersion,
+                GamePolicyContentHash = @GamePolicyContentHash,
+                PolicyProvenanceStatus = @PolicyProvenanceStatus,
+                CreatedByPlayerID = @CreatedByPlayerID,
+                CreatedAt = @CreatedAt,
+                FirstStartedAt = @FirstStartedAt,
+                CompletedAt = @CompletedAt,
+                CancelledAt = @CancelledAt,
+                TerminatedAt = @TerminatedAt
+            WHERE GameID = @GameID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+                INSERT INTO dbo.Games
+                (
+                    GameID, Name, Purpose, Status, Visibility, CreationSource,
+                    GamePolicyKey, GamePolicyVersion, GamePolicyContentHash, PolicyProvenanceStatus,
+                    CreatedByPlayerID, CreatedAt, FirstStartedAt, CompletedAt, CancelledAt, TerminatedAt
+                )
+                VALUES
+                (
+                    @GameID, @Name, @Purpose, @Status, @Visibility, @CreationSource,
+                    @GamePolicyKey, @GamePolicyVersion, @GamePolicyContentHash, @PolicyProvenanceStatus,
+                    @CreatedByPlayerID, @CreatedAt, @FirstStartedAt, @CompletedAt, @CancelledAt, @TerminatedAt
+                );
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@GameID", item.GameId);
+            AddString(command, "@Name", item.Name, 120);
+            AddString(command, "@Purpose", item.Purpose.ToString(), 32);
+            AddString(command, "@Status", item.Status.ToString(), 32);
+            AddString(command, "@Visibility", item.Visibility.ToString(), 32);
+            AddString(command, "@CreationSource", item.CreationSource.ToString(), 32);
+            AddString(command, "@GamePolicyKey", item.GamePolicyKey, 128);
+            AddInt(command, "@GamePolicyVersion", item.GamePolicyVersion);
+            AddNullableString(command, "@GamePolicyContentHash", item.GamePolicyContentHash, 64);
+            AddString(command, "@PolicyProvenanceStatus", item.PolicyProvenanceStatus.ToString(), 32);
+            AddNullableGuid(command, "@CreatedByPlayerID", item.CreatedByPlayerId);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+            AddNullableDateTimeOffset(command, "@FirstStartedAt", item.FirstStartedAt);
+            AddNullableDateTimeOffset(command, "@CompletedAt", item.CompletedAt);
+            AddNullableDateTimeOffset(command, "@CancelledAt", item.CancelledAt);
+            AddNullableDateTimeOffset(command, "@TerminatedAt", item.TerminatedAt);
+        });
+
+    private static void UpsertCycleConfiguration(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        CycleConfiguration item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.CycleConfigurations
+            SET GameID = @GameID,
+                SequenceNumber = @SequenceNumber,
+                Status = @Status,
+                ProvenanceStatus = @ProvenanceStatus,
+                MapProfileKey = @MapProfileKey,
+                MapProfileVersion = @MapProfileVersion,
+                MapProfileContentHash = @MapProfileContentHash,
+                MapSeed = @MapSeed,
+                ScenarioProfileKey = @ScenarioProfileKey,
+                ScenarioProfileVersion = @ScenarioProfileVersion,
+                ScenarioProfileContentHash = @ScenarioProfileContentHash,
+                ScenarioSeed = @ScenarioSeed,
+                CyclePolicyKey = @CyclePolicyKey,
+                CyclePolicyVersion = @CyclePolicyVersion,
+                CyclePolicyContentHash = @CyclePolicyContentHash,
+                MinimumHumanSeats = @MinimumHumanSeats,
+                MaximumHumanSeats = @MaximumHumanSeats,
+                ScheduledStartAt = @ScheduledStartAt,
+                ScheduledEndAt = @ScheduledEndAt,
+                TickLengthMinutes = @ConfigurationTickLengthMinutes,
+                CreatedAt = @CreatedAt,
+                LockedAt = @LockedAt,
+                MaterializedAt = @MaterializedAt,
+                CancelledAt = @CancelledAt
+            WHERE CycleConfigurationID = @CycleConfigurationID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+                INSERT INTO dbo.CycleConfigurations
+                (
+                    CycleConfigurationID, GameID, SequenceNumber, Status, ProvenanceStatus,
+                    MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed,
+                    ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed,
+                    CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash,
+                    MinimumHumanSeats, MaximumHumanSeats, ScheduledStartAt, ScheduledEndAt,
+                    TickLengthMinutes, CreatedAt, LockedAt, MaterializedAt, CancelledAt
+                )
+                VALUES
+                (
+                    @CycleConfigurationID, @GameID, @SequenceNumber, @Status, @ProvenanceStatus,
+                    @MapProfileKey, @MapProfileVersion, @MapProfileContentHash, @MapSeed,
+                    @ScenarioProfileKey, @ScenarioProfileVersion, @ScenarioProfileContentHash, @ScenarioSeed,
+                    @CyclePolicyKey, @CyclePolicyVersion, @CyclePolicyContentHash,
+                    @MinimumHumanSeats, @MaximumHumanSeats, @ScheduledStartAt, @ScheduledEndAt,
+                    @ConfigurationTickLengthMinutes, @CreatedAt, @LockedAt, @MaterializedAt, @CancelledAt
+                );
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@CycleConfigurationID", item.CycleConfigurationId);
+            AddGuid(command, "@GameID", item.GameId);
+            AddInt(command, "@SequenceNumber", item.SequenceNumber);
+            AddString(command, "@Status", item.Status.ToString(), 32);
+            AddString(command, "@ProvenanceStatus", item.ProvenanceStatus.ToString(), 32);
+            AddNullableString(command, "@MapProfileKey", item.MapProfileKey, 128);
+            AddNullableInt(command, "@MapProfileVersion", item.MapProfileVersion);
+            AddNullableString(command, "@MapProfileContentHash", item.MapProfileContentHash, 64);
+            AddNullableInt(command, "@MapSeed", item.MapSeed);
+            AddNullableString(command, "@ScenarioProfileKey", item.ScenarioProfileKey, 128);
+            AddNullableInt(command, "@ScenarioProfileVersion", item.ScenarioProfileVersion);
+            AddNullableString(command, "@ScenarioProfileContentHash", item.ScenarioProfileContentHash, 64);
+            AddNullableInt(command, "@ScenarioSeed", item.ScenarioSeed);
+            AddString(command, "@CyclePolicyKey", item.CyclePolicyKey, 128);
+            AddInt(command, "@CyclePolicyVersion", item.CyclePolicyVersion);
+            AddNullableString(command, "@CyclePolicyContentHash", item.CyclePolicyContentHash, 64);
+            AddNullableInt(command, "@MinimumHumanSeats", item.MinimumHumanSeats);
+            AddNullableInt(command, "@MaximumHumanSeats", item.MaximumHumanSeats);
+            AddNullableDateTimeOffset(command, "@ScheduledStartAt", item.ScheduledStartAt);
+            AddNullableDateTimeOffset(command, "@ScheduledEndAt", item.ScheduledEndAt);
+            AddNullableInt(command, "@ConfigurationTickLengthMinutes", item.TickLengthMinutes);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+            AddNullableDateTimeOffset(command, "@LockedAt", item.LockedAt);
+            AddNullableDateTimeOffset(command, "@MaterializedAt", item.MaterializedAt);
+            AddNullableDateTimeOffset(command, "@CancelledAt", item.CancelledAt);
+        });
+
     private static void UpsertCycle(SqlConnection connection, SqlTransaction transaction, Cycle item) =>
         Execute(connection, transaction, """
             UPDATE dbo.Cycles
-            SET Name = @Name,
+            SET GameID = @GameID,
+                CycleConfigurationID = @CycleConfigurationID,
+                PreviousCycleID = @PreviousCycleID,
+                Name = @Name,
                 StartAt = @StartAt,
                 EndAt = @EndAt,
                 TickLengthMinutes = @TickLengthMinutes,
                 CurrentTickNumber = @CurrentTickNumber,
                 Status = @Status,
                 TurnStage = @TurnStage,
+                MapProfileKey = @MapProfileKey,
+                MapProfileVersion = @MapProfileVersion,
+                MapProfileContentHash = @MapProfileContentHash,
+                MapSeed = @MapSeed,
+                ScenarioProfileKey = @ScenarioProfileKey,
+                ScenarioProfileVersion = @ScenarioProfileVersion,
+                ScenarioProfileContentHash = @ScenarioProfileContentHash,
+                ScenarioSeed = @ScenarioSeed,
+                CyclePolicyKey = @CyclePolicyKey,
+                CyclePolicyVersion = @CyclePolicyVersion,
+                CyclePolicyContentHash = @CyclePolicyContentHash,
+                ProfileProvenanceStatus = @ProfileProvenanceStatus,
                 CreatedByPlayerID = @CreatedByPlayerID,
                 CreatedAt = @CreatedAt
             WHERE CycleID = @CycleID;
 
             IF @@ROWCOUNT = 0
             BEGIN
-            INSERT INTO dbo.Cycles(CycleID, Name, StartAt, EndAt, TickLengthMinutes, CurrentTickNumber, Status, TurnStage, CreatedByPlayerID, CreatedAt)
-            VALUES (@CycleID, @Name, @StartAt, @EndAt, @TickLengthMinutes, @CurrentTickNumber, @Status, @TurnStage, @CreatedByPlayerID, @CreatedAt);
+                INSERT INTO dbo.Cycles
+                (
+                    CycleID, GameID, CycleConfigurationID, PreviousCycleID, Name, StartAt, EndAt,
+                    TickLengthMinutes, CurrentTickNumber, Status, TurnStage,
+                    MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed,
+                    ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed,
+                    CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, ProfileProvenanceStatus,
+                    CreatedByPlayerID, CreatedAt
+                )
+                VALUES
+                (
+                    @CycleID, @GameID, @CycleConfigurationID, @PreviousCycleID, @Name, @StartAt, @EndAt,
+                    @TickLengthMinutes, @CurrentTickNumber, @Status, @TurnStage,
+                    @MapProfileKey, @MapProfileVersion, @MapProfileContentHash, @MapSeed,
+                    @ScenarioProfileKey, @ScenarioProfileVersion, @ScenarioProfileContentHash, @ScenarioSeed,
+                    @CyclePolicyKey, @CyclePolicyVersion, @CyclePolicyContentHash, @ProfileProvenanceStatus,
+                    @CreatedByPlayerID, @CreatedAt
+                );
             END;
             """, command =>
         {
             AddGuid(command, "@CycleID", item.CycleId);
+            AddNullableGuid(command, "@GameID", item.GameId);
+            AddNullableGuid(command, "@CycleConfigurationID", item.CycleConfigurationId);
+            AddNullableGuid(command, "@PreviousCycleID", item.PreviousCycleId);
             AddString(command, "@Name", item.Name, 120);
             AddDateTimeOffset(command, "@StartAt", item.StartAt);
             AddDateTimeOffset(command, "@EndAt", item.EndAt);
@@ -1117,7 +1457,124 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddInt(command, "@CurrentTickNumber", item.CurrentTickNumber);
             AddString(command, "@Status", item.Status.ToString(), 32);
             AddString(command, "@TurnStage", item.TurnStage.ToString(), 32);
+            AddNullableString(command, "@MapProfileKey", item.MapProfileKey, 128);
+            AddNullableInt(command, "@MapProfileVersion", item.MapProfileVersion);
+            AddNullableString(command, "@MapProfileContentHash", item.MapProfileContentHash, 64);
+            AddNullableInt(command, "@MapSeed", item.MapSeed);
+            AddNullableString(command, "@ScenarioProfileKey", item.ScenarioProfileKey, 128);
+            AddNullableInt(command, "@ScenarioProfileVersion", item.ScenarioProfileVersion);
+            AddNullableString(command, "@ScenarioProfileContentHash", item.ScenarioProfileContentHash, 64);
+            AddNullableInt(command, "@ScenarioSeed", item.ScenarioSeed);
+            AddNullableString(command, "@CyclePolicyKey", item.CyclePolicyKey, 128);
+            AddNullableInt(command, "@CyclePolicyVersion", item.CyclePolicyVersion);
+            AddNullableString(command, "@CyclePolicyContentHash", item.CyclePolicyContentHash, 64);
+            AddNullableString(command, "@ProfileProvenanceStatus", item.ProfileProvenanceStatus?.ToString(), 32);
             AddNullableGuid(command, "@CreatedByPlayerID", item.CreatedByPlayerId);
+            AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
+        });
+
+    private static void UpsertGameEnrolment(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameEnrolment item) =>
+        Execute(connection, transaction, """
+            UPDATE dbo.GameEnrolments
+            SET GameID = @GameID,
+                PlayerID = @PlayerID,
+                Status = @Status,
+                Origin = @Origin,
+                OriginatingRequestID = @OriginatingRequestID,
+                EnrolledAt = @EnrolledAt,
+                StatusChangedAt = @StatusChangedAt,
+                EndedAt = @EndedAt
+            WHERE GameEnrolmentID = @GameEnrolmentID;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+                INSERT INTO dbo.GameEnrolments
+                (
+                    GameEnrolmentID, GameID, PlayerID, Status, Origin, OriginatingRequestID,
+                    EnrolledAt, StatusChangedAt, EndedAt
+                )
+                VALUES
+                (
+                    @GameEnrolmentID, @GameID, @PlayerID, @Status, @Origin, @OriginatingRequestID,
+                    @EnrolledAt, @StatusChangedAt, @EndedAt
+                );
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@GameEnrolmentID", item.GameEnrolmentId);
+            AddGuid(command, "@GameID", item.GameId);
+            AddGuid(command, "@PlayerID", item.PlayerId);
+            AddString(command, "@Status", item.Status.ToString(), 32);
+            AddString(command, "@Origin", item.Origin.ToString(), 32);
+            AddNullableString(command, "@OriginatingRequestID", item.OriginatingRequestId, 128);
+            AddDateTimeOffset(command, "@EnrolledAt", item.EnrolledAt);
+            AddDateTimeOffset(command, "@StatusChangedAt", item.StatusChangedAt);
+            AddNullableDateTimeOffset(command, "@EndedAt", item.EndedAt);
+        });
+
+    private static void UpsertGameLifecycleEvent(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameLifecycleEvent item) =>
+        Execute(connection, transaction, """
+            IF EXISTS
+            (
+                SELECT 1
+                FROM dbo.GameLifecycleEvents
+                WHERE GameLifecycleEventID = @GameLifecycleEventID
+            )
+            BEGIN
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.GameLifecycleEvents
+                    WHERE GameLifecycleEventID = @GameLifecycleEventID
+                      AND NOT
+                      (
+                          GameID = @GameID
+                          AND EventType = @EventType
+                          AND (SubjectPlayerID = @SubjectPlayerID OR (SubjectPlayerID IS NULL AND @SubjectPlayerID IS NULL))
+                          AND (ActorPlayerID = @ActorPlayerID OR (ActorPlayerID IS NULL AND @ActorPlayerID IS NULL))
+                          AND (FromStatus = @FromStatus OR (FromStatus IS NULL AND @FromStatus IS NULL))
+                          AND (ToStatus = @ToStatus OR (ToStatus IS NULL AND @ToStatus IS NULL))
+                          AND (Reason = @Reason OR (Reason IS NULL AND @Reason IS NULL))
+                          AND (CorrelationID = @CorrelationID OR (CorrelationID IS NULL AND @CorrelationID IS NULL))
+                          AND FactJson = @FactJson
+                          AND CreatedAt = @CreatedAt
+                      )
+                )
+                BEGIN
+                    THROW 51025, 'Game lifecycle events are immutable.', 1;
+                END;
+            END
+            ELSE
+            BEGIN
+                INSERT INTO dbo.GameLifecycleEvents
+                (
+                    GameLifecycleEventID, GameID, EventType, SubjectPlayerID, ActorPlayerID,
+                    FromStatus, ToStatus, Reason, CorrelationID, FactJson, CreatedAt
+                )
+                VALUES
+                (
+                    @GameLifecycleEventID, @GameID, @EventType, @SubjectPlayerID, @ActorPlayerID,
+                    @FromStatus, @ToStatus, @Reason, @CorrelationID, @FactJson, @CreatedAt
+                );
+            END;
+            """, command =>
+        {
+            AddGuid(command, "@GameLifecycleEventID", item.GameLifecycleEventId);
+            AddGuid(command, "@GameID", item.GameId);
+            AddString(command, "@EventType", item.Type.ToString(), 64);
+            AddNullableGuid(command, "@SubjectPlayerID", item.SubjectPlayerId);
+            AddNullableGuid(command, "@ActorPlayerID", item.ActorPlayerId);
+            AddNullableString(command, "@FromStatus", item.FromStatus, 32);
+            AddNullableString(command, "@ToStatus", item.ToStatus, 32);
+            AddNullableString(command, "@Reason", item.Reason, 512);
+            AddNullableString(command, "@CorrelationID", item.CorrelationId, 128);
+            AddMaxString(command, "@FactJson", item.FactJson);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
@@ -1919,9 +2376,60 @@ public sealed class SqlServerGameStateStore : IGameStateStore
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);
         });
 
-    private static void DeleteRowsMissingFromState(SqlConnection connection, SqlTransaction transaction, GameState state)
+    private static IReadOnlyList<Cycle> OrderCyclesForPersistence(IEnumerable<Cycle> cycles)
+    {
+        var cyclesById = cycles.ToDictionary(cycle => cycle.CycleId);
+        var visitStates = new Dictionary<Guid, CycleVisitState>();
+        var ordered = new List<Cycle>(cyclesById.Count);
+
+        foreach (var cycle in cyclesById.Values
+                     .OrderBy(item => item.StartAt)
+                     .ThenBy(item => item.CreatedAt)
+                     .ThenBy(item => item.CycleId))
+        {
+            Visit(cycle);
+        }
+
+        return ordered;
+
+        void Visit(Cycle cycle)
+        {
+            if (visitStates.TryGetValue(cycle.CycleId, out var visitState))
+            {
+                if (visitState == CycleVisitState.Visiting)
+                {
+                    throw new InvalidOperationException(
+                        $"Cycle lineage contains a predecessor loop involving Cycle {cycle.CycleId}.");
+                }
+
+                return;
+            }
+
+            visitStates[cycle.CycleId] = CycleVisitState.Visiting;
+            if (cycle.PreviousCycleId is Guid previousCycleId
+                && cyclesById.TryGetValue(previousCycleId, out var previousCycle))
+            {
+                Visit(previousCycle);
+            }
+
+            visitStates[cycle.CycleId] = CycleVisitState.Visited;
+            ordered.Add(cycle);
+        }
+    }
+
+    private static void DeleteRowsMissingFromState(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameState state,
+        bool deleteGameLifecycleEvents = false)
     {
         DeleteMissingRows(connection, transaction, "dbo.AdminRoleAuditRecords", "AdminRoleAuditRecordID", state.AdminRoleAuditRecords.Select(item => item.AdminRoleAuditRecordId));
+        if (deleteGameLifecycleEvents)
+        {
+            DeleteMissingRows(connection, transaction, "dbo.GameLifecycleEvents", "GameLifecycleEventID", state.GameLifecycleEvents.Select(item => item.GameLifecycleEventId));
+        }
+
+        DeleteMissingRows(connection, transaction, "dbo.GameEnrolments", "GameEnrolmentID", state.GameEnrolments.Select(item => item.GameEnrolmentId));
         DeleteMissingRows(connection, transaction, "dbo.AdmiralBattleHistories", "AdmiralBattleHistoryID", state.AdmiralBattleHistories.Select(item => item.AdmiralBattleHistoryId));
         DeleteMissingRows(connection, transaction, "dbo.DiplomaticRelationships", "DiplomaticRelationshipID", state.DiplomaticRelationships.Select(item => item.DiplomaticRelationshipId));
         DeleteMissingRows(connection, transaction, "dbo.ColonialOutposts", "ColonialOutpostID", state.ColonialOutposts.Select(item => item.ColonialOutpostId));
@@ -1947,8 +2455,17 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         DeleteMissingRows(connection, transaction, "dbo.Systems", "SystemID", state.Systems.Select(item => item.SystemId));
         ClearReferencesToMissingSectors(connection, transaction, state.Sectors.Select(item => item.SectorId));
         DeleteMissingRows(connection, transaction, "dbo.GalaxySectors", "SectorID", state.Sectors.Select(item => item.SectorId));
+        ClearReferencesToMissingCycles(connection, transaction, state.Cycles.Select(item => item.CycleId));
         DeleteMissingRows(connection, transaction, "dbo.Cycles", "CycleID", state.Cycles.Select(item => item.CycleId));
+        DeleteMissingRows(connection, transaction, "dbo.CycleConfigurations", "CycleConfigurationID", state.CycleConfigurations.Select(item => item.CycleConfigurationId));
+        DeleteMissingRows(connection, transaction, "dbo.Games", "GameID", state.Games.Select(item => item.GameId));
         DeleteMissingRows(connection, transaction, "dbo.Players", "PlayerID", state.Players.Select(item => item.PlayerId));
+    }
+
+    private enum CycleVisitState
+    {
+        Visiting,
+        Visited
     }
 
     private static void ClearReferencesToMissingSectors(
@@ -1969,6 +2486,27 @@ public sealed class SqlServerGameStateStore : IGameStateStore
                 transaction,
                 "UPDATE dbo.Systems SET SectorID = NULL WHERE SectorID = @SectorID;",
                 command => AddGuid(command, "@SectorID", existingId));
+        }
+    }
+
+    private static void ClearReferencesToMissingCycles(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<Guid> retainedCycleIds)
+    {
+        var retainedIdSet = retainedCycleIds.ToHashSet();
+        foreach (var existingId in ReadIds(connection, transaction, "dbo.Cycles", "CycleID"))
+        {
+            if (retainedIdSet.Contains(existingId))
+            {
+                continue;
+            }
+
+            Execute(
+                connection,
+                transaction,
+                "UPDATE dbo.Cycles SET PreviousCycleID = NULL WHERE PreviousCycleID = @CycleID;",
+                command => AddGuid(command, "@CycleID", existingId));
         }
     }
 
@@ -2143,6 +2681,9 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
     }
 
+    private static byte[] GetBytes(SqlDataReader reader, string columnName) =>
+        reader.GetFieldValue<byte[]>(reader.GetOrdinal(columnName));
+
     private static DateTimeOffset GetDateTimeOffset(SqlDataReader reader, string columnName) =>
         reader.GetDateTimeOffset(reader.GetOrdinal(columnName));
 
@@ -2156,6 +2697,21 @@ public sealed class SqlServerGameStateStore : IGameStateStore
         where TEnum : struct, Enum
     {
         var value = GetString(reader, columnName);
+        return Enum.TryParse<TEnum>(value, ignoreCase: true, out var result)
+            ? result
+            : throw new InvalidOperationException($"Value '{value}' is not valid for {typeof(TEnum).Name}.");
+    }
+
+    private static TEnum? GetNullableEnum<TEnum>(SqlDataReader reader, string columnName)
+        where TEnum : struct, Enum
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        var value = reader.GetString(ordinal);
         return Enum.TryParse<TEnum>(value, ignoreCase: true, out var result)
             ? result
             : throw new InvalidOperationException($"Value '{value}' is not valid for {typeof(TEnum).Name}.");

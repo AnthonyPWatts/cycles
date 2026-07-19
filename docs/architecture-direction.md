@@ -59,6 +59,8 @@ No second durable Game may exist until scoped routes and stores, explicit Worker
 
 During the transition, legacy global active-Cycle selection fails closed if the database contains more than one Active Cycle, and an executable source allowance freezes the remaining online whole-state and unspecified-tick call sites. This guard exposes unsafe growth; it does not relax the hard gate or make those paths multi-Game safe.
 
+The first additive persistence foundation is implemented. `GameState` and SQL now carry `Game`, `CycleConfiguration`, `GameEnrolment`, and `GameLifecycleEvent`; migration 022 deterministically adapts the existing lineage, and state-transfer v5 validates the same boundary. Generic legacy saves fill missing foundation rows but preserve an already complete v5 foundation, while fully scoped Game records remain representable for migration and isolation tests. Operational import is explicitly pinned to the deterministic legacy Game identity even though the transfer representation can describe several Games; valid v5 metadata for that identity remains authoritative. This is a compatibility foundation only: the online access context, generic API/admin store, Worker selector, seeder, and dashboard still expose one legacy Game, so creating a second durable Game remains prohibited.
+
 ## Project Boundaries
 
 ### `Cycles.Core`
@@ -137,7 +139,8 @@ Current SQL paths:
 
 - generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;
 - `RunTick` acquires a per-Cycle lock, loads only the active tick workspace, and persists targeted outcomes without loading unrelated retained history;
-- plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`.
+- plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`;
+- migration 022 adds the legacy Game foundation, per-Game operational-Cycle uniqueness, single-successor lineage, append-only lifecycle audit, canonical hash/bounds checks, and materialised-configuration snapshot immutability without making the new Cycle references non-null or introducing a second-Game writer.
 - external issuer/subject correlation and admin-role audit records are persisted by migration 013.
 
 The generic path is a bridge for low-frequency API/admin mutations. Profile a new high-frequency caller before placing it on that path. Do not start a broad repository rewrite without evidence that the existing orchestration boundary is the problem.

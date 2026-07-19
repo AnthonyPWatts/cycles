@@ -107,6 +107,21 @@ public static class CycleEndService
             CreatedAt = cutoffAt
         });
 
+        if (state.Games.Count == 0
+            || state.Games.Count == 1
+            && state.Games[0].GameId == GameFoundationConstants.LegacyGameId
+            && state.Cycles.All(item => item.GameId is null || item.GameId == GameFoundationConstants.LegacyGameId))
+        {
+            if (state.Games.Count == 0)
+            {
+                LegacyGameFoundation.Apply(state);
+            }
+            else
+            {
+                LegacyGameFoundation.ApplyLifecycleTransition(state);
+            }
+        }
+
         return rankings;
     }
 

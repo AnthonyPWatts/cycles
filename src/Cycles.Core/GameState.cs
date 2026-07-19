@@ -8,6 +8,10 @@ public sealed class GameState
 {
     public List<Player> Players { get; set; } = [];
     public List<AdminRoleAuditRecord> AdminRoleAuditRecords { get; set; } = [];
+    public List<Game> Games { get; set; } = [];
+    public List<CycleConfiguration> CycleConfigurations { get; set; } = [];
+    public List<GameEnrolment> GameEnrolments { get; set; } = [];
+    public List<GameLifecycleEvent> GameLifecycleEvents { get; set; } = [];
     public List<Cycle> Cycles { get; set; } = [];
     public List<Empire> Empires { get; set; } = [];
     public List<Faction> Factions { get; set; } = [];
@@ -57,6 +61,10 @@ public sealed class GameState
         {
             Players = Players.Select(Clone).ToList(),
             AdminRoleAuditRecords = AdminRoleAuditRecords.Select(Clone).ToList(),
+            Games = Games.Select(Clone).ToList(),
+            CycleConfigurations = CycleConfigurations.Select(Clone).ToList(),
+            GameEnrolments = GameEnrolments.Select(Clone).ToList(),
+            GameLifecycleEvents = GameLifecycleEvents.Select(Clone).ToList(),
             Cycles = Cycles.Select(Clone).ToList(),
             Empires = Empires.Select(Clone).ToList(),
             Factions = Factions.Select(Clone).ToList(),
@@ -96,6 +104,10 @@ public sealed class GameState
             // These collections are read-only during tick processing.
             Players = Players,
             AdminRoleAuditRecords = AdminRoleAuditRecords,
+            Games = Games,
+            CycleConfigurations = CycleConfigurations,
+            GameEnrolments = GameEnrolments,
+            GameLifecycleEvents = GameLifecycleEvents,
             Empires = Empires,
             Factions = Factions,
             MatchParticipants = MatchParticipants,
@@ -141,6 +153,10 @@ public sealed class GameState
     {
         Players = other.Players;
         AdminRoleAuditRecords = other.AdminRoleAuditRecords;
+        Games = other.Games;
+        CycleConfigurations = other.CycleConfigurations;
+        GameEnrolments = other.GameEnrolments;
+        GameLifecycleEvents = other.GameLifecycleEvents;
         Cycles = other.Cycles;
         Empires = other.Empires;
         Factions = other.Factions;
@@ -195,9 +211,92 @@ public sealed class GameState
         CreatedAt = item.CreatedAt
     };
 
+    private static Game Clone(Game item) => new()
+    {
+        GameId = item.GameId,
+        Name = item.Name,
+        Purpose = item.Purpose,
+        Status = item.Status,
+        Visibility = item.Visibility,
+        CreationSource = item.CreationSource,
+        GamePolicyKey = item.GamePolicyKey,
+        GamePolicyVersion = item.GamePolicyVersion,
+        GamePolicyContentHash = item.GamePolicyContentHash,
+        PolicyProvenanceStatus = item.PolicyProvenanceStatus,
+        CreatedByPlayerId = item.CreatedByPlayerId,
+        CreatedAt = item.CreatedAt,
+        FirstStartedAt = item.FirstStartedAt,
+        CompletedAt = item.CompletedAt,
+        CancelledAt = item.CancelledAt,
+        TerminatedAt = item.TerminatedAt,
+        RowVersion = item.RowVersion.ToArray()
+    };
+
+    private static CycleConfiguration Clone(CycleConfiguration item) => new()
+    {
+        CycleConfigurationId = item.CycleConfigurationId,
+        GameId = item.GameId,
+        SequenceNumber = item.SequenceNumber,
+        Status = item.Status,
+        ProvenanceStatus = item.ProvenanceStatus,
+        MapProfileKey = item.MapProfileKey,
+        MapProfileVersion = item.MapProfileVersion,
+        MapProfileContentHash = item.MapProfileContentHash,
+        MapSeed = item.MapSeed,
+        ScenarioProfileKey = item.ScenarioProfileKey,
+        ScenarioProfileVersion = item.ScenarioProfileVersion,
+        ScenarioProfileContentHash = item.ScenarioProfileContentHash,
+        ScenarioSeed = item.ScenarioSeed,
+        CyclePolicyKey = item.CyclePolicyKey,
+        CyclePolicyVersion = item.CyclePolicyVersion,
+        CyclePolicyContentHash = item.CyclePolicyContentHash,
+        MinimumHumanSeats = item.MinimumHumanSeats,
+        MaximumHumanSeats = item.MaximumHumanSeats,
+        ScheduledStartAt = item.ScheduledStartAt,
+        ScheduledEndAt = item.ScheduledEndAt,
+        TickLengthMinutes = item.TickLengthMinutes,
+        CreatedAt = item.CreatedAt,
+        LockedAt = item.LockedAt,
+        MaterializedAt = item.MaterializedAt,
+        CancelledAt = item.CancelledAt,
+        RowVersion = item.RowVersion.ToArray()
+    };
+
+    private static GameEnrolment Clone(GameEnrolment item) => new()
+    {
+        GameEnrolmentId = item.GameEnrolmentId,
+        GameId = item.GameId,
+        PlayerId = item.PlayerId,
+        Status = item.Status,
+        Origin = item.Origin,
+        OriginatingRequestId = item.OriginatingRequestId,
+        EnrolledAt = item.EnrolledAt,
+        StatusChangedAt = item.StatusChangedAt,
+        EndedAt = item.EndedAt,
+        RowVersion = item.RowVersion.ToArray()
+    };
+
+    private static GameLifecycleEvent Clone(GameLifecycleEvent item) => new()
+    {
+        GameLifecycleEventId = item.GameLifecycleEventId,
+        GameId = item.GameId,
+        Type = item.Type,
+        SubjectPlayerId = item.SubjectPlayerId,
+        ActorPlayerId = item.ActorPlayerId,
+        FromStatus = item.FromStatus,
+        ToStatus = item.ToStatus,
+        Reason = item.Reason,
+        CorrelationId = item.CorrelationId,
+        FactJson = item.FactJson,
+        CreatedAt = item.CreatedAt
+    };
+
     private static Cycle Clone(Cycle item) => new()
     {
         CycleId = item.CycleId,
+        GameId = item.GameId,
+        CycleConfigurationId = item.CycleConfigurationId,
+        PreviousCycleId = item.PreviousCycleId,
         Name = item.Name,
         StartAt = item.StartAt,
         EndAt = item.EndAt,
@@ -205,6 +304,18 @@ public sealed class GameState
         CurrentTickNumber = item.CurrentTickNumber,
         Status = item.Status,
         TurnStage = item.TurnStage,
+        MapProfileKey = item.MapProfileKey,
+        MapProfileVersion = item.MapProfileVersion,
+        MapProfileContentHash = item.MapProfileContentHash,
+        MapSeed = item.MapSeed,
+        ScenarioProfileKey = item.ScenarioProfileKey,
+        ScenarioProfileVersion = item.ScenarioProfileVersion,
+        ScenarioProfileContentHash = item.ScenarioProfileContentHash,
+        ScenarioSeed = item.ScenarioSeed,
+        CyclePolicyKey = item.CyclePolicyKey,
+        CyclePolicyVersion = item.CyclePolicyVersion,
+        CyclePolicyContentHash = item.CyclePolicyContentHash,
+        ProfileProvenanceStatus = item.ProfileProvenanceStatus,
         CreatedByPlayerId = item.CreatedByPlayerId,
         CreatedAt = item.CreatedAt
     };
@@ -579,6 +690,9 @@ public sealed class AdminRoleAuditRecord
 public sealed class Cycle
 {
     public Guid CycleId { get; set; } = Guid.NewGuid();
+    public Guid? GameId { get; set; }
+    public Guid? CycleConfigurationId { get; set; }
+    public Guid? PreviousCycleId { get; set; }
     public string Name { get; set; } = "";
     public DateTimeOffset StartAt { get; set; }
     public DateTimeOffset EndAt { get; set; }
@@ -586,6 +700,18 @@ public sealed class Cycle
     public int CurrentTickNumber { get; set; }
     public CycleStatus Status { get; set; } = CycleStatus.Active;
     public TurnResolutionStage TurnStage { get; set; } = TurnResolutionStage.CommandOpen;
+    public string? MapProfileKey { get; set; }
+    public int? MapProfileVersion { get; set; }
+    public string? MapProfileContentHash { get; set; }
+    public int? MapSeed { get; set; }
+    public string? ScenarioProfileKey { get; set; }
+    public int? ScenarioProfileVersion { get; set; }
+    public string? ScenarioProfileContentHash { get; set; }
+    public int? ScenarioSeed { get; set; }
+    public string? CyclePolicyKey { get; set; }
+    public int? CyclePolicyVersion { get; set; }
+    public string? CyclePolicyContentHash { get; set; }
+    public ProvenanceStatus? ProfileProvenanceStatus { get; set; }
     public Guid? CreatedByPlayerId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

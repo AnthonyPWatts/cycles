@@ -29,7 +29,8 @@ public sealed class SqlServerMatchMigrationIntegrationTests
             item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId),
             item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId),
             item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId),
-            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId));
+            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
+            item => Assert.Equal("022_add_game_foundations", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));
@@ -89,8 +90,10 @@ public sealed class SqlServerMatchMigrationIntegrationTests
 
         var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
 
-        var migration = Assert.Single(applied);
-        Assert.Equal("021_add_empire_doctrine_unlocks", migration.MigrationId);
+        Assert.Collection(
+            applied,
+            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
+            item => Assert.Equal("022_add_game_foundations", item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(1, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.EmpireDoctrineUnlocks WHERE CycleID = @ID;", legacy.CycleId));
