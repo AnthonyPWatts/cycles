@@ -1,6 +1,6 @@
 # Product Owner Questions
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 This is the canonical repository record of accepted product answers and unresolved product gates. GitHub owns discussion and assignment; this file owns the answer that implementation may rely on.
 
@@ -19,6 +19,18 @@ Q016 was answered on 2026-07-14 by making friendly-fire prevention and factual h
 Q017 was answered on 2026-07-14 by retaining separate per-empire map-control rankings and a single empire winner regardless of Alliances.
 
 Q018 was answered on 2026-07-14 by allowing allied empires to coexist in a system while retaining independent influence, resource shares, and map-control competition.
+
+Q013 was answered on 2026-07-18 by accepting next-tick durable diplomatic actions. Together with Q014-Q018, this settles the first relationship-transition and consent model; Q019-Q022 still gate the complete player-facing lifecycle.
+
+Q023-Q025 were answered on 2026-07-18 by retaining the fully visible galaxy topology, keeping active fleets as the baseline source of detailed visibility, and automatically sharing that visibility between allies. Stale-contact detail and other intelligence rules remain gated by Q026-Q034.
+
+Q060 was answered on 2026-07-18 by sequencing diplomacy before richer combat and retaining the current simple combat model while those systems settle.
+
+Q071 was answered on 2026-07-18 by treating admirals as both narrative anchors and eventual strategic assets, while keeping the next slice narrative-first.
+
+Q082-Q084 were answered on 2026-07-18 by retaining the top-10% historical preservation rule while requiring mechanically complete successor resets and no inherited winner recognition or advantage.
+
+Q097 was answered on 2026-07-18 by requiring a provider-neutral narrative boundary with replaceable live-provider connectors and a deterministic development/test connector. Q094-Q096 and Q098-Q106 still gate the first production narrative pipeline.
 
 Q110, Q120, and Q121 were answered on 2026-07-12 by accepting their documented defaults. They are recorded below and no longer form active product gates.
 
@@ -60,7 +72,7 @@ The 18 July turn-resolution decision closes the former relative-ordering gap. A 
 
 The 18 July game-AI decision in [issue #146](https://github.com/AnthonyPWatts/cycles/issues/146) replaces Ariadne's first-pass Hold behaviour with an ordered deterministic policy: attack a locally visible faction only with a 25% strength advantage, otherwise Hold against that threat; then prefer an affordable eligible outpost; then advance towards the highest-value reachable expansion objective. The planner may use public system value and topology plus its own state and locally visible fleets, but not hidden human intentions or remote enemy fleet positions. It respects non-aggression pacts and Alliances. Neutral factions remain positional Hold obstacles. Production difficulty, roles, diplomacy, coordinated strategy, forecasting, and adaptive behaviour remain deferred.
 
-[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) records one unresolved consequence inside a phase: several Colonise intentions can compete for insufficient Population. Stable identifier traversal chooses the current winner, which conflicts with the accepted rule that identifiers should reproduce outcomes without creating player priority. The product decision must select reservation, explicit player priority, group rejection, or acceptance of the current tie-break before the same pattern reaches other shared budgets.
+[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) received an accepted direction on 2026-07-18: reserve Colonise Population at command closure and reject intentions that would oversubscribe the phase budget. One blocking detail remains: when the budget can fund only part of an otherwise eligible set, the answer must identify whether the whole conflicting set is rejected or another player-controlled rule selects the retained intentions. Submission time and stable identifiers cannot create hidden priority. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns implementation after that clarification.
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
@@ -106,7 +118,28 @@ The partial response in `source/Cycles_PO_Questions_2026-06-30.docx` settled the
 | Q011 | An attack does not automatically create War. | Record aggression; the attacked empire controls escalation. |
 | Q012 | Attacking through a treaty cancels it and may lead to War. | Cancel a pact or alliance to Neutral and record the breach without inferring War. |
 
-The colonisation slice and diplomacy foundation authorised by these answers are complete. Q013 and Q019-Q022 still gate player-facing diplomacy.
+The colonisation slice and stored diplomacy foundation authorised by these answers are complete. Q013 is now settled; Q019-Q022 still gate disclosure, Chronicle treatment, AI participation, and cross-Cycle memory for the complete player-facing diplomacy lifecycle.
+
+## Accepted Q013, Q023-Q025, Q060, Q071, Q082-Q084, And Q097 Answers
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Q013](https://github.com/AnthonyPWatts/cycles/issues/1) | Diplomatic actions are durable intentions that resolve on the next authoritative tick rather than changing relationships immediately on submission. | Apply the Q014-Q018 consent and termination rules at tick resolution. Q019-Q022 still gate the complete player-facing lifecycle, so no immediate relationship mutation is introduced as a UI shortcut. |
+| [Q023](https://github.com/AnthonyPWatts/cycles/issues/11) | Keep the complete galaxy topology visible. Do not introduce undiscovered systems as the next visibility model. | The current authored map remains a stable player contract. Fog-of-war controls detailed state, not whether systems and routes exist on the map. |
+| [Q024](https://github.com/AnthonyPWatts/cycles/issues/12) | Keep active fleets as the baseline source of detailed local visibility. Add stale or estimated contacts after diplomacy rather than broadening live exact visibility through influence, home pressure, historical significance, or doctrine now. | The current active-fleet model remains valid. Q026-Q034 must settle contact precision, persistence, Chronicle disclosure, sensors, and rankings before broader intelligence work. |
+| [Q025](https://github.com/AnthonyPWatts/cycles/issues/13) | Allied empires automatically share active-fleet visibility. Detailed losses, admirals, and other private facts remain visibility-gated until the accepted end-of-Cycle disclosure boundary says otherwise. | [Issue #155](https://github.com/AnthonyPWatts/cycles/issues/155) owns automatic allied live visibility without pooling fleets, orders, resources, influence, rankings, or control. Stale allied contacts remain outside that issue. |
+| [Q060](https://github.com/AnthonyPWatts/cycles/issues/48) | Implement diplomacy before richer combat choices. Keep combat simple while diplomacy and visibility settle; defer ship classes and tactical postures. | Combat playtesting and clarity work may continue, but richer rule changes remain behind diplomacy, visibility, Q059, and the relevant combat questions. The basic Hold exposure/effect remains explicitly owned by Q064. |
+| [Q071](https://github.com/AnthonyPWatts/cycles/issues/59) | Admirals are both narrative anchors and eventual strategic assets. Keep the next slice narrative-first before adding power. | Existing history, reputation, status, and famous-system data remain the safe presentation foundation. Q072 and the later admiral questions must select actual bonuses and management behaviour. |
+| [Q082](https://github.com/AnthonyPWatts/cycles/issues/70) | Retain the current top-10% preservation rule for major battles and historical systems. | Preserve the selected completed-Cycle history as factual memory, with a minimum of one qualifying record where the current rule provides it. |
+| [Q083](https://github.com/AnthonyPWatts/cycles/issues/71) | Every successor Cycle is a complete mechanical reset. Prior history creates no inherited mechanical echo. | [Issue #156](https://github.com/AnthonyPWatts/cycles/issues/156) owns removal of any prior-Cycle significance, ranking, or history input that changes successor strategy, economy, influence, combat, starting position, or AI choice. |
+| [Q084](https://github.com/AnthonyPWatts/cycles/issues/72) | The winner receives no inherited title, banner, home-system flavour, prestige, or other next-Cycle benefit. Their benefit is the impact recorded in overall history. | End-of-Cycle rankings and history remain authoritative, but the next Cycle does not confer winner-specific recognition or advantage. Q085-Q093 still own disclosure, summaries, naming evolution, and exports. |
+| [Q097](https://github.com/AnthonyPWatts/cycles/issues/85) | Keep narrative generation provider-neutral through a small interface with replaceable connectors for live providers. Retain a deterministic connector for development and testing rather than coupling the model to one vendor. | Do not select a concrete vendor or build an offline-only content library as the product boundary. Q094-Q096 must still settle the first queued records and runtime failure/fallback behaviour; Q098-Q106 own tone, inference, required facts, review, thresholds, interactions, privacy, and versioning. |
+
+## Accepted Same-Phase Resource Contention Direction
+
+| Question | Accepted answer | Consequence |
+| --- | --- | --- |
+| [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure and reject intentions that would oversubscribe the phase budget. | Clarify how partial affordability selects rejections without submission-time or stable-ID priority. Until then, [issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) is the bounded but blocked implementation owner. |
 
 ## Accepted Q014-Q018 Answers
 
@@ -116,7 +149,7 @@ The colonisation slice and diplomacy foundation authorised by these answers are 
 | [Q015](https://github.com/AnthonyPWatts/cycles/issues/3) | A player may unilaterally declare War or terminate a treaty. Do not add a separate advance-notice or cooling-off period beyond the normal resolution timing selected under Q013. | When the state change becomes authoritative, notify both parties and record a high-severity factual event. Attacks already cancel a breached treaty during attack resolution without advance warning; explicit declaration and voluntary-termination actions remain unimplemented. |
 | [Q016](https://github.com/AnthonyPWatts/cycles/issues/4) | In the first version, an active Alliance prevents ordinary direct attacks between its members and records its creation, termination, and betrayal in factual Events/history. A player must terminate the Alliance before deliberately attacking. | Do not pool influence, resources, rankings, fleets, or attack control. Movement needs no Alliance permission because it is not territorially blocked. Q025 owns shared visibility. Existing treaty-breach handling remains a defensive boundary for pending or exceptional conflicts. |
 | [Q017](https://github.com/AnthonyPWatts/cycles/issues/5) | Allies remain separately ranked empires. Alliance members do not contribute map control to one another, pool scores, or become joint winners. | The implemented per-empire `MapControlPercent`, `CycleRankings`, and single-winner behaviour are accepted without changes. History may acknowledge a winner's allies, but it does not alter authoritative standings. No implementation issue is required. |
-| [Q018](https://github.com/AnthonyPWatts/cycles/issues/6) | Allied empires may both maintain influence in the same system. Their presence remains independently calculated and competes proportionally for influence, resources, and map-control score. | Alliance prevents hostile action; it does not pool occupation or strategic rewards. The implemented relationship-independent influence and economy calculations are accepted without mechanical changes. UI may describe the state as allied coexistence but must not imply shared control. No implementation issue is required. Q013 and Q019-Q022 still gate the complete diplomacy lifecycle. |
+| [Q018](https://github.com/AnthonyPWatts/cycles/issues/6) | Allied empires may both maintain influence in the same system. Their presence remains independently calculated and competes proportionally for influence, resources, and map-control score. | Alliance prevents hostile action; it does not pool occupation or strategic rewards. The implemented relationship-independent influence and economy calculations are accepted without mechanical changes. UI may describe the state as allied coexistence but must not imply shared control. Q013 now settles next-tick timing; Q019-Q022 still gate the complete player-facing lifecycle. |
 
 ## Accepted Q107-Q109 Answers
 
@@ -203,7 +236,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Admins may inspect all empires and act for support or repair.
 - Team/shared control is parked.
 - Players see the full galaxy topology.
-- Exact local presence, fleets, events, last-tick facts, and Chronicle detail require an active fleet in the relevant system.
+- Exact local presence, fleets, events, last-tick facts, and Chronicle detail require an active fleet belonging to the player or an allied empire in the relevant system. Automatic allied sharing is accepted but not yet implemented.
 - Players continue to see their own empire and audit events; development admins bypass visibility filters.
 
 ### Orders And Tick Control
@@ -218,9 +251,11 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Shared/private-alpha manual lifecycle actions are limited to audited admins. Recovery and Cycle transitions remain operator-only until their audit and confirmation UX is designed.
 - The command deadline first rejects further human submissions. AI and neutral planners then append only their own visibility-respecting intentions before one complete turn ledger is sealed; they do not inspect hidden human commands.
 - Missing commands normalise to Hold. Submission time grants no initiative, and each simultaneous phase resolves from a common phase-start snapshot with stable ordering used only for reproducibility.
+- Diplomatic intentions resolve during the next authoritative tick rather than changing relationships immediately on submission.
 - The accepted phase order is resources; mandatory economy and due construction; new programme spending and construction starts; arrivals and movement; combat; colonisation; derived control, visibility, availability, and defeat state; next-window progression; then facts, Events, and Chronicle selection.
 - Any proposal to reorder those phases requires a product decision, focused regression evidence, and updated command forecasts, result presentation, and player guidance.
 - Current income may fund current spending. Due ships may defend but cannot receive already-sealed commands; new construction does not progress immediately; successful colonisation alone consumes its reserved population; and progression unlocked during resolution applies from the next command window.
+- Colonise Population will be reserved at command closure and oversubscribed intentions rejected. The partial-affordability selection rule remains open; submission time and stable identifiers cannot create priority.
 - Movement precedes combat. Route interception and pursuit are not implicit first-version behaviour and require explicit future rules.
 
 ### API And Dashboard Contracts
@@ -244,7 +279,8 @@ These earlier answers remain in force unless a later accepted question explicitl
 - There is one winner and a ranking for every active empire.
 - Pending orders do not complete merely because the Cycle ends.
 - Preserve roughly the largest 10% of battles, with enough system history to support continuity without promoting every skirmish.
-- Successor Cycles may preserve flavour and historical system echoes, but not mechanical empire advantages.
+- Preserve the selected historical systems as completed-Cycle history, but give successor Cycles no mechanical echoes from historical significance, rankings, winners, or other prior-Cycle state.
+- Winners receive no inherited recognition or advantage in the next Cycle; their benefit is their recorded impact on overall history.
 - Post-Cycle history generation may use complete factual records, including facts that were private during play.
 
 ### Chronicle And Narrative
@@ -253,6 +289,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - Chronicle visibility follows fog-of-war in the current model.
 - Importance thresholds should become configurable when the product needs per-Cycle control.
 - Deterministic templates are acceptable before AI integration.
+- Future AI narrative generation uses a provider-neutral interface with replaceable live-provider connectors and a deterministic development/test connector.
 - Future generated prose may infer motive or emotion, but must retain required facts and cannot change simulation outcomes.
 - AI work must run outside the tick transaction with durable status.
 - Review/safety may be needed after MVP; provider, fallback, and visible failure behaviour remain unanswered.
@@ -283,12 +320,14 @@ Do not expand these areas until the referenced questions have accepted answers:
 
 | Area | Questions | Decision required |
 | --- | --- | --- |
-| Diplomacy | Q013 and Q019-Q022 | Timing, visibility, Chronicle treatment, and memory. Q014-Q018 settle consent, unilateral hostile or terminating actions, first-version Alliance mechanics, separate empire rankings, and allied influence coexistence; Q025 separately owns shared visibility. |
-| Visibility and intelligence | Q023-Q034 | Sensors, stale or estimated contacts, alliance sharing, public Chronicle detail, live ranking visibility. |
+| Diplomacy | Q019-Q022 | Disclosure, Chronicle treatment, AI participation, and cross-Cycle memory. Q013-Q018 settle next-tick timing, consent, unilateral hostile or terminating actions, first-version Alliance mechanics, separate empire rankings, and allied influence coexistence; Q025 settles automatic allied live visibility. |
+| Visibility and intelligence | Q026-Q034 | Contact precision and persistence, remote control changes, own-empire Events, Chronicle disclosure, destroyed-fleet intelligence, sensors, historical-system visibility, and live ranking exposure. Q023-Q025 retain full topology, active-fleet detail, and automatic allied sharing. |
 | Doctrine and technology | Q038-Q046 | First selectable categories, branch count, switching, visibility, modifier scope, logistics, detection, cloaking, and reset behaviour. Q035-Q037 settle the introductory unlock, hybrid choice model, and future Research spending boundary. |
 | Population, infrastructure, and comeback | Q050-Q052, Q054-Q056, and Q058 | Comeback rules, home-system protection, ship classes, rally points, capacity limits, and cross-Cycle economic echoes. Q047-Q049 confirm the current outpost model; Q053 and Q057 settle the next Industry direction and first-version output boundary. |
-| Combat | Combat question group | Target complexity, balance goals, retreat, fleet composition, and evidence threshold. |
-| Chronicle AI | Q094-Q101 | Provider, queue ownership, retry, fallback, review, safety, and failure display. |
+| Combat | Q059 and Q061-Q070 | Balance goals, postures, targeting, Hold behaviour, retreat, fleet composition, multi-empire battles, travel modifiers, command latency, and history. Q060 sequences diplomacy before richer combat. |
+| Admirals | Q072-Q081 | Bonus scope, transfers, player management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, display detail, and famous-system effects. Q071 establishes narrative-first now with strategic effects later. |
+| Cycle continuity | Q085-Q093 | Disclosure, cutoff handling, lifecycle controls, successor identity, defeated-empire flavour, summaries, significance evolution, naming, and export. Q082-Q084 retain selected history while requiring a complete mechanical reset. |
+| Chronicle AI | Q094-Q096 and Q098-Q106 | Queue ownership, retry/fallback, failure display, tone, inference, required facts, review, thresholds, interactions, privacy, and versioning. Q097 establishes a provider-neutral connector boundary without selecting a vendor. |
 
 ## Engineering Defaults
 

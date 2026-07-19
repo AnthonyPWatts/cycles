@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -10,9 +10,10 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 
 1. Finish and verify the remaining identity, admin, and dashboard boundaries in [#122-#124](https://github.com/AnthonyPWatts/cycles/issues/122), plus the Day One guidance evidence in [#129](https://github.com/AnthonyPWatts/cycles/issues/129).
 2. Continue shared scheduled-execution hardening through [#132](https://github.com/AnthonyPWatts/cycles/issues/132), from the SQL-atomic due-execution boundary into Worker health, shutdown, scheduling policy, and monitoring.
-3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before further tuning combat, colonisation, priority, turn-processing, or order-feedback rules. The evidence must test whether players understand the fixed phase order as well as whether its outcomes are balanced. The accepted one-intention-per-fleet replacement and processing-order contracts define the current baseline. [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) remains an explicit exception for same-phase resource contention.
-4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
-5. Continue dashboard data and asset-request efficiency through [#141-#145](https://github.com/AnthonyPWatts/cycles/issues/141), starting with the focused SQL read path now that the consolidated bootstrap contract is in place, before validators, topology splitting, or abuse guardrails. Public Cloudflare asset routing in [#144](https://github.com/AnthonyPWatts/cycles/issues/144) can proceed independently once its strict public-only bundle boundary is agreed. Current production pressure is low, so this sequence remains P2 anticipatory hardening unless measurements worsen.
+3. Clarify the partial-affordability rejection rule in [#139](https://github.com/AnthonyPWatts/cycles/issues/139), then implement command-closure Population reservation through [#154](https://github.com/AnthonyPWatts/cycles/issues/154) without submission-time or stable-ID priority.
+4. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before further tuning combat, colonisation, priority, turn-processing, or order-feedback rules. The evidence must test whether players understand the fixed phase order as well as whether its outcomes are balanced. The accepted one-intention-per-fleet replacement and processing-order contracts define the current baseline. Issue #154 remains the explicit evidence-independent correction once #139's final selection rule is settled.
+5. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
+6. Continue dashboard data and asset-request efficiency through [#141-#145](https://github.com/AnthonyPWatts/cycles/issues/141), starting with the focused SQL read path now that the consolidated bootstrap contract is in place, before validators, topology splitting, or abuse guardrails. Public Cloudflare asset routing in [#144](https://github.com/AnthonyPWatts/cycles/issues/144) can proceed independently once its strict public-only bundle boundary is agreed. Current production pressure is low, so this sequence remains P2 anticipatory hardening unless measurements worsen.
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
 
@@ -34,7 +35,9 @@ The dashboard shell currently exposes the four implemented Command, Galaxy, Flee
 | Deterministic turn ledger and resolution | [#137](https://github.com/AnthonyPWatts/cycles/issues/137) | Implements command closure, first-pass Hold planners, durable sealing, phase order, and command/tick locking; richer AI and unresolved multi-faction combat remain separate. |
 | Deterministic game-AI strategy | [#146](https://github.com/AnthonyPWatts/cycles/issues/146) | Implements Ariadne's first visibility-respecting attack, defence, colonisation, and expansion policy while leaving neutral factions positional. |
 | Player-facing turn processing | [#138](https://github.com/AnthonyPWatts/cycles/issues/138) | Teach the authoritative phase order at command time, keep dispatched journeys visible as ongoing Fleets commitments, and explain results without changing the rules established by #137. |
-| Same-phase resource contention | [#139](https://github.com/AnthonyPWatts/cycles/issues/139) | Replace opaque stable-ID priority when several Colonise intentions compete for insufficient Population, then generalise only if later commands need shared budgets. |
+| Same-phase resource contention | [#139](https://github.com/AnthonyPWatts/cycles/issues/139), [#154](https://github.com/AnthonyPWatts/cycles/issues/154) | Closure-time reservation is selected; clarify which intentions are rejected under partial affordability, then implement without hidden priority. |
+| Allied live visibility | [#155](https://github.com/AnthonyPWatts/cycles/issues/155) | Share current active-fleet system visibility automatically between allies without pooling any other empire state or settling stale-contact rules. |
+| Successor mechanical reset | [#156](https://github.com/AnthonyPWatts/cycles/issues/156) | Preserve selected completed-Cycle history while removing any prior-Cycle input that changes successor mechanics or AI choice. |
 | Dashboard refresh and data efficiency | [#141](https://github.com/AnthonyPWatts/cycles/issues/141), [#142](https://github.com/AnthonyPWatts/cycles/issues/142), [#143](https://github.com/AnthonyPWatts/cycles/issues/143), [#145](https://github.com/AnthonyPWatts/cycles/issues/145) | Build the focused SQL path behind the consolidated bootstrap, then add actor-safe validators, topology reuse, and final cancellation/rate-limit guardrails. |
 | Public asset request efficiency | [#144](https://github.com/AnthonyPWatts/cycles/issues/144) | Move approved public assets to asset-first Cloudflare routing without exposing protected dashboard or source files. |
 | Pre-untrusted-test security gate | [#133](https://github.com/AnthonyPWatts/cycles/issues/133) | Review the implemented identity, authorisation, data-transfer, proxy, persistence, and deployment boundaries together. |
@@ -46,11 +49,11 @@ These are roadmap themes, not implementation tickets. Create bounded implementat
 
 ### Diplomacy
 
-Q013 and Q019-Q022 still gate player-action timing, visibility, Chronicle treatment, NPC participation, and cross-Cycle memory. Q014-Q018 already establish mutual consent for positive agreements, unilateral hostile/terminating actions, first-version Alliance limits, independent rankings, and independent allied influence. The stored relationship vocabulary and aggression foundation remain valid but do not authorise a player-facing lifecycle yet.
+Q013-Q018 now establish next-tick durable actions, mutual consent for positive agreements, unilateral hostile/terminating actions, first-version Alliance limits, independent rankings, and independent allied influence. Q019-Q022 still gate disclosure, Chronicle treatment, NPC participation, and cross-Cycle memory, so the complete player-facing lifecycle is not yet ready. Q025 separately authorises automatic allied live visibility through [#155](https://github.com/AnthonyPWatts/cycles/issues/155).
 
 ### Visibility, Doctrine, Technology, And Intelligence
 
-Q023-Q034 and Q038-Q046 gate discovery, sensor and estimate semantics, alliance visibility, selectable doctrine categories and branches, logistics, detection, cloaking, and modifier scope. Q035-Q037 retain Survey Projection as the non-consuming universal introduction and select a future player-chosen, Research-consuming project model.
+Q023-Q025 retain the fully visible topology, active-fleet detailed visibility, and automatic allied sharing. Q026-Q034 still gate stale-contact precision and persistence, Chronicle disclosure, sensor semantics, historical visibility, and ranking exposure. Q038-Q046 continue to gate selectable doctrine categories and branches, logistics, detection, cloaking, and modifier scope. Q035-Q037 retain Survey Projection as the non-consuming universal introduction and select a future player-chosen, Research-consuming project model.
 
 ### Combat, Comeback, And Colonisation
 
@@ -58,11 +61,11 @@ Q050-Q052, Q054-Q056, and Q058 still gate comeback mechanics, home-system protec
 
 ### Chronicle And Narrative
 
-Q094-Q106 gate queued narrative ownership, provider selection, retry/fallback/review/safety, threshold configuration, and player-visible failure behaviour. Deterministic templates, required-fact validation, generation status, and retained context remain the current safe boundary.
+Q097 establishes a provider-neutral interface with replaceable live-provider connectors and a deterministic development/test connector. Q094-Q096 and Q098-Q106 still gate queued narrative ownership, runtime failure/fallback, tone, inference, required facts, review/safety, threshold configuration, interaction, privacy, versioning, and player-visible failure behaviour. Deterministic templates, required-fact validation, generation status, and retained context remain the current safe runtime boundary.
 
 ### Cycle Continuity And Named Figures
 
-The remaining continuity and admiral questions gate richer successor flavour, historical-system evolution, transfer, promotion, retirement, succession, biography, and player management. Current final rankings, major-event preservation, system signals, and fleet-attached admirals are complete first slices.
+Q082-Q084 retain the current selected-history rule but require successor Cycles to reset every mechanical input and confer no winner-specific next-Cycle recognition; [#156](https://github.com/AnthonyPWatts/cycles/issues/156) owns reconciliation with the current continuity implementation. Q071 makes admirals narrative anchors and eventual strategic assets while keeping the next slice narrative-first. The remaining continuity and admiral questions gate disclosure, summaries, naming evolution, actual bonuses, transfer, promotion, retirement, succession, biography, and player management.
 
 ## Conditional Technical Risks
 

@@ -1752,3 +1752,70 @@ Consequences:
 - Several available AI fleets in one system combine their strength and issue the same favourable Attack, allowing the existing grouped-combat rule to resolve one battle.
 - An unattended curated match changes position, establishes outposts, and creates combat instead of only accumulating ships.
 - Difficulty levels, fleet roles, home defence, coordinated campaigns, player-facing diplomacy, combat forecasting, adaptation, and strategic neutral behaviour remain separate decisions.
+
+## 2026-07-19: Resolve Diplomacy On Ticks And Share Allied Fleet Visibility
+
+Decision: treat diplomatic actions as durable next-tick intentions. Positive bilateral relationships require mutual acceptance; war declarations and treaty termination remain unilateral. Keep the full galaxy topology visible, retain active fleets as the baseline source of detailed local visibility, and automatically include active allied fleets in that live visibility boundary.
+
+Reasoning:
+
+- Tick resolution keeps diplomacy consistent with the server-authoritative intention model instead of creating a second immediate-mutation path.
+- Full topology supports strategic planning without revealing exact remote state.
+- Automatic allied visibility gives Alliance one clear cooperative benefit while preserving separate fleets, orders, influence, resources, rankings, and control.
+- Stale contacts, public disclosure, sensors, and cross-Cycle memory need their own rules and should not be inferred from live alliance sharing.
+
+Consequences:
+
+- Q019-Q022 still gate the complete player-facing diplomacy lifecycle, including who observes relationship changes, Chronicle selection, AI participation, and memory.
+- Issue #155 owns the independently bounded allied active-fleet visibility change.
+- Q026-Q034 continue to own stale or estimated contacts, destroyed-fleet intelligence, Chronicle disclosure, sensors, historical visibility, and live rankings.
+- Richer combat choices remain sequenced after diplomacy and visibility. Q060 does not silently settle the specific Hold, posture, targeting, retreat, or fleet-management questions.
+
+## 2026-07-19: Reserve Shared Phase Budgets At Command Closure
+
+Decision direction: reserve Population for Colonise intentions when the command window closes and reject oversubscribed intentions. Before implementation, settle which intentions are rejected when the budget can fund only part of an otherwise eligible set; submission time and stable fleet or order identifiers cannot choose a strategic winner.
+
+Reasoning:
+
+- Stable identifiers are suitable for deterministic implementation order but are not a player-controlled priority.
+- Closure is the first point at which the complete set of human, game-AI, neutral, replacement, and cancellation outcomes can be assessed before sealing.
+- A rejected intention must be explicit and auditable; silently selecting one affordable Colonise action would make an invisible implementation detail decide strategy.
+
+Consequences:
+
+- Current-turn income remains available under the accepted phase order when the closure budget is calculated.
+- Cancellation and replacement before closure change the reservation set naturally.
+- A later eligibility failure does not revive an intention already rejected for oversubscription.
+- Issue #139 remains open for the partial-affordability selection rule. Issue #154 owns the bounded Colonise implementation, tests, forecasting, result presentation, and player guidance after that clarification. Other command types adopt the rule only when they present a concrete shared-budget case.
+
+## 2026-07-19: Preserve Cycle History Without Successor Mechanics
+
+Decision: retain the selected top 10% of major battles and historical systems as completed-Cycle history, but reset every mechanical input for the successor Cycle. Do not grant the winner inherited recognition, prestige, flavour, starting benefit, or another successor-specific advantage.
+
+Reasoning:
+
+- A Cycle should stand as a complete competitive reset while the accumulated historical record remains the long-term reward.
+- Historical significance currently participates in strategic presentation and AI objective scoring, so carrying it into a successor can become a mechanical echo even without an explicit empire bonus.
+- Rankings, famous systems, and major events can remain authoritative historical facts without influencing the next simulation.
+
+Consequences:
+
+- Issue #156 must audit and remove prior-Cycle inputs from successor strategic value, AI choice, economy, influence, combat, starting position, doctrine, and permissions.
+- Completed-Cycle rankings, selected battles, historical-system records, and Chronicle evidence remain preserved.
+- Q085-Q093 still own end disclosure, cutoff handling, lifecycle controls, successor identity, summaries, name evolution, and export.
+
+## 2026-07-19: Keep Admirals Narrative-First And Narrative Providers Replaceable
+
+Decision: treat admirals as both narrative anchors and eventual strategic assets, while keeping the next admiral slice narrative-first. For future AI-authored Chronicle prose, use a small provider-neutral boundary with replaceable live-provider connectors and a deterministic development/test connector.
+
+Reasoning:
+
+- Existing admiral reputation, status, battle history, and famous-system associations provide useful character presentation before untested bonuses affect simulation balance.
+- A provider-neutral narrative boundary avoids coupling stored Chronicle state, queues, and failure handling to one vendor.
+- A deterministic connector keeps tests and local debugging reproducible without making an offline-only content library the product ceiling.
+
+Consequences:
+
+- Q072-Q081 still select admiral bonus scope, transfers, management, Legendary behaviour, death, diplomacy outcomes, recruitment, biography, display detail, and famous-system effects.
+- Q094-Q096 and Q098-Q106 still select the first queued records, fallback and failure behaviour, tone, inference, mandatory facts, review, thresholds, interactions, privacy, and versioning.
+- No production narrative queue or live provider is authorised until those runtime boundaries are settled.
