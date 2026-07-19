@@ -429,6 +429,9 @@ elements.commandView.addEventListener("click", async event => {
         await selectFleet(fleetButton.dataset.commandFleet);
         if (fleetButton.dataset.commandAction) {
             activateFleetAction(fleetButton.dataset.commandAction);
+            if (fleetButton.dataset.commandAction === "move") {
+                selectCommandMoveTarget(fleetButton.dataset.commandTargetSystem);
+            }
         }
         activateView("fleets", { updateLocation: true, focusHeading: true });
         return;
@@ -1424,9 +1427,12 @@ function commandObjectiveAgendaItem({ category, orderType, fleetId, targetSystem
     const nextTick = (state.cycle?.currentTickNumber ?? 0) + 1;
     const targetName = commandSystemName(targetSystemId) ?? commandFleetName(fleetId);
     const actionLabel = queued ? "Review order" : resolved ? "Review history" : `Issue ${formatOrderType(orderType).toLowerCase()}`;
+    const commandTarget = orderType === "moveFleet" && targetSystemId
+        ? ` data-command-target-system="${escapeHtml(targetSystemId)}"`
+        : "";
     const action = resolved
         ? `<a class="agenda-action" href="#history">${actionLabel}</a>`
-        : `<button class="agenda-action" type="button" data-command-fleet="${fleetId}" data-command-action="${orderType === "moveFleet" ? "move" : orderType}">${actionLabel}</button>`;
+        : `<button class="agenda-action" type="button" data-command-fleet="${fleetId}" data-command-action="${orderType === "moveFleet" ? "move" : orderType}"${commandTarget}>${actionLabel}</button>`;
 
     return {
         category,
@@ -3802,6 +3808,16 @@ function fillSelect(select, items, value, label, includeEmpty = false) {
     if ([...select.options].some(option => option.value === previous)) {
         select.value = previous;
     }
+}
+
+function selectCommandMoveTarget(targetSystemId) {
+    const targetIsAvailable = Boolean(targetSystemId)
+        && [...elements.destinationSelect.options].some(option => option.value === targetSystemId);
+    elements.destinationSelect.value = targetIsAvailable ? targetSystemId : "";
+    if (!targetIsAvailable) {
+        setMessage("The briefing destination is no longer available from this fleet's current system.");
+    }
+    return targetIsAvailable;
 }
 
 function formatOrderType(value) {

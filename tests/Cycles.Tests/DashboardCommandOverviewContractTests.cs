@@ -57,6 +57,19 @@ public sealed class DashboardCommandOverviewContractTests
     }
 
     [Fact]
+    public void Opening_agenda_move_uses_the_objective_target_and_rejects_an_unavailable_target()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("data-command-target-system", script);
+        Assert.Contains("selectCommandMoveTarget(fleetButton.dataset.commandTargetSystem);", script);
+        Assert.Contains("function selectCommandMoveTarget(targetSystemId)", script);
+        Assert.Contains("option => option.value === targetSystemId", script);
+        Assert.Contains("elements.destinationSelect.value = targetIsAvailable ? targetSystemId : \"\";", script);
+        Assert.Contains("The briefing destination is no longer available from this fleet's current system.", script);
+    }
+
+    [Fact]
     public void Active_priority_sliders_transfer_points_between_each_other()
     {
         var script = ReadDashboardAsset("app.js");

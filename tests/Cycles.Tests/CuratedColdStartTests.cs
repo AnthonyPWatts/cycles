@@ -97,6 +97,28 @@ public sealed class CuratedColdStartTests
         Assert.DoesNotContain(state.DiplomaticRelationships, item => item.CycleId == cycle.CycleId);
     }
 
+    [Theory]
+    [InlineData("Tony", "Umbral Bastion")]
+    [InlineData("Will", "Far Meridian")]
+    public void Human_opening_move_objectives_identify_the_curated_destination(
+        string username,
+        string expectedSystemName)
+    {
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
+        var player = state.Players.Single(item => item.Username == username);
+        var empire = state.Empires.Single(item => item.PlayerId == player.PlayerId);
+        var briefing = state.Events.Single(item => item.EventType == EventType.OpeningBriefingIssued && item.EmpireId == empire.EmpireId);
+        using var facts = JsonDocument.Parse(briefing.FactJson);
+        var move = facts.RootElement.GetProperty("objectives").GetProperty("move");
+        var fleet = state.Fleets.Single(item => item.FleetId == move.GetProperty("fleetId").GetGuid());
+        var targetSystemId = move.GetProperty("targetSystemId").GetGuid();
+        var target = state.Systems.Single(item => item.SystemId == targetSystemId);
+
+        Assert.Equal(expectedSystemName, target.SystemName);
+        Assert.Equal(empire.EmpireId, fleet.EmpireId);
+        Assert.Contains(state.SystemLinks, item => item.Connects(fleet.CurrentSystemId, targetSystemId));
+    }
+
     [Fact]
     public void Development_match_replays_stably_and_scenario_seed_changes_assignments_not_players()
     {
