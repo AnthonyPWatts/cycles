@@ -378,6 +378,37 @@ public static class OrderService
             _ => orderType.ToString()
         };
 
+    internal static void RejectOrder(
+        GameState state,
+        FleetOrder order,
+        int tickNumber,
+        DateTimeOffset now,
+        string reason)
+    {
+        order.Status = FleetOrderStatus.Rejected;
+        order.ProcessedTick = tickNumber;
+        order.RejectionReason = reason;
+
+        var fleet = state.Fleets.SingleOrDefault(item => item.FleetId == order.FleetId);
+        state.Events.Add(new EventRecord
+        {
+            CycleId = order.CycleId,
+            TickNumber = tickNumber,
+            EventType = EventType.OrderRejected,
+            EmpireId = fleet?.EmpireId,
+            FactionId = fleet?.FactionId,
+            Severity = EventSeverity.Low,
+            DisplayText = $"Order {order.FleetOrderId} was rejected: {reason}",
+            FactJson = JsonSerializer.Serialize(new
+            {
+                orderId = order.FleetOrderId,
+                orderType = order.OrderType,
+                reason
+            }, GameStateJson.Options),
+            CreatedAt = now
+        });
+    }
+
     internal static bool HasLeadingPresence(GameState state, Guid cycleId, Guid systemId, Guid empireId)
     {
         var presence = InfluenceCalculator.CalculateEffectivePresence(state, cycleId, systemId);

@@ -104,6 +104,116 @@ public sealed class ColonisationTests
         Assert.Single(state.FleetOrders);
     }
 
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(100, 0, 0)]
+    [InlineData(100, 100, 2)]
+    public void Command_closure_reserves_population_for_the_whole_eligible_colonisation_set(
+        int populationBeforeIncome,
+        int currentTurnPopulationIncome,
+        int expectedColonisations)
+    {
+        var state = TestState.CreateColonisationContentionState(currentTurnPopulationIncome);
+        var cycle = state.GetActiveCycle()!;
+        var resources = Assert.Single(state.EmpireResources);
+        var orderIds = SubmitAllColonisationOrders(state).Select(order => order.FleetOrderId).ToArray();
+        resources.Population = populationBeforeIncome;
+
+        var result = new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
+        var coloniseOrders = state.FleetOrders.Where(order => orderIds.Contains(order.FleetOrderId)).ToArray();
+        var committedResources = Assert.Single(state.EmpireResources);
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        Assert.Equal(expectedColonisations, state.ColonialOutposts.Count);
+        Assert.Equal(
+            expectedColonisations,
+            coloniseOrders.Count(order => order.Status == FleetOrderStatus.Processed));
+
+        if (expectedColonisations == orderIds.Length)
+        {
+            Assert.All(coloniseOrders, order => Assert.Equal(1, order.SealedTick));
+            Assert.Equal(200m, committedResources.LastSpentPopulation);
+            Assert.DoesNotContain(state.FleetOrders, order => order.OrderType == FleetOrderType.Hold);
+            return;
+        }
+
+        Assert.All(coloniseOrders, order =>
+        {
+            Assert.Equal(FleetOrderStatus.Rejected, order.Status);
+            Assert.Null(order.SealedTick);
+            Assert.Equal(1, order.ProcessedTick);
+            Assert.Contains("whole 2-order set was rejected", order.RejectionReason, StringComparison.Ordinal);
+        });
+        Assert.Equal(2, state.FleetOrders.Count(order =>
+            order.OrderType == FleetOrderType.Hold
+            && order.Status == FleetOrderStatus.Processed
+            && order.SealedTick == 1));
+        Assert.Equal(populationBeforeIncome + currentTurnPopulationIncome, committedResources.Population);
+        Assert.Equal(2, state.Events.Count(item => item.EventType == EventType.OrderRejected));
+    }
+
+    [Fact]
+    public void Cancelling_one_colonisation_before_closure_changes_the_reserved_set()
+    {
+        var state = TestState.CreateColonisationContentionState();
+        var cycle = state.GetActiveCycle()!;
+        var empire = Assert.Single(state.Empires);
+        var orders = SubmitAllColonisationOrders(state);
+        var cancelledOrderId = orders[0].FleetOrderId;
+        var retainedOrderId = orders[1].FleetOrderId;
+        var retainedTargetSystemId = orders[1].TargetSystemId;
+
+        OrderService.CancelFleetOrder(state, cancelledOrderId, empire.EmpireId, TestState.Now.AddMinutes(1));
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
+
+        Assert.Equal(FleetOrderStatus.Cancelled, state.FleetOrders.Single(item => item.FleetOrderId == cancelledOrderId).Status);
+        Assert.Equal(FleetOrderStatus.Processed, state.FleetOrders.Single(item => item.FleetOrderId == retainedOrderId).Status);
+        Assert.Single(state.ColonialOutposts, item => item.SystemId == retainedTargetSystemId);
+        Assert.Equal(0m, state.EmpireResources.Single().Population);
+    }
+
+    [Fact]
+    public void Replacing_one_colonisation_before_closure_changes_the_reserved_set()
+    {
+        var state = TestState.CreateColonisationContentionState();
+        var cycle = state.GetActiveCycle()!;
+        var orders = SubmitAllColonisationOrders(state);
+        var supersededOrderId = orders[0].FleetOrderId;
+        var retainedOrderId = orders[1].FleetOrderId;
+        var retainedTargetSystemId = orders[1].TargetSystemId;
+
+        var replacement = OrderService.SubmitHoldOrder(
+            state,
+            orders[0].FleetId,
+            TestState.Now.AddMinutes(1),
+            supersededOrderId);
+        var replacementOrderId = replacement.FleetOrderId;
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
+
+        Assert.Equal(FleetOrderStatus.Superseded, state.FleetOrders.Single(item => item.FleetOrderId == supersededOrderId).Status);
+        Assert.Equal(FleetOrderStatus.Processed, state.FleetOrders.Single(item => item.FleetOrderId == replacementOrderId).Status);
+        Assert.Equal(FleetOrderStatus.Processed, state.FleetOrders.Single(item => item.FleetOrderId == retainedOrderId).Status);
+        Assert.Single(state.ColonialOutposts, item => item.SystemId == retainedTargetSystemId);
+        Assert.Equal(0m, state.EmpireResources.Single().Population);
+    }
+
+    [Fact]
+    public void Oversubscribed_colonisation_orders_do_not_revive_when_later_population_is_available()
+    {
+        var state = TestState.CreateColonisationContentionState();
+        var cycle = state.GetActiveCycle()!;
+        var orderIds = SubmitAllColonisationOrders(state).Select(order => order.FleetOrderId).ToArray();
+
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(1));
+        state.EmpireResources.Single().Population = 500m;
+        new TickEngine().RunTick(state, cycle.CycleId, TestState.Now.AddHours(2));
+
+        Assert.All(
+            state.FleetOrders.Where(order => orderIds.Contains(order.FleetOrderId)),
+            order => Assert.Equal(FleetOrderStatus.Rejected, order.Status));
+        Assert.Empty(state.ColonialOutposts);
+    }
+
     [Fact]
     public void Deep_clone_preserves_colonial_outposts()
     {
@@ -134,4 +244,13 @@ public sealed class ColonisationTests
         fleet.CurrentSystemId = destination.SystemId;
         return state;
     }
+
+    private static FleetOrder[] SubmitAllColonisationOrders(GameState state) =>
+        state.Fleets
+            .OrderBy(fleet => fleet.FleetId)
+            .Select((fleet, index) => OrderService.SubmitColoniseOrder(
+                state,
+                fleet.FleetId,
+                TestState.Now.AddMinutes(index)))
+            .ToArray();
 }

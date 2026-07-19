@@ -1790,7 +1790,7 @@ Consequences:
 - Cancellation and replacement before closure change the reservation set naturally.
 - A budget sufficient for none or only some of the set rejects the whole set; a budget sufficient for all reserves every intention in the set.
 - Successful colonisation alone consumes its reservation. A later eligibility failure does not transfer that reservation to an intention already rejected for oversubscription.
-- Issue #139 records the answered product decision. Issue #154 owns the bounded Colonise implementation, domain and SQL-backed tests, forecasting, result presentation, simulation reference, and player guidance.
+- Issue #139 records the answered product decision. Issue #154 implements the bounded rule through the shared closure and resource-generation boundaries, with domain and SQL-backed contention tests plus dashboard forecasting, durable rejection reasons, simulation reference, and player guidance.
 
 ## 2026-07-19: Preserve Cycle History Without Successor Mechanics
 

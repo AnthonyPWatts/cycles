@@ -56,7 +56,7 @@ public static class InfluenceCalculator
 
     public static void GenerateResources(GameState state, Guid cycleId, int tickNumber, DateTimeOffset now)
     {
-        var generatedByEmpire = new Dictionary<Guid, ResourceDelta>();
+        var generatedByEmpire = CalculateResourceGeneration(state, cycleId);
         var cycleEmpireIds = state.Empires
             .Where(empire => empire.CycleId == cycleId)
             .Select(empire => empire.EmpireId)
@@ -70,38 +70,6 @@ public static class InfluenceCalculator
             resources.LastSpentIndustry = 0;
             resources.LastSpentResearch = 0;
             resources.LastSpentPopulation = 0;
-        }
-
-        foreach (var system in state.Systems
-                     .Where(system => system.CycleId == cycleId)
-                     .OrderBy(system => system.SystemId))
-        {
-            var presence = CalculateEffectivePresence(state, cycleId, system.SystemId);
-            if (presence.Count == 0)
-            {
-                continue;
-            }
-
-            var totalPresence = presence.Values.Sum();
-            foreach (var (factionId, effectivePresence) in presence.OrderBy(item => item.Key))
-            {
-                var share = effectivePresence / totalPresence;
-                var empireId = state.GetEmpireIdForFaction(factionId);
-                if (!empireId.HasValue)
-                {
-                    continue;
-                }
-
-                var delta = new ResourceDelta(
-                    decimal.Round(system.IndustryOutput * share, 2),
-                    decimal.Round(system.ResearchOutput * share, 2),
-                    decimal.Round(system.PopulationOutput * share, 2));
-
-                if (!generatedByEmpire.TryAdd(empireId.Value, delta))
-                {
-                    generatedByEmpire[empireId.Value] = generatedByEmpire[empireId.Value] + delta;
-                }
-            }
         }
 
         foreach (var (empireId, delta) in generatedByEmpire.OrderBy(item => item.Key))
@@ -135,6 +103,45 @@ public static class InfluenceCalculator
                 CreatedAt = now
             });
         }
+    }
+
+    internal static IReadOnlyDictionary<Guid, ResourceDelta> CalculateResourceGeneration(GameState state, Guid cycleId)
+    {
+        var generatedByEmpire = new Dictionary<Guid, ResourceDelta>();
+
+        foreach (var system in state.Systems
+                     .Where(system => system.CycleId == cycleId)
+                     .OrderBy(system => system.SystemId))
+        {
+            var presence = CalculateEffectivePresence(state, cycleId, system.SystemId);
+            if (presence.Count == 0)
+            {
+                continue;
+            }
+
+            var totalPresence = presence.Values.Sum();
+            foreach (var (factionId, effectivePresence) in presence.OrderBy(item => item.Key))
+            {
+                var share = effectivePresence / totalPresence;
+                var empireId = state.GetEmpireIdForFaction(factionId);
+                if (!empireId.HasValue)
+                {
+                    continue;
+                }
+
+                var delta = new ResourceDelta(
+                    decimal.Round(system.IndustryOutput * share, 2),
+                    decimal.Round(system.ResearchOutput * share, 2),
+                    decimal.Round(system.PopulationOutput * share, 2));
+
+                if (!generatedByEmpire.TryAdd(empireId.Value, delta))
+                {
+                    generatedByEmpire[empireId.Value] = generatedByEmpire[empireId.Value] + delta;
+                }
+            }
+        }
+
+        return generatedByEmpire;
     }
 
     private static decimal CalculateExpansionProjectionBonus(GameState state, Guid empireId)

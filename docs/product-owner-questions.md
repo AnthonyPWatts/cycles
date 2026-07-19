@@ -72,7 +72,7 @@ The 18 July turn-resolution decision closes the former relative-ordering gap. A 
 
 The 18 July game-AI decision in [issue #146](https://github.com/AnthonyPWatts/cycles/issues/146) replaces Ariadne's first-pass Hold behaviour with an ordered deterministic policy: attack a locally visible faction only with a 25% strength advantage, otherwise Hold against that threat; then prefer an affordable eligible outpost; then advance towards the highest-value reachable expansion objective. The planner may use public system value and topology plus its own state and locally visible fleets, but not hidden human intentions or remote enemy fleet positions. It respects non-aggression pacts and Alliances. Neutral factions remain positional Hold obstacles. Production difficulty, roles, diplomacy, coordinated strategy, forecasting, and adaptive behaviour remain deferred.
 
-[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) was answered on 2026-07-19: reserve Colonise Population at command closure and reject the whole otherwise-eligible set when the empire cannot fund every intention in it. No partially affordable intention survives through submission time, stable identifiers, or another hidden priority. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns the bounded implementation.
+[Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) was answered on 2026-07-19: reserve Colonise Population at command closure and reject the whole otherwise-eligible set when the empire cannot fund every intention in it. No partially affordable intention survives through submission time, stable identifiers, or another hidden priority. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) implements that bounded rule.
 
 Q126 was answered on 2026-07-14 by prioritising desktop and laptop command usability while retaining a functional, readable narrow-screen core loop rather than equal mobile optimisation.
 
@@ -139,7 +139,7 @@ The colonisation slice and stored diplomacy foundation authorised by these answe
 
 | Question | Accepted answer | Consequence |
 | --- | --- | --- |
-| [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure. If the budget cannot fund every otherwise-eligible intention in the empire's set, reject the whole set. | A budget sufficient for zero or only some rejects all; a budget sufficient for every intention reserves all. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) owns implementation and player-facing explanation. |
+| [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) | Reserve Colonise Population at command closure. If the budget cannot fund every otherwise-eligible intention in the empire's set, reject the whole set. | A budget sufficient for zero or only some rejects all; a budget sufficient for every intention reserves all. [Issue #154](https://github.com/AnthonyPWatts/cycles/issues/154) implements the rule and player-facing explanation. |
 
 ## Accepted Q014-Q018 Answers
 
@@ -255,7 +255,7 @@ These earlier answers remain in force unless a later accepted question explicitl
 - The accepted phase order is resources; mandatory economy and due construction; new programme spending and construction starts; arrivals and movement; combat; colonisation; derived control, visibility, availability, and defeat state; next-window progression; then facts, Events, and Chronicle selection.
 - Any proposal to reorder those phases requires a product decision, focused regression evidence, and updated command forecasts, result presentation, and player guidance.
 - Current income may fund current spending. Due ships may defend but cannot receive already-sealed commands; new construction does not progress immediately; successful colonisation alone consumes its reserved population; and progression unlocked during resolution applies from the next command window.
-- Colonise Population will be reserved at command closure. When the budget cannot fund every otherwise-eligible Colonise intention for the empire, the whole set is rejected; submission time and stable identifiers cannot create a partial winner.
+- Colonise Population is reserved at command closure. When the budget cannot fund every otherwise-eligible Colonise intention for the empire, the whole set is rejected; submission time and stable identifiers cannot create a partial winner.
 - Movement precedes combat. Route interception and pursuit are not implicit first-version behaviour and require explicit future rules.
 
 ### API And Dashboard Contracts

@@ -716,29 +716,7 @@ public sealed class TickEngine
                                              && fleet.ShipCount > 0);
 
     private static void RejectOrder(GameState state, FleetOrder order, int tickNumber, DateTimeOffset now, string reason)
-    {
-        order.Status = FleetOrderStatus.Rejected;
-        order.ProcessedTick = tickNumber;
-        order.RejectionReason = reason;
-
-        state.Events.Add(new EventRecord
-        {
-            CycleId = order.CycleId,
-            TickNumber = tickNumber,
-            EventType = EventType.OrderRejected,
-            EmpireId = state.Fleets.SingleOrDefault(fleet => fleet.FleetId == order.FleetId)?.EmpireId,
-            FactionId = state.Fleets.SingleOrDefault(fleet => fleet.FleetId == order.FleetId)?.FactionId,
-            Severity = EventSeverity.Low,
-            DisplayText = $"Order {order.FleetOrderId} was rejected: {reason}",
-            FactJson = JsonSerializer.Serialize(new
-            {
-                orderId = order.FleetOrderId,
-                orderType = order.OrderType,
-                reason
-            }, GameStateJson.Options),
-            CreatedAt = now
-        });
-    }
+        => OrderService.RejectOrder(state, order, tickNumber, now, reason);
 }
 
 public sealed record TickResult(

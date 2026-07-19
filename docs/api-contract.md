@@ -56,14 +56,16 @@ Cycle responses expose `turnStage`. The value describes command acceptance and t
 | Value | Meaning |
 | --- | --- |
 | `commandOpen` | Human order, replacement, cancellation, and priority mutations may be accepted. |
-| `closing` | Human commands are closed while internal planners fill their permitted intentions. |
+| `closing` | Human commands are closed while internal planners fill their permitted intentions and the server admits or rejects complete Colonise reservation sets. |
 | `sealed` | The complete ledger is immutable. No command source may append or replace an intention. |
 | `resolving` | The server is processing the sealed ledger through the gameplay phases. |
 | `publishing` | Outcomes are complete and the server is committing facts before the next command window. |
 
 Order and priority mutations outside `commandOpen` fail with `409 Conflict` and `code: "stateConflict"`. SQL-backed tick execution commits in one transaction, so a normal client may see `commandOpen` on either side of a completed tick without observing each intermediate value. Clients must tolerate every documented stage and disable command submission once the value leaves `commandOpen`.
 
-The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, and movement; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
+Before sealing, each empire's otherwise-eligible Colonise orders are admitted as one reservation set. The closure budget is its Population stockpile plus projected current-turn Population income. A budget that cannot fund every order rejects the whole set before sealing; each rejected order exposes its durable `rejectionReason`, and the affected fleets receive implicit Holds. Cancellation and replacement during `commandOpen` change the set naturally.
+
+The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, and movement; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. Successful colonisation alone spends its reserved Population; a later eligibility failure leaves the amount unspent and cannot revive an order rejected at closure. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
 
 ## Trusted Development Selection
 

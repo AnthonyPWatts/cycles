@@ -71,6 +71,31 @@ internal static class TestState
         return state;
     }
 
+    public static GameState CreateColonisationContentionState(decimal currentTurnPopulationOutput = 0m)
+    {
+        var state = new GameState();
+        var cycle = AddCycle(state);
+        var player = AddPlayer(state, "coloniser");
+        var home = AddSystem(state, cycle.CycleId, "Home", 0, 0, 0, 10, 0);
+        var firstTarget = AddSystem(
+            state,
+            cycle.CycleId,
+            "First Colony",
+            0,
+            0,
+            currentTurnPopulationOutput,
+            20,
+            0);
+        var secondTarget = AddSystem(state, cycle.CycleId, "Second Colony", 0, 0, 0, 20, 0);
+        var empire = AddEmpire(state, cycle.CycleId, player.PlayerId, "Colonisers", home.SystemId);
+
+        AddResources(state, empire.EmpireId);
+        state.EmpireResources.Single().Population = OrderService.ColonisationPopulationCost;
+        AddFleet(state, cycle.CycleId, empire.EmpireId, firstTarget.SystemId, 25);
+        AddFleet(state, cycle.CycleId, empire.EmpireId, secondTarget.SystemId, 25);
+        return state;
+    }
+
     private static Cycle AddCycle(GameState state)
     {
         var cycle = new Cycle

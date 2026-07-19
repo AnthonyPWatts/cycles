@@ -358,6 +358,54 @@ public sealed class SqlServerGameStateStoreIntegrationTests
         Assert.Contains(updated.Events, item => item.EventType == EventType.ColonialOutpostEstablished);
     }
 
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(100, 0, 0)]
+    [InlineData(100, 100, 2)]
+    public void Store_persists_whole_set_colonisation_reservations_when_connection_string_is_configured(
+        int populationBeforeIncome,
+        int currentTurnPopulationIncome,
+        int expectedColonisations)
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateColonisationContentionState(currentTurnPopulationIncome);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var orderIds = state.Fleets
+            .OrderBy(item => item.FleetId)
+            .Select((fleet, index) => OrderService.SubmitColoniseOrder(
+                state,
+                fleet.FleetId,
+                TestState.Now.AddMinutes(index)).FleetOrderId)
+            .ToArray();
+        state.EmpireResources.Single().Population = populationBeforeIncome;
+        store.Replace(state);
+
+        var result = store.RunTick(cycle.CycleId, TestState.Now.AddHours(1));
+
+        Assert.Equal(TickLogStatus.Completed, result.Status);
+        var updated = store.LoadOrCreate();
+        var coloniseOrders = updated.FleetOrders.Where(item => orderIds.Contains(item.FleetOrderId)).ToArray();
+        Assert.Equal(expectedColonisations, updated.ColonialOutposts.Count);
+        Assert.Equal(expectedColonisations, coloniseOrders.Count(item => item.Status == FleetOrderStatus.Processed));
+        Assert.Equal(
+            orderIds.Length - expectedColonisations,
+            coloniseOrders.Count(item => item.Status == FleetOrderStatus.Rejected));
+        if (expectedColonisations == 0)
+        {
+            Assert.All(coloniseOrders, item =>
+            {
+                Assert.Null(item.SealedTick);
+                Assert.Contains("whole 2-order set was rejected", item.RejectionReason, StringComparison.Ordinal);
+            });
+        }
+    }
+
     [Fact]
     public void Store_dedicated_tick_runner_persists_admiral_battle_history_when_connection_string_is_configured()
     {

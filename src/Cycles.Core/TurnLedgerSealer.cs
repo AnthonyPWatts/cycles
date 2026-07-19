@@ -77,6 +77,14 @@ internal static class TurnLedgerSealer
             dueOrdersByFleet[plannedOrder.FleetId] = [plannedOrder];
         }
 
+        RejectOversubscribedColonisationSets(
+            state,
+            cycleId,
+            tickNumber,
+            now,
+            dueOrders,
+            dueOrdersByFleet);
+
         foreach (var fleet in eligibleFleets)
         {
             if (dueOrdersByFleet.TryGetValue(fleet.FleetId, out var existingOrders))
@@ -122,6 +130,75 @@ internal static class TurnLedgerSealer
                 .OrderBy(order => order.FleetId)
                 .ThenBy(order => order.FleetOrderId)
                 .ToArray());
+    }
+
+    private static void RejectOversubscribedColonisationSets(
+        GameState state,
+        Guid cycleId,
+        int tickNumber,
+        DateTimeOffset now,
+        List<FleetOrder> dueOrders,
+        IDictionary<Guid, FleetOrder[]> dueOrdersByFleet)
+    {
+        var fleetsById = state.Fleets
+            .Where(fleet => fleet.CycleId == cycleId)
+            .ToDictionary(fleet => fleet.FleetId);
+        var projectedGeneration = InfluenceCalculator.CalculateResourceGeneration(state, cycleId);
+        var eligibleOrdersByEmpire = dueOrders
+            .Where(order => order.OrderType == FleetOrderType.Colonise
+                            && IsColonisationEligibleAtClosure(state, order, fleetsById))
+            .GroupBy(order => fleetsById[order.FleetId].EmpireId)
+            .OrderBy(group => group.Key)
+            .ToArray();
+
+        foreach (var empireOrders in eligibleOrdersByEmpire)
+        {
+            var orders = empireOrders.ToArray();
+            var resources = state.EmpireResources.Single(item => item.EmpireId == empireOrders.Key);
+            var generatedPopulation = projectedGeneration.TryGetValue(empireOrders.Key, out var delta)
+                ? delta.Population
+                : 0m;
+            var availablePopulation = Math.Max(0, resources.Population + generatedPopulation);
+            var requiredPopulation = orders.Length * OrderService.ColonisationPopulationCost;
+            if (availablePopulation >= requiredPopulation)
+            {
+                continue;
+            }
+
+            var reason = $"The otherwise-eligible Colonise command set requires {requiredPopulation:0.##} population, "
+                         + $"but {availablePopulation:0.##} is available at command closure including current-turn income; "
+                         + $"the whole {orders.Length}-order set was rejected.";
+            foreach (var order in orders)
+            {
+                OrderService.RejectOrder(state, order, tickNumber, now, reason);
+                dueOrders.Remove(order);
+                dueOrdersByFleet.Remove(order.FleetId);
+            }
+        }
+    }
+
+    private static bool IsColonisationEligibleAtClosure(
+        GameState state,
+        FleetOrder order,
+        IReadOnlyDictionary<Guid, Fleet> fleetsById)
+    {
+        if (!fleetsById.TryGetValue(order.FleetId, out var fleet)
+            || fleet.Status != FleetStatus.Active
+            || fleet.ShipCount <= 0
+            || !order.TargetSystemId.HasValue
+            || fleet.CurrentSystemId != order.TargetSystemId.Value)
+        {
+            return false;
+        }
+
+        var empire = state.Empires.SingleOrDefault(item => item.CycleId == order.CycleId
+                                                            && item.EmpireId == fleet.EmpireId);
+        return empire is not null
+               && fleet.CurrentSystemId != empire.HomeSystemId
+               && !state.ColonialOutposts.Any(item => item.CycleId == order.CycleId
+                                                       && item.EmpireId == fleet.EmpireId
+                                                       && item.SystemId == fleet.CurrentSystemId)
+               && OrderService.HasLeadingPresence(state, order.CycleId, fleet.CurrentSystemId, fleet.EmpireId);
     }
 
     private static FleetOrderCommandSource ResolveExistingCommandSource(GameState state, Fleet fleet)

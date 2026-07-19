@@ -44,6 +44,19 @@ public sealed class DashboardCommandOverviewContractTests
     }
 
     [Fact]
+    public void Colonisation_command_and_results_explain_whole_set_reservation()
+    {
+        var script = ReadDashboardAsset("app.js");
+
+        Assert.Contains("100 population reserved at closure", script);
+        Assert.Contains("function colonisationReservationHint()", script);
+        Assert.Contains("Current-turn Population income counts when commands close", script);
+        Assert.Contains("the whole set is rejected if the final budget is short", script);
+        Assert.Contains("const rejection = order.rejectionReason", script);
+        Assert.Contains("${escapeHtml(timing)}${escapeHtml(rejection)}", script);
+    }
+
+    [Fact]
     public void Active_priority_sliders_transfer_points_between_each_other()
     {
         var script = ReadDashboardAsset("app.js");

@@ -132,7 +132,7 @@ Repeat these actions before each tick:
 
 The server rechecks each order when it processes the tick. An order that was valid when queued can fail if the fleet moves, the target disappears, a rival changes local influence, or another action spends the required resources.
 
-Each fleet can have one pending intention for the next tick. Choosing a different action asks you to confirm replacement of the current pending order; repeating the same action is idempotent. Fleets without a submitted command Hold when the command window closes. Submission time does not grant initiative: resources and construction resolve first, then movement, combat, and colonisation.
+Each fleet can have one pending intention for the next tick. Choosing a different action asks you to confirm replacement of the current pending order; repeating the same action is idempotent. Fleets without a submitted command Hold when the command window closes. At closure, the server checks whether your Population stockpile plus current-turn income can fund every otherwise-eligible Colonise order. If it cannot fund the complete set, it rejects the whole set rather than choosing a hidden winner. Submission time does not grant initiative: resources and construction resolve first, then movement, combat, and colonisation.
 
 ## How the server processes a turn
 
@@ -145,14 +145,14 @@ The order below governs the result of your commands. Sending an order before ano
 | 3 | Programme spending | The server applies your committed priorities and starts new construction. New construction does not gain a tick of progress at once. |
 | 4 | Recall, arrivals, and movement | Recall intentions reverse outbound fleets before passive arrivals. Remaining journeys then arrive before new Move orders. Movement establishes the fleet positions used by combat. |
 | 5 | Combat | Attacks use the post-movement fleets in each system. A target can move away; an arriving fleet can join the defence. |
-| 6 | Colonisation | The server checks the surviving colonising fleet and spends Population after the outpost succeeds. |
+| 6 | Colonisation | The server checks each admitted colonising fleet and spends its reserved Population after the outpost succeeds. A failed eligibility check leaves that reservation unspent. |
 | 7 | Derived state | Map-control metrics use the world left by movement, combat, and colonisation. |
 | 8 | Next-window progression | Research earned this turn can unlock Survey Projection, which applies from the next command window. |
 | 9 | Publication | The server commits one complete result and reopens commands. A failed resolution cannot expose half a turn. |
 
 One fleet still has one intention. A fleet ordered to Move can arrive in time to defend, but it cannot also Attack or Colonise in that turn. A fleet ordered to Colonise waits until combat finishes and must survive in the target system. Review the whole command queue as one plan rather than a list that executes from top to bottom.
 
-The current pre-alpha has one known contention limit. If an empire submits several eligible Colonise intentions but lacks the Population to fund all of them, stable internal identifiers decide which succeeds first. Players cannot set that priority. [Issue #139](https://github.com/AnthonyPWatts/cycles/issues/139) gates the replacement rule; avoid oversubscribing Population when evaluating the present build.
+Colonise contention is resolved as one set at command closure. When your projected closure budget can fund every otherwise-eligible order, the server reserves all of them. When it can fund none or only some, the server rejects all of them and records the shared reason. Cancel or replace an order before closure to reduce the set; an eligibility failure during combat or colonisation does not transfer its unused reservation to an order rejected earlier.
 
 ## Influence and resources
 
@@ -199,7 +199,7 @@ An outpost costs 100 Population and resolves on the next tick. To queue one, you
 - have more effective presence than each rival in that system;
 - have no existing or pending outpost for your empire at that system.
 
-Your empire must still meet those conditions when the tick processes. The outpost adds five local presence while your empire keeps an active fleet there. It does not create permanent ownership, prevent rival entry, or survive as an independent source of influence when your fleet leaves.
+Your empire must still meet those conditions when the tick processes. At command closure, the server reserves 100 Population for each otherwise-eligible Colonise order, using the current stockpile plus Population income due in that turn. If the projected budget cannot cover every such order, it rejects the whole set before the turn ledger is sealed. The outpost adds five local presence while your empire keeps an active fleet there. It does not create permanent ownership, prevent rival entry, or survive as an independent source of influence when your fleet leaves.
 
 ### Cancel
 
@@ -243,7 +243,7 @@ Read the rejection reason in **Order Queue**. Common causes include:
 - no hostile active fleet remained in the attack system;
 - your colonising fleet left the system;
 - your empire lost the strict influence lead;
-- your Population fell below 100 before colonisation resolved.
+- your command-closure Population budget could not fund every otherwise-eligible Colonise order, so the server rejected the whole set.
 
 ### I cannot select Colonise for a fleet
 

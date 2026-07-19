@@ -1338,7 +1338,7 @@ function commandAgendaItems() {
                 fleetId: briefing.objectives.colonise.fleetId,
                 targetSystemId: briefing.objectives.colonise.systemId,
                 detail: "Population-funded outpost opportunity",
-                consequence: "100 population committed",
+                consequence: "100 population reserved at closure",
                 sigil: "O"
             })
         ];
@@ -1827,7 +1827,24 @@ function renderOrders() {
         ? selectionHint ?? "Select an active fleet to assess colonisation."
         : !awayFromHome
             ? "Move this fleet beyond its home system before establishing an outpost."
-            : "Costs 100 population and resolves next tick.";
+            : colonisationReservationHint();
+}
+
+function colonisationReservationHint() {
+    const pendingColonisations = state.orders.filter(order =>
+        order.status === "pending" && order.orderType === "colonise").length;
+    if (pendingColonisations === 0) {
+        return "Costs 100 Population and resolves next tick. Current-turn Population income counts when commands close.";
+    }
+
+    const requiredPopulation = pendingColonisations * 100;
+    const currentPopulation = Number(state.empire?.resources?.population ?? 0);
+    if (currentPopulation >= requiredPopulation) {
+        return `${formatCount(pendingColonisations, "pending Colonise order")} reserve ${formatNumber(requiredPopulation)} Population at closure; current stockpile covers the whole set.`;
+    }
+
+    return `${formatCount(pendingColonisations, "pending Colonise order")} require ${formatNumber(requiredPopulation)} Population. `
+        + `You have ${formatNumber(currentPopulation)} now; current-turn income counts at closure, but the whole set is rejected if the final budget is short.`;
 }
 
 function renderSystemDetails() {
