@@ -23,6 +23,8 @@ The root [README](../README.md) owns project orientation and copy-and-run setup 
 | --- | --- |
 | [Operations](operations.md) | Worker operation, diagnostics, failed-tick recovery, and guarded profiling. |
 | [Trusted Playground Deployment](playground-deployment.md) | Free-tier hosted play-testing, CI deployment, and enforced cost guardrails. |
+| [Multi-game and Tutorial Plan](multi-game-and-tutorial-plan.md) | Approved future product, UI, tutorial, architecture, migration, rollout, and implementation sequence. |
+| [Multi-game and Tutorial Test Plan](multi-game-and-tutorial-test-plan.md) | Required domain, SQL, concurrency, browser, accessibility, capacity, and rollout evidence for that programme. |
 | [Promo Film Production Notes](../src/Cycles.Api/wwwroot/media/PROMO-PRODUCTION.md) | The 30-second master and edge-delivery derivative, shot provenance, concept-image prompts, render command, and verification boundary. |
 | [SQL Server Runbook](../database/sqldockerdeploykit/README.md) | Local database image, connection, migration, integration-test, and cleanup instructions. |
 

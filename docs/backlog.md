@@ -70,9 +70,13 @@ Q058, Q081-Q084, and Q092 establish the boundary: successor Cycles reset partici
 
 ### Tutorial And Match Enrolment
 
-The accepted future direction moves concept teaching into a standalone compact game with one human seat and the same authoritative mechanics as standard play. Standard games select separate, larger map profiles. Persistent players may enrol in several game instances, with future organisers or schedules creating and filling those games through one enrolment model.
+The approved [multi-game and tutorial programme](multi-game-and-tutorial-plan.md) defines a player-visible Game as a lineage of one or more Cycles. A persistent Player may enrol in several Games, while each Cycle retains separate participant and empire authority. Players reconfirm during Intermission before a successor Cycle. The first release uses in-app cross-Game urgency and defers email or push.
 
-The current Day One guide remains the implemented training path. This direction does not add scope to #138 and has no implementation issue yet. Product work must first settle whether a game maps one-to-one to a Cycle or contains a Cycle lineage; queue and start transitions; capacity and under-filled starts; no-show and withdrawal handling; optional game-AI seat filling; concurrent-game limits; and whether successor Cycles require fresh enrolment. The Worker also retains the single-operational-Cycle policy tracked by #132 until those decisions authorise multi-game hosting.
+[Twin Reaches](multi-game-and-tutorial-plan.md#82-recommended-tutorial-foundations-v1-twin-reaches) is the first Training profile. Its four-resolution Core journey uses ordinary commands and authoritative outcomes. The current canonical galaxy becomes the first standard profile, and operators create the first standard Games without AI seat fill. The [companion test plan](multi-game-and-tutorial-test-plan.md) owns the executable safety and pilot evidence.
+
+The current Day One guide and single-Game runtime remain implemented behaviour. Before code creates a second durable Game, the programme requires scoped player routes and stores, explicit Worker selection, resource authorisation, antiforgery, complete same-Cycle SQL constraints, and mandatory SQL evidence. The current Worker policy remains under #132 until bounded implementation work lands.
+
+The dependency-labelled MG-00 to MG-15 slices in the approved plan are backlog-ready proposals, not live issues. Creating the programme epic or its GitHub issues requires separate authority. Public discovery, queue offers, no-shows, AI fill, player-created Games, automatic private-Game successor carry-forward, and external notification transport remain deferred.
 
 ## Conditional Technical Risks
 

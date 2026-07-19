@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -1867,7 +1867,7 @@ Consequences:
 - A future tutorial profile needs a compact topology, one human seat, deterministic teaching state, resumable progress, and reset behaviour. Any game-AI or neutral teaching factions remain part of that profile rather than extra human seats.
 - Standard games choose their own larger map profile instead of inheriting tutorial dimensions or tutorial-only branches.
 - The product must present explicit game selection before concurrent memberships become playable; commands, forecasts, visibility, and history must remain scoped to the selected game.
-- Product decisions still need to settle Game-to-Cycle cardinality, queue and start transitions, capacity and under-filled starts, no-shows and withdrawal, game-AI seat filling, concurrent-game limits, and successor-Cycle re-enrolment.
+- Product decisions at this point still needed to settle Game-to-Cycle cardinality, queue and start transitions, capacity and under-filled starts, no-shows and withdrawal, game-AI seat filling, concurrent-game limits, and successor-Cycle re-enrolment. The 19 July programme approval settles cardinality, first-release start/capacity/withdrawal defaults, concurrent-cap policy, and successor reconfirmation.
 - The current single-operational-Cycle API and Worker policy remains in force. This direction authorises no schema, queue, scheduler, lobby, or runtime-topology implementation and does not require an implementation issue until the unresolved gates produce bounded scope.
 
 ## 2026-07-19: Project Move Arrival Without Promising Route State
@@ -1886,3 +1886,25 @@ Consequences:
 - The dashboard uses projected timing before submission and in the commitment calendar, then uses authoritative dispatched/arrival wording for an in-transit fleet. Recall uses projected reversal/return wording until it resolves.
 - A changed route updates the next response and controls actual arrival. A removed route retains the command's activation tick but exposes no claimed dispatch or arrival; resolution rejects it through the existing order boundary.
 - This does not change one-intention-per-fleet rules, next-tick command activation, pathfinding, interception, pursuit, diversion, or map topology.
+
+## 2026-07-19: Approve The Multi-Game And Tutorial Programme
+
+Decision: define a player-visible `Game` as a lineage containing one or more `Cycle` epochs, with at most one operational Cycle in that Game. Require players to reconfirm participation during Intermission before a successor Cycle starts. Use in-app cross-Game urgency for the first release and defer email or push notifications until player-return evidence supports a new transport.
+
+Approve the product, UI, tutorial, persistence, migration, operations, and verification direction in [the multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [test plan](multi-game-and-tutorial-test-plan.md). This approval settles direction and does not authorise implementation, deployment, or external issue creation.
+
+Reasoning:
+
+- A Game gives players one stable home for a continuing campaign while each Cycle retains its own world, roster, schedule, and immutable provenance.
+- `Player`, `GameEnrolment`, and `MatchParticipant` need separate lifecycles so one account can join several Games without making an empire an account property.
+- Explicit reconfirmation prevents a completed Cycle from committing a player to its successor without consent.
+- In-app urgency tests the return loop without adding provider, consent, delivery, and support work before the project observes a need.
+- A compact Training Game can teach normal commands and authoritative outcomes without reducing the scale of standard Games or creating tutorial-specific simulation rules.
+
+Consequences:
+
+- The first Training profile is Twin Reaches: ten systems, thirteen routes, one human seat, and a four-resolution Core journey. The current Day One guide remains the implemented path until its replacement passes the pilot gates.
+- The current canonical galaxy becomes the first standard profile. Operators create the first standard Games, and the first manual lobby does not fill seats with AI.
+- A Player has no platform-wide concurrent-Game cap at launch. The project measures overcommitment before adding queue-specific limits.
+- No second durable Game may exist until player routes, online stores, Worker selection, authorisation, antiforgery, SQL constraints, and mandatory SQL evidence satisfy the approved hard gate.
+- The current single-Game runtime remains authoritative until bounded implementation issues deliver and verify those changes. `docs/project-state.md` must continue to describe the current runtime rather than this approved future design.

@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-07-14
+Last updated: 2026-07-19
 
 Cycles is server-authoritative and simulation-first. Clients submit intentions and read permitted state. A tick host decides outcomes, persistence stores authoritative facts, and narrative systems interpret those facts only after the simulation has resolved them.
 
@@ -40,6 +40,22 @@ Events, battles, Chronicle entries, metrics, and Cycle history are outputs.
 ```
 
 The API also uses the generic store for authenticated state queries and player/admin mutations. SQL-backed ticks use a narrower path than those generic mutations.
+
+## Approved Multi-Game And Training Direction
+
+The [multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [test plan](multi-game-and-tutorial-test-plan.md) define approved future architecture. The current runtime supports one operational Cycle across the deployment; `docs/project-state.md` remains authoritative for implemented behaviour.
+
+- A player-visible `Game` contains one or more `Cycle` epochs and at most one operational Cycle. Each Cycle locks its own configuration, map, scenario, execution policy, seed, roster, and content provenance.
+- `Player` owns account identity, `GameEnrolment` owns the durable Player-to-Game relationship, and `MatchParticipant` owns Cycle-specific empire authority.
+- Authentication creates a Player without a Game seat. Enrolment and Cycle start create participation through explicit application operations.
+- The browser adds an account-level Games shell above the four existing gameplay workspaces. Every selected-game route, query, mutation, and response carries explicit Game and Cycle context.
+- Lobby/archive access uses a Game access context. Gameplay commands add non-null Cycle, participant, and empire authority.
+- Account and lobby reads use bounded projections. Online writes use focused Game/Cycle stores; whole-state replacement remains an offline maintenance/import operation.
+- Resolution acquires Game then Cycle locks because the same transaction may complete the Cycle and move its Game to Intermission or Completed.
+- Twin Reaches is the first Training profile. Its four-resolution Core journey uses ordinary orders, ticks, facts, and recovery. Reset supersedes the old attempt and creates a new Training Game.
+- Intermission requires each player to reconfirm before a successor Cycle. The first release uses in-app cross-Game urgency and does not add email or push.
+
+No second durable Game may exist until scoped routes and stores, explicit Worker selection, resource authorisation, antiforgery, same-Cycle SQL constraints, migration evidence, and mandatory SQL tests pass the approved hard gate. This decision does not authorise a new paid Worker host for the cost-capped playground.
 
 ## Project Boundaries
 
