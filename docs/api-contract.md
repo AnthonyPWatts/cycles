@@ -77,6 +77,12 @@ The optional `selectedFleetId` query preserves the player's current fleet select
 
 The bootstrap applies the same actor, empire, visibility, and fog-of-war rules as the narrower source endpoints. It does not return `GameState`, domain entities, another empire's fleets or orders, or hidden Events and Chronicle entries. The narrower endpoints remain available for focused interactions and future clients; the bootstrap is a read-optimised composition contract rather than their replacement.
 
+## Visibility Contract
+
+The complete galaxy topology remains public. Exact current system facts are visible where the authenticated empire has an active, non-empty fleet or where an empire in a current Alliance has one. Ending the Alliance removes that allied live visibility on the next read; Neutral, War, and Non-Aggression Pact relationships do not share it.
+
+Alliance visibility does not pool fleet ownership, orders, resources, priorities, rankings, influence, or command authority. It creates no stale contact or destroyed-fleet memory. Development-admin visibility remains global.
+
 ## Error Contract
 
 Handled player-facing failures retain an appropriate HTTP status and return the same envelope:

@@ -1767,7 +1767,9 @@ Reasoning:
 Consequences:
 
 - Q019-Q022 still gate the complete player-facing diplomacy lifecycle, including who observes relationship changes, Chronicle selection, AI participation, and memory.
-- Issue #155 owns the independently bounded allied active-fleet visibility change.
+- `ApiVisibility` now includes systems occupied by active, non-empty fleets belonging to the viewing empire or a current ally. Neutral, War, and Non-Aggression Pact relationships do not widen the set, and ending an Alliance removes future live sharing.
+- Owned-fleet, order, resource, ranking, influence-calculation, and control scopes remain empire-specific; player bootstrap uses the expanded visible-system set only for current system facts. Development-admin visibility remains global.
+- Issue #155 implements this independently bounded allied active-fleet visibility change through the existing API and persisted relationship boundaries.
 - Q026-Q034 continue to own stale or estimated contacts, destroyed-fleet intelligence, Chronicle disclosure, sensors, historical visibility, and live rankings.
 - Richer combat choices remain sequenced after diplomacy and visibility. Q060 does not silently settle the specific Hold, posture, targeting, retreat, or fleet-management questions.
 

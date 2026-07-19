@@ -457,6 +457,81 @@ public sealed class SqlServerGameStateStoreIntegrationTests
     }
 
     [Fact]
+    public void Store_round_trips_allied_fleet_visibility_and_removes_sharing_after_the_alliance_ends()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = new SqlServerGameStateStore(connectionString);
+        var state = TestState.CreateTwoEmpireContest(attackerShips: 50, defenderShips: 40);
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Seed state must contain an active Cycle.");
+        var firstEmpire = state.Empires.Single(item => item.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(item => item.EmpireName == "Second");
+        var alliedSystem = new GalaxySystem
+        {
+            SystemId = secondEmpire.HomeSystemId,
+            CycleId = cycle.CycleId,
+            SystemName = "Allied Lookout",
+            X = 250,
+            Y = 250,
+            IndustryOutput = 10,
+            ResearchOutput = 10,
+            PopulationOutput = 10,
+            StrategicValue = 10,
+            CreatedAt = TestState.Now
+        };
+        state.Systems.Add(alliedSystem);
+        state.Fleets.Single(item => item.EmpireId == secondEmpire.EmpireId).CurrentSystemId = alliedSystem.SystemId;
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            DiplomaticRelationshipState.Alliance,
+            tickNumber: 0,
+            TestState.Now);
+        store.Replace(state);
+
+        var alliedState = store.LoadOrCreate();
+        var alliedCycle = alliedState.GetActiveCycle()!;
+        var firstPlayer = alliedState.Players.Single(item => item.Username == "first");
+        var loadedFirstEmpire = alliedState.Empires.Single(item => item.EmpireId == firstEmpire.EmpireId);
+        var actor = new DevelopmentActor(firstPlayer, loadedFirstEmpire);
+
+        Assert.Contains(
+            alliedSystem.SystemId,
+            ApiVisibility.GetVisibleSystemIds(alliedState, alliedCycle, actor));
+
+        store.Update(current =>
+        {
+            DiplomacyService.SetState(
+                current,
+                cycle.CycleId,
+                firstEmpire.EmpireId,
+                secondEmpire.EmpireId,
+                DiplomaticRelationshipState.Neutral,
+                tickNumber: 1,
+                TestState.Now.AddHours(1));
+            return true;
+        });
+
+        var neutralState = store.LoadOrCreate();
+        var neutralActor = new DevelopmentActor(
+            neutralState.Players.Single(item => item.Username == "first"),
+            neutralState.Empires.Single(item => item.EmpireId == firstEmpire.EmpireId));
+
+        Assert.DoesNotContain(
+            alliedSystem.SystemId,
+            ApiVisibility.GetVisibleSystemIds(neutralState, neutralState.GetActiveCycle()!, neutralActor));
+        var relationship = Assert.Single(neutralState.DiplomaticRelationships);
+        Assert.Equal(DiplomaticRelationshipState.Neutral, relationship.State);
+        Assert.Equal(1, relationship.UpdatedTick);
+    }
+
+    [Fact]
     public void Store_dedicated_tick_runner_persists_failed_tick_recovery_state_when_connection_string_is_configured()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);

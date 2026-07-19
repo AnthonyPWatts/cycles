@@ -28,6 +28,110 @@ public sealed class ApiVisibilityTests
     }
 
     [Fact]
+    public void Player_visibility_includes_active_allied_fleet_systems_until_the_alliance_ends()
+    {
+        var state = CreateVisibilityState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var firstPlayer = state.Players.Single(player => player.Username == "first");
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var hidden = state.Systems.Single(system => system.SystemName == "Hidden");
+        var actor = new DevelopmentActor(firstPlayer, firstEmpire);
+        var historicalEvent = CreateEvent(cycle.CycleId, hidden.SystemId, secondEmpire.EmpireId);
+        state.Events.Add(historicalEvent);
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            DiplomaticRelationshipState.Alliance,
+            tickNumber: 1,
+            TestState.Now);
+
+        var alliedVisibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+
+        Assert.Contains(hidden.SystemId, alliedVisibleSystemIds);
+        Assert.True(ApiVisibility.CanSeeEvent(historicalEvent, actor, alliedVisibleSystemIds));
+
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            DiplomaticRelationshipState.Neutral,
+            tickNumber: 2,
+            TestState.Now.AddHours(1));
+
+        var neutralVisibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+
+        Assert.DoesNotContain(hidden.SystemId, neutralVisibleSystemIds);
+        Assert.False(ApiVisibility.CanSeeEvent(historicalEvent, actor, neutralVisibleSystemIds));
+        Assert.Contains(historicalEvent, state.Events);
+        var relationship = Assert.Single(state.DiplomaticRelationships);
+        Assert.Equal(DiplomaticRelationshipState.Neutral, relationship.State);
+    }
+
+    [Theory]
+    [InlineData(DiplomaticRelationshipState.Neutral)]
+    [InlineData(DiplomaticRelationshipState.War)]
+    [InlineData(DiplomaticRelationshipState.NonAggressionPact)]
+    public void Player_visibility_is_not_shared_by_non_allied_relationships(
+        DiplomaticRelationshipState relationshipState)
+    {
+        var state = CreateVisibilityState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var firstPlayer = state.Players.Single(player => player.Username == "first");
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var hidden = state.Systems.Single(system => system.SystemName == "Hidden");
+        var actor = new DevelopmentActor(firstPlayer, firstEmpire);
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            relationshipState,
+            tickNumber: 1,
+            TestState.Now);
+
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+
+        Assert.DoesNotContain(hidden.SystemId, visibleSystemIds);
+    }
+
+    [Theory]
+    [InlineData(FleetStatus.Destroyed, 30)]
+    [InlineData(FleetStatus.InTransit, 30)]
+    [InlineData(FleetStatus.Active, 0)]
+    public void Player_visibility_is_not_shared_by_allied_fleets_without_active_ships(
+        FleetStatus fleetStatus,
+        int shipCount)
+    {
+        var state = CreateVisibilityState();
+        var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var firstPlayer = state.Players.Single(player => player.Username == "first");
+        var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
+        var hidden = state.Systems.Single(system => system.SystemName == "Hidden");
+        var alliedFleet = state.Fleets.Single(fleet => fleet.FleetName == "Hidden fleet");
+        var actor = new DevelopmentActor(firstPlayer, firstEmpire);
+        alliedFleet.Status = fleetStatus;
+        alliedFleet.ShipCount = shipCount;
+        DiplomacyService.SetState(
+            state,
+            cycle.CycleId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            DiplomaticRelationshipState.Alliance,
+            tickNumber: 1,
+            TestState.Now);
+
+        var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
+
+        Assert.DoesNotContain(hidden.SystemId, visibleSystemIds);
+    }
+
+    [Fact]
     public void Player_visibility_keeps_own_and_local_events_only()
     {
         var state = CreateVisibilityState();
@@ -110,6 +214,7 @@ public sealed class ApiVisibilityTests
         {
             CycleId = cycle.CycleId,
             EmpireId = secondEmpire.EmpireId,
+            FactionId = state.GetEmpireFaction(secondEmpire.EmpireId).FactionId,
             FleetName = "Hidden fleet",
             CurrentSystemId = hidden.SystemId,
             ShipCount = 30,

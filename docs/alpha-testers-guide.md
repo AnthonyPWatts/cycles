@@ -44,7 +44,7 @@ The guide takes you through this sequence:
 1. Read the resource cards and what each stockpile pays for.
 2. Drag either the Military or Expansion slider. The other active slider rebalances automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
 3. Select the highlighted local flashpoint on the map and inspect the vanguard.
-4. Read the visibility note: routes are always known, while exact remote facts require an active fleet in the system.
+4. Read the visibility note: routes are always known, while exact remote facts require one of your active fleets—or an active fleet belonging to a current ally—in the system.
 5. In **Fleets**, select the home guard. The guide opens **Move** and identifies the intended adjacent destination; select **Queue move**.
 6. Select the survey fleet. The guide opens **Colonise**; select **Queue outpost**.
 7. Select the vanguard. The guide opens **Attack** with the local Free Captains faction; select **Queue attack**.
@@ -89,7 +89,7 @@ The map's visual language marks:
 - **Presence**: your effective influence at a system;
 - **Contested**: more than one faction has visible presence there.
 
-You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. A system with no displayed enemy presence may contain facts that your empire cannot see.
+You can see the full galaxy structure and routes, but exact presence, local fleets, events, last-tick facts, and Chronicle entries depend on active-fleet visibility. Your own active fleets and active fleets belonging to current allies provide that live view; an Alliance does not share fleet control, orders, resources, rankings, or stale contacts. A system with no displayed enemy presence may contain facts that your empire cannot see.
 
 The four priority weights represent strategic effort rather than matching the three resource stockpiles. Development and Innovation remain visible but are locked at zero until their planned programmes are implemented. Military and Expansion share the full 100-point active allocation and affect the next tick. Change either active value, then select **Save priorities**.
 
@@ -251,7 +251,7 @@ Select an active fleet in the roster first. **Colonise** remains unavailable whi
 
 ### The map shows a system but no local details
 
-Your empire lacks an active fleet there. The current build reveals the map structure while hiding exact remote presence and fleet facts.
+Neither your empire nor a current ally has an active fleet there. The current build reveals the map structure while hiding exact remote presence and fleet facts.
 
 ### Refresh did not advance the game
 

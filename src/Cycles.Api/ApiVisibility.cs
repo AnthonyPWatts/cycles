@@ -15,9 +15,20 @@ public static class ApiVisibility
         var empireId = actor.Empire?.EmpireId
             ?? throw new ApiForbiddenException("The authenticated player has no empire in the active cycle.");
 
+        var visibleEmpireIds = state.DiplomaticRelationships
+            .Where(relationship => relationship.CycleId == cycle.CycleId
+                                   && relationship.State == DiplomaticRelationshipState.Alliance
+                                   && (relationship.FirstEmpireId == empireId
+                                       || relationship.SecondEmpireId == empireId))
+            .Select(relationship => relationship.FirstEmpireId == empireId
+                ? relationship.SecondEmpireId
+                : relationship.FirstEmpireId)
+            .Append(empireId)
+            .ToHashSet();
+
         return state.Fleets
             .Where(fleet => fleet.CycleId == cycle.CycleId
-                            && fleet.EmpireId == empireId
+                            && visibleEmpireIds.Contains(fleet.EmpireId)
                             && fleet.Status == FleetStatus.Active
                             && fleet.ShipCount > 0)
             .Select(fleet => fleet.CurrentSystemId)
