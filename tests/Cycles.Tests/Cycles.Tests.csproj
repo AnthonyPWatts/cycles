@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The test helper redirects BaseOutputPath. Keep source fixtures from an earlier normal build out of compilation. -->
+    <Compile Remove="bin/**/*.cs;obj/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\database\sqldockerdeploykit\SQLScripts\002_seed_cycles_data.sql"
           Link="Fixtures\002_seed_cycles_data.sql"
           CopyToOutputDirectory="PreserveNewest" />
