@@ -504,7 +504,7 @@ elements.advanceTurnButton.addEventListener("click", async () => {
     }
 
     if (!commandsAreOpen()) {
-        setTurnMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept player commands.`);
+        setTurnMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept player commands.`, { error: true });
         return;
     }
 
@@ -533,7 +533,7 @@ async function advanceTurn() {
         setTurnMessage(`Published T${result.tickNumber}: ${formatCount(result.ordersProcessed, "sealed fleet intention")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}. Display order did not grant initiative.`);
         await refresh();
     } catch (error) {
-        setTurnMessage(error.message);
+        setTurnMessage(error.message, { error: true });
     } finally {
         elements.confirmAdvanceTurnButton.disabled = false;
         syncCommandWindowControls();
@@ -543,7 +543,7 @@ async function advanceTurn() {
 async function resolveSelfPacedTurn() {
     const control = selfPacedTurnControl();
     if (!control.enabled) {
-        setTurnMessage(control.blockedMessage);
+        setTurnMessage(control.blockedMessage, { error: true });
         if (control.opensGuide) {
             await startOrResumeTutorial();
         }
@@ -567,7 +567,7 @@ async function resolveSelfPacedTurn() {
         await refresh();
     } catch (error) {
         if (!isGameRequestCancellation(error)) {
-            setTurnMessage(error.message);
+            setTurnMessage(error.message, { error: true });
         }
     } finally {
         syncCommandWindowControls();
@@ -847,12 +847,12 @@ elements.priorityForm.addEventListener("submit", async event => {
     event.preventDefault();
     setPriorityMessage("");
     if (!commandsAreOpen()) {
-        setPriorityMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept priority changes.`);
+        setPriorityMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept priority changes.`, { error: true });
         return;
     }
 
     if (!state.empire) {
-        setPriorityMessage("Login before updating priorities.");
+        setPriorityMessage("Login before updating priorities.", { error: true });
         return;
     }
 
@@ -860,7 +860,7 @@ elements.priorityForm.addEventListener("submit", async event => {
     const isDirty = priorityKeys.some(key => payload[key] !== parseWeight(state.empire.priorities[key]));
 
     if (Object.values(payload).reduce((total, value) => total + value, 0) !== 100) {
-        setPriorityMessage("Priorities must total 100.");
+        setPriorityMessage("Priorities must total 100.", { error: true });
         return;
     }
 
@@ -879,7 +879,7 @@ elements.priorityForm.addEventListener("submit", async event => {
             return;
         }
 
-        setPriorityMessage(error.message);
+        setPriorityMessage(error.message, { error: true });
     } finally {
         state.prioritySaving = false;
         renderPriorityControls();
@@ -889,14 +889,14 @@ elements.priorityForm.addEventListener("submit", async event => {
 elements.moveForm.addEventListener("submit", async event => {
     event.preventDefault();
     if (!commandsAreOpen()) {
-        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept movement commands.`);
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept movement commands.`, { error: true });
         return;
     }
 
     const fleetId = state.selectedFleetId;
     const targetSystemId = elements.destinationSelect.value;
     if (!fleetId || !targetSystemId) {
-        setMessage("Select an active fleet with a linked destination.");
+        setMessage("Select an active fleet with a linked destination.", { error: true });
         return;
     }
 
@@ -913,7 +913,7 @@ elements.moveForm.addEventListener("submit", async event => {
     }
 
     if (replacement.duplicate) {
-        setMessage("That move is already the fleet's current intention.");
+        setMessage("That move is already the fleet's current intention.", { error: true });
         return;
     }
 
@@ -929,14 +929,14 @@ elements.moveForm.addEventListener("submit", async event => {
         if (error.code === "stateConflict") {
             await refresh();
         }
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 });
 
 elements.attackForm.addEventListener("submit", async event => {
     event.preventDefault();
     if (!commandsAreOpen()) {
-        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept attack commands.`);
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept attack commands.`, { error: true });
         return;
     }
 
@@ -948,17 +948,17 @@ elements.attackForm.addEventListener("submit", async event => {
         || !selectedFleet
         || selectedFleet.fleet.status !== "active"
         || selectedFleet.fleet.shipCount <= 0) {
-        setMessage("Select an active fleet before attacking.");
+        setMessage("Select an active fleet before attacking.", { error: true });
         return;
     }
 
     if (targetFactions.length === 0) {
-        setMessage("No hostile active fleet is present in this system.");
+        setMessage("No hostile active fleet is present in this system.", { error: true });
         return;
     }
 
     if (targetFactionId && !targetFactions.some(faction => faction.factionId === targetFactionId)) {
-        setMessage("The selected hostile faction has no active fleet in this system.");
+        setMessage("The selected hostile faction has no active fleet in this system.", { error: true });
         return;
     }
 
@@ -975,7 +975,7 @@ elements.attackForm.addEventListener("submit", async event => {
     }
 
     if (replacement.duplicate) {
-        setMessage("That attack is already the fleet's current intention.");
+        setMessage("That attack is already the fleet's current intention.", { error: true });
         return;
     }
 
@@ -991,20 +991,20 @@ elements.attackForm.addEventListener("submit", async event => {
         if (error.code === "stateConflict") {
             await refresh();
         }
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 });
 
 elements.coloniseForm.addEventListener("submit", async event => {
     event.preventDefault();
     if (!commandsAreOpen()) {
-        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept colonisation commands.`);
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept colonisation commands.`, { error: true });
         return;
     }
 
     const fleetId = state.selectedFleetId;
     if (!fleetId) {
-        setMessage("Select an active fleet outside its home system.");
+        setMessage("Select an active fleet outside its home system.", { error: true });
         return;
     }
 
@@ -1022,7 +1022,7 @@ elements.coloniseForm.addEventListener("submit", async event => {
     }
 
     if (replacement.duplicate) {
-        setMessage("That colonisation is already the fleet's current intention.");
+        setMessage("That colonisation is already the fleet's current intention.", { error: true });
         return;
     }
 
@@ -1038,7 +1038,7 @@ elements.coloniseForm.addEventListener("submit", async event => {
         if (error.code === "stateConflict") {
             await refresh();
         }
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 });
 
@@ -1104,7 +1104,7 @@ async function boot() {
         acceptedLocationHash = window.location.hash;
     } catch (error) {
         if (!antiforgeryReady) {
-            showLogin("Secure session setup failed. Refresh the page to try again.");
+            showLogin("Secure session setup failed. Refresh the page to try again.", { error: true });
             return;
         }
 
@@ -1131,7 +1131,7 @@ async function login(playerId) {
     }
 
     elements.loginButton.disabled = true;
-    elements.loginMessage.textContent = "Signing in...";
+    setLiveMessage(elements.loginMessage, "Signing in...");
 
     try {
         const login = await postJson("/auth/login", { playerId });
@@ -1145,7 +1145,7 @@ async function login(playerId) {
         acceptedLocationHash = window.location.hash;
         showGamesHome({ focusHeading: true });
     } catch (error) {
-        showLogin(error.message);
+        showLogin(error.message, { error: true });
     } finally {
         elements.loginButton.disabled = false;
     }
@@ -1170,7 +1170,7 @@ async function signOut() {
         form.submit();
     } catch (error) {
         elements.signOutButton.disabled = false;
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 }
 
@@ -1206,7 +1206,7 @@ function applySession(login) {
     activateHistoryTab(state.historyTab);
 }
 
-function showLogin(message) {
+function showLogin(message, { error = false } = {}) {
     clearSelectedGame();
     if (state.playerId) {
         resetTutorialContext();
@@ -1220,7 +1220,7 @@ function showLogin(message) {
     state.games = [];
     state.empire = null;
     setMapMaximised(false);
-    elements.loginMessage.textContent = message;
+    setLiveMessage(elements.loginMessage, message, { error });
     elements.loginForm.hidden = false;
     elements.sessionSummary.hidden = true;
     elements.appHeaderControls.hidden = true;
@@ -1353,9 +1353,11 @@ function renderGamesHome() {
     elements.gamesHomeSummary.textContent = total === 0
         ? "No games enrolled"
         : `${formatCount(total, "game")} in your archive`;
-    elements.gamesHomeMessage.textContent = home.hasMore
-        ? "Showing the first 100 memberships. Older records remain safely paged."
-        : "";
+    setLiveMessage(
+        elements.gamesHomeMessage,
+        home.hasMore
+            ? "Showing the first 100 memberships. Older records remain safely paged."
+            : "");
     elements.gamesEmptyState.hidden = total !== 0;
     elements.trainingOffer.hidden = !home.training;
     if (home.training) {
@@ -1397,7 +1399,7 @@ async function startTraining() {
 
     elements.startTrainingButton.disabled = true;
     elements.startTrainingButton.textContent = "Preparing…";
-    elements.trainingOfferMessage.textContent = `Preparing ${offer.displayName}…`;
+    setLiveMessage(elements.trainingOfferMessage, `Preparing ${offer.displayName}…`);
     try {
         const attempt = await postJson(
             `/training/${encodeURIComponent(offer.tutorialKey)}/attempts`,
@@ -1408,12 +1410,14 @@ async function startTraining() {
             throw new Error("Training was prepared, but its Game is not yet visible. Refresh your game ledger.");
         }
 
-        elements.trainingOfferMessage.textContent = attempt.created
-            ? `${offer.displayName} is ready.`
-            : `Resuming ${offer.displayName}.`;
+        setLiveMessage(
+            elements.trainingOfferMessage,
+            attempt.created
+                ? `${offer.displayName} is ready.`
+                : `Resuming ${offer.displayName}.`);
         window.location.hash = selectedGameHash(game, "command");
     } catch (error) {
-        elements.trainingOfferMessage.textContent = error.message;
+        setLiveMessage(elements.trainingOfferMessage, error.message, { error: true });
     } finally {
         elements.startTrainingButton.disabled = false;
         elements.startTrainingButton.textContent = "Start Training";
@@ -1548,14 +1552,20 @@ async function navigateFromLocation({ focusHeading = false } = {}) {
     }
     if (route.kind !== "selected") {
         showGamesHome({ focusHeading });
-        elements.gamesHomeMessage.textContent = "Game unavailable. Return to your game ledger and choose an available game.";
+        setLiveMessage(
+            elements.gamesHomeMessage,
+            "Game unavailable. Return to your game ledger and choose an available game.",
+            { error: true });
         return;
     }
 
     const game = gameById(route.gameId);
     if (!game || !["continue", "observe"].includes(game.action)) {
         showGamesHome({ focusHeading });
-        elements.gamesHomeMessage.textContent = "Game unavailable. Return to your game ledger and choose an available game.";
+        setLiveMessage(
+            elements.gamesHomeMessage,
+            "Game unavailable. Return to your game ledger and choose an available game.",
+            { error: true });
         return;
     }
 
@@ -1570,7 +1580,7 @@ async function navigateFromLocation({ focusHeading = false } = {}) {
             await refresh();
         } catch (error) {
             if (!isGameRequestCancellation(error)) {
-                setTurnMessage("Game unavailable. Its details could not be loaded for this account.");
+                setTurnMessage("Game unavailable. Its details could not be loaded for this account.", { error: true });
             }
         }
     }
@@ -3103,12 +3113,12 @@ function orderCard(order, allowCancel) {
 
 async function cancelOrder(fleetOrderId) {
     if (!commandsAreOpen()) {
-        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept cancellations.`);
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept cancellations.`, { error: true });
         return;
     }
 
     if (!state.empire) {
-        setMessage("Login before cancelling orders.");
+        setMessage("Login before cancelling orders.", { error: true });
         return;
     }
 
@@ -3121,24 +3131,24 @@ async function cancelOrder(fleetOrderId) {
             return;
         }
 
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 }
 
 async function recallFleet(fleetId) {
     if (!commandsAreOpen()) {
-        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept Recall commands.`);
+        setMessage(`${state.turnResolution?.stageLabel ?? "This turn"} does not accept Recall commands.`, { error: true });
         return;
     }
 
     if (!state.empire) {
-        setMessage("Login before recalling fleets.");
+        setMessage("Login before recalling fleets.", { error: true });
         return;
     }
 
     const transit = transitCommitments().find(item => item.fleetId === fleetId);
     if (!transit || transit.isReturning || transit.pendingRecallOrderId) {
-        setMessage("This fleet cannot be recalled from its current journey state.");
+        setMessage("This fleet cannot be recalled from its current journey state.", { error: true });
         return;
     }
 
@@ -3163,7 +3173,7 @@ async function recallFleet(fleetId) {
             return;
         }
 
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 }
 
@@ -3353,7 +3363,7 @@ async function advanceTrainingTutorial() {
         await refresh();
     } catch (error) {
         if (!isGameRequestCancellation(error)) {
-            setMessage(error.message);
+            setMessage(error.message, { error: true });
             renderTrainingTutorial();
         }
     }
@@ -3370,7 +3380,7 @@ async function startOrResumeTutorial() {
             state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "active" });
         } catch (error) {
             if (!isGameRequestCancellation(error)) {
-                setMessage(error.message);
+                setMessage(error.message, { error: true });
             }
             return;
         }
@@ -3408,7 +3418,7 @@ async function resetTutorial() {
         window.location.hash = selectedGameHash(game, "command");
     } catch (error) {
         if (!isGameRequestCancellation(error)) {
-            setMessage(error.message);
+            setMessage(error.message, { error: true });
         }
     } finally {
         elements.tutorialResetButton.disabled = false;
@@ -3427,7 +3437,7 @@ async function pauseTutorial() {
         syncCommandWindowControls();
     } catch (error) {
         if (!isGameRequestCancellation(error)) {
-            setMessage(error.message);
+            setMessage(error.message, { error: true });
         }
     }
 }
@@ -3450,7 +3460,7 @@ async function skipTutorial() {
         syncCommandWindowControls();
     } catch (error) {
         if (!isGameRequestCancellation(error)) {
-            setMessage(error.message);
+            setMessage(error.message, { error: true });
         }
     }
 }
@@ -4832,7 +4842,7 @@ async function selectFleet(fleetId) {
             return;
         }
 
-        setMessage(error.message);
+        setMessage(error.message, { error: true });
     }
 }
 
@@ -4870,7 +4880,7 @@ function selectCommandMoveTarget(targetSystemId) {
     elements.destinationSelect.value = targetIsAvailable ? targetSystemId : "";
     renderMoveActionHint();
     if (!targetIsAvailable) {
-        setMessage("The briefing destination is no longer available from this fleet's current system.");
+        setMessage("The briefing destination is no longer available from this fleet's current system.", { error: true });
     }
     return targetIsAvailable;
 }
@@ -5093,16 +5103,21 @@ async function readResponse(response) {
     return payload;
 }
 
-function setMessage(message) {
-    elements.orderMessage.textContent = message;
+function setLiveMessage(element, message, { error = false } = {}) {
+    element.setAttribute("role", error ? "alert" : "status");
+    element.textContent = message;
 }
 
-function setPriorityMessage(message) {
-    elements.priorityMessage.textContent = message;
+function setMessage(message, options) {
+    setLiveMessage(elements.orderMessage, message, options);
 }
 
-function setTurnMessage(message) {
-    elements.turnMessage.textContent = message;
+function setPriorityMessage(message, options) {
+    setLiveMessage(elements.priorityMessage, message, options);
+}
+
+function setTurnMessage(message, options) {
+    setLiveMessage(elements.turnMessage, message, options);
 }
 
 function rebalancePriorityDraft(activeKey, requestedValue) {
@@ -5272,6 +5287,6 @@ function escapeHtml(value) {
 }
 
 boot().catch(error => {
-    setMessage(error.message);
+    setMessage(error.message, { error: true });
     console.error(error);
 });

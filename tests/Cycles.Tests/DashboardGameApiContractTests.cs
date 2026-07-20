@@ -115,7 +115,7 @@ public sealed class DashboardGameApiContractTests
         Assert.True(tokenRequest > tryStart);
         Assert.True(session > tokenRequest);
         Assert.Contains("if (!antiforgeryReady)", boot, StringComparison.Ordinal);
-        Assert.Contains("showLogin(\"Secure session setup failed. Refresh the page to try again.\");", boot, StringComparison.Ordinal);
+        Assert.Contains("showLogin(\"Secure session setup failed. Refresh the page to try again.\", { error: true });", boot, StringComparison.Ordinal);
         Assert.Contains("return;", boot, StringComparison.Ordinal);
     }
 
