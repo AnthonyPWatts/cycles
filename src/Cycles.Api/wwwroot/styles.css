@@ -301,7 +301,7 @@ select {
     min-width: 118px;
 }
 
-.map-title strong {
+.map-title .workspace-title {
     color: var(--text);
     font-size: 1.08rem;
     letter-spacing: 0.01em;
@@ -676,6 +676,30 @@ select {
     min-height: 0;
     overflow: auto;
     background: var(--surface);
+}
+
+.workspace-title {
+    width: calc(100% - 36px);
+    max-width: 1764px;
+    margin: 12px auto 0;
+    padding: 0;
+    color: var(--text);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.05rem, 1.4vw, 1.3rem);
+    line-height: 1.2;
+    letter-spacing: 0.035em;
+}
+
+.workspace-title:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+}
+
+.workspace-title--map {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
 }
 
 .section-kicker {
@@ -1421,6 +1445,10 @@ body.map-maximised {
 
 .history-view > .subview-tabs {
     margin: 18px max(18px, calc((100% - 1240px) / 2)) 0;
+}
+
+.history-view > .workspace-title {
+    max-width: 1204px;
 }
 
 .history-workspace {

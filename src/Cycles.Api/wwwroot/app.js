@@ -1597,7 +1597,7 @@ function showGamesHome({ focusHeading = false } = {}) {
     document.body.classList.add("account-active");
     document.title = "Your games · Cycles";
     if (focusHeading) {
-        requestAnimationFrame(() => elements.gamesHomeTitle.focus({ preventScroll: true }));
+        requestAnimationFrame(() => elements.gamesHomeTitle.focus());
     }
 }
 
@@ -1686,7 +1686,7 @@ function activateView(viewId, { updateLocation = false, focusHeading = false } =
 
     if (focusHeading) {
         const heading = document.querySelector(`[data-view="${selectedView}"] h1`);
-        requestAnimationFrame(() => heading?.focus({ preventScroll: true }));
+        requestAnimationFrame(() => heading?.focus());
     }
 }
 

@@ -23,7 +23,11 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain("class=\"panel-heading\"", html);
         Assert.DoesNotContain("id=\"commandPulse\"", html);
         Assert.DoesNotContain("renderCommandSummary", script);
-        Assert.Equal(4, Regex.Matches(html, "<h1[^>]*class=\"visually-hidden\"[^>]*tabindex=\"-1\"").Count);
+        Assert.Equal(4, Regex.Matches(html, "<h1[^>]*class=\"workspace-title[^\"]*\"[^>]*tabindex=\"-1\"").Count);
+        Assert.DoesNotMatch(new Regex("<h1[^>]*class=\"visually-hidden\""), html);
+        Assert.Contains("requestAnimationFrame(() => heading?.focus());", script);
+        Assert.Contains("requestAnimationFrame(() => elements.gamesHomeTitle.focus());", script);
+        Assert.DoesNotContain("heading?.focus({ preventScroll: true })", script);
 
         Assert.Contains("window.addEventListener(\"hashchange\"", script);
         Assert.Contains("const selectedHash = selectedGameHash(selectedGame, selectedView);", script);
@@ -59,8 +63,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-training-only-1", html);
-        Assert.Contains("app.js?v=20260720-training-only-1", html);
+        Assert.Contains("styles.css?v=20260720-workspace-headings-1", html);
+        Assert.Contains("app.js?v=20260720-workspace-headings-1", html);
         Assert.Contains("aria-label=\"Core foundations\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -69,6 +73,9 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain(">Refresh</button>", toolbar);
         Assert.Matches(
             new Regex(@"\.toolbar-actions \.toolbar-icon-button\s*\{[^}]*inline-size:\s*44px;[^}]*block-size:\s*44px;", RegexOptions.Singleline),
+            css);
+        Assert.Matches(
+            new Regex(@"\.workspace-title:focus\s*\{[^}]*outline:\s*2px solid var\(--gold\);", RegexOptions.Singleline),
             css);
         Assert.Contains(".toolbar-actions .toolbar-icon-button[hidden]", css);
         Assert.Contains("assets/icons/guide.svg", css);
