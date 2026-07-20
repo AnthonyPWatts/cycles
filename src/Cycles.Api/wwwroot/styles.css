@@ -3775,6 +3775,20 @@ dd {
         padding-bottom: 8px;
     }
 
+    .tutorial-panel > * {
+        min-width: 0;
+    }
+
+    .tutorial-heading-row {
+        display: grid;
+        gap: 8px;
+    }
+
+    .tutorial-heading-row > .tutorial-heading-actions {
+        justify-content: start;
+        flex-wrap: wrap;
+    }
+
     #tutorialShowMeButton:not([hidden]) ~ #tutorialNextButton:not([hidden]) {
         grid-column: 1 / -1;
     }
@@ -3783,10 +3797,18 @@ dd {
         padding-bottom: min(56dvh, 460px);
     }
 
+    body.turn-ribbon-active.tutorial-active {
+        padding-bottom: calc(min(56dvh, 460px) + var(--turn-ribbon-height));
+    }
+
     .tutorial-panel {
         gap: 8px;
-        max-height: min(56dvh, 460px);
         padding: 12px;
+    }
+
+    body.tutorial-active .tutorial-panel,
+    body.tutorial-active .tutorial-panel.is-right {
+        max-height: min(56dvh, 460px);
     }
 
     .tutorial-admiral {
@@ -3797,6 +3819,26 @@ dd {
 
     .tutorial-target {
         scroll-margin-block: 130px 59dvh;
+    }
+}
+
+@media (max-width: 560px) and (max-height: 500px) {
+    body.tutorial-active,
+    body.turn-ribbon-active.tutorial-active {
+        padding-bottom: 0;
+    }
+
+    body.tutorial-active .tutorial-panel,
+    body.tutorial-active .tutorial-panel.is-right {
+        top: 0;
+        bottom: 0;
+        height: 100dvh;
+        max-height: 100dvh;
+        border-radius: 0;
+    }
+
+    .tutorial-actions {
+        position: static;
     }
 }
 
@@ -5470,6 +5512,23 @@ select {
     }
 }
 
+@media (max-width: 767px) {
+    .view-nav a {
+        grid-template-columns: minmax(0, 1fr);
+        padding-inline: 4px;
+    }
+
+    .view-nav-chapter,
+    .view-nav small,
+    .view-badge {
+        display: none;
+    }
+
+    .view-nav-label {
+        text-align: center;
+    }
+}
+
 @media (max-width: 560px) {
     :root {
         --turn-ribbon-height: 60px;
@@ -5525,7 +5584,7 @@ select {
     .view-nav a {
         grid-template-columns: minmax(0, 1fr);
         min-height: 58px;
-        padding: 8px 6px;
+        padding: 8px 2px;
     }
 
     .view-nav-chapter,
@@ -5536,7 +5595,7 @@ select {
 
     .view-nav-label {
         font-size: 0.7rem;
-        letter-spacing: 0.07em;
+        letter-spacing: 0.04em;
     }
 
     .command-workspace {

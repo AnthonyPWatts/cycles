@@ -13,8 +13,8 @@ public sealed class DashboardTrainingShowMeRegressionTests
 
         Assert.Contains("id=\"tutorialShowMeButton\"", html);
         Assert.Contains(">Show me</button>", html);
-        Assert.Contains("styles.css?v=20260720-training-show-me-1", html);
-        Assert.Contains("app.js?v=20260720-training-show-me-1", html);
+        Assert.Contains("styles.css?v=20260720-zoom-reflow-1", html);
+        Assert.Contains("app.js?v=20260720-zoom-reflow-1", html);
         Assert.Contains("tutorialShowMeButton: document.querySelector(\"#tutorialShowMeButton\")", script);
         Assert.Contains("elements.tutorialShowMeButton.addEventListener(\"click\", showTrainingTutorialTarget)", script);
         Assert.DoesNotContain("trainingTutorialTarget", renderer);
