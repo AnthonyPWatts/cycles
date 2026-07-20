@@ -59,8 +59,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-guide-layout-1", html);
-        Assert.Contains("app.js?v=20260720-guide-layout-1", html);
+        Assert.Contains("styles.css?v=20260720-touch-targets-1", html);
+        Assert.Contains("app.js?v=20260720-touch-targets-1", html);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -68,7 +68,7 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain(">Advance turn</button>", toolbar);
         Assert.DoesNotContain(">Refresh</button>", toolbar);
         Assert.Matches(
-            new Regex(@"\.toolbar-actions \.toolbar-icon-button\s*\{[^}]*inline-size:\s*36px;[^}]*block-size:\s*36px;", RegexOptions.Singleline),
+            new Regex(@"\.toolbar-actions \.toolbar-icon-button\s*\{[^}]*inline-size:\s*44px;[^}]*block-size:\s*44px;", RegexOptions.Singleline),
             css);
         Assert.Contains(".toolbar-actions .toolbar-icon-button[hidden]", css);
         Assert.Contains("assets/icons/guide.svg", css);
