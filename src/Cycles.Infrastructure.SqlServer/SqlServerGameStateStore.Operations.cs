@@ -7,6 +7,38 @@ namespace Cycles.Infrastructure.SqlServer;
 
 public sealed partial class SqlServerGameStateStore
 {
+    public GalaxyTopologyUpgradeResult UpgradeGalaxyTopology(Guid cycleId)
+    {
+        var scope = GetRequiredCycleScope(cycleId);
+        var changed = false;
+        return ExecuteOperatorCycleMutation(
+            scope,
+            state =>
+            {
+                if (state.Cycles.Any(item => item.Status == CycleStatus.RecoveryRequired)
+                    || state.TickLogs.Any(item => item.Status == TickLogStatus.Running))
+                {
+                    throw new InvalidOperationException(
+                        "Galaxy topology upgrade is unavailable while the selected Game requires recovery.");
+                }
+
+                var result = GameSeeder.UpgradeGalaxyTopology(state);
+                changed = result.Changed;
+                return result;
+            },
+            (connection, transaction, state, mutationScope) =>
+            {
+                if (changed)
+                {
+                    SaveGalaxyTopologyUpgradeUnsafe(
+                        connection,
+                        transaction,
+                        state,
+                        mutationScope);
+                }
+            });
+    }
+
     public IReadOnlyList<CycleRanking> CompleteCycle(
         Guid cycleId,
         DateTimeOffset cutoffAt)
@@ -224,6 +256,34 @@ public sealed partial class SqlServerGameStateStore
         foreach (var eventRecord in state.Events.Where(item => item.CycleId == scope.CycleId))
         {
             UpsertEvent(connection, transaction, eventRecord);
+        }
+    }
+
+    private static void SaveGalaxyTopologyUpgradeUnsafe(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameState state,
+        GameCycleScope scope)
+    {
+        Execute(
+            connection,
+            transaction,
+            "DELETE FROM dbo.SystemLinks WHERE CycleID = @CycleID;",
+            command => AddGuid(command, "@CycleID", scope.CycleId));
+
+        foreach (var sector in state.Sectors.Where(item => item.CycleId == scope.CycleId))
+        {
+            UpsertSector(connection, transaction, sector);
+        }
+
+        foreach (var system in state.Systems.Where(item => item.CycleId == scope.CycleId))
+        {
+            UpsertSystem(connection, transaction, system);
+        }
+
+        foreach (var link in state.SystemLinks.Where(item => item.CycleId == scope.CycleId))
+        {
+            UpsertSystemLink(connection, transaction, link);
         }
     }
 

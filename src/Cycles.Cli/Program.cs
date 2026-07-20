@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 using System.Text;
@@ -687,22 +688,8 @@ static int RunGalaxyCommand(string[] args)
             var connectionString = ParseRequiredSqlServerConnectionString(args, 2);
             EnsureDatabaseSchemaCurrent(connectionString);
             var store = new SqlServerGameStateStore(connectionString, () => new GameState());
-            var result = store.UpdateActiveCycleExclusively(state =>
-            {
-                var activeCycles = state.Cycles.Where(item => item.Status == CycleStatus.Active).ToArray();
-                if (activeCycles.Length != 1)
-                {
-                    throw new InvalidOperationException($"Galaxy topology upgrade requires exactly one active Cycle; found {activeCycles.Length}.");
-                }
-
-                if (state.Cycles.Any(item => item.Status == CycleStatus.RecoveryRequired)
-                    || state.TickLogs.Any(item => item.Status == TickLogStatus.Running))
-                {
-                    throw new InvalidOperationException("Galaxy topology upgrade is unavailable while a Cycle or tick attempt requires recovery.");
-                }
-
-                return GameSeeder.UpgradeGalaxyTopology(state);
-            });
+            var legacyScope = ((ILegacyRuntimeScopeQuery)store).GetRequired();
+            var result = store.UpgradeGalaxyTopology(legacyScope.CycleId);
 
             if (!result.Changed)
             {

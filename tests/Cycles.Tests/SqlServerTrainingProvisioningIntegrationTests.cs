@@ -157,6 +157,36 @@ public sealed class SqlServerTrainingProvisioningIntegrationTests
     }
 
     [Fact]
+    public void Legacy_galaxy_upgrade_remains_explicit_when_training_adds_a_second_active_cycle()
+    {
+        var connectionString = SqlIntegrationGuard.GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var state = GameSeeder.CreateDevelopmentMatch(createdAt: Now.AddDays(-1));
+        var player = state.Players.First(item =>
+            item.Kind == PlayerKind.Human && item.Status == PlayerStatus.Active);
+        var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+        store.Replace(state);
+        var training = Assert.IsType<TrainingGameProvisioningResult.Success>(
+            store.ProvisionTwinReaches(
+                new TrainingGameProvisioningCommand(player.PlayerId, Guid.NewGuid(), Now))).Value;
+
+        var legacyScope = ((ILegacyRuntimeScopeQuery)store).GetRequired();
+        var result = store.UpgradeGalaxyTopology(legacyScope.CycleId);
+
+        Assert.False(result.Changed);
+        var persisted = store.LoadOrCreate();
+        Assert.Equal(2, persisted.Cycles.Count(item => item.Status == CycleStatus.Active));
+        Assert.Equal(
+            GameSeeder.CanonicalGalaxySystemCount,
+            persisted.Systems.Count(item => item.CycleId == legacyScope.CycleId));
+        Assert.Equal(10, persisted.Systems.Count(item => item.CycleId == training.CycleId));
+    }
+
+    [Fact]
     public void Four_resolution_core_journey_is_derived_from_real_mechanics_and_persists_completion()
     {
         var connectionString = SqlIntegrationGuard.GetConnectionString();
@@ -342,6 +372,16 @@ public sealed class SqlServerTrainingProvisioningIntegrationTests
         Assert.True(
             resolutionResult is CycleResolutionResult.Completed
                 or CycleResolutionResult.Unavailable);
+        if (freshResult is TutorialAttemptResult<FreshTrainingAttemptSnapshot>.Busy)
+        {
+            freshResult = store.StartFresh(
+                new FreshTrainingAttemptCommand(
+                    player.PlayerId,
+                    provisioned.GameId,
+                    requestId,
+                    Now.AddMinutes(2)));
+        }
+
         var replacement = Assert.IsType<TutorialAttemptResult<FreshTrainingAttemptSnapshot>.Success>(
             freshResult).Value;
         Assert.True(replacement.Created);
@@ -352,7 +392,7 @@ public sealed class SqlServerTrainingProvisioningIntegrationTests
                     player.PlayerId,
                     provisioned.GameId,
                     requestId,
-                    Now.AddMinutes(2)))).Value;
+                    Now.AddMinutes(3)))).Value;
         Assert.False(replay.Created);
         Assert.Equal(replacement.TutorialRunId, replay.TutorialRunId);
         Assert.Equal(replacement.GameId, replay.GameId);
