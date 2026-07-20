@@ -20,6 +20,8 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Connection
 dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString"
 ```
 
+The API, Worker and CLI also validate the immutable code-owned Game profile catalogue at startup. A profile key/version whose calculated content differs from its declared SHA-256 hash fails startup deliberately; change the profile version and persisted provenance rather than replacing historical content in place. Database-authored map or scenario profiles are not supported.
+
 The [SQL Server runbook](../database/sqldockerdeploykit/README.md) owns database setup and integration-test instructions. API, Worker, and gameplay/operator CLI commands use SQL Server exclusively. JSON remains only in explicit versioned transfer, validation, legacy conversion, offline-inspection, fixture, and migration-evidence paths; there is no file-store fallback.
 
 ## Development Cold Start

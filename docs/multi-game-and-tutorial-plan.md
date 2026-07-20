@@ -1,6 +1,6 @@
 # Multi-game and tutorial platform plan
 
-Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 through MG-05 are implemented and have passed their integrated local technical gate. MG-03 removes online whole-state mutation through focused account, Game and Cycle stores. MG-04 provides Player-only authentication, explicit selected-Game routes and contexts, legacy-Game adapters to the same handlers, resource authorisation and shared antiforgery protection. MG-05 adds transfer v7, migration 025 scheduling state, batch-one due discovery and explicit Game-then-Cycle resolution. The Games home, second-Game runtime, roster-aware profile factory, Twin Reaches and standard profile catalogues, Training provisioning, and tutorial journey are not implemented.
+Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 through MG-06 are implemented and have passed their integrated local technical gates. MG-03 removes online whole-state mutation through focused account, Game and Cycle stores. MG-04 provides Player-only authentication, explicit selected-Game routes and contexts, legacy-Game adapters to the same handlers, resource authorisation and shared antiforgery protection. MG-05 adds transfer v7, migration 025 scheduling state, batch-one due discovery and explicit Game-then-Cycle resolution. MG-06 adds immutable Standard and Twin Reaches catalogues plus deterministic roster-aware Cycle materialisation from existing enrolled Human Players. The Games home, second-Game runtime, Training provisioning, and tutorial journey are not implemented.
 
 Last reviewed: 20 July 2026
 
@@ -2027,7 +2027,7 @@ Mutating commands continue to require exact IDs, operator and non-empty reason. 
 
 ### 28.4 Proposed implementation issue map
 
-These labels remain the programme decomposition map rather than live ticket numbers. MG-01 through MG-05 were delivered as bounded prerequisite slices and their integrated technical gate is signed off by the evidence recorded in `docs/project-state.md`; creating a programme epic or external issues for the remaining work still requires separate authority. Implemented here does not mean the Games home, profile factory, Training Game or tutorial journey exists.
+These labels remain the programme decomposition map rather than live ticket numbers. MG-01 through MG-06 were delivered as bounded prerequisite slices and their integrated technical gates are signed off by the evidence recorded in `docs/project-state.md`; creating a programme epic or external issues for the remaining work still requires separate authority. Implemented here does not mean the Games home, Training Game or tutorial journey exists.
 
 | Label | Increment | Scope and exit evidence | Depends on |
 |---|---:|---|---|
@@ -2037,7 +2037,7 @@ These labels remain the programme decomposition map rather than live ticket numb
 | MG-03 | 1 | **Implemented:** focused account/Game/Cycle stores; empty API/Worker whole-state allowance | MG-01 |
 | MG-04 | 1 | **Implemented:** Player-only authentication, access/command contexts, every current player route scoped or legacy-pinned to the same handler, resource authorisation and antiforgery | MG-03 |
 | MG-05 | 1 | **Implemented:** transfer v7 and migration 025 scheduling; explicit due-ID selector and Game-then-Cycle resolution at batch size one | MG-01, MG-03 |
-| MG-06 | 1 | minimal roster-aware factory, standard/Twin Reaches profiles and validators | MG-01, MG-02 |
+| MG-06 | 1 | **Implemented:** minimal roster-aware factory, immutable Standard/Twin Reaches profiles, startup validators and SQL round trips | MG-01, MG-02 |
 | MG-07 | 1 | minimal Games home and two-tab/account-level selection isolation; the selected-route client generation guard is implemented | MG-04 |
 | MG-08 | 1 | private Training provisioning, ordinary first Move/resolve/return and flag rollout | MG-05, MG-06, MG-07 |
 | MG-09 | 2 | server-derived Core journey, recovery, skip/pause/fresh-attempt semantics | MG-08 |

@@ -6,6 +6,8 @@ var command = args.ElementAtOrDefault(0)?.ToLowerInvariant() ?? "show";
 
 try
 {
+    GameProfileCatalogue.EnsureValid();
+
     if (command == "db")
     {
         return RunDatabaseCommand(args);

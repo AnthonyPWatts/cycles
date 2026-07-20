@@ -2055,3 +2055,24 @@ Consequences:
 - The Worker's batch size is deliberately one. Fairness, backlog capacity, leadership, shutdown and health evidence for several scheduled Games remain MG-12/#132 work and require an approved host before production claims.
 - Migration 025 and v7 transfer are forward-write boundaries. Older transfers are adapted on read; older database writers must not be used after deployment.
 - This closes explicit Worker selection as a prerequisite. It does not create a Standard or Training Game, provision Twin Reaches, implement a tutorial journey, or authorise a paid Worker service.
+
+## 2026-07-20: Materialize Code-Owned Profiles From Existing Human Rosters
+
+Decision: define immutable versioned Standard and Twin Reaches catalogues in Core and materialize a locked `CycleConfiguration` with the existing enrolled active Human Players. The deterministic Cycle identity is the configuration identity; topology, empires, participants, factions, resources, priorities, admirals, fleets and provenance events use deterministic derived identifiers. The factory works on a clone and replaces state only after complete validation, so a failed roster/profile/start operation leaves no partial Cycle.
+
+Validate declared SHA-256 hashes, unique keys and versions, roster bounds, coordinates, references, connected topology and legal travel times at API, Worker and CLI startup. The canonical 8-sector/64-system topology is the Standard map profile. `tutorial-foundations-v1` is the self-paced one-Human Twin Reaches profile with two sectors, ten systems, thirteen routes and neutral Drift Corsairs that have no Player, participant or empire economy.
+
+Status: MG-06 is implemented in Core with focused domain/simulation tests and SQL round-trip evidence. No API or CLI operation creates a Game through it yet.
+
+Reasoning:
+
+- Authentication and scenarios must not manufacture persistent Player accounts and rewrite them later.
+- A hard-coded content hash tied to a version makes accidental in-place profile changes a startup failure rather than silent historical drift.
+- Deterministic identifiers make a retry naturally return the same Cycle and avoid duplicate materialization.
+- Twin Reaches must exercise ordinary orders and authoritative resolution; it is scenario data, not a second simulation branch.
+
+Consequences:
+
+- Standard creation supports one to six existing Human enrolments without AI seat fill. Twin Reaches accepts exactly one existing Human enrolment; neutral fleets remain normal scenario actors.
+- Training remains unavailable to Players until MG-07 supplies the account shell and MG-08 supplies private idempotent Training provisioning.
+- Future profile changes require a new version and hash. Arbitrary database-authored maps and policies remain outside the supported boundary.

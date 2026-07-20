@@ -191,6 +191,52 @@ public static class GameSeeder
         return state;
     }
 
+    internal static MapProfileBlueprint CreateCanonicalProfileBlueprint()
+    {
+        var cycle = new Cycle { CycleId = Guid.Empty };
+        var state = new GameState();
+        AddCanonicalGalaxy(state, cycle, DateTimeOffset.UnixEpoch);
+
+        var sectorNames = state.Sectors.ToDictionary(item => item.SectorId, item => item.SectorName);
+        var systemNames = state.Systems.ToDictionary(item => item.SystemId, item => item.SystemName);
+        return new MapProfileBlueprint(
+            state.Sectors
+                .OrderBy(item => item.SortOrder)
+                .ThenBy(item => item.SectorName, StringComparer.Ordinal)
+                .Select(item => new MapSectorProfile(
+                    item.SectorName,
+                    item.SectorName,
+                    item.CentreX,
+                    item.CentreY,
+                    item.SortOrder))
+                .ToArray(),
+            state.Systems
+                .OrderBy(item => item.SystemName, StringComparer.Ordinal)
+                .Select(item => new MapSystemProfile(
+                    item.SystemName,
+                    item.SystemName,
+                    sectorNames[item.SectorId],
+                    item.X,
+                    item.Y,
+                    item.IndustryOutput,
+                    item.ResearchOutput,
+                    item.PopulationOutput,
+                    item.StrategicValue,
+                    item.HistoricalSignificance))
+                .ToArray(),
+            state.SystemLinks
+                .Select(item =>
+                {
+                    var first = systemNames[item.SystemAId];
+                    var second = systemNames[item.SystemBId];
+                    return string.CompareOrdinal(first, second) <= 0
+                        ? new MapRouteProfile($"{first}|{second}", first, second, item.TravelTicks)
+                        : new MapRouteProfile($"{second}|{first}", second, first, item.TravelTicks);
+                })
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .ToArray());
+    }
+
     public static GalaxyTopologyUpgradeResult UpgradeGalaxyTopology(GameState state)
     {
         ArgumentNullException.ThrowIfNull(state);

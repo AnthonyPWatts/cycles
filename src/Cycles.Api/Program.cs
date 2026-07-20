@@ -10,6 +10,7 @@ using System.Net;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+GameProfileCatalogue.EnsureValid();
 var trustedPlayerSelectionEnabled = builder.Configuration.GetValue<bool?>("Cycles:TrustedPlayerSelection:Enabled")
     ?? builder.Environment.IsDevelopment();
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")

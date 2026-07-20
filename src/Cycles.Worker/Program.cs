@@ -1,4 +1,5 @@
 using Cycles.Application;
+using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 using Cycles.Worker;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
+GameProfileCatalogue.EnsureValid();
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
