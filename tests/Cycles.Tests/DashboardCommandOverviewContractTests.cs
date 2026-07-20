@@ -40,8 +40,8 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("elements.priorityDraftStatus.textContent = state.prioritySaving ? \"Saving\" : isDirty ? \"Unsaved\" : \"Saved\";", script);
         Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving || !commandsAreOpen();", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
-        Assert.Contains("target: () => document.querySelector(\"#prioritySection\")", script);
-        Assert.Contains("The 100 points represent strategic effort, not the three resource stockpiles.", script);
+        Assert.Contains("if (lesson.key === \"T1\")", script);
+        Assert.Contains("return elements.prioritySection;", script);
     }
 
     [Fact]
@@ -98,18 +98,16 @@ public sealed class DashboardCommandOverviewContractTests
     }
 
     [Fact]
-    public void Day_one_teaches_phase_order_and_checks_real_objective_outcomes()
+    public void Training_resolution_uses_the_authoritative_journey_evidence()
     {
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("version: \"v4\"", script);
-        Assert.Contains("id: \"phase-order\"", script);
-        Assert.Contains("Recall then acts before passive arrival and movement", script);
-        Assert.Contains("id: \"resolution-results\"", script);
-        Assert.Contains("tutorialObjectiveOutcomeSummary()", script);
-        Assert.Contains("curatedObjectiveOutcomesRecorded()", script);
-        Assert.Contains("order.status === \"processed\" || order.status === \"rejected\"", script);
-        Assert.Contains("Event timestamps do not grant priority.", script);
+        Assert.Contains("lesson.mechanicalEvidence.summary", script);
+        Assert.Contains("lesson.mechanicalEvidence.satisfied", script);
+        Assert.Contains("lesson.presentationAcknowledgement.required", script);
+        Assert.Contains("/tutorial/acknowledgements", script);
+        Assert.Contains("/tutorial/resolve", script);
+        Assert.Contains("result.journey", script);
     }
 
     [Fact]

@@ -27,7 +27,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - compete against Ariadne's deterministic game-AI policy as it attacks weaker local forces, establishes outposts, and advances towards valuable systems;
 - resolve deterministic combat and persist factual events, admirals, and Chronicle reports;
 - record map-control metrics, complete a Cycle, preserve major history, and generate a successor Cycle;
-- learn the Standard opening through the existing click-along guide, or complete Training's server-derived four-resolution Core journey using ordinary orders and authoritative outcomes;
+- play the Standard opening through its ordinary Council Agenda, or learn through Training's server-derived four-resolution Core journey using ordinary orders and authoritative outcomes;
 - run local and trusted-playground hosts against SQL Server, with versioned JSON retained only for explicit operator transfer, fixtures, inspection, and migration evidence.
 
 This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.

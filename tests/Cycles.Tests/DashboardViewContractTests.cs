@@ -33,7 +33,6 @@ public sealed class DashboardViewContractTests
         Assert.Contains("const selectedHash = selectedGameHash(selectedGame, selectedView);", script);
         Assert.Contains("window.history.replaceState(null, \"\", selectedHash);", script);
         Assert.Contains("link.setAttribute(\"aria-current\", \"page\");", script);
-        Assert.Contains("activateView(step.view, { updateLocation: true });", script);
     }
 
     [Fact]
@@ -315,35 +314,31 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
-    public void Day_one_guide_points_to_the_required_fleet_before_its_action_form()
+    public void Training_guide_points_to_the_required_fleet_before_its_action_form()
     {
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("state.selectedFleetId === moveFleetId", script);
-        Assert.Contains("state.selectedFleetId === colonise.fleetId", script);
-        Assert.Contains("state.selectedFleetId === attack.fleetId", script);
-        Assert.Contains("document.querySelector(`[data-fleet-id=\"${moveFleetId}\"]`)", script);
-        Assert.Contains("document.querySelector(`[data-fleet-id=\"${colonise.fleetId}\"]`)", script);
-        Assert.Contains("document.querySelector(`[data-fleet-id=\"${attack.fleetId}\"]`)", script);
+        Assert.Contains("activateFleetAction(\"move\")", script);
+        Assert.Contains("return trainingFleetTarget(\"Home Guard\");", script);
+        Assert.Contains("activateFleetAction(\"attack\")", script);
+        Assert.Contains("return trainingFleetTarget(\"Vanguard\");", script);
+        Assert.Contains("document.querySelector(`[data-fleet-id=\"${item.fleet.fleetId}\"]`)", script);
     }
 
     [Fact]
-    public void Day_one_guide_uses_typed_briefing_and_teaches_visibility_and_cycle_history()
+    public void Council_agenda_uses_the_typed_opening_briefing_without_event_json_parsing()
     {
         var script = ReadDashboardAsset("app.js");
 
-        Assert.Contains("version: \"v4\"", script);
         Assert.Contains("openingBriefing, turnResolution } = bootstrap", script);
+        Assert.Contains("const briefing = state.openingBriefing;", script);
+        Assert.Contains("briefing?.objectives?.move", script);
         Assert.DoesNotContain("event.factJson", script);
         Assert.DoesNotContain("JSON.parse(event.factJson)", script);
-        Assert.Contains("id: \"visibility\"", script);
-        Assert.Contains("galaxy topology and routes", script);
-        Assert.Contains("id: \"cycle-history\"", script);
-        Assert.Contains("an operator ends the Cycle", script);
     }
 
     [Fact]
-    public void Day_one_guide_opens_with_the_players_starting_admiral_across_welcome_command_and_map()
+    public void Training_guide_opens_with_the_players_starting_admiral_and_adaptive_panel()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -358,14 +353,8 @@ public sealed class DashboardViewContractTests
         Assert.Contains("astrolabe-gold-human-01", script);
         Assert.Contains("item.fleet.empireId === state.empire?.empireId && item.admiral", script);
         Assert.Contains("stableTutorialPortraitIndex(admiral?.admiralId", script);
-        Assert.Contains("Hi, ${playerName}. ${guideAdmiral.displayName} speaking.", script);
-
-        var welcome = script.IndexOf("id: \"welcome\"", StringComparison.Ordinal);
-        var command = script.IndexOf("id: \"command-introduction\"", StringComparison.Ordinal);
-        var map = script.IndexOf("id: \"map-introduction\"", StringComparison.Ordinal);
-        Assert.True(welcome >= 0 && welcome < command && command < map);
-        Assert.Contains("classList.toggle(\"is-right\", tutorialPanelShouldSitOnRight(step, target))", script);
-        Assert.Contains("panelPlacement: \"right\"", script);
+        Assert.Contains("renderTutorialAdmiral();", script);
+        Assert.Contains("classList.toggle(\"is-right\", tutorialPanelShouldSitOnRight(target))", script);
         Assert.Contains("target.getBoundingClientRect()", script);
         Assert.DoesNotContain("tutorialTitle.focus", script);
         Assert.DoesNotContain("renderTutorial({ focusHeading", script);
@@ -374,7 +363,7 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
-    public void Day_one_guide_can_reset_its_progress_without_adding_another_toolbar_action()
+    public void Training_guide_can_start_fresh_without_adding_another_toolbar_action()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -387,13 +376,14 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
-    public void Day_one_guide_focuses_system_steps_and_keeps_narrow_actions_visible()
+    public void Training_guide_targets_server_lessons_and_keeps_narrow_actions_visible()
     {
         var script = ReadDashboardAsset("app.js");
         var css = ReadDashboardAsset("styles.css");
 
-        Assert.Contains("mapSystemId: focusSystemId", script);
-        Assert.Contains("focusMapOnSystem(step.mapSystemId);", script);
+        Assert.Contains("function trainingTutorialTarget(lesson)", script);
+        Assert.Contains("const target = lesson ? trainingTutorialTarget(lesson) : null;", script);
+        Assert.Contains("applyTutorialTarget(target);", script);
         Assert.Matches(
             new Regex(@"\.tutorial-actions\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0;", RegexOptions.Singleline),
             css);

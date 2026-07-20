@@ -246,14 +246,8 @@ const viewShortcuts = new Map([
 ]);
 
 const tutorial = {
-    version: "v4",
     active: false,
-    status: "available",
-    storageKey: null,
-    stepIndex: 0,
-    initialTick: 0,
-    briefing: null,
-    completedActions: new Set(),
+    runId: null,
     target: null,
     targetDescribedBy: null,
     returnFocus: null,
@@ -263,7 +257,6 @@ const tutorial = {
     inertElements: []
 };
 
-const tutorialSessionStore = new Map();
 let priorityActivityTimeout = null;
 
 const elements = {
@@ -3189,8 +3182,7 @@ function disableStandardTutorial() {
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     tutorial.active = false;
-    tutorial.status = "available";
-    tutorial.storageKey = null;
+    tutorial.runId = null;
     tutorial.dismissed = true;
     tutorial.returnFocus = null;
     syncTutorialPresentation();
@@ -3206,17 +3198,16 @@ function normaliseTutorialStatus(value) {
 
 function syncTrainingTutorialAfterRefresh() {
     const journey = state.tutorialJourney;
-    const storageKey = `cycles.tutorial.server.${journey.run.tutorialRunId}`;
+    const runId = journey.run.tutorialRunId;
     const status = normaliseTutorialStatus(journey.journeyStatus);
-    if (tutorial.storageKey !== storageKey) {
+    if (tutorial.runId !== runId) {
         clearTutorialTarget();
-        tutorial.storageKey = storageKey;
+        tutorial.runId = runId;
         tutorial.active = status === "active";
         tutorial.dismissed = false;
         tutorial.returnFocus = null;
     }
 
-    tutorial.status = status;
     if (["paused", "skipped"].includes(status)) {
         tutorial.active = false;
     }
@@ -3246,7 +3237,7 @@ function renderTrainingTutorial() {
 
     clearTutorialTarget();
     renderTutorialAdmiral();
-    elements.tutorialPanel.classList.toggle("is-right", tutorialPanelShouldSitOnRight({}, target));
+    elements.tutorialPanel.classList.toggle("is-right", tutorialPanelShouldSitOnRight(target));
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
     elements.tutorialKicker.textContent = journey.journeyName;
@@ -3350,7 +3341,6 @@ async function advanceTrainingTutorial() {
             state.tutorialJourney = await gameApi.postJson(
                 "/tutorial/acknowledgements",
                 { acknowledgementKey: lesson.presentationAcknowledgement.key });
-            tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
             renderTrainingTutorial();
             syncCommandWindowControls();
             return;
@@ -3385,7 +3375,6 @@ async function startOrResumeTutorial() {
             return;
         }
     }
-    tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
     tutorial.active = true;
     tutorial.dismissed = false;
     renderTrainingTutorial();
@@ -3433,7 +3422,6 @@ async function pauseTutorial() {
 
     try {
         state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "paused" });
-        tutorial.status = "paused";
         tutorial.active = false;
         hideTutorial();
         syncCommandWindowControls();
@@ -3457,7 +3445,6 @@ async function skipTutorial() {
 
     try {
         state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "skipped" });
-        tutorial.status = "skipped";
         tutorial.active = false;
         hideTutorial();
         syncCommandWindowControls();
@@ -3475,63 +3462,7 @@ async function nextTutorialStep() {
     await advanceTrainingTutorial();
 }
 
-function renderTutorial() {
-    const steps = tutorialSteps();
-    tutorial.stepIndex = Math.min(tutorial.stepIndex, steps.length - 1);
-    const step = steps[tutorial.stepIndex];
-    const satisfied = !step.required || step.isSatisfied();
-
-    if (step.view) {
-        activateView(step.view, { updateLocation: true });
-    }
-    if (step.fleetTab) {
-        activateFleetTab(step.fleetTab);
-    }
-    if (step.fleetAction) {
-        activateFleetAction(step.fleetAction);
-    }
-    if (step.historyTab) {
-        activateHistoryTab(step.historyTab);
-    }
-    if (step.mapSystemId && state.galaxy && state.empire) {
-        focusMapOnSystem(step.mapSystemId);
-        renderGalaxy(state.galaxy, state.empire);
-    }
-
-    clearTutorialTarget();
-    const target = step.target?.();
-    renderTutorialAdmiral();
-    elements.tutorialPanel.classList.toggle("is-right", tutorialPanelShouldSitOnRight(step, target));
-    elements.tutorialPanel.hidden = false;
-    document.body.classList.add("tutorial-active");
-    elements.tutorialKicker.textContent = "Day 1 guide";
-    elements.tutorialHint.textContent = "";
-    elements.tutorialResetButton.textContent = "Reset guide";
-    elements.tutorialPauseButton.hidden = false;
-    elements.tutorialSkipButton.textContent = "Skip guide";
-    elements.tutorialSkipButton.hidden = false;
-    elements.tutorialNextButton.hidden = false;
-    elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
-    elements.tutorialTitle.textContent = step.title;
-    elements.tutorialBody.textContent = step.body;
-    elements.tutorialRequirement.textContent = step.required
-        ? satisfied ? "Done. Continue when you are ready." : step.requirement
-        : "";
-    elements.tutorialNextButton.disabled = !satisfied;
-    elements.tutorialNextButton.textContent = tutorial.stepIndex === 0
-        ? "Start"
-        : tutorial.stepIndex === steps.length - 1 ? "Finish" : satisfied ? "Next" : "Complete this step";
-
-    if (target) {
-        applyTutorialTarget(target);
-    }
-    syncTutorialPresentation();
-}
-
-function tutorialPanelShouldSitOnRight(step, target) {
-    if (step.panelPlacement) {
-        return step.panelPlacement === "right";
-    }
+function tutorialPanelShouldSitOnRight(target) {
     if (!target || window.innerWidth <= 900) {
         return false;
     }
@@ -3718,12 +3649,7 @@ function resetTutorialContext() {
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     tutorial.active = false;
-    tutorial.status = "available";
-    tutorial.storageKey = null;
-    tutorial.stepIndex = 0;
-    tutorial.initialTick = 0;
-    tutorial.briefing = null;
-    tutorial.completedActions = new Set();
+    tutorial.runId = null;
     tutorial.freshRequestId = null;
     tutorial.dismissed = false;
     syncTutorialPresentation();
@@ -3787,316 +3713,6 @@ function renderTutorialAdmiral() {
     elements.tutorialAdmiralPortrait.dataset.portraitId = profile.portraitKey;
 }
 
-function tutorialSteps() {
-    const briefing = tutorial.briefing;
-    const move = briefing?.objectives?.move;
-    const colonise = briefing?.objectives?.colonise;
-    const attack = briefing?.objectives?.attack;
-    const focusSystemId = briefing?.focusSystemId ?? state.empire?.homeSystem?.systemId;
-    const focusFleetId = attack?.fleetId ?? state.fleets[0]?.fleet?.fleetId;
-    const moveFleetId = move?.fleetId ?? state.fleets[0]?.fleet?.fleetId;
-    const moveTargetId = move?.targetSystemId ?? linkedSystems(state.fleets[0]?.fleet?.currentSystemId)[0]?.systemId;
-    const curated = Boolean(move && colonise && attack);
-    const guideAdmiral = tutorialAdmiralProfile();
-    const playerName = state.username ?? "Commander";
-    const steps = [
-        {
-            id: "welcome",
-            view: "command",
-            title: "Welcome to Cycles",
-            body: `Hi, ${playerName}. ${guideAdmiral.displayName} speaking. Welcome, and let's get you settled in. I'll stay with you for the opening and point out the controls as we need them.`,
-            required: false
-        },
-        {
-            id: "command-introduction",
-            view: "command",
-            title: "This is Command",
-            body: "Command is where you review the situation, set your priorities, check pending orders, and advance the turn. There is quite a lot here; I'll introduce it when it becomes useful.",
-            target: () => document.querySelector(".command-overview-grid"),
-            required: false
-        },
-        {
-            id: "map-introduction",
-            view: "galaxy",
-            title: "This is the Map",
-            body: "The Map shows the galaxy, your reach, known fleets, routes, and places worth your attention. You can inspect and focus the strategic picture here; I'll show you the first few things now.",
-            target: () => document.querySelector("#mapPanel"),
-            required: false
-        },
-        {
-            id: "map",
-            view: "galaxy",
-            mapSystemId: focusSystemId,
-            panelPlacement: "right",
-            title: curated ? "Start with the flashpoint" : "Start with your home system",
-            body: curated
-                ? `${tutorialSystemName(focusSystemId)} has a red contested ring because both sides have active fleets there. Select it to inspect the local position.`
-                : "Routes define where fleets can move. Rings show your presence, and red marks a contested system. Select your home system to inspect it.",
-            target: () => document.querySelector(`.system-node[data-system-id="${focusSystemId}"]`),
-            required: true,
-            requirement: "Select the highlighted system on the map.",
-            isSatisfied: () => state.selectedSystemId === focusSystemId
-        },
-        {
-            id: "visibility",
-            view: "galaxy",
-            title: "Know what the map does not reveal",
-            body: "You always see the galaxy topology and routes. Exact remote presence, fleets, events, last-turn facts, and Chronicle detail appear only where your active fleets provide visibility; an apparently quiet system may still contain hidden activity.",
-            target: () => elements.galaxyMap,
-            required: false
-        },
-        {
-            id: "resources",
-            view: "command",
-            title: "Know what you can spend",
-            body: "Industry funds ships through Military priority. Research accumulates towards Survey Projection. Population pays for outposts. The small figures show what the previous turn generated and spent.",
-            target: () => document.querySelector("#resourcesSection"),
-            required: false
-        },
-        {
-            id: "priorities",
-            view: "command",
-            title: "Choose what this turn emphasises",
-            body: "The 100 points represent strategic effort, not the three resource stockpiles. Development and Innovation are locked at zero until their programmes are active. Military converts Industry into ship construction; Expansion strengthens projected influence. Adjust either active slider and save the new allocation when it is ready.",
-            target: () => document.querySelector("#prioritySection"),
-            required: true,
-            requirement: "Save the priority allocation to continue.",
-            isSatisfied: () => tutorial.completedActions.has("prioritiesSaved")
-        },
-        {
-            id: "fleet",
-            view: "fleets",
-            fleetTab: "command",
-            title: curated ? "Inspect the Vanguard" : "Inspect your fleet",
-            body: curated
-                ? `Select ${tutorialFleetName(focusFleetId)}. Fleet detail shows its ships, commander, current system, local rivals, and recorded orders.`
-                : "Select your fleet. Fleet detail shows its ships, commander, current system, adjacent routes, and recorded orders.",
-            target: () => document.querySelector(`[data-fleet-id="${focusFleetId}"]`),
-            required: true,
-            requirement: "Select the highlighted fleet.",
-            isSatisfied: () => state.selectedFleetId === focusFleetId
-        },
-        {
-            id: "move",
-            view: "fleets",
-            fleetTab: "command",
-            fleetAction: "move",
-            title: curated ? `Secure ${tutorialSystemName(moveTargetId)}` : "Commit a movement order",
-            body: curated
-                ? `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order. The server validates the intention again when the turn resolves.`
-                : `Select ${tutorialFleetName(moveFleetId)} in the roster. This guide opens Move; choose ${tutorialSystemName(moveTargetId)}, then queue the order for the next authoritative turn.`,
-            target: () => state.selectedFleetId === moveFleetId
-                ? document.querySelector("#moveForm")
-                : document.querySelector(`[data-fleet-id="${moveFleetId}"]`),
-            required: true,
-            requirement: "Queue the highlighted movement objective.",
-            isSatisfied: () => tutorialOrderExists("moveFleet", moveFleetId, "targetSystemId", moveTargetId)
-        }
-    ];
-
-    if (curated) {
-        steps.push(
-            {
-                id: "colonise",
-                view: "fleets",
-                fleetTab: "command",
-                fleetAction: "colonise",
-                title: "Establish the frontier outpost",
-                body: `Select ${tutorialFleetName(colonise.fleetId)} in the roster. This guide opens Colonise; queue the outpost from that fleet. It costs 100 population and succeeds because the fleet has the leading local influence.`,
-                target: () => state.selectedFleetId === colonise.fleetId
-                    ? document.querySelector("#coloniseForm")
-                    : document.querySelector(`[data-fleet-id="${colonise.fleetId}"]`),
-                required: true,
-                requirement: "Queue the highlighted outpost.",
-                isSatisfied: () => tutorialOrderExists("colonise", colonise.fleetId)
-            },
-            {
-                id: "attack",
-                view: "fleets",
-                fleetTab: "command",
-                fleetAction: "attack",
-                title: "Answer the local challenge",
-                body: `Select ${tutorialFleetName(attack.fleetId)} in the roster. This guide opens Attack; choose the local Free Captains, then queue the order. Combat is deterministic from persisted facts, but victory is not scripted. The result will enter the Chronicle if it becomes important enough.`,
-                target: () => state.selectedFleetId === attack.fleetId
-                    ? document.querySelector("#attackForm")
-                    : document.querySelector(`[data-fleet-id="${attack.fleetId}"]`),
-                required: true,
-                requirement: "Queue the highlighted attack.",
-                isSatisfied: () => tutorialOrderExists("attack", attack.fleetId, "targetFactionId", attack.targetFactionId)
-            }
-        );
-    }
-
-    steps.push(
-        {
-            id: "phase-order",
-            view: "command",
-            title: "Know how the sealed turn resolves",
-            body: "Income and due construction resolve before programme spending. Recall then acts before passive arrival and movement; those positions determine combat, and only surviving eligible fleets colonise. Control is recalculated, progression is prepared for the next command window, and one complete result is published. Submission time grants no initiative.",
-            target: () => document.querySelector("#turnResolutionSection"),
-            required: false
-        },
-        {
-            id: "queue",
-            view: "command",
-            title: "Review your commitments",
-            body: curated
-                ? "The queue should now hold three pending player orders alongside any automatic income, programme, construction, or journey effects. You can cancel a pending intention before closure; its submission time never grants initiative."
-                : "The queue separates pending player orders from projected and already-committed effects. You can cancel a pending intention before closure; its submission time never grants initiative.",
-            target: () => document.querySelector("#orderQueueSection"),
-            required: curated,
-            requirement: curated ? "Keep exactly the three highlighted commitments ready for Day 1." : "",
-            isSatisfied: () => !curated || curatedObjectiveOrdersReady()
-        },
-        {
-            id: "advance",
-            view: "command",
-            title: "Close the command window",
-            body: "Close command window and advance is a temporary Development operator action. It closes this current game's shared window, lets internal planners finish, seals one fleet intention per eligible fleet, and resolves every participant through the same authoritative boundary as the Worker and CLI.",
-            target: () => elements.advanceTurnButton,
-            required: true,
-            requirement: "Close the current game's command window and publish one complete turn.",
-            isSatisfied: () => state.cycle?.currentTickNumber > tutorial.initialTick
-        },
-        {
-            id: "resolution-results",
-            view: "history",
-            historyTab: "events",
-            title: "Trace what actually happened",
-            body: curated
-                ? `Your real Day One outcomes are ${tutorialObjectiveOutcomeSummary()}. Read them in authoritative phase order: income and construction first, movement before combat, combat before colonisation, then next-window progression and publication. Event timestamps do not grant priority.`
-                : "Events are the factual audit trail, grouped by authoritative phase rather than submission or display time. Check which orders processed, what resources changed, and whether anything was rejected when the world changed underneath an intention.",
-            target: () => document.querySelector("#eventsSection"),
-            required: curated,
-            requirement: curated ? "Confirm that the move, attack, and colonisation intentions have recorded real processed or rejected outcomes." : "",
-            isSatisfied: () => !curated || curatedObjectiveOutcomesRecorded()
-        }
-    );
-
-    steps.push({
-        id: "chronicle",
-        view: "history",
-        historyTab: "chronicle",
-        title: "See what became history",
-        body: curated
-            ? "The Chronicle preserves exceptional events, not every routine action. A battle appears here only when real losses, strategy, and prior history carry it across the importance threshold."
-            : "The Chronicle is selective history, not a second audit log. Only visible events important enough to cross the historical threshold appear here.",
-        target: () => document.querySelector("#chronicleSection"),
-        required: false
-    });
-
-    steps.push({
-        id: "cycle-history",
-        view: "history",
-        historyTab: "events",
-        title: "Place this turn in the Cycle",
-        body: `You are viewing tick ${state.cycle?.currentTickNumber ?? 0} of the current Cycle. Events record factual turn results; the Chronicle preserves selected history. In this build, an operator ends the Cycle, records the final ranking, and creates its successor outside the player dashboard.`,
-        target: () => elements.cycleStatus,
-        required: false
-    });
-
-    steps.push({
-        id: "next",
-        view: "command",
-        title: "That is the Cycles loop",
-        body: "Inspect, prioritise, commit orders, resolve the turn, then read the visible consequences. From here, reinforce pressure, build ships, found outposts, or seek another battle worth remembering before the operator closes the Cycle.",
-        required: false
-    });
-
-    return steps;
-}
-
-function tutorialOrderExists(orderType, fleetId, targetProperty, targetId) {
-    return state.orders.some(order =>
-        order.orderType === orderType
-        && order.fleetId === fleetId
-        && order.status !== "cancelled"
-        && order.status !== "rejected"
-        && (!targetProperty || order[targetProperty] === targetId));
-}
-
-function curatedObjectiveOrdersReady() {
-    const objectives = tutorial.briefing?.objectives;
-    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
-        return false;
-    }
-
-    const expectedOrders = [
-        {
-            orderType: "moveFleet",
-            fleetId: objectives.move.fleetId,
-            targetProperty: "targetSystemId",
-            targetId: objectives.move.targetSystemId
-        },
-        {
-            orderType: "colonise",
-            fleetId: objectives.colonise.fleetId
-        },
-        {
-            orderType: "attack",
-            fleetId: objectives.attack.fleetId,
-            targetProperty: objectives.attack.targetFactionId ? "targetFactionId" : "targetEmpireId",
-            targetId: objectives.attack.targetFactionId ?? objectives.attack.targetEmpireId
-        }
-    ];
-
-    if (state.cycle?.currentTickNumber !== 0) {
-        return expectedOrders.every(expected => tutorialOrderExists(
-            expected.orderType,
-            expected.fleetId,
-            expected.targetProperty,
-            expected.targetId));
-    }
-
-    const objectiveFleetIds = new Set(expectedOrders.map(expected => expected.fleetId));
-    const pendingObjectiveOrders = state.orders.filter(order =>
-        order.status === "pending" && objectiveFleetIds.has(order.fleetId));
-
-    return pendingObjectiveOrders.length === expectedOrders.length
-        && expectedOrders.every(expected => pendingObjectiveOrders.some(order =>
-            order.orderType === expected.orderType
-            && order.fleetId === expected.fleetId
-            && (!expected.targetProperty || order[expected.targetProperty] === expected.targetId)));
-}
-
-function tutorialFleetName(fleetId) {
-    return state.fleets.find(item => item.fleet.fleetId === fleetId)?.fleet.fleetName ?? "the highlighted fleet";
-}
-
-function tutorialSystemName(systemId) {
-    return state.galaxy?.systems.find(system => system.systemId === systemId)?.systemName ?? "the highlighted system";
-}
-
-function saveTutorialState() {
-    if (!tutorial.storageKey) {
-        return;
-    }
-
-    const steps = tutorialSteps();
-    const value = {
-        status: tutorial.status,
-        stepId: steps[tutorial.stepIndex]?.id ?? "welcome",
-        initialTick: tutorial.initialTick,
-        completedActions: [...tutorial.completedActions],
-        briefing: tutorial.briefing
-    };
-    tutorialSessionStore.set(tutorial.storageKey, value);
-    writeStoredValue(tutorial.storageKey, JSON.stringify(value));
-}
-
-function loadTutorialState(storageKey) {
-    const value = readStoredValue(storageKey);
-    if (value) {
-        try {
-            return JSON.parse(value);
-        } catch {
-            removeStoredValue(storageKey);
-        }
-    }
-
-    return tutorialSessionStore.get(storageKey) ?? null;
-}
-
 function readStoredValue(key) {
     try {
         return localStorage.getItem(key);
@@ -4109,15 +3725,7 @@ function writeStoredValue(key, value) {
     try {
         localStorage.setItem(key, value);
     } catch {
-        // Storage-restricted browsers keep tutorial state in memory for this session.
-    }
-}
-
-function removeStoredValue(key) {
-    try {
-        localStorage.removeItem(key);
-    } catch {
-        // There is no persistent value to remove when storage is unavailable.
+        // Storage-restricted browsers continue with in-memory UI preferences.
     }
 }
 
@@ -4144,57 +3752,6 @@ function collectTargetFactions(selectedFleet) {
         factionId: id,
         factionName: visibleHostileFactions.get(id) ?? knownFactionNames.get(id) ?? id.slice(0, 8)
     }));
-}
-
-function curatedObjectiveOutcomesRecorded() {
-    const objectives = tutorial.briefing?.objectives;
-    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
-        return false;
-    }
-
-    return tutorialObjectiveOrders(objectives).every(expected => state.orders.some(order =>
-        order.orderType === expected.orderType
-        && order.fleetId === expected.fleetId
-        && (!expected.targetProperty || order[expected.targetProperty] === expected.targetId)
-        && (order.status === "processed" || order.status === "rejected")
-        && Number(order.processedTick ?? 0) > tutorial.initialTick));
-}
-
-function tutorialObjectiveOutcomeSummary() {
-    const objectives = tutorial.briefing?.objectives;
-    if (!objectives?.move || !objectives.colonise || !objectives.attack) {
-        return "not yet available";
-    }
-
-    return tutorialObjectiveOrders(objectives).map(expected => {
-        const order = state.orders
-            .filter(candidate => candidate.orderType === expected.orderType
-                && candidate.fleetId === expected.fleetId
-                && (!expected.targetProperty || candidate[expected.targetProperty] === expected.targetId))
-            .sort((left, right) => Number(right.processedTick ?? -1) - Number(left.processedTick ?? -1))[0];
-        return `${formatOrderType(expected.orderType)} ${order ? formatStatus(order.status) : "pending"}`;
-    }).join(", ");
-}
-
-function tutorialObjectiveOrders(objectives) {
-    return [
-        {
-            orderType: "moveFleet",
-            fleetId: objectives.move.fleetId,
-            targetProperty: "targetSystemId",
-            targetId: objectives.move.targetSystemId
-        },
-        {
-            orderType: "colonise",
-            fleetId: objectives.colonise.fleetId
-        },
-        {
-            orderType: "attack",
-            fleetId: objectives.attack.fleetId,
-            targetProperty: objectives.attack.targetFactionId ? "targetFactionId" : "targetEmpireId",
-            targetId: objectives.attack.targetFactionId ?? objectives.attack.targetEmpireId
-        }
-    ];
 }
 
 function renderEvents(events) {

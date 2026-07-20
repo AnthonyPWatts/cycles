@@ -16,7 +16,7 @@ public sealed class DashboardTutorialScrollContractTests
         Assert.Contains("target.closest(\".app-view\")?.getBoundingClientRect()", script);
         Assert.Contains("Math.min(bounds.height, 120)", script);
         Assert.Contains("elements.tutorialPanel.getBoundingClientRect().top", script);
-        Assert.Contains("`Secure ${tutorialSystemName(moveTargetId)}`", script);
-        Assert.DoesNotContain("Secure Nadir Crossing", script);
+        Assert.Contains("const target = lesson ? trainingTutorialTarget(lesson) : null;", script);
+        Assert.Contains("applyTutorialTarget(target);", script);
     }
 }

@@ -24,8 +24,22 @@ public sealed class DashboardTrainingOnlyGuideRegressionTests
         var script = ReadDashboardAsset("app.js");
         var styles = ReadDashboardAsset("styles.css");
 
+        Assert.DoesNotContain("function renderTutorial(", script);
         Assert.DoesNotContain("function syncTutorialDisplay()", script);
         Assert.DoesNotContain("syncTutorialDisplay();", script);
+        Assert.DoesNotContain("function tutorialSteps()", script);
+        Assert.DoesNotContain("function tutorialOrderExists(", script);
+        Assert.DoesNotContain("function curatedObjectiveOrdersReady()", script);
+        Assert.DoesNotContain("function tutorialFleetName(", script);
+        Assert.DoesNotContain("function tutorialSystemName(", script);
+        Assert.DoesNotContain("function saveTutorialState()", script);
+        Assert.DoesNotContain("function loadTutorialState(", script);
+        Assert.DoesNotContain("function removeStoredValue(", script);
+        Assert.DoesNotContain("function curatedObjectiveOutcomesRecorded()", script);
+        Assert.DoesNotContain("function tutorialObjectiveOutcomeSummary()", script);
+        Assert.DoesNotContain("function tutorialObjectiveOrders(", script);
+        Assert.DoesNotContain("tutorialSessionStore", script);
+        Assert.DoesNotContain("cycles.tutorial", script);
         Assert.DoesNotContain("id=\"tutorialBackButton\"", ReadDashboardAsset("app.html"));
         Assert.Matches(
             new System.Text.RegularExpressions.Regex(
