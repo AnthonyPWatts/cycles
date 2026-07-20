@@ -250,6 +250,9 @@ const tutorial = {
     runId: null,
     target: null,
     targetDescribedBy: null,
+    focusTarget: null,
+    focusTargetTabIndex: null,
+    focusTargetDescribedBy: null,
     returnFocus: null,
     freshRequestId: null,
     dismissed: false,
@@ -411,6 +414,7 @@ const elements = {
     tutorialRequirement: document.querySelector("#tutorialRequirement"),
     tutorialPauseButton: document.querySelector("#tutorialPauseButton"),
     tutorialSkipButton: document.querySelector("#tutorialSkipButton"),
+    tutorialShowMeButton: document.querySelector("#tutorialShowMeButton"),
     tutorialNextButton: document.querySelector("#tutorialNextButton")
 };
 
@@ -437,6 +441,7 @@ elements.tutorialCloseButton.addEventListener("click", closeTutorialPanel);
 elements.tutorialResetButton.addEventListener("click", resetTutorial);
 elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
 elements.tutorialSkipButton.addEventListener("click", skipTutorial);
+elements.tutorialShowMeButton.addEventListener("click", showTrainingTutorialTarget);
 elements.tutorialNextButton.addEventListener("click", nextTutorialStep);
 
 document.addEventListener("keydown", event => {
@@ -3098,7 +3103,7 @@ function orderCard(order, allowCancel) {
         : "";
     const presentationStatus = transitCommitmentForOrder(order) ? "inTransit" : order.status;
     return `
-        <article class="item order-${statusClass(presentationStatus)}">
+        <article class="item order-${statusClass(presentationStatus)}" data-order-id="${order.fleetOrderId}">
             <strong>${escapeHtml(formatOrderType(order.orderType))}: ${escapeHtml(order.fleetName)}</strong>
             <span class="item-meta">
                 ${statusChip(presentationStatus)}
@@ -3243,11 +3248,10 @@ function renderTrainingTutorial() {
     const lesson = journey.currentLesson;
     const completedCount = journey.lessons.filter(item =>
         normaliseTutorialStatus(item.completionState) === "completed").length;
-    const target = lesson ? trainingTutorialTarget(lesson) : null;
 
     clearTutorialTarget();
     renderTutorialAdmiral();
-    elements.tutorialPanel.classList.toggle("is-right", tutorialPanelShouldSitOnRight(target));
+    elements.tutorialPanel.classList.remove("is-right");
     elements.tutorialPanel.hidden = false;
     document.body.classList.add("tutorial-active");
     elements.tutorialKicker.textContent = journey.journeyName;
@@ -3258,6 +3262,7 @@ function renderTrainingTutorial() {
     elements.tutorialPauseButton.hidden = status !== "active";
     elements.tutorialSkipButton.textContent = "I know this";
     elements.tutorialSkipButton.hidden = status !== "active";
+    elements.tutorialShowMeButton.hidden = true;
 
     if (status === "recovery-required") {
         elements.tutorialTitle.textContent = "This attempt needs recovery";
@@ -3295,12 +3300,45 @@ function renderTrainingTutorial() {
             : "Resolve Training turn";
         elements.tutorialNextButton.disabled = Boolean(lesson.blockedReason)
             || (!acknowledgementReady && !journey.canResolve);
+        elements.tutorialShowMeButton.hidden = !trainingTutorialCanShowTarget(journey, lesson, status);
     }
 
-    if (target) {
-        applyTutorialTarget(target);
-    }
     syncTutorialPresentation();
+}
+
+function trainingTutorialCanShowTarget(journey, lesson, status) {
+    return status === "active"
+        && !journey.coreCompleted
+        && Boolean(lesson)
+        && !lesson.blockedReason
+        && normaliseTutorialStatus(lesson.entryState) !== "waiting-for-resolution";
+}
+
+function showTrainingTutorialTarget() {
+    const journey = state.tutorialJourney;
+    const lesson = journey?.currentLesson;
+    const status = normaliseTutorialStatus(journey?.journeyStatus);
+    if (!isTrainingGame()
+        || !journey
+        || !trainingTutorialCanShowTarget(journey, lesson, status)) {
+        return;
+    }
+
+    clearTutorialTarget();
+    const target = trainingTutorialTarget(lesson);
+    if (!target?.element) {
+        return;
+    }
+
+    const narrow = window.innerWidth < 1200;
+    elements.tutorialPanel.classList.toggle(
+        "is-right",
+        !narrow && tutorialPanelShouldSitOnRight(target.element));
+    applyTutorialTarget(target.element, { describe: !narrow });
+    if (narrow) {
+        dismissTutorialForTarget();
+    }
+    focusTutorialTarget(target.focusElement ?? target.element, { describe: !narrow });
 }
 
 function trainingTutorialTarget(lesson) {
@@ -3308,25 +3346,66 @@ function trainingTutorialTarget(lesson) {
     if ((lesson.key === "T0" || lesson.key === "T2") && evidenceSatisfied) {
         activateView("history", { updateLocation: true });
         activateHistoryTab("events");
-        return document.querySelector("#eventsSection");
+        return { element: document.querySelector("#eventsSection") };
     }
 
     if (lesson.key === "T1") {
+        if (trainingEvidenceEvent(lesson, "prioritiesChanged")) {
+            activateView("fleets", { updateLocation: true });
+            activateFleetTab("command");
+            activateFleetAction("colonise");
+            return { element: trainingFleetTarget("Survey Wing") };
+        }
+
         activateView("command", { updateLocation: true });
-        return elements.prioritySection;
+        return {
+            element: elements.prioritySection,
+            focusElement: document.querySelector("#militaryWeight")
+        };
     }
 
     activateView("fleets", { updateLocation: true });
-    activateFleetTab("command");
     if (lesson.key === "T0") {
+        activateFleetTab("command");
         activateFleetAction("move");
-        return trainingFleetTarget("Home Guard");
+        return { element: trainingFleetTarget("Home Guard") };
     }
     if (lesson.key === "T2") {
+        activateFleetTab("command");
         activateFleetAction("attack");
-        return trainingFleetTarget("Vanguard");
+        return { element: trainingFleetTarget("Vanguard") };
     }
-    return elements.fleets;
+    if (lesson.key === "T3" && evidenceSatisfied) {
+        activateFleetTab("history");
+        state.orderHistoryScope = "all";
+        state.orderHistoryStatus = "all";
+        state.orderHistoryLimit = Math.max(20, state.orders.length);
+        elements.orderHistoryScope.value = state.orderHistoryScope;
+        elements.orderHistoryStatus.value = state.orderHistoryStatus;
+        renderOrderHistory();
+        const evidenceIds = trainingEvidenceIds(lesson);
+        const processedOrder = state.orders.find(order =>
+            order.status === "processed"
+            && evidenceIds.has(String(order.fleetOrderId).toLowerCase()));
+        return processedOrder
+            ? { element: document.querySelector(`[data-order-id="${processedOrder.fleetOrderId}"]`) }
+            : null;
+    }
+
+    activateFleetTab("command");
+    return { element: elements.fleets };
+}
+
+function trainingEvidenceIds(lesson) {
+    return new Set((lesson.mechanicalEvidence.factIds ?? [])
+        .map(factId => String(factId).toLowerCase()));
+}
+
+function trainingEvidenceEvent(lesson, eventType) {
+    const evidenceIds = trainingEvidenceIds(lesson);
+    return state.events.find(event =>
+        event.eventType === eventType
+        && evidenceIds.has(String(event.eventId).toLowerCase())) ?? null;
 }
 
 function trainingFleetTarget(fleetName) {
@@ -3503,6 +3582,15 @@ function closeTutorialPanel() {
     tutorial.returnFocus = null;
 }
 
+function dismissTutorialForTarget() {
+    tutorial.dismissed = true;
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    updateTutorialButton();
+    syncTutorialPresentation();
+    tutorial.returnFocus = null;
+}
+
 function syncTutorialPresentation({ moveFocus = false } = {}) {
     const modal = tutorial.active
         && !tutorial.dismissed
@@ -3602,13 +3690,15 @@ function updateTutorialButton() {
     elements.tutorialButton.setAttribute("aria-expanded", String(open));
 }
 
-function applyTutorialTarget(target) {
+function applyTutorialTarget(target, { describe = true } = {}) {
     tutorial.target = target;
     tutorial.targetDescribedBy = target.getAttribute("aria-describedby");
     target.classList.add("tutorial-target");
-    const describedBy = new Set((tutorial.targetDescribedBy ?? "").split(/\s+/).filter(Boolean));
-    describedBy.add("tutorialBody");
-    target.setAttribute("aria-describedby", [...describedBy].join(" "));
+    if (describe) {
+        const describedBy = new Set((tutorial.targetDescribedBy ?? "").split(/\s+/).filter(Boolean));
+        describedBy.add("tutorialBody");
+        target.setAttribute("aria-describedby", [...describedBy].join(" "));
+    }
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => {
@@ -3624,11 +3714,29 @@ function applyTutorialTarget(target) {
     });
 }
 
+function focusTutorialTarget(target, { describe = false } = {}) {
+    tutorial.focusTarget = target;
+    tutorial.focusTargetTabIndex = target.getAttribute("tabindex");
+    tutorial.focusTargetDescribedBy = target.getAttribute("aria-describedby");
+    if (!target.matches("a[href], button, input, select, textarea, [tabindex]")) {
+        target.setAttribute("tabindex", "-1");
+    }
+    if (describe && target !== tutorial.target) {
+        const describedBy = new Set((tutorial.focusTargetDescribedBy ?? "").split(/\s+/).filter(Boolean));
+        describedBy.add("tutorialBody");
+        target.setAttribute("aria-describedby", [...describedBy].join(" "));
+    }
+    target.focus({ preventScroll: true });
+}
+
 function tutorialTargetNeedsScroll(target) {
     const bounds = target.getBoundingClientRect();
     const viewBounds = target.closest(".app-view")?.getBoundingClientRect();
-    const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0);
-    let visibleBottom = Math.min(bounds.bottom, viewBounds?.bottom ?? window.innerHeight);
+    const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0, 0);
+    let visibleBottom = Math.min(
+        bounds.bottom,
+        viewBounds?.bottom ?? window.innerHeight,
+        window.innerHeight);
     if (window.innerWidth <= 767 && !elements.tutorialPanel.hidden) {
         visibleBottom = Math.min(visibleBottom, elements.tutorialPanel.getBoundingClientRect().top);
     }
@@ -3638,15 +3746,29 @@ function tutorialTargetNeedsScroll(target) {
 }
 
 function clearTutorialTarget() {
-    if (!tutorial.target) {
-        return;
+    if (tutorial.focusTarget) {
+        if (tutorial.focusTargetTabIndex === null) {
+            tutorial.focusTarget.removeAttribute("tabindex");
+        } else {
+            tutorial.focusTarget.setAttribute("tabindex", tutorial.focusTargetTabIndex);
+        }
+        if (tutorial.focusTargetDescribedBy) {
+            tutorial.focusTarget.setAttribute("aria-describedby", tutorial.focusTargetDescribedBy);
+        } else if (tutorial.focusTarget !== tutorial.target) {
+            tutorial.focusTarget.removeAttribute("aria-describedby");
+        }
+        tutorial.focusTarget = null;
+        tutorial.focusTargetTabIndex = null;
+        tutorial.focusTargetDescribedBy = null;
     }
 
-    tutorial.target.classList.remove("tutorial-target");
-    if (tutorial.targetDescribedBy) {
-        tutorial.target.setAttribute("aria-describedby", tutorial.targetDescribedBy);
-    } else {
-        tutorial.target.removeAttribute("aria-describedby");
+    if (tutorial.target) {
+        tutorial.target.classList.remove("tutorial-target");
+        if (tutorial.targetDescribedBy) {
+            tutorial.target.setAttribute("aria-describedby", tutorial.targetDescribedBy);
+        } else {
+            tutorial.target.removeAttribute("aria-describedby");
+        }
     }
 
     tutorial.target = null;

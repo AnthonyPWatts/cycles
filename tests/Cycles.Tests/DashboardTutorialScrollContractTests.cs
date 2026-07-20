@@ -14,9 +14,12 @@ public sealed class DashboardTutorialScrollContractTests
         Assert.Contains("if (!tutorialTargetNeedsScroll(target))", script);
         Assert.Contains("function tutorialTargetNeedsScroll(target)", script);
         Assert.Contains("target.closest(\".app-view\")?.getBoundingClientRect()", script);
+        Assert.Contains("const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0, 0);", script);
+        Assert.Contains("viewBounds?.bottom ?? window.innerHeight,", script);
+        Assert.Contains("window.innerHeight);", script);
         Assert.Contains("Math.min(bounds.height, 120)", script);
         Assert.Contains("elements.tutorialPanel.getBoundingClientRect().top", script);
-        Assert.Contains("const target = lesson ? trainingTutorialTarget(lesson) : null;", script);
-        Assert.Contains("applyTutorialTarget(target);", script);
+        Assert.Contains("const target = trainingTutorialTarget(lesson);", script);
+        Assert.Contains("applyTutorialTarget(target.element, { describe: !narrow });", script);
     }
 }

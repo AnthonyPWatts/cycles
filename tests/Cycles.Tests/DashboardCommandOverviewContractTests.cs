@@ -41,7 +41,8 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving || !commandsAreOpen();", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
         Assert.Contains("if (lesson.key === \"T1\")", script);
-        Assert.Contains("return elements.prioritySection;", script);
+        Assert.Contains("element: elements.prioritySection", script);
+        Assert.Contains("focusElement: document.querySelector(\"#militaryWeight\")", script);
     }
 
     [Fact]

@@ -3775,8 +3775,8 @@ dd {
         padding-bottom: 8px;
     }
 
-    .tutorial-actions span {
-        display: none;
+    #tutorialShowMeButton:not([hidden]) ~ #tutorialNextButton:not([hidden]) {
+        grid-column: 1 / -1;
     }
 
     body.tutorial-active {

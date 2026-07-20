@@ -62,8 +62,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-workspace-headings-1", html);
-        Assert.Contains("app.js?v=20260720-workspace-headings-1", html);
+        Assert.Contains("styles.css?v=20260720-training-show-me-1", html);
+        Assert.Contains("app.js?v=20260720-training-show-me-1", html);
         Assert.Contains("aria-label=\"Core foundations\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -319,9 +319,9 @@ public sealed class DashboardViewContractTests
         var script = ReadDashboardAsset("app.js");
 
         Assert.Contains("activateFleetAction(\"move\")", script);
-        Assert.Contains("return trainingFleetTarget(\"Home Guard\");", script);
+        Assert.Contains("return { element: trainingFleetTarget(\"Home Guard\") };", script);
         Assert.Contains("activateFleetAction(\"attack\")", script);
-        Assert.Contains("return trainingFleetTarget(\"Vanguard\");", script);
+        Assert.Contains("return { element: trainingFleetTarget(\"Vanguard\") };", script);
         Assert.Contains("document.querySelector(`[data-fleet-id=\"${item.fleet.fleetId}\"]`)", script);
     }
 
@@ -354,7 +354,7 @@ public sealed class DashboardViewContractTests
         Assert.Contains("item.fleet.empireId === state.empire?.empireId && item.admiral", script);
         Assert.Contains("stableTutorialPortraitIndex(admiral?.admiralId", script);
         Assert.Contains("renderTutorialAdmiral();", script);
-        Assert.Contains("classList.toggle(\"is-right\", tutorialPanelShouldSitOnRight(target))", script);
+        Assert.Contains("!narrow && tutorialPanelShouldSitOnRight(target.element)", script);
         Assert.Contains("target.getBoundingClientRect()", script);
         Assert.DoesNotContain("tutorialTitle.focus", script);
         Assert.DoesNotContain("renderTutorial({ focusHeading", script);
@@ -376,14 +376,15 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
-    public void Training_guide_targets_server_lessons_and_keeps_narrow_actions_visible()
+    public void Training_guide_offers_explicit_targeting_and_keeps_narrow_actions_visible()
     {
         var script = ReadDashboardAsset("app.js");
         var css = ReadDashboardAsset("styles.css");
 
         Assert.Contains("function trainingTutorialTarget(lesson)", script);
-        Assert.Contains("const target = lesson ? trainingTutorialTarget(lesson) : null;", script);
-        Assert.Contains("applyTutorialTarget(target);", script);
+        Assert.Contains("elements.tutorialShowMeButton.addEventListener(\"click\", showTrainingTutorialTarget)", script);
+        Assert.Contains("const target = trainingTutorialTarget(lesson);", script);
+        Assert.Contains("applyTutorialTarget(target.element, { describe: !narrow });", script);
         Assert.Matches(
             new Regex(@"\.tutorial-actions\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0;", RegexOptions.Singleline),
             css);
