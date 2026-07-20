@@ -757,26 +757,61 @@ body.tutorial-modal::before {
     }
 }
 
-@media (min-width: 901px) and (max-width: 1199px) {
-    body.tutorial-active .app-view {
-        padding-bottom: min(48dvh, 380px);
+@media (min-width: 768px) and (max-width: 1199px) {
+    body.tutorial-active .tutorial-panel,
+    body.tutorial-active .tutorial-panel.is-right {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: auto;
+        width: min(400px, calc(100vw - 48px));
+        max-height: 100dvh;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        border-radius: 10px 0 0 10px;
+    }
+
+    body.tutorial-active .tutorial-heading-row {
+        display: grid;
+        gap: 12px;
+    }
+
+    body.tutorial-active .tutorial-heading-row > .tutorial-heading-actions {
+        justify-content: start;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 767px) {
+    body.tutorial-active {
+        padding-bottom: min(42dvh, 360px);
+    }
+
+    body.turn-ribbon-active.tutorial-active {
+        padding-bottom: calc(min(42dvh, 360px) + var(--turn-ribbon-height));
     }
 
     body.tutorial-active .tutorial-panel,
     body.tutorial-active .tutorial-panel.is-right {
+        top: auto;
         right: 0;
-        bottom: 0;
+        bottom: var(--turn-ribbon-height);
         left: 0;
         width: 100%;
-        max-height: min(48dvh, 380px);
+        max-height: min(42dvh, 360px);
         border-right: 0;
         border-bottom: 0;
         border-left: 0;
         border-radius: 10px 10px 0 0;
     }
 
-    body.turn-ribbon-active.tutorial-active .tutorial-panel {
-        bottom: var(--turn-ribbon-height);
+    body:not(.turn-ribbon-active).tutorial-active .tutorial-panel {
+        bottom: 0;
+    }
+
+    .tutorial-target {
+        scroll-margin-block: 130px 45dvh;
     }
 }
 
@@ -3399,22 +3434,6 @@ dd {
         position: static;
     }
 
-    body.tutorial-active {
-        padding-bottom: min(42dvh, 360px);
-    }
-
-    .tutorial-panel {
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        max-height: min(42dvh, 360px);
-        border-right: 0;
-        border-bottom: 0;
-        border-left: 0;
-        border-radius: 10px 10px 0 0;
-    }
-
     .tutorial-actions {
         position: sticky;
         bottom: 0;
@@ -3423,9 +3442,6 @@ dd {
         background: linear-gradient(180deg, rgba(17, 22, 19, 0), rgba(17, 22, 19, 0.98) 12px);
     }
 
-    .tutorial-target {
-        scroll-margin-block: 130px 45dvh;
-    }
 }
 
 @media (max-width: 760px) {
@@ -4510,8 +4526,10 @@ select {
     text-align: right;
 }
 
-.turn-ribbon-active .tutorial-panel {
-    bottom: calc(var(--turn-ribbon-height) + 24px);
+@media (min-width: 1200px) {
+    .turn-ribbon-active .tutorial-panel {
+        bottom: calc(var(--turn-ribbon-height) + 24px);
+    }
 }
 
 .view-nav {
@@ -5390,14 +5408,6 @@ select {
 @media (max-width: 900px) {
     .topbar {
         background: rgba(6, 10, 12, 0.98);
-    }
-
-    body.turn-ribbon-active.tutorial-active {
-        padding-bottom: calc(min(42dvh, 360px) + var(--turn-ribbon-height));
-    }
-
-    .turn-ribbon-active .tutorial-panel {
-        bottom: var(--turn-ribbon-height);
     }
 
     .app-header-controls {

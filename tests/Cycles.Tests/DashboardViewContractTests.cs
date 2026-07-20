@@ -59,8 +59,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-guide-focus-1", html);
-        Assert.Contains("app.js?v=20260720-guide-focus-1", html);
+        Assert.Contains("styles.css?v=20260720-guide-layout-1", html);
+        Assert.Contains("app.js?v=20260720-guide-layout-1", html);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -164,7 +164,7 @@ public sealed class DashboardViewContractTests
             2,
             Regex.Matches(css, @"grid-template-rows:\s*auto auto auto minmax\(0, 1fr\);").Count);
         Assert.Contains("body.tutorial-active .app-shell", css);
-        Assert.Contains("body.tutorial-active .app-view", css);
+        Assert.Contains("body.tutorial-active .tutorial-panel", css);
         Assert.Contains(".map-panel {", css);
         Assert.Contains("position: sticky;", css);
     }

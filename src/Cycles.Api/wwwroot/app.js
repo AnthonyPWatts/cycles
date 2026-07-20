@@ -3832,7 +3832,7 @@ function tutorialTargetNeedsScroll(target) {
     const viewBounds = target.closest(".app-view")?.getBoundingClientRect();
     const visibleTop = Math.max(bounds.top, viewBounds?.top ?? 0);
     let visibleBottom = Math.min(bounds.bottom, viewBounds?.bottom ?? window.innerHeight);
-    if (window.innerWidth <= 900 && !elements.tutorialPanel.hidden) {
+    if (window.innerWidth <= 767 && !elements.tutorialPanel.hidden) {
         visibleBottom = Math.min(visibleBottom, elements.tutorialPanel.getBoundingClientRect().top);
     }
 
