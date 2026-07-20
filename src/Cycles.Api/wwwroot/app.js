@@ -3,6 +3,8 @@ const state = {
     username: null,
     role: null,
     canAdvanceTurn: false,
+    gamesHome: null,
+    games: [],
     gameId: null,
     cycle: null,
     empire: null,
@@ -47,6 +49,7 @@ const gameIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 let antiforgeryRequestToken = null;
 let antiforgeryTokenPromise = null;
 let antiforgeryReady = false;
+let acceptedLocationHash = window.location.hash;
 const gameApi = createGameApi();
 const cycleTurnLimit = 150;
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
@@ -252,7 +255,31 @@ const elements = {
     sessionUsername: document.querySelector("#sessionUsername"),
     signOutButton: document.querySelector("#signOutButton"),
     appShell: document.querySelector("#appShell"),
+    gamesHome: document.querySelector("#gamesHome"),
+    gamesHomeTitle: document.querySelector("#gamesHomeTitle"),
+    gamesHomeSummary: document.querySelector("#gamesHomeSummary"),
+    gamesHomeMessage: document.querySelector("#gamesHomeMessage"),
+    gamesEmptyState: document.querySelector("#gamesEmptyState"),
+    attentionSection: document.querySelector("#attentionSection"),
+    attentionGames: document.querySelector("#attentionGames"),
+    attentionMore: document.querySelector("#attentionMore"),
+    activeGamesSection: document.querySelector("#activeGamesSection"),
+    activeGames: document.querySelector("#activeGames"),
+    activeGamesCount: document.querySelector("#activeGamesCount"),
+    waitingGamesSection: document.querySelector("#waitingGamesSection"),
+    waitingGames: document.querySelector("#waitingGames"),
+    waitingGamesCount: document.querySelector("#waitingGamesCount"),
+    completedGamesSection: document.querySelector("#completedGamesSection"),
+    completedGames: document.querySelector("#completedGames"),
+    completedGamesCount: document.querySelector("#completedGamesCount"),
+    selectedGameContext: document.querySelector("#selectedGameContext"),
+    allGamesLink: document.querySelector("#allGamesLink"),
+    selectedGameKind: document.querySelector("#selectedGameKind"),
+    selectedGameName: document.querySelector("#selectedGameName"),
+    gameSelector: document.querySelector("#gameSelector"),
     viewNav: document.querySelector("#viewNav"),
+    viewStack: document.querySelector("#viewStack"),
+    turnProgressRibbon: document.querySelector("#turnProgressRibbon"),
     views: [...document.querySelectorAll("[data-view]")],
     viewLinks: [...document.querySelectorAll("[data-view-link]")],
     commandViewBadge: document.querySelector("#commandViewBadge"),
@@ -371,6 +398,12 @@ elements.loginForm.addEventListener("submit", async event => {
 
 elements.signOutButton.addEventListener("click", signOut);
 
+elements.gameSelector.addEventListener("change", () => {
+    const gameId = elements.gameSelector.value;
+    const game = state.games.find(item => item.game.gameId === gameId);
+    window.location.hash = selectedGameHash(game, state.activeView);
+});
+
 elements.refreshButton.addEventListener("click", refresh);
 
 elements.commandAdvanceTurnButton.addEventListener("click", () => elements.advanceTurnButton.click());
@@ -386,7 +419,7 @@ document.addEventListener("keydown", event => {
     const shortcutView = event.altKey && !event.ctrlKey && !event.metaKey
         ? viewShortcuts.get(event.key)
         : null;
-    if (shortcutView && !elements.appShell.hidden) {
+    if (shortcutView && !elements.appShell.hidden && !elements.viewNav.hidden) {
         event.preventDefault();
         activateView(shortcutView, { updateLocation: true, focusHeading: true });
         return;
@@ -405,12 +438,29 @@ document.addEventListener("keydown", event => {
     }
 });
 
-window.addEventListener("hashchange", () => {
-    const requestedView = viewFromHash();
-    activateView(requestedView ?? "command", {
-        updateLocation: requestedView === null,
-        focusHeading: true
-    });
+window.addEventListener("hashchange", async () => {
+    const route = routeFromHash();
+    const changesSelectedGame = Boolean(state.gameId)
+        && (route.kind !== "selected" || route.gameId !== state.gameId);
+    if (changesSelectedGame && !confirmLeavingUnsavedPriorities()) {
+        const selectedGame = gameById(state.gameId);
+        const retainedHash = acceptedLocationHash || selectedGameHash(selectedGame, state.activeView);
+        window.history.replaceState(null, "", retainedHash);
+        renderGameSelector();
+        return;
+    }
+
+    await navigateFromLocation({ focusHeading: true });
+    acceptedLocationHash = window.location.hash;
+});
+
+window.addEventListener("beforeunload", event => {
+    if (!hasUnsavedPriorityDraft()) {
+        return;
+    }
+
+    event.preventDefault();
+    event.returnValue = "";
 });
 
 elements.advanceTurnButton.addEventListener("click", () => {
@@ -965,7 +1015,11 @@ elements.orderHistory.addEventListener("click", event => {
 async function boot() {
     try {
         await requireAntiforgeryToken();
-        await refresh({ applySessionFromBootstrap: true });
+        const session = await getJson("/auth/session");
+        applyAccountSession(session);
+        await loadGamesHome();
+        await navigateFromLocation();
+        acceptedLocationHash = window.location.hash;
     } catch (error) {
         if (!antiforgeryReady) {
             showLogin("Secure session setup failed. Refresh the page to try again.");
@@ -1001,10 +1055,13 @@ async function login(playerId) {
         const login = await postJson("/auth/login", { playerId });
         clearAntiforgeryToken();
         await requireAntiforgeryToken();
-        applySession(login);
+        applyAccountSession(login);
         writeStoredValue("cycles.username", login.username);
         writeStoredValue("cycles.playerId", login.playerId);
-        await refresh();
+        await loadGamesHome();
+        window.history.replaceState(null, "", "#/games");
+        acceptedLocationHash = window.location.hash;
+        showGamesHome({ focusHeading: true });
     } catch (error) {
         showLogin(error.message);
     } finally {
@@ -1035,13 +1092,12 @@ async function signOut() {
     }
 }
 
-function applySession(login) {
+function applyAccountSession(login) {
     const playerChanged = state.playerId !== login.playerId;
     if (state.playerId && playerChanged) {
         resetTutorialContext();
         clearSelectedGame();
     }
-    selectGame(login.gameId);
     if (playerChanged) {
         state.orderHistoryLimit = 20;
     }
@@ -1049,17 +1105,20 @@ function applySession(login) {
     state.playerId = login.playerId;
     state.username = login.username;
     state.role = login.role;
-    state.canAdvanceTurn = login.canAdvanceTurn;
-    state.empire = login.empire;
-    elements.advanceTurnButton.hidden = !login.canAdvanceTurn;
-    elements.commandAdvanceTurnButton.hidden = !login.canAdvanceTurn;
+    state.canAdvanceTurn = login.canAdvanceTurn ?? false;
+    state.empire = login.empire ?? null;
+    elements.advanceTurnButton.hidden = !state.canAdvanceTurn;
+    elements.commandAdvanceTurnButton.hidden = !state.canAdvanceTurn;
     elements.sessionUsername.textContent = login.username;
     elements.loginForm.hidden = true;
     elements.sessionSummary.hidden = false;
-    elements.appHeaderControls.hidden = false;
     elements.appShell.hidden = false;
     document.body.classList.add("dashboard-active");
-    activateView(resolveInitialView(), { updateLocation: true });
+}
+
+function applySession(login) {
+    applyAccountSession(login);
+    selectGame(login.gameId);
     activateFleetTab(state.fleetTab);
     activateFleetAction(state.fleetAction);
     activateHistoryTab(state.historyTab);
@@ -1075,6 +1134,8 @@ function showLogin(message) {
     state.username = null;
     state.role = null;
     state.canAdvanceTurn = false;
+    state.gamesHome = null;
+    state.games = [];
     state.empire = null;
     setMapMaximised(false);
     elements.loginMessage.textContent = message;
@@ -1082,7 +1143,10 @@ function showLogin(message) {
     elements.sessionSummary.hidden = true;
     elements.appHeaderControls.hidden = true;
     elements.appShell.hidden = true;
+    elements.gamesHome.hidden = true;
+    elements.selectedGameContext.hidden = true;
     document.body.classList.remove("dashboard-active");
+    document.body.classList.remove("account-active");
 }
 
 function selectGame(gameId) {
@@ -1175,15 +1239,166 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
     renderCommandWorkspace();
     syncCommandWindowControls();
     syncTutorialAfterRefresh();
+    showSelectedGameShell(gameById(state.gameId));
+}
+
+async function loadGamesHome() {
+    const home = await getJson("/games");
+    state.gamesHome = home;
+    const groupedGames = [
+        ...(home.activeGames ?? []),
+        ...(home.waitingGames ?? []),
+        ...(home.completedGames ?? [])
+    ];
+    state.games = [...new Map(groupedGames.map(item => [item.game.gameId, item])).values()];
+    renderGamesHome();
+    renderGameSelector();
+}
+
+function renderGamesHome() {
+    const home = state.gamesHome;
+    if (!home) {
+        return;
+    }
+
+    const total = state.games.length;
+    elements.gamesHomeSummary.textContent = total === 0
+        ? "No games enrolled"
+        : `${formatCount(total, "game")} in your archive`;
+    elements.gamesHomeMessage.textContent = home.hasMore
+        ? "Showing the first 100 memberships. Older records remain safely paged."
+        : "";
+    elements.gamesEmptyState.hidden = total !== 0;
+    renderGamesHomeSection(
+        elements.attentionSection,
+        elements.attentionGames,
+        home.needsAttention ?? [],
+        { attention: true });
+    const hiddenAttention = Math.max(0, (home.totalAttentionCount ?? 0) - (home.needsAttention?.length ?? 0));
+    elements.attentionMore.textContent = hiddenAttention > 0
+        ? `${hiddenAttention} more ${hiddenAttention === 1 ? "needs" : "need"} attention`
+        : "";
+    renderGamesHomeSection(
+        elements.activeGamesSection,
+        elements.activeGames,
+        home.activeGames ?? []);
+    elements.activeGamesCount.textContent = formatCount(home.activeGames?.length ?? 0, "game");
+    renderGamesHomeSection(
+        elements.waitingGamesSection,
+        elements.waitingGames,
+        home.waitingGames ?? []);
+    elements.waitingGamesCount.textContent = formatCount(home.waitingGames?.length ?? 0, "game");
+    renderGamesHomeSection(
+        elements.completedGamesSection,
+        elements.completedGames,
+        home.completedGames ?? []);
+    elements.completedGamesCount.textContent = formatCount(home.completedGames?.length ?? 0, "game");
+}
+
+function renderGamesHomeSection(section, container, games, { attention = false } = {}) {
+    section.hidden = games.length === 0;
+    container.innerHTML = games.map(item => gameLedgerRow(item, { attention })).join("");
+}
+
+function gameLedgerRow(item, { attention = false } = {}) {
+    const game = item.game;
+    const playable = ["continue", "observe"].includes(item.action)
+        && game.gameStatus === "active"
+        && game.operationalCycleId;
+    const actionLabel = {
+        continue: "Continue",
+        enterLobby: "Enter lobby",
+        observe: "Observe",
+        review: "Review"
+    }[item.action] ?? "Open";
+    const action = playable
+        ? `<a class="game-row-action" href="${selectedGameHash(item, "command")}">${actionLabel}</a>`
+        : `<span class="game-row-action is-unavailable" aria-disabled="true">${actionLabel}</span>`;
+    const timing = game.nextTickAt
+        ? new Date(game.nextTickAt) <= new Date()
+            ? `Commands await resolution since ${formatAccountDate(game.nextTickAt)}`
+            : `Commands open until ${formatAccountDate(game.nextTickAt)}`
+        : game.currentTickNumber === null
+            ? formatStatus(game.gameStatus)
+            : `Cycle T${formatNumber(game.currentTickNumber)} · ${formatStatus(game.turnStage ?? game.operationalCycleStatus)}`;
+    const attentionReason = attention && item.attentionReason
+        ? `<span class="game-attention-reason">${escapeHtml(formatAttentionReason(item.attentionReason))}</span>`
+        : "";
+
+    return `
+        <article class="game-ledger-row" data-game-id="${escapeHtml(game.gameId)}">
+            <div class="game-ledger-identity">
+                <span class="section-kicker">${escapeHtml(formatStatus(game.purpose))}</span>
+                <h3>${escapeHtml(game.gameName)}</h3>
+                <p>${escapeHtml(timing)}</p>
+            </div>
+            <div class="game-ledger-status">
+                <span class="status-chip status-${escapeHtml(String(game.gameStatus).toLowerCase())}">${escapeHtml(formatStatus(game.gameStatus))}</span>
+                <span>${escapeHtml(formatStatus(game.enrolmentStatus))}</span>
+            </div>
+            ${attentionReason}
+            ${action}
+        </article>`;
+}
+
+function formatAttentionReason(reason) {
+    return {
+        recoveryRequired: "Resolution needs recovery",
+        commandsCloseSoon: "Command deadline",
+        gameStarted: "Game recently started",
+        trainingInProgress: "Training in progress"
+    }[reason] ?? formatStatus(reason);
+}
+
+function formatAccountDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf())
+        ? "the published deadline"
+        : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
+function renderGameSelector() {
+    const groups = [
+        ["Active", state.gamesHome?.activeGames ?? []],
+        ["Waiting", state.gamesHome?.waitingGames ?? []],
+        ["Completed", state.gamesHome?.completedGames ?? []]
+    ].filter(([, games]) => games.length > 0);
+    elements.gameSelector.innerHTML = groups.map(([label, games]) =>
+        `<optgroup label="${label}">${games.map(item =>
+            `<option value="${escapeHtml(item.game.gameId)}">${escapeHtml(item.game.gameName)}</option>`).join("")}</optgroup>`
+    ).join("");
+    elements.gameSelector.hidden = state.games.length < 2;
+    elements.gameSelector.closest("label").hidden = state.games.length < 2;
+    if (state.gameId) {
+        elements.gameSelector.value = state.gameId;
+    }
+}
+
+function routeFromHash() {
+    const value = window.location.hash.slice(1).replace(/^\//, "").toLowerCase();
+    if (!value || value === "games") {
+        return { kind: "home" };
+    }
+
+    const selected = value.match(/^games\/([0-9a-f-]{36})\/(command|galaxy|fleets|history)$/);
+    if (selected && gameIdPattern.test(selected[1])) {
+        return { kind: "selected", gameId: selected[1], view: selected[2] };
+    }
+
+    const legacyView = value === "chronicle" ? "history" : value;
+    if (viewIds.includes(legacyView)) {
+        const firstPlayable = state.games.find(item => item.action === "continue" || item.action === "observe");
+        return firstPlayable
+            ? { kind: "selected", gameId: firstPlayable.game.gameId, view: legacyView, legacy: true }
+            : { kind: "home", legacy: true };
+    }
+
+    return { kind: "unavailable" };
 }
 
 function viewFromHash() {
-    const value = window.location.hash.slice(1).toLowerCase();
-    if (value === "chronicle") {
-        return "history";
-    }
-
-    return viewIds.includes(value) ? value : null;
+    const route = routeFromHash();
+    return route.kind === "selected" ? route.view : null;
 }
 
 function resolveInitialView() {
@@ -1195,6 +1410,112 @@ function resolveInitialView() {
     const storedValue = readStoredValue("cycles.activeView");
     const storedView = storedValue === "chronicle" ? "history" : storedValue;
     return viewIds.includes(storedView) ? storedView : "command";
+}
+
+async function navigateFromLocation({ focusHeading = false } = {}) {
+    const route = routeFromHash();
+    if (route.kind === "home") {
+        if (route.legacy) {
+            window.history.replaceState(null, "", "#/games");
+        }
+        showGamesHome({ focusHeading });
+        return;
+    }
+    if (route.kind !== "selected") {
+        showGamesHome({ focusHeading });
+        elements.gamesHomeMessage.textContent = "Game unavailable. Return to your game ledger and choose an available game.";
+        return;
+    }
+
+    const game = gameById(route.gameId);
+    if (!game || !["continue", "observe"].includes(game.action)) {
+        showGamesHome({ focusHeading });
+        elements.gamesHomeMessage.textContent = "Game unavailable. Return to your game ledger and choose an available game.";
+        return;
+    }
+
+    const selection = selectGame(route.gameId);
+    showSelectedGameShell(game);
+    activateView(route.view, { focusHeading });
+    if (route.legacy) {
+        window.history.replaceState(null, "", selectedGameHash(game, route.view));
+    }
+    if (selection.changed || !state.cycle) {
+        try {
+            await refresh();
+        } catch (error) {
+            if (!isGameRequestCancellation(error)) {
+                setTurnMessage("Game unavailable. Its details could not be loaded for this account.");
+            }
+        }
+    }
+}
+
+function showGamesHome({ focusHeading = false } = {}) {
+    hideTutorialForAccount();
+    clearSelectedGame();
+    elements.gamesHome.hidden = false;
+    elements.selectedGameContext.hidden = true;
+    elements.viewNav.hidden = true;
+    elements.viewStack.hidden = true;
+    elements.turnProgressRibbon.hidden = true;
+    elements.turnMessage.hidden = true;
+    elements.appHeaderControls.hidden = true;
+    document.body.classList.add("account-active");
+    document.title = "Your games · Cycles";
+    if (focusHeading) {
+        requestAnimationFrame(() => elements.gamesHomeTitle.focus({ preventScroll: true }));
+    }
+}
+
+function hideTutorialForAccount() {
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    clearTutorialTarget();
+    tutorial.returnFocus = null;
+}
+
+function showSelectedGameShell(item) {
+    if (!item) {
+        return;
+    }
+    elements.gamesHome.hidden = true;
+    elements.selectedGameContext.hidden = false;
+    elements.viewNav.hidden = false;
+    elements.viewStack.hidden = false;
+    elements.turnProgressRibbon.hidden = false;
+    elements.turnMessage.hidden = false;
+    elements.appHeaderControls.hidden = false;
+    elements.selectedGameName.textContent = item.game.gameName;
+    elements.selectedGameKind.textContent = `${formatStatus(item.game.purpose)} game`;
+    elements.gameSelector.value = item.game.gameId;
+    for (const link of elements.viewLinks) {
+        link.href = selectedGameHash(item, link.dataset.viewLink);
+    }
+    document.body.classList.remove("account-active");
+    document.title = `${item.game.gameName} · ${formatStatus(state.activeView)} · Cycles`;
+}
+
+function selectedGameHash(item, view) {
+    if (!item?.game?.gameId) {
+        return "#/games";
+    }
+    const selectedView = viewIds.includes(view) ? view : "command";
+    return `#/games/${encodeURIComponent(item.game.gameId)}/${selectedView}`;
+}
+
+function gameById(gameId) {
+    return state.games.find(item => item.game.gameId === gameId) ?? null;
+}
+
+function confirmLeavingUnsavedPriorities() {
+    return !hasUnsavedPriorityDraft()
+        || window.confirm("Discard unsaved priority changes and leave this game?");
+}
+
+function hasUnsavedPriorityDraft() {
+    return Boolean(state.empire && state.priorityDraft)
+        && priorityKeys.some(key => state.priorityDraft[key] !== parseWeight(state.empire.priorities[key]));
 }
 
 function activateView(viewId, { updateLocation = false, focusHeading = false } = {}) {
@@ -1217,8 +1538,14 @@ function activateView(viewId, { updateLocation = false, focusHeading = false } =
     }
 
     writeStoredValue("cycles.activeView", selectedView);
-    if (updateLocation && window.location.hash !== `#${selectedView}`) {
-        window.history.replaceState(null, "", `#${selectedView}`);
+    const selectedGame = gameById(state.gameId);
+    const selectedHash = selectedGameHash(selectedGame, selectedView);
+    if (updateLocation && window.location.hash !== selectedHash) {
+        window.history.replaceState(null, "", selectedHash);
+        acceptedLocationHash = window.location.hash;
+    }
+    if (selectedGame) {
+        document.title = `${selectedGame.game.gameName} · ${formatStatus(selectedView)} · Cycles`;
     }
 
     if (focusHeading) {

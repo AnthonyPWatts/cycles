@@ -65,6 +65,12 @@ public sealed class SqlServerScopedStoreIntegrationTests
         Assert.True(
             new HashSet<Guid> { fixture.Ids.GameA, fixture.Ids.GameB }
                 .SetEquals([firstItem.GameId, secondItem.GameId]));
+        Assert.All(new[] { firstItem, secondItem }, item =>
+        {
+            Assert.NotNull(item.FirstStartedAt);
+            Assert.Equal(60, item.TickLengthMinutes);
+            Assert.NotNull(item.NextTickAt);
+        });
         Assert.DoesNotContain(fixture.HiddenGameId, new[] { firstItem.GameId, secondItem.GameId });
 
         var emptyPage = query.ListForPlayer(fixture.Ids.PlayerC, cursor: null, pageSize: 1);

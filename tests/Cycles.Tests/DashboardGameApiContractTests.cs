@@ -88,13 +88,15 @@ public sealed class DashboardGameApiContractTests
         var request = login.IndexOf("await postJson(\"/auth/login\"", StringComparison.Ordinal);
         var clear = login.IndexOf("clearAntiforgeryToken();", StringComparison.Ordinal);
         var reacquire = login.IndexOf("await requireAntiforgeryToken();", StringComparison.Ordinal);
-        var apply = login.IndexOf("applySession(login);", StringComparison.Ordinal);
+        var apply = login.IndexOf("applyAccountSession(login);", StringComparison.Ordinal);
+        var home = login.IndexOf("await loadGamesHome();", StringComparison.Ordinal);
 
         Assert.True(request >= 0);
         Assert.True(clear > request);
         Assert.True(reacquire > clear);
         Assert.True(apply > reacquire);
-        Assert.Contains("selectGame(login.gameId);", ReadDashboardAsset(), StringComparison.Ordinal);
+        Assert.True(home > apply);
+        Assert.DoesNotContain("selectGame(login.gameId);", login, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,11 +109,11 @@ public sealed class DashboardGameApiContractTests
 
         var tryStart = boot.IndexOf("try {", StringComparison.Ordinal);
         var tokenRequest = boot.IndexOf("await requireAntiforgeryToken();", StringComparison.Ordinal);
-        var refresh = boot.IndexOf("await refresh({ applySessionFromBootstrap: true });", StringComparison.Ordinal);
+        var session = boot.IndexOf("const session = await getJson(\"/auth/session\");", StringComparison.Ordinal);
 
         Assert.True(tryStart >= 0);
         Assert.True(tokenRequest > tryStart);
-        Assert.True(refresh > tokenRequest);
+        Assert.True(session > tokenRequest);
         Assert.Contains("if (!antiforgeryReady)", boot, StringComparison.Ordinal);
         Assert.Contains("showLogin(\"Secure session setup failed. Refresh the page to try again.\");", boot, StringComparison.Ordinal);
         Assert.Contains("return;", boot, StringComparison.Ordinal);

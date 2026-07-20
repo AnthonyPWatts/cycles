@@ -106,9 +106,19 @@ Trusted login rotates the antiforgery cookie before the dashboard enables comman
 
 ## Dashboard Bootstrap Contract
 
+### Account Games Home
+
+`GET /games` is an authenticated account projection. It resolves the current Player independently of Game membership, reads at most the first 100 enrolments through `IGameCatalogueQuery`, and returns a redacted `GamesHomeSnapshot`; it does not load any full Cycle state. The response groups Games into `activeGames`, `waitingGames`, and `completedGames`, includes the total matching membership count, and supplies up to three deterministic `needsAttention` entries ranked on the server.
+
+Each item carries its Game identity and display name, kind and lifecycle, enrolment status, current Cycle summary when one exists, the contextual action (`continue`, `enterLobby`, `observe`, or `review`), and an optional attention reason. A scheduled Cycle may include `nextTickAt`; a past deadline means that commands await resolution rather than promising that a tick has already run. Recovery required ranks first, followed by an approaching scheduled deadline, a recently started Game, and Training in progress. Withdrawn enrolments receive no attention entry. The browser displays these reasons and actions but does not reproduce their ranking policy.
+
+An authenticated Player with no enrolments receives a successful empty snapshot. The account shell explains that no Games are available without manufacturing a placeholder Game or calling the legacy bootstrap. The initial Training action remains unavailable until private Training provisioning is implemented.
+
+The browser route `#/games` owns the account shell. Selected-game workspaces use `#/games/{gameId}/{command|galaxy|fleets|history}` and remain exactly the four existing gameplay views. The URL, not local storage, is authoritative for Game and workspace selection, so two tabs may hold different selections. A selection change clears scoped client state, aborts the previous request generation, and rejects any response whose Game ID or generation is stale. Unknown, withdrawn, or non-playable selections fail safely without falling back to another Game. The native Game selector is hidden when only one Game is available.
+
 `GET /games/{gameId}/dashboard/bootstrap` supplies the selected dashboard view from one authoritative Cycle snapshot. The typed response contains `gameId`, the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, visible Events, visible Chronicle entries, the visible opening briefing, and a player-scoped `turnResolution` presentation contract. Trusted login also returns `gameId`, so its first refresh can use the selected-Game route.
 
-`GET /dashboard/bootstrap` remains a pinned compatibility adapter for the first browser load before the client knows the fixed legacy Game ID. It resolves that Game on the server and calls the same selected-Game handler. After the response supplies `gameId`, one client owns the selected Game's request generation and `AbortController`. It clears Game-scoped state on a selection change and applies a response only while its Game ID and generation still match. The Games home and player selection between Games are not implemented.
+`GET /dashboard/bootstrap` remains a pinned compatibility adapter for older clients that do not yet supply the fixed legacy Game ID. It resolves that Game on the server and calls the same selected-Game handler. The current browser discovers available Games through the account projection and uses only scoped bootstrap routes after selection.
 
 The Event collection keeps the latest visible tick complete. It then adds older visible Events up to the normal 100-record bound; a latest tick containing more than 100 visible Events remains complete rather than being cut in half.
 

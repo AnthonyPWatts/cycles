@@ -3464,6 +3464,279 @@ dd {
     }
 }
 
+/* Account-level Games shell */
+.games-home[hidden],
+.games-ledger-section[hidden],
+.games-empty-state[hidden],
+.selected-game-context[hidden],
+.view-nav[hidden],
+.view-stack[hidden],
+.turn-progress-ribbon[hidden],
+.turn-message[hidden] {
+    display: none !important;
+}
+
+body.account-active {
+    overflow: hidden;
+}
+
+.account-active .app-shell {
+    display: block;
+    overflow-y: auto;
+    padding: clamp(24px, 4vw, 52px) 20px 64px;
+    background:
+        linear-gradient(150deg, rgba(217, 179, 93, 0.045), transparent 34%),
+        #080d10;
+}
+
+.games-home {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+}
+
+.games-home-heading,
+.games-ledger-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.games-home-heading {
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(217, 179, 93, 0.5);
+}
+
+.games-home-heading h1,
+.games-ledger-heading h2,
+.games-empty-state h2,
+.game-ledger-identity h3 {
+    margin: 0;
+    color: var(--system);
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 500;
+}
+
+.games-home-heading h1 {
+    margin-top: 4px;
+    font-size: clamp(2rem, 4vw, 3.3rem);
+}
+
+.games-home-heading p,
+.games-home-message,
+.games-empty-state p,
+.game-ledger-identity p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.games-home-message {
+    min-height: 24px;
+    padding: 10px 0;
+    font-size: 0.84rem;
+}
+
+.games-ledger-section,
+.games-empty-state {
+    margin-top: 28px;
+    border: 1px solid rgba(217, 179, 93, 0.28);
+    background: rgba(12, 18, 21, 0.86);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+}
+
+.games-ledger-heading {
+    padding: 16px 18px 13px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.games-ledger-heading h2 {
+    margin-top: 3px;
+    font-size: 1.35rem;
+}
+
+.games-ledger-count {
+    color: var(--muted);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.76rem;
+}
+
+.games-ledger {
+    display: grid;
+}
+
+.game-ledger-row {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(170px, 0.46fr) minmax(140px, auto) minmax(90px, auto);
+    align-items: center;
+    gap: 18px;
+    min-height: 94px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.game-ledger-row:last-child {
+    border-bottom: 0;
+}
+
+.game-ledger-identity h3 {
+    margin: 3px 0 5px;
+    font-size: 1.08rem;
+}
+
+.game-ledger-identity p,
+.game-ledger-status,
+.game-attention-reason {
+    font-size: 0.8rem;
+}
+
+.game-ledger-status {
+    display: grid;
+    justify-items: start;
+    gap: 7px;
+    color: var(--muted);
+}
+
+.game-attention-reason {
+    color: var(--gold);
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.game-row-action,
+.all-games-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid rgba(143, 180, 244, 0.54);
+    border-radius: 4px;
+    background: rgba(95, 130, 201, 0.12);
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.game-row-action:hover,
+.all-games-link:hover {
+    border-color: var(--gold);
+    background: rgba(217, 179, 93, 0.1);
+}
+
+.game-row-action.is-unavailable {
+    border-color: var(--line-soft);
+    background: transparent;
+    color: var(--muted);
+}
+
+.games-empty-state {
+    max-width: 720px;
+    padding: clamp(24px, 4vw, 44px);
+}
+
+.games-empty-state h2 {
+    margin: 6px 0 12px;
+}
+
+.selected-game-context {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 260px);
+    align-items: center;
+    gap: 18px;
+    padding: 10px clamp(12px, 2vw, 24px);
+    border-bottom: 1px solid rgba(217, 179, 93, 0.28);
+    background: #0a1013;
+}
+
+.selected-game-copy {
+    display: grid;
+    gap: 2px;
+}
+
+.selected-game-copy strong {
+    color: var(--system);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.08rem;
+}
+
+.game-selector-label {
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1fr);
+    align-items: center;
+    gap: 9px;
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+.game-selector-label select {
+    min-height: 34px;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 959px) {
+    .game-ledger-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .game-ledger-status,
+    .game-attention-reason {
+        grid-column: 1;
+    }
+
+    .game-row-action {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+    }
+}
+
+@media (max-width: 599px) {
+    .account-active .app-shell {
+        padding: 20px 12px 48px;
+    }
+
+    .games-home-heading,
+    .games-ledger-heading,
+    .game-ledger-row,
+    .selected-game-context {
+        align-items: stretch;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .games-home-heading,
+    .games-ledger-heading {
+        flex-direction: column;
+    }
+
+    .game-ledger-row {
+        display: grid;
+        gap: 10px;
+    }
+
+    .game-ledger-status,
+    .game-attention-reason,
+    .game-row-action {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .game-row-action {
+        justify-self: stretch;
+    }
+
+    .selected-game-context {
+        display: grid;
+        gap: 10px;
+    }
+
+    .all-games-link {
+        justify-self: start;
+    }
+
+    .game-selector-label {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     button,
     .link,

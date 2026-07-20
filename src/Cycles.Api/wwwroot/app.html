@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260719-turn-contract-1">
+    <link rel="stylesheet" href="styles.css?v=20260720-games-home-2">
 </head>
 <body>
     <header class="topbar">
@@ -56,9 +56,83 @@
     </header>
 
     <main id="appShell" class="app-shell" hidden>
-        <p id="turnMessage" class="turn-message" role="status"></p>
+        <section id="gamesHome" class="games-home" aria-labelledby="gamesHomeTitle" hidden>
+            <header class="games-home-heading">
+                <div>
+                    <span class="section-kicker">Account command archive</span>
+                    <h1 id="gamesHomeTitle" tabindex="-1">Your games</h1>
+                </div>
+                <p id="gamesHomeSummary">Loading your game ledger…</p>
+            </header>
 
-        <nav id="viewNav" class="view-nav" aria-label="Command views">
+            <p id="gamesHomeMessage" class="games-home-message" role="status"></p>
+
+            <section id="attentionSection" class="games-ledger-section" aria-labelledby="attentionTitle" hidden>
+                <div class="games-ledger-heading">
+                    <div>
+                        <span class="section-kicker">Strongest next actions</span>
+                        <h2 id="attentionTitle">Needs attention</h2>
+                    </div>
+                    <span id="attentionMore" class="games-ledger-count"></span>
+                </div>
+                <div id="attentionGames" class="games-ledger"></div>
+            </section>
+
+            <section id="gamesEmptyState" class="games-empty-state" hidden aria-labelledby="gamesEmptyTitle">
+                <span class="section-kicker">No memberships</span>
+                <h2 id="gamesEmptyTitle">Your archive is ready for its first game</h2>
+                <p>No games have been enrolled for this account. Private Training provisioning is the next delivery slice; no placeholder game has been created.</p>
+            </section>
+
+            <section id="activeGamesSection" class="games-ledger-section" aria-labelledby="activeGamesTitle" hidden>
+                <div class="games-ledger-heading">
+                    <div>
+                        <span class="section-kicker">Commands and observation</span>
+                        <h2 id="activeGamesTitle">In progress</h2>
+                    </div>
+                    <span id="activeGamesCount" class="games-ledger-count"></span>
+                </div>
+                <div id="activeGames" class="games-ledger"></div>
+            </section>
+
+            <section id="waitingGamesSection" class="games-ledger-section" aria-labelledby="waitingGamesTitle" hidden>
+                <div class="games-ledger-heading">
+                    <div>
+                        <span class="section-kicker">Enrolled and between Cycles</span>
+                        <h2 id="waitingGamesTitle">Waiting</h2>
+                    </div>
+                    <span id="waitingGamesCount" class="games-ledger-count"></span>
+                </div>
+                <div id="waitingGames" class="games-ledger"></div>
+            </section>
+
+            <section id="completedGamesSection" class="games-ledger-section" aria-labelledby="completedGamesTitle" hidden>
+                <div class="games-ledger-heading">
+                    <div>
+                        <span class="section-kicker">Retained records</span>
+                        <h2 id="completedGamesTitle">Recently completed</h2>
+                    </div>
+                    <span id="completedGamesCount" class="games-ledger-count"></span>
+                </div>
+                <div id="completedGames" class="games-ledger"></div>
+            </section>
+        </section>
+
+        <div id="selectedGameContext" class="selected-game-context" hidden>
+            <a id="allGamesLink" class="all-games-link" href="#/games">All games</a>
+            <div class="selected-game-copy">
+                <span id="selectedGameKind" class="section-kicker">Standard game</span>
+                <strong id="selectedGameName">Selected game</strong>
+            </div>
+            <label class="game-selector-label" for="gameSelector">
+                <span>Switch game</span>
+                <select id="gameSelector" aria-label="Switch selected game"></select>
+            </label>
+        </div>
+
+        <p id="turnMessage" class="turn-message" role="status" hidden></p>
+
+        <nav id="viewNav" class="view-nav" aria-label="Command views" hidden>
             <a href="#command" data-view-link="command" aria-controls="commandView" aria-keyshortcuts="Alt+1">
                 <span class="view-nav-chapter" aria-hidden="true">I</span>
                 <span class="view-nav-copy">
@@ -93,7 +167,7 @@
             </a>
         </nav>
 
-        <div class="view-stack">
+        <div id="viewStack" class="view-stack" hidden>
             <section id="commandView" class="app-view command-view" data-view="command" aria-labelledby="commandViewTitle">
                 <h1 id="commandViewTitle" class="visually-hidden" tabindex="-1">Command</h1>
                 <div class="command-workspace">
@@ -525,7 +599,7 @@
             </section>
         </div>
 
-        <footer id="turnProgressRibbon" class="turn-progress-ribbon" aria-label="Cycle turn progress">
+        <footer id="turnProgressRibbon" class="turn-progress-ribbon" aria-label="Cycle turn progress" hidden>
             <div class="turn-progress-summary">
                 <span>Cycle progress</span>
                 <strong id="turnProgressStatus">T0 / 150</strong>
@@ -601,6 +675,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260719-move-projection-1"></script>
+    <script src="app.js?v=20260720-games-home-2"></script>
 </body>
 </html>

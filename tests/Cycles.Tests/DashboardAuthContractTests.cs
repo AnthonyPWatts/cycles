@@ -39,8 +39,10 @@ public sealed class DashboardAuthContractTests
         var bootFunction = script[bootStart..loginStart];
         Assert.Contains("showLogin(\"Choose a player to continue.\");", bootFunction);
         Assert.Contains("await loadTrustedPlayers();", bootFunction);
-        Assert.Contains("await refresh({ applySessionFromBootstrap: true });", bootFunction);
-        Assert.DoesNotContain("/auth/session", bootFunction);
+        Assert.Contains("const session = await getJson(\"/auth/session\");", bootFunction);
+        Assert.Contains("applyAccountSession(session);", bootFunction);
+        Assert.Contains("await loadGamesHome();", bootFunction);
+        Assert.Contains("await navigateFromLocation();", bootFunction);
         Assert.DoesNotContain("await login(", bootFunction);
     }
 

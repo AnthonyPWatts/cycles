@@ -26,7 +26,8 @@ public sealed class DashboardViewContractTests
         Assert.Equal(4, Regex.Matches(html, "<h1[^>]*class=\"visually-hidden\"[^>]*tabindex=\"-1\"").Count);
 
         Assert.Contains("window.addEventListener(\"hashchange\"", script);
-        Assert.Contains("window.history.replaceState(null, \"\", `#${selectedView}`);", script);
+        Assert.Contains("const selectedHash = selectedGameHash(selectedGame, selectedView);", script);
+        Assert.Contains("window.history.replaceState(null, \"\", selectedHash);", script);
         Assert.Contains("link.setAttribute(\"aria-current\", \"page\");", script);
         Assert.Contains("activateView(step.view, { updateLocation: true });", script);
     }

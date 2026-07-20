@@ -2076,3 +2076,26 @@ Consequences:
 - Standard creation supports one to six existing Human enrolments without AI seat fill. Twin Reaches accepts exactly one existing Human enrolment; neutral fleets remain normal scenario actors.
 - Training remains unavailable to Players until MG-07 supplies the account shell and MG-08 supplies private idempotent Training provisioning.
 - Future profile changes require a new version and hash. Arbitrary database-authored maps and policies remain outside the supported boundary.
+
+## 2026-07-20: Put A Server-Ranked Games Ledger Above Selected-Game Workspaces
+
+Decision: expose one authenticated `GET /games` account projection above the existing four selected-game workspaces. It reads a bounded per-Player catalogue without loading Cycle state, groups active, waiting, and completed memberships, and supplies at most three attention entries ranked on the server with explicit reasons. Recovery required ranks before an approaching scheduled deadline, a recently started Game, and Training in progress. The response carries a contextual `continue`, `enterLobby`, `observe`, or `review` action; the browser renders that decision instead of recreating scheduling policy.
+
+Make `#/games` the account route and `#/games/{gameId}/{command|galaxy|fleets|history}` the selected-game routes. The URL is the source of Game and workspace selection so separate tabs remain independent. Do not store a selected Game in local storage. On selection change, clear scoped state, abort the previous request generation, and reject a response whose Game or generation is no longer current. Keep the account shell above, rather than alongside, the four gameplay views; hide the turn ribbon and Day One guide while it is active.
+
+Status: MG-07 is implemented in Application projection policy, the SQL catalogue query, the authenticated API route, and the static dashboard. It has focused projection, route, transport and SQL contract evidence plus live-browser desktop, tablet, mobile and two-tab checks. It does not create a second Game, expose Training provisioning, or implement lobby/archive interactions.
+
+Reasoning:
+
+- Cross-Game urgency is domain presentation policy. Returning ranked reasons from one server projection keeps clients deterministic and prevents deadline rules drifting between browsers.
+- Authentication must remain valid with zero memberships. An explicit empty Games home is safer than a failed legacy bootstrap or an invented placeholder Game.
+- A URL-selected Game makes refresh, history, deep links and independent tabs predictable. Request cancellation and generation checks protect the rendered state when responses race.
+- Game selection is a navigation level, not another gameplay capability. Keeping exactly four workspaces preserves the existing mental model and accessibility topology.
+
+Consequences:
+
+- Account admission now loads `/auth/session` followed by `/games`; it does not require or infer a legacy Game seat.
+- The first projection is capped at 100 memberships and retains an honest total/`HasMore` boundary from the underlying catalogue. Completed-history pagination can replace that first bounded presentation when real account histories require it.
+- One-Game accounts see the same Games home but no redundant selector. Unknown, withdrawn, or non-playable selections fail safely rather than silently switching Games.
+- Waiting, intermission, completed and recovery actions remain descriptive until their dedicated lobby, observation, archive and recovery experiences exist.
+- Fresh zero-Game admission is technically safe but remains rollout-gated until MG-08 gives the empty state a useful private Training action.

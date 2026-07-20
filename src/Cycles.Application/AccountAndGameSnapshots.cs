@@ -27,7 +27,144 @@ public sealed record GameCatalogueItem(
     CycleStatus? OperationalCycleStatus,
     int? CurrentTickNumber,
     TurnResolutionStage? TurnStage,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? FirstStartedAt = null,
+    int? TickLengthMinutes = null,
+    DateTimeOffset? NextTickAt = null);
+
+public enum GamesHomeAction
+{
+    Continue,
+    EnterLobby,
+    Observe,
+    Review
+}
+
+public enum GamesHomeAttentionReason
+{
+    RecoveryRequired,
+    CommandsCloseSoon,
+    GameStarted,
+    TrainingInProgress
+}
+
+public sealed record GamesHomeItem(
+    GameCatalogueItem Game,
+    GamesHomeAction Action,
+    int? AttentionRank,
+    GamesHomeAttentionReason? AttentionReason);
+
+public sealed record GamesHomeSnapshot(
+    IReadOnlyList<GamesHomeItem> NeedsAttention,
+    int TotalAttentionCount,
+    IReadOnlyList<GamesHomeItem> ActiveGames,
+    IReadOnlyList<GamesHomeItem> WaitingGames,
+    IReadOnlyList<GamesHomeItem> CompletedGames,
+    bool HasMore);
+
+public static class GamesHomeProjection
+{
+    private const int AttentionLimit = 3;
+
+    public static GamesHomeSnapshot Create(GameCataloguePage page, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        var projected = page.Items
+            .Select(game => new GamesHomeItem(
+                game,
+                ActionFor(game),
+                AttentionRank: null,
+                AttentionReason: AttentionReasonFor(game, now)))
+            .ToArray();
+        var rankedAttention = projected
+            .Where(item => item.AttentionReason is not null)
+            .OrderBy(item => AttentionPriority(item.AttentionReason!.Value))
+            .ThenBy(item => item.Game.NextTickAt ?? item.Game.FirstStartedAt ?? item.Game.CreatedAt)
+            .ThenBy(item => item.Game.GameId)
+            .Select((item, index) => item with { AttentionRank = index + 1 })
+            .ToArray();
+        var ranks = rankedAttention.ToDictionary(item => item.Game.GameId);
+        projected = projected
+            .Select(item => ranks.GetValueOrDefault(item.Game.GameId, item))
+            .ToArray();
+
+        return new GamesHomeSnapshot(
+            Array.AsReadOnly(rankedAttention.Take(AttentionLimit).ToArray()),
+            rankedAttention.Length,
+            Array.AsReadOnly(projected
+                .Where(item => item.Game.GameStatus == GameLifecycleStatus.Active)
+                .OrderBy(item => item.AttentionRank ?? int.MaxValue)
+                .ThenBy(item => item.Game.GameName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Game.GameId)
+                .ToArray()),
+            Array.AsReadOnly(projected
+                .Where(item => item.Game.GameStatus is GameLifecycleStatus.Forming
+                    or GameLifecycleStatus.Starting
+                    or GameLifecycleStatus.Intermission)
+                .OrderBy(item => item.Game.GameName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Game.GameId)
+                .ToArray()),
+            Array.AsReadOnly(projected
+                .Where(item => item.Game.GameStatus is GameLifecycleStatus.Completed
+                    or GameLifecycleStatus.Cancelled
+                    or GameLifecycleStatus.Terminated)
+                .OrderByDescending(item => item.Game.EnrolmentStatusChangedAt)
+                .ThenBy(item => item.Game.GameId)
+                .ToArray()),
+            page.HasMore);
+    }
+
+    private static GamesHomeAction ActionFor(GameCatalogueItem game) => game switch
+    {
+        { EnrolmentStatus: GameEnrolmentStatus.Withdrawn } => GamesHomeAction.Review,
+        { GameStatus: GameLifecycleStatus.Active, OperationalCycleStatus: CycleStatus.Active } =>
+            GamesHomeAction.Continue,
+        { GameStatus: GameLifecycleStatus.Active } => GamesHomeAction.Observe,
+        { GameStatus: GameLifecycleStatus.Forming or GameLifecycleStatus.Starting or GameLifecycleStatus.Intermission } =>
+            GamesHomeAction.EnterLobby,
+        _ => GamesHomeAction.Review
+    };
+
+    private static GamesHomeAttentionReason? AttentionReasonFor(
+        GameCatalogueItem game,
+        DateTimeOffset now)
+    {
+        if (game.EnrolmentStatus != GameEnrolmentStatus.Enrolled)
+        {
+            return null;
+        }
+        if (game.OperationalCycleStatus == CycleStatus.RecoveryRequired)
+        {
+            return GamesHomeAttentionReason.RecoveryRequired;
+        }
+        if (game.GameStatus != GameLifecycleStatus.Active
+            || game.OperationalCycleStatus != CycleStatus.Active)
+        {
+            return null;
+        }
+        if (game.NextTickAt is not null)
+        {
+            return GamesHomeAttentionReason.CommandsCloseSoon;
+        }
+        if (game.FirstStartedAt is not null && game.FirstStartedAt >= now.AddHours(-24))
+        {
+            return GamesHomeAttentionReason.GameStarted;
+        }
+        return game.Purpose == GamePurpose.Training
+            ? GamesHomeAttentionReason.TrainingInProgress
+            : null;
+    }
+
+    private static int AttentionPriority(GamesHomeAttentionReason reason) => reason switch
+    {
+        GamesHomeAttentionReason.RecoveryRequired => 0,
+        GamesHomeAttentionReason.CommandsCloseSoon => 1,
+        GamesHomeAttentionReason.GameStarted => 2,
+        GamesHomeAttentionReason.TrainingInProgress => 3,
+        _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
+    };
+}
 
 public sealed record GameCatalogueCursor
 {

@@ -197,6 +197,20 @@ app.MapGet("/auth/session", (
             account.Role);
     }));
 
+app.MapGet("/games", (
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    IGameCatalogueQuery catalogue) =>
+    TryResult(() =>
+    {
+        var account = DevelopmentAuth.RequireAccount(httpContext, accounts);
+        var page = catalogue.ListForPlayer(
+            account.PlayerId,
+            cursor: null,
+            pageSize: GameCataloguePage.MaximumPageSize);
+        return GamesHomeProjection.Create(page, DateTimeOffset.UtcNow);
+    }));
+
 var selectedGameRoutes = app.MapGroup("/games/{gameId:guid}");
 
 selectedGameRoutes.MapGet("/dashboard/bootstrap", (

@@ -70,13 +70,16 @@ public sealed partial class SqlServerGameStateStore
                 game.Status AS GameStatus,
                 game.Visibility,
                 game.CreatedAt,
+                game.FirstStartedAt,
                 enrolment.GameEnrolmentID,
                 enrolment.Status AS EnrolmentStatus,
                 enrolment.StatusChangedAt,
                 cycle.CycleID AS OperationalCycleID,
                 cycle.Status AS OperationalCycleStatus,
                 cycle.CurrentTickNumber,
-                cycle.TurnStage
+                cycle.TurnStage,
+                cycle.TickLengthMinutes,
+                cycle.NextTickAt
             FROM dbo.GameEnrolments AS enrolment
             INNER JOIN dbo.Players AS player
                 ON player.PlayerID = enrolment.PlayerID
@@ -409,7 +412,10 @@ public sealed partial class SqlServerGameStateStore
             GetNullableEnum<CycleStatus>(reader, "OperationalCycleStatus"),
             GetNullableInt(reader, "CurrentTickNumber"),
             GetNullableEnum<TurnResolutionStage>(reader, "TurnStage"),
-            GetDateTimeOffset(reader, "CreatedAt"));
+            GetDateTimeOffset(reader, "CreatedAt"),
+            GetNullableDateTimeOffset(reader, "FirstStartedAt"),
+            GetNullableInt(reader, "TickLengthMinutes"),
+            GetNullableDateTimeOffset(reader, "NextTickAt"));
 
     private static GameCommandContext ReadGameCommandContext(SqlDataReader reader)
     {
