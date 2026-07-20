@@ -1338,6 +1338,11 @@ DEALLOCATE ScopeForeignKeyCursor;
 -- SQL Server cannot change nullability while dependent indexes or foreign
 -- keys exist. Rebuild the small affected set inside the migration transaction
 -- so the contract change remains atomic and keeps the original names.
+DECLARE @RestoreTutorialRunsCycleForeignKey BIT = CASE
+    WHEN EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TutorialRuns_Cycles')
+    THEN 1 ELSE 0 END;
+IF @RestoreTutorialRunsCycleForeignKey = 1
+    ALTER TABLE dbo.TutorialRuns DROP CONSTRAINT FK_TutorialRuns_Cycles;
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_MatchParticipants_CyclesInGame')
     ALTER TABLE dbo.MatchParticipants DROP CONSTRAINT FK_MatchParticipants_CyclesInGame;
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_MatchParticipants_GameEnrolments')
@@ -1438,6 +1443,11 @@ CREATE UNIQUE INDEX UX_Cycles_Game_OperationalSlot
 CREATE INDEX IX_Cycles_Game_Status ON dbo.Cycles(GameID, Status, StartAt);
 
 CREATE UNIQUE INDEX UX_Cycles_CycleID_GameID ON dbo.Cycles(CycleID, GameID);
+
+IF @RestoreTutorialRunsCycleForeignKey = 1
+    ALTER TABLE dbo.TutorialRuns WITH CHECK
+        ADD CONSTRAINT FK_TutorialRuns_Cycles FOREIGN KEY (CycleID, GameID)
+            REFERENCES dbo.Cycles(CycleID, GameID);
 
 CREATE INDEX IX_MatchParticipants_Game_Player_Cycle
     ON dbo.MatchParticipants(GameID, PlayerID, CycleID);

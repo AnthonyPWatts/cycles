@@ -139,7 +139,32 @@ public sealed partial class SqlServerGameStateStore
                 }
             }
 
-            var state = LoadFocusedTickStateUnsafe(connection, transaction, scope.CycleId);
+            var tutorialRequest = explicitRequest is { RequireActiveTutorialRun: true }
+                ? explicitRequest
+                : null;
+            var state = tutorialRequest is not null
+                ? LoadFocusedViewStateUnsafe(connection, transaction, tutorialRequest.Context)
+                : LoadFocusedTickStateUnsafe(connection, transaction, scope.CycleId);
+            if (tutorialRequest is not null)
+            {
+                var run = ReadTutorialRun(
+                    connection,
+                    transaction,
+                    tutorialRequest.Context.GameAccess.PlayerId,
+                    scope.GameId,
+                    forUpdate: true);
+                if (run is null
+                    || !TutorialJourneyEvaluator.Evaluate(
+                        state,
+                        tutorialRequest.Context,
+                        run,
+                        ReadAcknowledgements(connection, transaction, run.TutorialRunId)).CanResolve)
+                {
+                    transaction.Commit();
+                    return new CycleResolutionResult.Unavailable();
+                }
+            }
+
             StrategicPriorityPolicy.Normalize(state);
             var result = new TickEngine().RunTick(state, scope.CycleId, now);
             SaveTickOutcomeUnsafe(connection, transaction, state, scope.CycleId);
@@ -175,6 +200,23 @@ public sealed partial class SqlServerGameStateStore
                 WHERE GameID = @GameID
                   AND Status = @ActiveGameStatus
             )
+            BEGIN
+                SELECT 0;
+                RETURN;
+            END;
+
+            IF @RequireActiveTutorialRun = 1
+               AND NOT EXISTS
+               (
+                   SELECT 1
+                   FROM dbo.TutorialRuns WITH (UPDLOCK, HOLDLOCK)
+                   WHERE GameID = @GameID
+                     AND CycleID = @CycleID
+                     AND PlayerID = @PlayerID
+                     AND TutorialKey = @TutorialKey
+                     AND DefinitionVersion = @DefinitionVersion
+                     AND Status = @ActiveTutorialStatus
+               )
             BEGIN
                 SELECT 0;
                 RETURN;
@@ -275,6 +317,10 @@ public sealed partial class SqlServerGameStateStore
         AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
         AddString(command, "@ActiveEmpireStatus", EmpireStatus.Active.ToString(), 32);
         AddInt(command, "@RequireAdministerPermission", request.RequireAdminister ? 1 : 0);
+        AddInt(command, "@RequireActiveTutorialRun", request.RequireActiveTutorialRun ? 1 : 0);
+        AddString(command, "@TutorialKey", GameProfileCatalogue.TwinReachesProfileKey, 128);
+        AddInt(command, "@DefinitionVersion", TutorialJourneyEvaluator.FoundationsDefinitionVersion);
+        AddString(command, "@ActiveTutorialStatus", TutorialRunStatus.Active.ToString(), 32);
         AddString(command, "@AdminPlayerRole", PlayerRole.Admin.ToString(), 32);
 
         return (ExplicitResolutionAuthority)Convert.ToInt32(command.ExecuteScalar(), null);

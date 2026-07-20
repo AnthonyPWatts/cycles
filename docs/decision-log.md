@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -2121,3 +2121,28 @@ Consequences:
 - The account home changes Start to the normal Training-in-progress/Continue presentation after creation. A concurrent second request returns `created: false` and the same identifiers.
 - Training provisioning has typed unavailable/busy outcomes, antiforgery, immutable profile provenance and lifecycle correlation, but no general lobby, public join, reset or replacement API.
 - Production Player-controlled tutorial resolution remains unavailable; the trusted Development playground can use its already accepted selected-Game advance control during the pilot.
+
+## 2026-07-20: Derive Core Foundations From The Training Game
+
+Decision: add a versioned `TutorialRun` for each Player, Twin Reaches Game and definition version. Persist only journey status, presentation acknowledgements, account-level first completion/explicit skip evidence, request identity and supersession; derive every mechanical lesson milestone from the selected Cycle's owned orders, events, outposts, battles and processed ticks. The Core journey has four authoritative resolutions: Move Home Guard to Firstlight; save priorities and colonise Greenwater; attack the local Corsairs and inspect the resulting battle regardless of winner; then process one unprompted legal command.
+
+Expose selected-Game journey, acknowledgement, status, resolution and fresh-attempt routes. Acknowledgement is accepted only for the current lesson after its mechanical evidence exists. Training resolution requires the exact active run as well as normal Player/Game/Cycle command authority. Pause is reversible; explicit skip ends that run without gating standard games. Starting fresh takes the Player/definition attempt lock followed by old Game and Cycle locks, creates the replacement from the same immutable profile, marks the old run/Game historical, and commits the supersession atomically. Reusing a request identifier returns the same replacement.
+
+Status: MG-09 is implemented in Application, migrations 026 and 027, focused SQL storage, selected-Game API routes and the Training journey drawer. The four-resolution golden path runs through `OrderService` and the real tick engine; migration backfill/restart, duplicate acknowledgement, pause/skip, completion return, cross-scope rejection and resolution/reset races have executable coverage. MG-10 still owns the complete responsive/accessibility states, and Increment 2 still requires the five-novice time and comprehension evidence.
+
+Reasoning:
+
+- Mechanical progress is a fact query, not browser state. This prevents a local flag, foreign Game or another Player's fact from granting completion.
+- Acknowledgement remains useful for pacing and explanation, but cannot stand in for an order outcome or battle.
+- Player-safe Training resolution needs a narrower policy than the Development administrator control and must stop when the run is paused, skipped, completed or superseded.
+- Each resolution requires the current lesson's ordinary intention to be queued, and the same predicate is re-evaluated inside the authoritative Game/Cycle lock so an empty or concurrently replaced turn cannot advance the journey.
+- Rewinding a persisted simulation would erase evidence and complicate concurrency. Superseding it with a new immutable-profile Game preserves history and makes retry identity explicit.
+- Resolution and reset share Game-then-Cycle ordering. Whichever obtains the Game lock first wins cleanly; the loser observes the new terminal or post-resolution state without a partial world.
+
+Consequences:
+
+- Standard games retain the existing Day One guide. A selected Training game instead loads `Core foundations` from the server and hides the Development-only manual advance control.
+- Recovery-required Training remains inspectable, cannot resolve again through the journey, and offers a fresh attempt without silently repairing or rolling back the failed Cycle.
+- Core completion is recorded once at account level while later replay attempts remain allowed.
+- Disabling the Training pilot offer does not delete committed Games, runs, acknowledgements or completion evidence.
+- The optional Frontier travel module, general lobby/archive experiences, full keyboard/screen-reader proof and novice pilot evidence remain later work.

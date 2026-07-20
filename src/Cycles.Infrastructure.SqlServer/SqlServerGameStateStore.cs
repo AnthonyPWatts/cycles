@@ -19,7 +19,8 @@ public sealed partial class SqlServerGameStateStore :
     IPlayerAccountCommandStore,
     ITrustedPlayerSelectionQuery,
     IAdminRoleCommandStore,
-    ITrainingGameProvisioningStore
+    ITrainingGameProvisioningStore,
+    ITutorialAttemptStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
     private const string GameResolutionLockPrefix = "Cycles.Game.";
@@ -2549,6 +2550,20 @@ public sealed partial class SqlServerGameStateStore :
         DeleteMissingRows(connection, transaction, "dbo.AdminRoleAuditRecords", "AdminRoleAuditRecordID", state.AdminRoleAuditRecords.Select(item => item.AdminRoleAuditRecordId));
         if (deleteGameLifecycleEvents)
         {
+            Execute(
+                connection,
+                transaction,
+                """
+                IF OBJECT_ID(N'dbo.TutorialCompletions', N'U') IS NOT NULL
+                    DELETE FROM dbo.TutorialCompletions;
+                IF OBJECT_ID(N'dbo.TutorialSkips', N'U') IS NOT NULL
+                    DELETE FROM dbo.TutorialSkips;
+                IF OBJECT_ID(N'dbo.TutorialAcknowledgements', N'U') IS NOT NULL
+                    DELETE FROM dbo.TutorialAcknowledgements;
+                IF OBJECT_ID(N'dbo.TutorialRuns', N'U') IS NOT NULL
+                    DELETE FROM dbo.TutorialRuns;
+                """,
+                _ => { });
             DeleteMissingRows(connection, transaction, "dbo.GameLifecycleEvents", "GameLifecycleEventID", state.GameLifecycleEvents.Select(item => item.GameLifecycleEventId));
         }
 

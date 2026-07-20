@@ -36,16 +36,20 @@ public sealed record ExplicitCycleResolutionRequest
 {
     public ExplicitCycleResolutionRequest(
         GameCommandContext context,
-        bool requireAdminister)
+        bool requireAdminister,
+        bool requireActiveTutorialRun = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         Context = context;
         RequireAdminister = requireAdminister;
+        RequireActiveTutorialRun = requireActiveTutorialRun;
     }
 
     public GameCommandContext Context { get; }
 
     public bool RequireAdminister { get; }
+
+    public bool RequireActiveTutorialRun { get; }
 
     public GameCycleScope Scope => Context.Scope;
 }

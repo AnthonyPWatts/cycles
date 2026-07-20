@@ -29,6 +29,7 @@ public sealed record TrainingGameProvisioningCommand
 }
 
 public sealed record TrainingGameProvisioningSnapshot(
+    Guid TutorialRunId,
     Guid GameId,
     Guid CycleId,
     bool Created);

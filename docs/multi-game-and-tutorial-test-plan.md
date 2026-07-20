@@ -1,6 +1,6 @@
 # Multi-game and tutorial test plan
 
-Status: MG-01 through MG-08 are implemented. MG-03–05 cut online consumers over to scoped routes/stores, antiforgery, scheduling and explicit resolution. MG-06 adds immutable profiles and deterministic roster-aware materialisation. MG-07 adds the bounded, URL-authoritative Games home. MG-08 adds allow-listed, idempotent private Twin Reaches provisioning plus SQL evidence that concurrent requests converge and an ordinary first Move survives authoritative resolution and a fresh-store return. The four-resolution server-derived journey, reset/recovery semantics, complete accessibility states and novice pilot evidence remain MG-09–10 work.
+Status: MG-01 through MG-09 are implemented. MG-03–05 cut online consumers over to scoped routes/stores, antiforgery, scheduling and explicit resolution. MG-06 adds immutable profiles and deterministic roster-aware materialisation. MG-07 adds the bounded, URL-authoritative Games home. MG-08 adds allow-listed, idempotent private Twin Reaches provisioning. MG-09 adds the four-resolution server-derived Core journey, presentation-only acknowledgements, player-safe resolution, recovery, pause/skip and idempotent fresh-attempt supersession. Complete accessibility states and novice pilot evidence remain MG-10 and Increment 2 rollout work.
 
 Companion plan: [Multi-game and tutorial programme](multi-game-and-tutorial-plan.md).
 

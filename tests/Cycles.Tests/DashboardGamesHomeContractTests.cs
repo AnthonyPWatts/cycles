@@ -86,6 +86,29 @@ public sealed class DashboardGamesHomeContractTests
         Assert.Contains(".RequireCyclesAntiforgery();", route);
     }
 
+    [Fact]
+    public void Training_guide_uses_server_journey_resolution_and_fresh_attempt_routes()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var program = ReadApiSource("Program.cs");
+
+        Assert.Contains("id=\"tutorialHint\"", html);
+        Assert.Contains("state.tutorialJourney = isTrainingGame()", script);
+        Assert.Contains("gameApi.getJson(\"/tutorial/journey\")", script);
+        Assert.Contains("gameApi.postJson(\"/tutorial/resolve\", {})", script);
+        Assert.Contains("\"/tutorial/acknowledgements\"", script);
+        Assert.Contains("\"/tutorial/start-fresh\"", script);
+        Assert.Contains("function renderTrainingTutorial()", script);
+        Assert.Contains("lesson.mechanicalEvidence.summary", script);
+        Assert.Contains("selectedGameRoutes.MapGet(\"/tutorial/journey\"", program);
+        Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/acknowledgements\"", program);
+        Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/status\"", program);
+        Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/resolve\"", program);
+        Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/start-fresh\"", program);
+        Assert.Contains("requireActiveTutorialRun: true", program);
+    }
+
     private static string ExtractFunction(string script, string startMarker, string endMarker)
     {
         var start = script.IndexOf(startMarker, StringComparison.Ordinal);

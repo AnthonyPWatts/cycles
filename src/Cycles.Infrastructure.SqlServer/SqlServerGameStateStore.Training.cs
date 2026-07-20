@@ -41,6 +41,7 @@ public sealed partial class SqlServerGameStateStore
             transaction.Commit();
             return new TrainingGameProvisioningResult.Success(
                 new TrainingGameProvisioningSnapshot(
+                    existing.TutorialRunId,
                     existing.GameId,
                     existing.CycleId,
                     Created: false));
@@ -64,10 +65,21 @@ public sealed partial class SqlServerGameStateStore
             command.RequestedAt);
 
         SaveNewMaterializedGameUnsafe(connection, transaction, state);
+        var tutorialRunId = Guid.NewGuid();
+        InsertTutorialRun(
+            connection,
+            transaction,
+            tutorialRunId,
+            materialized.GameId,
+            materialized.CycleId,
+            player.PlayerId,
+            command.RequestId,
+            command.RequestedAt);
         transaction.Commit();
 
         return new TrainingGameProvisioningResult.Success(
             new TrainingGameProvisioningSnapshot(
+                tutorialRunId,
                 materialized.GameId,
                 materialized.CycleId,
                 Created: true));
@@ -87,9 +99,13 @@ public sealed partial class SqlServerGameStateStore
             transaction,
             """
             SELECT TOP (2)
+                run.TutorialRunID,
                 game.GameID,
                 cycle.CycleID
-            FROM dbo.GameEnrolments AS enrolment WITH (UPDLOCK, HOLDLOCK)
+            FROM dbo.TutorialRuns AS run WITH (UPDLOCK, HOLDLOCK)
+            INNER JOIN dbo.GameEnrolments AS enrolment
+                ON enrolment.GameID = run.GameID
+               AND enrolment.PlayerID = run.PlayerID
             INNER JOIN dbo.Games AS game
                 ON game.GameID = enrolment.GameID
             INNER JOIN dbo.CycleConfigurations AS configuration
@@ -98,7 +114,10 @@ public sealed partial class SqlServerGameStateStore
             INNER JOIN dbo.Cycles AS cycle
                 ON cycle.GameID = game.GameID
                AND cycle.CycleConfigurationID = configuration.CycleConfigurationID
-            WHERE enrolment.PlayerID = @PlayerID
+            WHERE run.PlayerID = @PlayerID
+              AND run.TutorialKey = @TutorialKey
+              AND run.DefinitionVersion = @DefinitionVersion
+              AND run.Status IN (@ActiveRunStatus, @PausedRunStatus)
               AND enrolment.Status = @EnrolledStatus
               AND game.Purpose = @TrainingPurpose
               AND game.Status IN (@ActiveGameStatus, @IntermissionGameStatus)
@@ -110,6 +129,10 @@ public sealed partial class SqlServerGameStateStore
             sqlCommand =>
             {
                 AddGuid(sqlCommand, "@PlayerID", playerId);
+                AddString(sqlCommand, "@TutorialKey", profile.Key, 128);
+                AddInt(sqlCommand, "@DefinitionVersion", TutorialJourneyEvaluator.FoundationsDefinitionVersion);
+                AddString(sqlCommand, "@ActiveRunStatus", TutorialRunStatus.Active.ToString(), 32);
+                AddString(sqlCommand, "@PausedRunStatus", TutorialRunStatus.Paused.ToString(), 32);
                 AddString(sqlCommand, "@EnrolledStatus", GameEnrolmentStatus.Enrolled.ToString(), 32);
                 AddString(sqlCommand, "@TrainingPurpose", GamePurpose.Training.ToString(), 32);
                 AddString(sqlCommand, "@ActiveGameStatus", GameLifecycleStatus.Active.ToString(), 32);
@@ -120,6 +143,7 @@ public sealed partial class SqlServerGameStateStore
                 AddString(sqlCommand, "@RecoveryCycleStatus", CycleStatus.RecoveryRequired.ToString(), 32);
             },
             reader => new CurrentTrainingAttempt(
+                GetGuid(reader, "TutorialRunID"),
                 GetGuid(reader, "GameID"),
                 GetGuid(reader, "CycleID")));
 
@@ -322,5 +346,44 @@ public sealed partial class SqlServerGameStateStore
         }
     }
 
-    private sealed record CurrentTrainingAttempt(Guid GameId, Guid CycleId);
+    private static void InsertTutorialRun(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Guid tutorialRunId,
+        Guid gameId,
+        Guid cycleId,
+        Guid playerId,
+        Guid requestId,
+        DateTimeOffset startedAt) =>
+        Execute(
+            connection,
+            transaction,
+            """
+            INSERT dbo.TutorialRuns
+            (
+                TutorialRunID, GameID, CycleID, PlayerID, TutorialKey, DefinitionVersion,
+                Status, OriginatingRequestID, SupersededByTutorialRunID,
+                StartedAt, StatusChangedAt, EndedAt
+            )
+            VALUES
+            (
+                @TutorialRunID, @GameID, @CycleID, @PlayerID, @TutorialKey, @DefinitionVersion,
+                @Status, @OriginatingRequestID, NULL,
+                @StartedAt, @StartedAt, NULL
+            );
+            """,
+            sqlCommand =>
+            {
+                AddGuid(sqlCommand, "@TutorialRunID", tutorialRunId);
+                AddGuid(sqlCommand, "@GameID", gameId);
+                AddGuid(sqlCommand, "@CycleID", cycleId);
+                AddGuid(sqlCommand, "@PlayerID", playerId);
+                AddString(sqlCommand, "@TutorialKey", GameProfileCatalogue.TwinReachesProfileKey, 128);
+                AddInt(sqlCommand, "@DefinitionVersion", TutorialJourneyEvaluator.FoundationsDefinitionVersion);
+                AddString(sqlCommand, "@Status", TutorialRunStatus.Active.ToString(), 32);
+                AddGuid(sqlCommand, "@OriginatingRequestID", requestId);
+                AddDateTimeOffset(sqlCommand, "@StartedAt", startedAt);
+            });
+
+    private sealed record CurrentTrainingAttempt(Guid TutorialRunId, Guid GameId, Guid CycleId);
 }

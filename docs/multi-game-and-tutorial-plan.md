@@ -1,6 +1,6 @@
 # Multi-game and tutorial platform plan
 
-Status: approved on 19 July 2026; implementation is in progress. MG-01 through MG-08 are implemented. MG-03–05 provide focused selected-Game stores, routes, antiforgery, scheduling and explicit resolution. MG-06 provides immutable Standard and Twin Reaches profiles plus deterministic roster-aware materialisation. MG-07 provides the bounded, URL-authoritative Games home. MG-08 adds allow-listed, idempotent private Training provisioning and proves an ordinary first Move through authoritative resolution and return. The server-derived Core tutorial journey, recovery and fresh-attempt semantics begin with MG-09.
+Status: approved on 19 July 2026; implementation is in progress. MG-01 through MG-09 are implemented. MG-03–05 provide focused selected-Game stores, routes, antiforgery, scheduling and explicit resolution. MG-06 provides immutable Standard and Twin Reaches profiles plus deterministic roster-aware materialisation. MG-07 provides the bounded, URL-authoritative Games home. MG-08 adds allow-listed, idempotent private Training provisioning. MG-09 adds the server-derived four-resolution Core journey, presentation acknowledgements, player-safe resolution, recovery, pause/skip and atomic fresh-attempt supersession.
 
 Last reviewed: 20 July 2026
 
@@ -2027,7 +2027,7 @@ Mutating commands continue to require exact IDs, operator and non-empty reason. 
 
 ### 28.4 Proposed implementation issue map
 
-These labels remain the programme decomposition map rather than live ticket numbers. MG-01 through MG-08 were delivered as bounded prerequisite slices and their integrated technical gates are signed off by the evidence recorded in `docs/project-state.md`; creating a programme epic or external issues for the remaining work still requires separate authority. Training provision exists, but the full tutorial journey does not.
+These labels remain the programme decomposition map rather than live ticket numbers. MG-01 through MG-09 were delivered as bounded slices and their integrated technical gates are signed off by the evidence recorded in `docs/project-state.md`; creating a programme epic or external issues for the remaining work still requires separate authority. Training provision and the server-derived Core journey exist; MG-10 owns their complete responsive and accessibility states.
 
 | Label | Increment | Scope and exit evidence | Depends on |
 |---|---:|---|---|
@@ -2040,7 +2040,7 @@ These labels remain the programme decomposition map rather than live ticket numb
 | MG-06 | 1 | **Implemented:** minimal roster-aware factory, immutable Standard/Twin Reaches profiles, startup validators and SQL round trips | MG-01, MG-02 |
 | MG-07 | 1 | **Implemented:** minimal Games home, server-ranked attention, intentional zero-membership state, URL-authoritative selection and two-tab/account-level request isolation | MG-04 |
 | MG-08 | 1 | **Implemented:** private Training provisioning, ordinary first Move/resolve/return and flag rollout | MG-05, MG-06, MG-07 |
-| MG-09 | 2 | server-derived Core journey, recovery, skip/pause/fresh-attempt semantics | MG-08 |
+| MG-09 | 2 | **Implemented:** server-derived Core journey, recovery, skip/pause/fresh-attempt semantics | MG-08 |
 | MG-10 | 2 | complete account shell, responsive/accessibility states and non-visual topology | MG-07, MG-09 |
 | MG-11 | 3 | operator-created standard Game, durable join/withdraw/start and curated runway | MG-04, MG-06 |
 | MG-12 | 4 | bounded several-Cycle Worker, fairness, shutdown, health and capacity evidence | MG-05, MG-11 |

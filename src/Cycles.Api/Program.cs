@@ -34,6 +34,7 @@ builder.Services.AddSingleton<IPlayerAccountCommandStore>(services => services.G
 builder.Services.AddSingleton<ITrustedPlayerSelectionQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IAdminRoleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ITrainingGameProvisioningStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ITutorialAttemptStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton(multiGameFeatures);
 builder.Services.AddSingleton<SelectedGameRequestService>();
 builder.Services.AddResponseCompression(options =>
@@ -281,6 +282,44 @@ selectedGameRoutes.MapGet("/events/recent", (Guid gameId, int? limit, HttpContex
     GetRecentEvents(gameId, limit, httpContext, games));
 selectedGameRoutes.MapGet("/briefings/opening", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
     GetOpeningBriefing(gameId, httpContext, games));
+selectedGameRoutes.MapGet("/tutorial/journey", (
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    GetTutorialJourney(gameId, httpContext, games, tutorials));
+selectedGameRoutes.MapPost("/tutorial/acknowledgements", (
+    Guid gameId,
+    TutorialAcknowledgementRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    AcknowledgeTutorial(gameId, request, httpContext, games, tutorials))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/tutorial/status", (
+    Guid gameId,
+    TutorialStatusRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    ChangeTutorialStatus(gameId, request, httpContext, games, tutorials))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/tutorial/resolve", (
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials,
+    ICycleResolutionStore resolutions) =>
+    ResolveTutorial(gameId, httpContext, games, tutorials, resolutions))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/tutorial/start-fresh", (
+    Guid gameId,
+    FreshTrainingAttemptRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    StartFreshTutorial(gameId, request, httpContext, games, tutorials))
+    .RequireCyclesAntiforgery();
 selectedGameRoutes.MapGet("/chronicle", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
     GetChronicle(gameId, httpContext, games));
 selectedGameRoutes.MapPost("/orders/move", (Guid gameId, MoveFleetRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
@@ -627,6 +666,135 @@ static IResult ProvisionTraining(
         return ApiErrorResponses.ToResult(ex);
     }
 }
+
+static IResult GetTutorialJourney(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    TryResult(() =>
+    {
+        var account = games.RequireAccount(httpContext);
+        return RequireTutorialResult(tutorials.GetJourney(account.PlayerId, gameId));
+    });
+
+static IResult AcknowledgeTutorial(
+    Guid gameId,
+    TutorialAcknowledgementRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    TryResult(() =>
+    {
+        var account = games.RequireAccount(httpContext);
+        return RequireTutorialResult(tutorials.Acknowledge(
+            new TutorialAcknowledgementCommand(
+                account.PlayerId,
+                gameId,
+                request.AcknowledgementKey,
+                DateTimeOffset.UtcNow)));
+    });
+
+static IResult ChangeTutorialStatus(
+    Guid gameId,
+    TutorialStatusRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials) =>
+    TryResult(() =>
+    {
+        var account = games.RequireAccount(httpContext);
+        return RequireTutorialResult(tutorials.ChangeStatus(
+            new TutorialStatusCommand(
+                account.PlayerId,
+                gameId,
+                request.Status,
+                DateTimeOffset.UtcNow)));
+    });
+
+static IResult ResolveTutorial(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials,
+    ICycleResolutionStore resolutions) =>
+    TryResult(() =>
+    {
+        var account = games.RequireAccount(httpContext);
+        var before = RequireTutorialResult(tutorials.GetJourney(account.PlayerId, gameId));
+        if (!before.CanResolve)
+        {
+            throw new ApiStateConflictException(
+                before.JourneyStatus == "RecoveryRequired"
+                    ? "This Training Game needs recovery before another turn can resolve."
+                    : "The Training journey is not currently ready to resolve a turn.");
+        }
+
+        var context = games.RequireContext(httpContext, gameId);
+        var tick = resolutions.ResolveExplicit(
+            new ExplicitCycleResolutionRequest(
+                context,
+                requireAdminister: false,
+                requireActiveTutorialRun: true),
+            DateTimeOffset.UtcNow) switch
+        {
+            CycleResolutionResult.Completed completed => completed.Value,
+            CycleResolutionResult.RecoveryRequired recovery => recovery.Value,
+            CycleResolutionResult.Busy => throw new ApiStateConflictException(
+                "The Training turn is temporarily busy. Try again."),
+            CycleResolutionResult.Unavailable or CycleResolutionResult.Forbidden =>
+                throw new ApiStateConflictException(
+                    "The Training Game or journey changed before the turn could resolve. Refresh and try again."),
+            CycleResolutionResult.Stale or CycleResolutionResult.NotDue =>
+                throw new ApiStateConflictException(
+                    "The Training turn changed before it could resolve. Refresh and try again."),
+            _ => throw new InvalidOperationException("The Cycle resolution store returned an unsupported result.")
+        };
+        var after = RequireTutorialResult(tutorials.GetJourney(account.PlayerId, gameId));
+        return new TutorialResolutionResponse(
+            tick.TickNumber,
+            tick.Status,
+            tick.OrdersProcessed,
+            tick.EventsCreated,
+            tick.BattlesCreated,
+            after);
+    });
+
+static IResult StartFreshTutorial(
+    Guid gameId,
+    FreshTrainingAttemptRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ITutorialAttemptStore tutorials)
+{
+    try
+    {
+        var account = games.RequireAccount(httpContext);
+        var result = RequireTutorialResult(tutorials.StartFresh(
+            new FreshTrainingAttemptCommand(
+                account.PlayerId,
+                gameId,
+                request.RequestId,
+                DateTimeOffset.UtcNow)));
+        return result.Created
+            ? Results.Created($"/games/{result.GameId}/dashboard/bootstrap", result)
+            : Results.Ok(result);
+    }
+    catch (Exception ex) when (ApiErrorResponses.IsHandled(ex))
+    {
+        return ApiErrorResponses.ToResult(ex);
+    }
+}
+
+static T RequireTutorialResult<T>(TutorialAttemptResult<T> result) => result switch
+{
+    TutorialAttemptResult<T>.Success success => success.Value,
+    TutorialAttemptResult<T>.Unavailable => throw new ApiNotFoundException("Training journey is unavailable."),
+    TutorialAttemptResult<T>.Conflict conflict => throw new ApiStateConflictException(conflict.Reason),
+    TutorialAttemptResult<T>.Busy => throw new ApiStateConflictException(
+        "The Training journey is temporarily busy. Try again."),
+    _ => throw new InvalidOperationException("The tutorial attempt store returned an unsupported result.")
+};
 
 static IResult TryResult<T>(Func<T> action)
 {
@@ -1358,6 +1526,20 @@ public sealed record LoginRequest(
     Guid? PlayerId = null);
 
 public sealed record TrainingAttemptRequest(Guid RequestId);
+
+public sealed record TutorialAcknowledgementRequest(string AcknowledgementKey);
+
+public sealed record TutorialStatusRequest(TutorialRunStatus Status);
+
+public sealed record FreshTrainingAttemptRequest(Guid RequestId);
+
+public sealed record TutorialResolutionResponse(
+    int TickNumber,
+    TickLogStatus Status,
+    int OrdersProcessed,
+    int EventsCreated,
+    int BattlesCreated,
+    TutorialJourneySnapshot Journey);
 
 public sealed record TrustedPlayerResponse(
     Guid PlayerId,

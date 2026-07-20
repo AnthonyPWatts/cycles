@@ -17,7 +17,7 @@ Triage the next authoritative tick through the council agenda, frontier schemati
 The current pre-alpha development build supports a complete gameplay loop locally and through a public project site with an access-restricted trusted-playground application:
 
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
-- provision and resume an allow-listed Player's private Twin Reaches Training game without changing the standard Game;
+- provision, pause, resume, skip or atomically restart an allow-listed Player's private Twin Reaches Training game without changing the standard Game;
 - explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;
 - submit durable movement, in-transit recall, attack, cancellation, and colonisation orders;
 - scope dashboard reads and player commands to an explicit Game while compatibility URLs remain pinned to the fixed legacy Game;
@@ -29,7 +29,7 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - compete against Ariadne's deterministic game-AI policy as it attacks weaker local forces, establishes outposts, and advances towards valuable systems;
 - resolve deterministic combat and persist factual events, admirals, and Chronicle reports;
 - record map-control metrics, complete a Cycle, preserve major history, and generate a successor Cycle;
-- learn the first-turn loop through a resumable click-along guide in the dashboard;
+- learn the Standard opening through the existing click-along guide, or complete Training's server-derived four-resolution Core journey using ordinary orders and authoritative outcomes;
 - run local and trusted-playground hosts against SQL Server, with versioned JSON retained only for explicit operator transfer, fixtures, inspection, and migration evidence.
 
 This is a working development MVP, not an alpha release or production game service. The hosted playground is a cost-capped Development exception for invited testers; production authentication, persistence, operations, combat balance, and several future systems remain deliberately provisional.

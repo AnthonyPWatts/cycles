@@ -822,6 +822,16 @@ select {
     font-weight: 700;
 }
 
+.tutorial-panel .tutorial-hint {
+    padding-left: 12px;
+    border-left: 2px solid rgba(143, 209, 189, 0.5);
+    color: var(--text-soft);
+}
+
+.tutorial-panel .tutorial-hint:empty {
+    display: none;
+}
+
 .tutorial-panel .tutorial-requirement:empty {
     display: none;
 }

@@ -21,7 +21,7 @@ public sealed class SqlServerCycleScopeConstraintIntegrationTests
         connection.Open();
         var actual = ReadForeignKeys(connection);
 
-        Assert.Equal(50, RequiredForeignKeys.Length);
+        Assert.Equal(52, RequiredForeignKeys.Length);
         foreach (var expected in RequiredForeignKeys)
         {
             var foreignKey = Assert.Single(actual, item => item.Name == expected.Name);
@@ -279,7 +279,9 @@ public sealed class SqlServerCycleScopeConstraintIntegrationTests
         Fk("FK_AdmiralBattleHistories_AdmiralsInCycle", "AdmiralBattleHistories", "AdmiralID", "CycleID", "Admirals", "AdmiralID", "CycleID"),
         Fk("FK_AdmiralBattleHistories_BattlesInCycle", "AdmiralBattleHistories", "BattleID", "CycleID", "BattleRecords", "BattleID", "CycleID"),
         Fk("FK_AdmiralBattleHistories_SystemsInCycle", "AdmiralBattleHistories", "SystemID", "CycleID", "Systems", "SystemID", "CycleID"),
-        Fk("FK_AdmiralBattleHistories_FleetsInCycle", "AdmiralBattleHistories", "FleetID", "CycleID", "Fleets", "FleetID", "CycleID")
+        Fk("FK_AdmiralBattleHistories_FleetsInCycle", "AdmiralBattleHistories", "FleetID", "CycleID", "Fleets", "FleetID", "CycleID"),
+        Fk("FK_TutorialRuns_GameEnrolments", "TutorialRuns", "GameID", "PlayerID", "GameEnrolments", "GameID", "PlayerID"),
+        Fk("FK_TutorialRuns_Cycles", "TutorialRuns", "CycleID", "GameID", "Cycles", "CycleID", "GameID")
     ];
 
     private static RequiredForeignKey Fk(
