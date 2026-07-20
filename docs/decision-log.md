@@ -1986,3 +1986,24 @@ Consequences:
 - Focused read callbacks receive one selected Game and Cycle from a serialisable snapshot, with all loaded Player credential fields redacted. The transitional legacy-scope resolver names the fixed legacy Game and rejects zero or multiple operational Cycles.
 - Scoped command callbacks run inside one serialisable SQL transaction after the exact authority tuple and any asserted organiser or administrator permission are revalidated under the Cycle lock. Any callback, validation, collision, or persistence failure rolls back every change.
 - The new store is an implemented migration target, not permission to create a second durable Game. MG-03 must still move online whole-state consumers; MG-04 must wire actor-aware route and resource scope plus antiforgery; MG-05 must deliver explicit Worker selection and resolution.
+
+## 2026-07-19: Separate Account Authentication And Admin Roles From Game Provisioning
+
+Decision: external authentication creates or updates only a local Human Player account. It must not enrol that Player in a Game or create a participant, empire, or admiral. Resolve `/auth/session` and dashboard-file admission at account scope, keep the current gameplay bootstrap explicitly pinned to the legacy Game, and move trusted login plus admin-role changes onto focused SQL contracts.
+
+During the transition, every focused mutation of `Players` or `AdminRoleAuditRecords` acquires `Cycles.GameState` before narrower identity or admin locks. Migration `024_enforce_external_identity_binary_collation` makes issuer/subject matching case-sensitive, rejects pre-existing leading/trailing U+0020 before schema mutation, and prevents future U+0020 edge spaces; the application rejects all leading or trailing .NET whitespace. Trusted selection uses the exact legacy Game/Cycle enrolment and participation rules, and login accepts only an identifier returned by its bounded list.
+
+Reasoning:
+
+- Authentication proves account identity; Game enrolment and Cycle participation are separate product operations and cannot safely be hidden inside an OIDC callback.
+- A zero-Game account needs a valid durable session before the Games home can present an intentional empty state.
+- Focused account/admin transactions would otherwise race the still-live whole-state writer, which can persist a stale Player or audit snapshot. Global-then-narrow lock ordering prevents lost focused commits until that bridge is removed.
+- SQL Server pads `nvarchar` equality around trailing U+0020 even under binary collation. Rejecting edge whitespace is the smallest coherent identity rule for this phase; case and internal whitespace remain exact.
+- Only active Human administrators count towards, or may exercise, local admin authority. Guarded SQL updates and immutable high-severity audits preserve that rule under concurrent revocation.
+
+Consequences:
+
+- Existing mapped and enrolled identities retain the current dashboard journey. A newly admitted identity can authenticate and query its account session but cannot use the legacy gameplay bootstrap without a Game seat.
+- Fresh unmapped invitations remain disabled until the Games home is implemented. This is a rollout constraint, not a reason to restore authentication-time Game provisioning.
+- Dashboard gameplay routes and the Worker still contain explicitly allow-listed whole-state calls; their genuine call allowance is now 21. Resource-scoped routing, antiforgery, due-Cycle selection, and Game/Cycle resolution remain prerequisites before a second durable Game.
+- Configured admin bootstrap remains an audited break-glass mechanism and must be removed after use so routine revocation is not reapplied at the next sign-in.

@@ -69,4 +69,59 @@ public sealed class AdminRoleServiceTests
             " ",
             TestState.Now));
     }
+
+    [Fact]
+    public void Routine_role_rules_require_a_human_actor_and_target()
+    {
+        var actor = new Player
+        {
+            Kind = PlayerKind.AI,
+            Role = PlayerRole.Admin,
+            Status = PlayerStatus.Active
+        };
+        var target = new Player
+        {
+            Kind = PlayerKind.Human,
+            Role = PlayerRole.Player,
+            Status = PlayerStatus.Active
+        };
+
+        Assert.Equal(
+            AdminRoleRuleFailure.ActorIsNotActiveHumanAdministrator,
+            AdminRoleService.EvaluateGrant(actor, target));
+
+        actor.Kind = PlayerKind.Human;
+        target.Kind = PlayerKind.AI;
+
+        Assert.Equal(
+            AdminRoleRuleFailure.TargetIsAutomated,
+            AdminRoleService.EvaluateGrant(actor, target));
+    }
+
+    [Fact]
+    public void Automated_admin_does_not_satisfy_the_final_active_human_admin_guard()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var humanAdmin = state.Players.Single();
+        humanAdmin.Role = PlayerRole.Admin;
+        state.Players.Add(new Player
+        {
+            Username = "automated-admin",
+            Kind = PlayerKind.AI,
+            Role = PlayerRole.Admin,
+            Status = PlayerStatus.Active,
+            CreatedAt = TestState.Now
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => AdminRoleService.Revoke(
+            state,
+            humanAdmin.PlayerId,
+            humanAdmin.PlayerId,
+            "No longer required.",
+            TestState.Now));
+
+        Assert.Contains("final active administrator", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(PlayerRole.Admin, humanAdmin.Role);
+        Assert.Empty(state.AdminRoleAuditRecords);
+    }
 }

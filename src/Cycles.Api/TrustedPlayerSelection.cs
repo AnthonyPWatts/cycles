@@ -1,35 +1,41 @@
+using Cycles.Application;
 using Cycles.Core;
 
 internal static class TrustedPlayerSelection
 {
-    public static IReadOnlyCollection<TrustedPlayerResponse> List(GameState state, Cycle cycle) =>
-        state.MatchParticipants
-            .Where(item => item.CycleId == cycle.CycleId)
-            .Join(
-                state.Players.Where(item => item.Kind == PlayerKind.Human && item.Status == PlayerStatus.Active),
-                participant => participant.PlayerId,
-                player => player.PlayerId,
-                (participant, player) => new TrustedPlayerResponse(player.PlayerId, player.Username, participant.Status))
+    public static IReadOnlyCollection<TrustedPlayerResponse> List(
+        IEnumerable<TrustedPlayerSelectionSnapshot> players) =>
+        players
+            .Select(player => new TrustedPlayerResponse(
+                player.PlayerId,
+                player.Username,
+                player.ParticipantStatus))
             .OrderBy(item => item.PlayerName)
             .ToArray();
 
-    public static TrustedPlayerLogin Resolve(GameState state, Cycle cycle, Guid? requestedPlayerId)
+    public static Guid RequirePlayerId(Guid? requestedPlayerId)
     {
         if (!requestedPlayerId.HasValue)
         {
             throw new ApiForbiddenException("Choose an available player to sign in.");
         }
 
-        var player = state.Players.SingleOrDefault(item => item.PlayerId == requestedPlayerId.Value);
-        if (player is null || player.Kind != PlayerKind.Human || player.Status != PlayerStatus.Active)
+        return requestedPlayerId.Value;
+    }
+
+    public static Guid RequireListedPlayerId(
+        Guid? requestedPlayerId,
+        IEnumerable<TrustedPlayerSelectionSnapshot> listedPlayers)
+    {
+        ArgumentNullException.ThrowIfNull(listedPlayers);
+
+        var playerId = RequirePlayerId(requestedPlayerId);
+        if (!listedPlayers.Any(player => player.PlayerId == playerId))
         {
-            throw new ApiForbiddenException("The selected player is not available for trusted sign-in.");
+            throw new ApiForbiddenException("Choose an available player to sign in.");
         }
 
-        var participant = state.GetParticipant(cycle.CycleId, player.PlayerId)
-            ?? throw new ApiForbiddenException("The selected player is not participating in the active Cycle.");
-        var empire = state.Empires.Single(item => item.EmpireId == participant.EmpireId);
-        return new TrustedPlayerLogin(player, participant, empire);
+        return playerId;
     }
 
     public static bool CanAdvanceTurn(Player player, MatchParticipant participant, Empire empire, bool trustedPlayerSelectionEnabled) =>
@@ -39,8 +45,6 @@ internal static class TrustedPlayerSelection
             && participant.EndedAt is null
             && empire.Status == EmpireStatus.Active);
 }
-
-internal sealed record TrustedPlayerLogin(Player Player, MatchParticipant Participant, Empire Empire);
 
 internal static class TrustedPlayerSelectionConfiguration
 {

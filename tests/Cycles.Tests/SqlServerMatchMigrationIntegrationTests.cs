@@ -23,15 +23,18 @@ public sealed class SqlServerMatchMigrationIntegrationTests
 
         var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
 
-        Assert.Collection(
-            applied,
-            item => Assert.Equal("017_add_match_participants_and_factions", item.MigrationId),
-            item => Assert.Equal("018_enforce_match_faction_integrity", item.MigrationId),
-            item => Assert.Equal("019_add_turn_resolution_ledger", item.MigrationId),
-            item => Assert.Equal("020_add_fleet_departure_tick", item.MigrationId),
-            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
-            item => Assert.Equal("022_add_game_foundations", item.MigrationId),
-            item => Assert.Equal("023_enforce_cycle_scope_integrity", item.MigrationId));
+        Assert.Equal(
+            [
+                "017_add_match_participants_and_factions",
+                "018_enforce_match_faction_integrity",
+                "019_add_turn_resolution_ledger",
+                "020_add_fleet_departure_tick",
+                "021_add_empire_doctrine_unlocks",
+                "022_add_game_foundations",
+                "023_enforce_cycle_scope_integrity",
+                "024_enforce_external_identity_binary_collation"
+            ],
+            applied.Take(8).Select(item => item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(2, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.Factions WHERE Kind = N'Empire';"));
@@ -91,11 +94,14 @@ public sealed class SqlServerMatchMigrationIntegrationTests
 
         var applied = new SqlServerMigrator(database.ConnectionString).Migrate();
 
-        Assert.Collection(
-            applied,
-            item => Assert.Equal("021_add_empire_doctrine_unlocks", item.MigrationId),
-            item => Assert.Equal("022_add_game_foundations", item.MigrationId),
-            item => Assert.Equal("023_enforce_cycle_scope_integrity", item.MigrationId));
+        Assert.Equal(
+            [
+                "021_add_empire_doctrine_unlocks",
+                "022_add_game_foundations",
+                "023_enforce_cycle_scope_integrity",
+                "024_enforce_external_identity_binary_collation"
+            ],
+            applied.Take(4).Select(item => item.MigrationId));
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
         Assert.Equal(1, Scalar<int>(connection, "SELECT COUNT(*) FROM dbo.EmpireDoctrineUnlocks WHERE CycleID = @ID;", legacy.CycleId));

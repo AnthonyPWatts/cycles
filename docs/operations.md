@@ -173,7 +173,9 @@ Cycles__Authentication__DeploymentRevision=deployment-identifier
 Cycles__Authentication__KnownProxies__0=10.0.0.10
 ```
 
-Only exact issuer-and-subject pairs admit or bootstrap a player. Email, display name, invitation state, provider groups, and provider role claims do not grant Cycles authority. Known proxy addresses are explicit so forwarded host/protocol values are not trusted from arbitrary clients.
+Only exact case-sensitive issuer-and-subject pairs admit or bootstrap a player. Leading or trailing whitespace is unsupported; operator configuration may contain surrounding layout whitespace, but the parsed issuer and subject must both remain non-empty. Migration `024_enforce_external_identity_binary_collation` fails before schema changes if an existing issuer or subject starts or ends with U+0020. Investigate and correct those rows from authoritative provider evidence rather than trimming an ambiguous identity blindly. Email, display name, invitation state, provider groups, and provider role claims do not grant Cycles authority. Known proxy addresses are explicit so forwarded host/protocol values are not trusted from arbitrary clients.
+
+An admitted identity creates or updates only its active Human Player account. Authentication does not create a Game enrolment, participant, empire, or admiral. `/auth/session` is account-level, but the current playable dashboard bootstrap remains pinned to the legacy Game. Until the Games home is deployed, do not add a fresh unmapped identity to `InvitedIdentities`; keep invitation rollout to identities that already map to an enrolled legacy Player. A transient account-lock conflict returns a safe retryable `stateConflict` response rather than being flattened into a bad-identity failure.
 
 The first configured admin bootstrap writes a high-severity audit record with target, reason, source revision, and timestamp. After verifying that initial access and audit record, remove the bootstrap identity from configuration so later routine revocation is not undone by a subsequent sign-in. Routine changes require an authenticated local admin and non-empty reason:
 
@@ -184,7 +186,7 @@ Content-Type: application/json
 { "reason": "Primary private-alpha operator" }
 ```
 
-Revocation uses `DELETE` on the same route with a reason body. Successful grants and revocations append actor/target audit records; routine revocation cannot remove the final active admin.
+Revocation uses `DELETE` on the same route with a reason body. Successful grants and revocations append actor/target audit records; routine revocation cannot remove the final active Human admin. While the legacy whole-state persistence bridge remains online, account and admin mutations deliberately take its global lock before narrower identity/admin locks; a busy response is retryable and performs no partial mutation.
 
 ### Break-Glass Admin Recovery
 

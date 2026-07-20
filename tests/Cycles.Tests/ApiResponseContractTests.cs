@@ -44,6 +44,7 @@ public sealed class ApiResponseContractTests
         Type[] responseTypes =
         [
             typeof(LoginResponse),
+            typeof(AccountSessionResponse),
             typeof(DashboardSessionResponse),
             typeof(DashboardBootstrapResponse),
             typeof(TurnResolutionPresentationResponse),

@@ -13,7 +13,10 @@ public sealed partial class SqlServerGameStateStore :
     IGameCommandAccessQuery,
     ICycleViewQuery,
     ICycleCommandStore,
-    ILegacyRuntimeScopeQuery
+    ILegacyRuntimeScopeQuery,
+    IPlayerAccountCommandStore,
+    ITrustedPlayerSelectionQuery,
+    IAdminRoleCommandStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
     private const string TickLockPrefix = "Cycles.Tick.";

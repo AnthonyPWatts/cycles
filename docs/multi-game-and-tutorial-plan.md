@@ -1,6 +1,6 @@
 # Multi-game and tutorial platform plan
 
-Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 and MG-02 are implemented, and MG-03 now has its first focused application/SQL store boundary. Online consumer migration, the second-Game runtime, account shell, Training profile, and tutorial journey are not implemented.
+Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 and MG-02 are implemented. MG-03 now has focused application/SQL boundaries for account, Game, Cycle, trusted sign-in and admin-role work; authentication and account sessions have begun their online cutover. Remaining gameplay/Worker migration, resource-scoped routes, antiforgery, the second-Game runtime, account shell, Training profile, and tutorial journey are not implemented.
 
 Last reviewed: 19 July 2026
 

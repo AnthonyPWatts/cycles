@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,24 +16,33 @@ public sealed class ApiAdminRoleBoundaryTests
         var actor = state.Players.Single();
         actor.Role = PlayerRole.Admin;
         var target = new Player { Username = "target", Status = PlayerStatus.Active, CreatedAt = TestState.Now };
-        state.Players.Add(target);
         var context = AuthenticatedContext(actor);
+        var roleCommands = new RecordingRoleCommandStore(command =>
+            new AdminRoleCommandResult.Success(new AdminRoleChangeReceipt(
+                Guid.NewGuid(),
+                command.ActorPlayerId,
+                command.TargetPlayerId,
+                PlayerRole.Admin,
+                AdminRoleAuditAction.Granted,
+                command.ChangedAt)));
 
         var result = ApiAdminRoleEndpoints.Change(
             target.PlayerId,
             new AdminRoleChangeRequest("Private-alpha operator."),
             context,
-            new InMemoryStore(state),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
             grant: true,
             TestState.Now);
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
-        Assert.Equal(PlayerRole.Admin, target.Role);
-        var audit = Assert.Single(state.AdminRoleAuditRecords);
-        Assert.Equal(actor.PlayerId, audit.ActorPlayerId);
-        Assert.Equal(target.PlayerId, audit.TargetPlayerId);
-        Assert.Equal("Private-alpha operator.", audit.Reason);
+        var command = Assert.IsType<AdminRoleCommand>(roleCommands.Command);
+        Assert.Equal(actor.PlayerId, command.ActorPlayerId);
+        Assert.Equal(target.PlayerId, command.TargetPlayerId);
+        Assert.Equal(AdminRoleChangeKind.Grant, command.Change);
+        Assert.Equal("Private-alpha operator.", command.Reason);
+        Assert.Contains("\"role\":\"admin\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -41,27 +51,131 @@ public sealed class ApiAdminRoleBoundaryTests
         var state = TestState.CreateSingleEmpireState();
         var actor = state.Players.Single();
         var target = new Player { Username = "target", Status = PlayerStatus.Active, CreatedAt = TestState.Now };
-        state.Players.Add(target);
+        var roleCommands = new RecordingRoleCommandStore(_ => new AdminRoleCommandResult.Forbidden());
 
         var result = ApiAdminRoleEndpoints.Change(
             target.PlayerId,
             new AdminRoleChangeRequest("Attempted escalation."),
             AuthenticatedContext(actor),
-            new InMemoryStore(state),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
             grant: true,
             TestState.Now);
         var response = await ExecuteAsync(result);
 
         Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
         Assert.Contains("\"code\":\"forbidden\"", response.Body, StringComparison.Ordinal);
-        Assert.Equal(PlayerRole.Player, target.Role);
-        Assert.Empty(state.AdminRoleAuditRecords);
+        Assert.NotNull(roleCommands.Command);
+    }
+
+    [Theory]
+    [InlineData(AdminRoleConflictReason.TargetUnavailable)]
+    [InlineData(AdminRoleConflictReason.TargetIsAutomated)]
+    [InlineData(AdminRoleConflictReason.AlreadyAdministrator)]
+    [InlineData(AdminRoleConflictReason.NotAdministrator)]
+    [InlineData(AdminRoleConflictReason.FinalActiveAdministrator)]
+    public async Task Typed_role_conflicts_preserve_the_state_conflict_HTTP_contract(
+        AdminRoleConflictReason reason)
+    {
+        var actor = TestState.CreateSingleEmpireState().Players.Single();
+        actor.Role = PlayerRole.Admin;
+        var roleCommands = new RecordingRoleCommandStore(_ => new AdminRoleCommandResult.Conflict(reason));
+
+        var result = ApiAdminRoleEndpoints.Change(
+            Guid.NewGuid(),
+            new AdminRoleChangeRequest("Required for the operator roster."),
+            AuthenticatedContext(actor),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
+            grant: true,
+            TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
+        Assert.Contains("\"code\":\"stateConflict\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Blank_role_reason_preserves_the_state_conflict_contract_without_calling_the_store()
+    {
+        var actor = TestState.CreateSingleEmpireState().Players.Single();
+        actor.Role = PlayerRole.Admin;
+        var roleCommands = new RecordingRoleCommandStore(_ =>
+            throw new InvalidOperationException("Must not be called."));
+
+        var result = ApiAdminRoleEndpoints.Change(
+            Guid.NewGuid(),
+            new AdminRoleChangeRequest("   "),
+            AuthenticatedContext(actor),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
+            grant: true,
+            TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
+        Assert.Contains("\"code\":\"stateConflict\"", response.Body, StringComparison.Ordinal);
+        Assert.Null(roleCommands.Command);
+    }
+
+    [Fact]
+    public async Task Empty_target_preserves_the_state_conflict_contract_without_calling_the_store()
+    {
+        var actor = TestState.CreateSingleEmpireState().Players.Single();
+        actor.Role = PlayerRole.Admin;
+        var roleCommands = new RecordingRoleCommandStore(_ =>
+            throw new InvalidOperationException("Must not be called."));
+
+        var result = ApiAdminRoleEndpoints.Change(
+            Guid.Empty,
+            new AdminRoleChangeRequest("Required for the operator roster."),
+            AuthenticatedContext(actor),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
+            grant: true,
+            TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
+        Assert.Contains("\"code\":\"stateConflict\"", response.Body, StringComparison.Ordinal);
+        Assert.Null(roleCommands.Command);
+    }
+
+    [Fact]
+    public async Task Busy_role_change_maps_to_a_stable_state_conflict()
+    {
+        var actor = TestState.CreateSingleEmpireState().Players.Single();
+        actor.Role = PlayerRole.Admin;
+        var roleCommands = new RecordingRoleCommandStore(_ => new AdminRoleCommandResult.Busy());
+
+        var result = ApiAdminRoleEndpoints.Change(
+            Guid.NewGuid(),
+            new AdminRoleChangeRequest("Required for the operator roster."),
+            AuthenticatedContext(actor),
+            new InMemoryAccountQuery(ToSnapshot(actor)),
+            roleCommands,
+            grant: true,
+            TestState.Now);
+        var response = await ExecuteAsync(result);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
+        Assert.Contains("\"code\":\"stateConflict\"", response.Body, StringComparison.Ordinal);
     }
 
     private static DefaultHttpContext AuthenticatedContext(Player player)
     {
         return TestHttpContextFactory.CreateAuthenticated(player);
     }
+
+    private static PlayerAccountSnapshot ToSnapshot(Player player) =>
+        new(
+            player.PlayerId,
+            player.Username,
+            player.Kind,
+            player.Role,
+            player.Status,
+            player.CreatedAt,
+            player.LastLoginAt);
 
     private static async Task<(int StatusCode, string Body)> ExecuteAsync(IResult result)
     {
@@ -82,13 +196,21 @@ public sealed class ApiAdminRoleBoundaryTests
         return services.BuildServiceProvider();
     }
 
-    private sealed class InMemoryStore(GameState state) : IGameStateStore
+    private sealed class InMemoryAccountQuery(params PlayerAccountSnapshot[] players) : IPlayerAccountQuery
     {
-        public string Description => "test";
-        public GameState LoadOrCreate() => state;
-        public T Update<T>(Func<GameState, T> update) => update(state);
-        public TickResult RunTick(DateTimeOffset now) => throw new NotSupportedException();
-        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
-        public void Replace(GameState replacement) => throw new NotSupportedException();
+        public PlayerAccountSnapshot? Get(Guid playerId) =>
+            players.SingleOrDefault(player => player.PlayerId == playerId);
+    }
+
+    private sealed class RecordingRoleCommandStore(
+        Func<AdminRoleCommand, AdminRoleCommandResult> execute) : IAdminRoleCommandStore
+    {
+        public AdminRoleCommand? Command { get; private set; }
+
+        public AdminRoleCommandResult Change(AdminRoleCommand command)
+        {
+            Command = command;
+            return execute(command);
+        }
     }
 }

@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Cycles.Core;
+using Cycles.Application;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -14,6 +14,24 @@ public static class CyclesAuthenticationSchemes
 public static class CyclesClaimTypes
 {
     public const string PlayerId = "cycles:player-id";
+}
+
+public static class ExternalAuthenticationFailureCodes
+{
+    public const string AccessDenied = "accessDenied";
+    public const string ExternalAuthenticationFailed = "externalAuthenticationFailed";
+    public const string TemporarilyBusy = "temporarilyBusy";
+
+    private const string FailureCodeItemKey = "Cycles.ExternalAuthentication.FailureCode";
+
+    public static void MarkTemporarilyBusy(HttpContext httpContext) =>
+        httpContext.Items[FailureCodeItemKey] = TemporarilyBusy;
+
+    public static string ResolveRemoteFailure(HttpContext httpContext) =>
+        httpContext.Items.TryGetValue(FailureCodeItemKey, out var value)
+            && value is string code
+            ? code
+            : ExternalAuthenticationFailed;
 }
 
 public sealed class ExternalAuthenticationOptions
@@ -56,6 +74,11 @@ public readonly record struct ConfiguredExternalIdentity(string Issuer, string S
 
         var issuer = value[..separator].Trim();
         var subject = value[(separator + 1)..].Trim();
+        if (issuer.Length == 0 || subject.Length == 0)
+        {
+            throw new InvalidOperationException("Configured external identities must use the exact 'issuer|subject' format.");
+        }
+
         if (issuer.Length > 256 || subject.Length > 256)
         {
             throw new InvalidOperationException("Configured external identity issuer and subject values must each be 256 characters or fewer.");
@@ -71,8 +94,8 @@ public readonly record struct ConfiguredExternalIdentity(string Issuer, string S
 
 public static class ExternalIdentityAdmission
 {
-    public static Player SignIn(
-        GameState state,
+    public static PlayerAccountSnapshot SignIn(
+        IPlayerAccountCommandStore accounts,
         string issuer,
         string subject,
         string? preferredUsername,
@@ -101,84 +124,25 @@ public static class ExternalIdentityAdmission
             throw new ApiForbiddenException("This external identity has not been invited to Cycles.");
         }
 
-        var matches = state.Players
-            .Where(player => string.Equals(player.ExternalIssuer, issuer, StringComparison.Ordinal)
-                             && string.Equals(player.ExternalSubject, subject, StringComparison.Ordinal))
-            .ToArray();
-        if (matches.Length > 1)
+        var bootstrap = bootstrapped
+            ? new ConfiguredAdminBootstrap($"configuration:{options.DeploymentRevision}")
+            : null;
+        var result = accounts.SignInExternal(new ExternalPlayerSignInCommand(
+            issuer,
+            subject,
+            preferredUsername,
+            email,
+            bootstrap,
+            now));
+        return result switch
         {
-            throw new InvalidOperationException("More than one local player is mapped to the same external identity.");
-        }
-
-        var player = matches.SingleOrDefault();
-        if (player is null)
-        {
-            var safeUsername = NormaliseUsername(state, preferredUsername, subject);
-            player = new Player
-            {
-                Username = safeUsername,
-                Email = NormaliseEmail(email),
-                PasswordHash = "",
-                ExternalIssuer = issuer,
-                ExternalSubject = subject,
-                Role = PlayerRole.Player,
-                CreatedAt = now,
-                LastLoginAt = now,
-                Status = PlayerStatus.Active
-            };
-            state.Players.Add(player);
-
-            var cycle = state.GetActiveCycle()
-                ?? throw new InvalidOperationException("No active Cycle exists for invited-player provisioning.");
-            PlayerProvisioning.AddEmpireForPlayer(state, cycle, player, null, now);
-        }
-
-        if (player.Status != PlayerStatus.Active)
-        {
-            throw new ApiForbiddenException("The mapped Cycles player is not active.");
-        }
-
-        var activeCycle = state.GetActiveCycle()
-            ?? throw new InvalidOperationException("No active Cycle exists for invited-player provisioning.");
-        var participant = state.GetParticipant(activeCycle.CycleId, player.PlayerId)
-            ?? throw new InvalidOperationException("The mapped Cycles player is not participating in the active Cycle.");
-        var empire = state.Empires.Single(item => item.EmpireId == participant.EmpireId);
-        PlayerProvisioning.RepairLegacyStartingAdmiralName(state, empire, player, now);
-
-        player.LastLoginAt = now;
-        if (bootstrapped)
-        {
-            AdminRoleService.ApplyBootstrap(
-                state,
-                player,
-                $"configuration:{options.DeploymentRevision}",
-                "Applied explicitly configured initial administrator identity.",
-                now);
-        }
-
-        return player;
-    }
-
-    private static string NormaliseUsername(GameState state, string? preferredUsername, string subject)
-    {
-        var candidate = string.IsNullOrWhiteSpace(preferredUsername)
-            ? $"external-{subject[..Math.Min(subject.Length, 12)]}"
-            : preferredUsername.Trim();
-        candidate = candidate[..Math.Min(candidate.Length, 80)];
-        if (!state.Players.Any(player => string.Equals(player.Username, candidate, StringComparison.OrdinalIgnoreCase)))
-        {
-            return candidate;
-        }
-
-        var suffix = $"-{subject[^Math.Min(subject.Length, 8)..]}";
-        var prefixLength = Math.Max(1, 80 - suffix.Length);
-        return $"{candidate[..Math.Min(candidate.Length, prefixLength)]}{suffix}";
-    }
-
-    private static string NormaliseEmail(string? email)
-    {
-        var candidate = email?.Trim() ?? "";
-        return candidate[..Math.Min(candidate.Length, 256)];
+            AccountCommandResult<ExternalPlayerSignInSnapshot>.Success success => success.Value.Player,
+            AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable =>
+                throw new ApiForbiddenException("The mapped Cycles player is not available for sign-in."),
+            AccountCommandResult<ExternalPlayerSignInSnapshot>.Busy =>
+                throw new ApiStateConflictException("Player account sign-in is temporarily busy. Try again."),
+            _ => throw new InvalidOperationException("The player account store returned an unsupported sign-in result.")
+        };
     }
 }
 
@@ -239,18 +203,23 @@ public static class ExternalAuthenticationExtensions
 
                         try
                         {
-                            var store = context.HttpContext.RequestServices.GetRequiredService<IGameStateStore>();
-                            var player = store.Update(state => ExternalIdentityAdmission.SignIn(
-                                state,
+                            var accounts = context.HttpContext.RequestServices.GetRequiredService<IPlayerAccountCommandStore>();
+                            var player = ExternalIdentityAdmission.SignIn(
+                                accounts,
                                 issuer,
                                 subject,
                                 context.Principal?.FindFirstValue("preferred_username")
                                     ?? context.Principal?.Identity?.Name,
                                 context.Principal?.FindFirstValue("email"),
                                 cyclesOptions,
-                                DateTimeOffset.UtcNow));
+                                DateTimeOffset.UtcNow);
                             ((ClaimsIdentity)context.Principal!.Identity!).AddClaim(
                                 new Claim(CyclesClaimTypes.PlayerId, player.PlayerId.ToString("D")));
+                        }
+                        catch (ApiStateConflictException exception)
+                        {
+                            ExternalAuthenticationFailureCodes.MarkTemporarilyBusy(context.HttpContext);
+                            context.Fail(exception.Message);
                         }
                         catch (Exception exception) when (ApiErrorResponses.IsHandled(exception))
                         {
@@ -262,13 +231,14 @@ public static class ExternalAuthenticationExtensions
                     OnRemoteFailure = context =>
                     {
                         context.HandleResponse();
-                        context.Response.Redirect("/auth/error?code=externalAuthenticationFailed");
+                        var code = ExternalAuthenticationFailureCodes.ResolveRemoteFailure(context.HttpContext);
+                        context.Response.Redirect($"/auth/error?code={code}");
                         return Task.CompletedTask;
                     },
                     OnAccessDenied = context =>
                     {
                         context.HandleResponse();
-                        context.Response.Redirect("/auth/error?code=accessDenied");
+                        context.Response.Redirect($"/auth/error?code={ExternalAuthenticationFailureCodes.AccessDenied}");
                         return Task.CompletedTask;
                     }
                 };

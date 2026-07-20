@@ -1,4 +1,4 @@
-using Cycles.Core;
+using Cycles.Application;
 using Microsoft.AspNetCore.Authentication;
 
 internal static class DashboardAccessExtensions
@@ -9,7 +9,7 @@ internal static class DashboardAccessExtensions
 
 internal sealed class DashboardAccessMiddleware(RequestDelegate next, bool protectDashboard)
 {
-    public async Task InvokeAsync(HttpContext context, IGameStateStore store)
+    public async Task InvokeAsync(HttpContext context, IPlayerAccountQuery accounts)
     {
         if (!protectDashboard
             || !context.Request.Path.Equals("/app.html", StringComparison.OrdinalIgnoreCase))
@@ -28,7 +28,7 @@ internal sealed class DashboardAccessMiddleware(RequestDelegate next, bool prote
 
         try
         {
-            _ = DevelopmentAuth.RequireActor(context, store.LoadOrCreate());
+            _ = DevelopmentAuth.RequireAccount(context, accounts);
             await next(context);
         }
         catch (Exception exception) when (exception is ApiUnauthorizedException or ApiForbiddenException)

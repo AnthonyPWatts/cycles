@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -12,10 +13,15 @@ public static class DevelopmentAuth
     public const string HeaderName = "X-Cycles-Dev-Player";
     private const string CookiePurpose = "Cycles.TrustedPlayerSession.v1";
 
-    public static void SignIn(HttpContext httpContext, Player player)
+    public static void SignIn(HttpContext httpContext, Guid playerId)
     {
+        if (playerId == Guid.Empty)
+        {
+            throw new ArgumentException("Player identifier cannot be empty.", nameof(playerId));
+        }
+
         var environment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>();
-        var protectedPlayerId = GetProtector(httpContext).Protect(player.PlayerId.ToString("D"));
+        var protectedPlayerId = GetProtector(httpContext).Protect(playerId.ToString("D"));
         httpContext.Response.Cookies.Append(
             CookieName,
             protectedPlayerId,
@@ -29,6 +35,9 @@ public static class DevelopmentAuth
                 MaxAge = TimeSpan.FromHours(12)
             });
     }
+
+    public static void SignIn(HttpContext httpContext, Player player) =>
+        SignIn(httpContext, player.PlayerId);
 
     public static void SignOut(HttpContext httpContext)
     {
@@ -49,6 +58,53 @@ public static class DevelopmentAuth
         {
             throw new ApiForbiddenException("The authenticated player has no empire in the active cycle.");
         }
+
+        return new DevelopmentActor(player, empire, participant);
+    }
+
+    public static PlayerAccountSnapshot RequireAccount(
+        HttpContext httpContext,
+        IPlayerAccountQuery accounts)
+    {
+        var playerId = ReadPlayerId(httpContext)
+            ?? throw new ApiUnauthorizedException("Login required.");
+        var player = accounts.Get(playerId)
+            ?? throw new ApiUnauthorizedException("Login required.");
+
+        if (player.Status != PlayerStatus.Active)
+        {
+            throw new ApiForbiddenException("The authenticated player is not active.");
+        }
+
+        if (player.Kind != PlayerKind.Human)
+        {
+            throw new ApiForbiddenException("The authenticated player is not available for human sign-in.");
+        }
+
+        return player;
+    }
+
+    public static DevelopmentActor RequireActor(GameState state, GameCommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var player = state.Players.SingleOrDefault(item =>
+                item.PlayerId == context.GameAccess.PlayerId
+                && item.Status == PlayerStatus.Active
+                && item.Kind == PlayerKind.Human)
+            ?? throw new ApiForbiddenException("The authenticated player is not available for this Game.");
+        var participant = state.MatchParticipants.SingleOrDefault(item =>
+                item.MatchParticipantId == context.MatchParticipantId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == player.PlayerId
+                && item.EmpireId == context.EmpireId)
+            ?? throw new ApiForbiddenException("The authenticated player is not participating in this Cycle.");
+        var empire = state.Empires.SingleOrDefault(item =>
+                item.EmpireId == context.EmpireId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == player.PlayerId)
+            ?? throw new ApiForbiddenException("The authenticated player has no empire in this Cycle.");
 
         return new DevelopmentActor(player, empire, participant);
     }

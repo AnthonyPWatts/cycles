@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -23,7 +24,7 @@ public sealed class DashboardAccessMiddlewareTests
         }, protectDashboard: true);
         var context = CreateContext(path);
 
-        await middleware.InvokeAsync(context, new InMemoryStore(TestState.CreateSingleEmpireState()));
+        await middleware.InvokeAsync(context, new InMemoryAccountQuery());
 
         Assert.True(nextCalled);
         Assert.Null(context.RequestServices.GetRequiredService<RecordingAuthenticationService>().ChallengedScheme);
@@ -35,7 +36,7 @@ public sealed class DashboardAccessMiddlewareTests
         var middleware = new DashboardAccessMiddleware(_ => Task.CompletedTask, protectDashboard: true);
         var context = CreateContext("/app.html");
 
-        await middleware.InvokeAsync(context, new InMemoryStore(TestState.CreateSingleEmpireState()));
+        await middleware.InvokeAsync(context, new InMemoryAccountQuery());
 
         var authentication = context.RequestServices.GetRequiredService<RecordingAuthenticationService>();
         Assert.Equal(CyclesAuthenticationSchemes.OpenIdConnect, authentication.ChallengedScheme);
@@ -55,7 +56,7 @@ public sealed class DashboardAccessMiddlewareTests
         }, protectDashboard: true);
         var context = CreateContext("/app.html", player.PlayerId);
 
-        await middleware.InvokeAsync(context, new InMemoryStore(state));
+        await middleware.InvokeAsync(context, new InMemoryAccountQuery(ToSnapshot(player)));
 
         Assert.True(nextCalled);
     }
@@ -66,7 +67,7 @@ public sealed class DashboardAccessMiddlewareTests
         var middleware = new DashboardAccessMiddleware(_ => Task.CompletedTask, protectDashboard: true);
         var context = CreateContext("/app.html", Guid.NewGuid());
 
-        await middleware.InvokeAsync(context, new InMemoryStore(TestState.CreateSingleEmpireState()));
+        await middleware.InvokeAsync(context, new InMemoryAccountQuery());
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
         context.Response.Body.Position = 0;
@@ -116,13 +117,19 @@ public sealed class DashboardAccessMiddlewareTests
         public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
     }
 
-    private sealed class InMemoryStore(GameState state) : IGameStateStore
+    private static PlayerAccountSnapshot ToSnapshot(Player player) =>
+        new(
+            player.PlayerId,
+            player.Username,
+            player.Kind,
+            player.Role,
+            player.Status,
+            player.CreatedAt,
+            player.LastLoginAt);
+
+    private sealed class InMemoryAccountQuery(params PlayerAccountSnapshot[] players) : IPlayerAccountQuery
     {
-        public string Description => "test";
-        public GameState LoadOrCreate() => state;
-        public T Update<T>(Func<GameState, T> update) => update(state);
-        public TickResult RunTick(DateTimeOffset now) => throw new NotSupportedException();
-        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
-        public void Replace(GameState replacement) => throw new NotSupportedException();
+        public PlayerAccountSnapshot? Get(Guid playerId) =>
+            players.SingleOrDefault(player => player.PlayerId == playerId);
     }
 }

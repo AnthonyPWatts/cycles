@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
 using Microsoft.AspNetCore.Authentication;
@@ -21,7 +22,18 @@ Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
     ? () => GameSeeder.CreateCuratedColdStart()
     : null;
 
-builder.Services.AddSingleton<IGameStateStore>(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
+builder.Services.AddSingleton(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
+builder.Services.AddSingleton<IGameStateStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IPlayerAccountQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IGameCatalogueQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IGameAccessQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IGameCommandAccessQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ICycleViewQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ICycleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ILegacyRuntimeScopeQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IPlayerAccountCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ITrustedPlayerSelectionQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<IAdminRoleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -99,16 +111,28 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 if (trustedPlayerSelectionEnabled)
 {
-    app.MapGet("/auth/trusted-players", (IGameStateStore store) =>
-        TryResult(() =>
-        {
-            var state = store.LoadOrCreate();
-            var cycle = GetActiveCycle(state);
-            return TrustedPlayerSelection.List(state, cycle);
-        }));
+    app.MapGet("/auth/trusted-players", (
+        ILegacyRuntimeScopeQuery legacyScope,
+        ITrustedPlayerSelectionQuery trustedPlayers) =>
+        TryResult(() => TrustedPlayerSelection.List(trustedPlayers.List(legacyScope.GetRequired()))));
 
-    app.MapPost("/auth/login", (LoginRequest request, HttpContext httpContext, IGameStateStore store) =>
-        TryResult(() => store.Update(state => Login(state, request, httpContext, DateTimeOffset.UtcNow))));
+    app.MapPost("/auth/login", (
+        LoginRequest request,
+        HttpContext httpContext,
+        IPlayerAccountCommandStore accounts,
+        ITrustedPlayerSelectionQuery trustedPlayers,
+        ILegacyRuntimeScopeQuery legacyScope,
+        IGameCommandAccessQuery gameAccess,
+        ICycleViewQuery cycleView) =>
+        TryResult(() => Login(
+            request,
+            httpContext,
+            accounts,
+            trustedPlayers,
+            legacyScope,
+            gameAccess,
+            cycleView,
+            DateTimeOffset.UtcNow)));
 
     app.MapPost("/auth/logout", (HttpContext httpContext) =>
     {
@@ -132,25 +156,42 @@ else
         new AuthenticationProperties { RedirectUri = "/" },
         [CyclesAuthenticationSchemes.Cookie, CyclesAuthenticationSchemes.OpenIdConnect]));
 
-    app.MapGet("/auth/error", (string? code) => Results.Json(
-        new ErrorResponse(
-            code is "accessDenied" ? ApiErrorCodes.Forbidden : ApiErrorCodes.AuthenticationRequired,
-            code is "accessDenied"
-                ? "The identity provider denied access."
-                : "External authentication could not be completed.",
-            Details: null,
-            TraceId: null),
-        statusCode: code is "accessDenied" ? StatusCodes.Status403Forbidden : StatusCodes.Status401Unauthorized));
+    app.MapGet("/auth/error", (string? code) =>
+    {
+        var accessDenied = code is ExternalAuthenticationFailureCodes.AccessDenied;
+        var temporarilyBusy = code is ExternalAuthenticationFailureCodes.TemporarilyBusy;
+        return Results.Json(
+            new ErrorResponse(
+                accessDenied
+                    ? ApiErrorCodes.Forbidden
+                    : temporarilyBusy
+                        ? ApiErrorCodes.StateConflict
+                        : ApiErrorCodes.AuthenticationRequired,
+                accessDenied
+                    ? "The identity provider denied access."
+                    : temporarilyBusy
+                        ? "Player account sign-in is temporarily busy. Try again."
+                        : "External authentication could not be completed.",
+                Details: null,
+                TraceId: null),
+            statusCode: accessDenied
+                ? StatusCodes.Status403Forbidden
+                : temporarilyBusy
+                    ? StatusCodes.Status409Conflict
+                    : StatusCodes.Status401Unauthorized);
+    });
 }
 
-app.MapGet("/auth/session", (HttpContext httpContext, IGameStateStore store) =>
+app.MapGet("/auth/session", (
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts) =>
     TryResult(() =>
     {
-        var state = store.LoadOrCreate();
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
-        var empire = actor.Empire
-            ?? throw new InvalidOperationException("Admin requests must identify an empire.");
-        return ToLoginResponse(state, actor.Player, empire, trustedPlayerSelectionEnabled);
+        var account = DevelopmentAuth.RequireAccount(httpContext, accounts);
+        return new AccountSessionResponse(
+            account.PlayerId,
+            account.Username,
+            account.Role);
     }));
 
 app.MapGet("/dashboard/bootstrap", (Guid? selectedFleetId, HttpContext httpContext, IGameStateStore store) =>
@@ -281,11 +322,21 @@ app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpCont
 app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
     ApiAdminEndpoints.RunTick(httpContext, store, trustedPlayerSelectionEnabled));
 
-app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (Guid targetPlayerId, AdminRoleChangeRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, store));
+app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (
+    Guid targetPlayerId,
+    AdminRoleChangeRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    IAdminRoleCommandStore roleCommands) =>
+    ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, accounts, roleCommands));
 
-app.MapDelete("/admin/players/{targetPlayerId:guid}/roles/admin", (Guid targetPlayerId, [FromBody] AdminRoleChangeRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiAdminRoleEndpoints.Revoke(targetPlayerId, request, httpContext, store));
+app.MapDelete("/admin/players/{targetPlayerId:guid}/roles/admin", (
+    Guid targetPlayerId,
+    [FromBody] AdminRoleChangeRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    IAdminRoleCommandStore roleCommands) =>
+    ApiAdminRoleEndpoints.Revoke(targetPlayerId, request, httpContext, accounts, roleCommands));
 
 app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
     TryResult(() =>
@@ -335,21 +386,57 @@ static Cycle GetActiveCycle(GameState state) =>
     state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
 
 static LoginResponse Login(
-    GameState state,
     LoginRequest request,
     HttpContext httpContext,
+    IPlayerAccountCommandStore accounts,
+    ITrustedPlayerSelectionQuery trustedPlayers,
+    ILegacyRuntimeScopeQuery legacyScope,
+    IGameCommandAccessQuery gameAccess,
+    ICycleViewQuery cycleView,
     DateTimeOffset now)
 {
-    var cycle = GetActiveCycle(state);
-    var selection = TrustedPlayerSelection.Resolve(state, cycle, request.PlayerId);
-    var player = selection.Player;
-    var participant = selection.Participant;
-    var empire = selection.Empire;
-    player.LastLoginAt = now;
-    PlayerProvisioning.RepairLegacyStartingAdmiralName(state, empire, player, now);
+    var scope = legacyScope.GetRequired();
+    var playerId = TrustedPlayerSelection.RequireListedPlayerId(
+        request.PlayerId,
+        trustedPlayers.List(scope));
+    var context = gameAccess.Get(playerId, scope)
+        ?? throw new ApiForbiddenException("The selected player is not available in the current Cycle.");
+    var account = accounts.RecordLogin(new RecordPlayerLoginCommand(playerId, now)) switch
+    {
+        AccountCommandResult<PlayerAccountSnapshot>.Success success => success.Value,
+        AccountCommandResult<PlayerAccountSnapshot>.Unavailable =>
+            throw new ApiForbiddenException("The selected player is not available for trusted sign-in."),
+        AccountCommandResult<PlayerAccountSnapshot>.Busy =>
+            throw new ApiStateConflictException("Player account sign-in is temporarily busy. Try again."),
+        _ => throw new InvalidOperationException("The player account store returned an unsupported login result.")
+    };
+    var response = QueryLoginResponse(context, cycleView, trustedPlayerSelectionEnabled: true);
 
-    DevelopmentAuth.SignIn(httpContext, player);
-    return ToLoginResponse(state, player, empire, trustedPlayerSelectionEnabled: true);
+    // Do not issue a durable browser identity unless every authoritative read
+    // needed to construct the legacy response has succeeded.
+    DevelopmentAuth.SignIn(httpContext, account.PlayerId);
+    return response;
+}
+
+static LoginResponse QueryLoginResponse(
+    GameCommandContext context,
+    ICycleViewQuery cycleView,
+    bool trustedPlayerSelectionEnabled)
+{
+    var result = cycleView.Query(context, state =>
+    {
+        var actor = DevelopmentAuth.RequireActor(state, context);
+        var empire = actor.Empire
+            ?? throw new InvalidOperationException("The scoped player has no empire in the current Cycle.");
+        return ToLoginResponse(state, actor.Player, empire, trustedPlayerSelectionEnabled);
+    });
+    return result switch
+    {
+        ScopedQueryResult<LoginResponse>.Success success => success.Value,
+        ScopedQueryResult<LoginResponse>.Unavailable =>
+            throw new ApiForbiddenException("The current Cycle is not available to the authenticated player."),
+        _ => throw new InvalidOperationException("The Cycle view returned an unsupported query result.")
+    };
 }
 
 static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool trustedPlayerSelectionEnabled)
@@ -1007,6 +1094,11 @@ public sealed record LoginResponse(
     PlayerRole Role,
     bool CanAdvanceTurn,
     EmpireResponse Empire);
+
+public sealed record AccountSessionResponse(
+    Guid PlayerId,
+    string Username,
+    PlayerRole Role);
 
 public sealed record DashboardSessionResponse(
     Guid PlayerId,

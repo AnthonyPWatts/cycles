@@ -22,7 +22,9 @@ public sealed class SqlServerCycleScopeMigrationIntegrationTests
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "022_add_game_foundations");
         var fixture = InsertVersion22Fixture(database.ConnectionString, Version22FixtureFault.None);
 
-        var migration = Assert.Single(new SqlServerMigrator(database.ConnectionString).Migrate());
+        var migration = Assert.Single(
+            new SqlServerMigrator(database.ConnectionString).Migrate(),
+            item => item.MigrationId == MigrationId);
 
         Assert.Equal(MigrationId, migration.MigrationId);
         using var connection = new SqlConnection(database.ConnectionString);
@@ -88,7 +90,11 @@ public sealed class SqlServerCycleScopeMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "022_add_game_foundations");
         InsertVersion22Fixture(database.ConnectionString, Version22FixtureFault.None);
-        Assert.Equal(MigrationId, Assert.Single(new SqlServerMigrator(database.ConnectionString).Migrate()).MigrationId);
+        Assert.Equal(
+            MigrationId,
+            Assert.Single(
+                new SqlServerMigrator(database.ConnectionString).Migrate(),
+                item => item.MigrationId == MigrationId).MigrationId);
 
         using (var connection = new SqlConnection(database.ConnectionString))
         {
@@ -97,7 +103,11 @@ public sealed class SqlServerCycleScopeMigrationIntegrationTests
             Execute(connection, "DELETE FROM dbo.SchemaMigrations WHERE MigrationID = @MigrationID;", ("@MigrationID", MigrationId));
         }
 
-        Assert.Equal(MigrationId, Assert.Single(new SqlServerMigrator(database.ConnectionString).Migrate()).MigrationId);
+        Assert.Equal(
+            MigrationId,
+            Assert.Single(
+                new SqlServerMigrator(database.ConnectionString).Migrate(),
+                item => item.MigrationId == MigrationId).MigrationId);
 
         using var verification = new SqlConnection(database.ConnectionString);
         verification.Open();
@@ -128,7 +138,11 @@ public sealed class SqlServerCycleScopeMigrationIntegrationTests
 
         using var database = new SqlServerIntegrationDatabase(serverConnectionString, "022_add_game_foundations");
         var fixture = InsertVersion22Fixture(database.ConnectionString, Version22FixtureFault.None);
-        Assert.Equal(MigrationId, Assert.Single(new SqlServerMigrator(database.ConnectionString).Migrate()).MigrationId);
+        Assert.Equal(
+            MigrationId,
+            Assert.Single(
+                new SqlServerMigrator(database.ConnectionString).Migrate(),
+                item => item.MigrationId == MigrationId).MigrationId);
         using (var connection = new SqlConnection(database.ConnectionString))
         {
             connection.Open();
@@ -187,7 +201,11 @@ public sealed class SqlServerCycleScopeMigrationIntegrationTests
                 """);
         }
 
-        Assert.Equal(MigrationId, Assert.Single(new SqlServerMigrator(database.ConnectionString).Migrate()).MigrationId);
+        Assert.Equal(
+            MigrationId,
+            Assert.Single(
+                new SqlServerMigrator(database.ConnectionString).Migrate(),
+                item => item.MigrationId == MigrationId).MigrationId);
 
         using var verification = new SqlConnection(database.ConnectionString);
         verification.Open();

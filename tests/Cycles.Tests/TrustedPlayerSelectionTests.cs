@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
 
@@ -6,27 +7,45 @@ namespace Cycles.Tests;
 public sealed class TrustedPlayerSelectionTests
 {
     [Fact]
-    public void Selector_lists_only_active_human_accounts_in_the_match()
+    public void Selector_maps_and_orders_scoped_account_snapshots()
     {
-        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
-        var cycle = state.GetActiveCycle()!;
-
-        var players = TrustedPlayerSelection.List(state, cycle);
+        var players = TrustedPlayerSelection.List(
+        [
+            new TrustedPlayerSelectionSnapshot(Guid.NewGuid(), "Will", MatchParticipantStatus.Active),
+            new TrustedPlayerSelectionSnapshot(Guid.NewGuid(), "Tony", MatchParticipantStatus.Defeated)
+        ]);
 
         Assert.Equal(["Tony", "Will"], players.Select(item => item.PlayerName));
-        Assert.All(players, item => Assert.Equal(MatchParticipantStatus.Active, item.ParticipantStatus));
+        Assert.Equal(
+            [MatchParticipantStatus.Defeated, MatchParticipantStatus.Active],
+            players.Select(item => item.ParticipantStatus));
     }
 
     [Fact]
-    public void Selector_rejects_missing_unknown_and_ai_player_ids()
+    public void Selector_rejects_a_missing_player_id()
     {
-        var state = GameSeeder.CreateDevelopmentMatch(createdAt: TestState.Now);
-        var cycle = state.GetActiveCycle()!;
-        var ai = state.Players.Single(item => item.Kind == PlayerKind.AI);
+        Assert.Throws<ApiForbiddenException>(() => TrustedPlayerSelection.RequirePlayerId(null));
+    }
 
-        Assert.Throws<ApiForbiddenException>(() => TrustedPlayerSelection.Resolve(state, cycle, null));
-        Assert.Throws<ApiForbiddenException>(() => TrustedPlayerSelection.Resolve(state, cycle, Guid.NewGuid()));
-        Assert.Throws<ApiForbiddenException>(() => TrustedPlayerSelection.Resolve(state, cycle, ai.PlayerId));
+    [Fact]
+    public void Trusted_login_accepts_only_an_identifier_returned_by_the_bounded_selector()
+    {
+        var listedPlayerId = Guid.NewGuid();
+        var listedPlayers = new[]
+        {
+            new TrustedPlayerSelectionSnapshot(
+                listedPlayerId,
+                "Listed player",
+                MatchParticipantStatus.Active)
+        };
+
+        Assert.Equal(
+            listedPlayerId,
+            TrustedPlayerSelection.RequireListedPlayerId(listedPlayerId, listedPlayers));
+        Assert.Throws<ApiForbiddenException>(() =>
+            TrustedPlayerSelection.RequireListedPlayerId(Guid.NewGuid(), listedPlayers));
+        Assert.Throws<ApiForbiddenException>(() =>
+            TrustedPlayerSelection.RequireListedPlayerId(null, listedPlayers));
     }
 
     [Fact]
@@ -38,14 +57,20 @@ public sealed class TrustedPlayerSelectionTests
         var participant = state.GetParticipant(cycle.CycleId, tony.PlayerId)!;
         MatchControl.DefeatEmpire(state, participant.EmpireId, TestState.Now.AddHours(1));
 
-        var selected = TrustedPlayerSelection.Resolve(state, cycle, tony.PlayerId);
-        var listed = Assert.Single(TrustedPlayerSelection.List(state, cycle), item => item.PlayerId == tony.PlayerId);
+        var empire = state.Empires.Single(item => item.EmpireId == participant.EmpireId);
+        var listed = Assert.Single(TrustedPlayerSelection.List(
+        [
+            new TrustedPlayerSelectionSnapshot(
+                tony.PlayerId,
+                tony.Username,
+                participant.Status)
+        ]));
 
         Assert.Equal(MatchParticipantStatus.Defeated, listed.ParticipantStatus);
         Assert.False(TrustedPlayerSelection.CanAdvanceTurn(
-            selected.Player,
-            selected.Participant,
-            selected.Empire,
+            tony,
+            participant,
+            empire,
             trustedPlayerSelectionEnabled: true));
     }
 

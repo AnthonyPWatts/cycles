@@ -7,12 +7,9 @@ public sealed class OnlineStateBoundaryContractTests
     private static readonly string[] ExpectedLegacyStoreTypeReferences =
     [
         "Api/ApiAdminEndpoints.cs|4",
-        "Api/ApiAdminRoleEndpoints.cs|3",
         "Api/ApiOrderEndpoints.cs|12",
-        "Api/DashboardAccessMiddleware.cs|1",
         "Api/DashboardBootstrapContext.cs|1",
-        "Api/ExternalAuthentication.cs|1",
-        "Api/Program.cs|25",
+        "Api/Program.cs|20",
         "Worker/Program.cs|1",
         "Worker/TickWorker.cs|1"
     ];
@@ -21,13 +18,9 @@ public sealed class OnlineStateBoundaryContractTests
     [
         "Api/ApiAdminEndpoints.cs|LoadOrCreate|1",
         "Api/ApiAdminEndpoints.cs|RunTick|1",
-        "Api/ApiAdminRoleEndpoints.cs|Update|1",
         "Api/ApiOrderEndpoints.cs|UpdateActiveCycleExclusively|6",
-        "Api/DashboardAccessMiddleware.cs|LoadOrCreate|1",
         "Api/DashboardBootstrapContext.cs|LoadOrCreate|1",
-        "Api/ExternalAuthentication.cs|Update|1",
-        "Api/Program.cs|LoadOrCreate|13",
-        "Api/Program.cs|Update|1",
+        "Api/Program.cs|LoadOrCreate|11",
         "Worker/TickWorker.cs|RunTickIfDue|1"
     ];
 
@@ -59,6 +52,29 @@ public sealed class OnlineStateBoundaryContractTests
         Assert.True(
             (ExpectedLegacyStoreTypeReferences.Length == 0) == (actualTypeReferences.Length == 0),
             "The final online architecture has no IGameStateStore tokens; reaching it requires an empty explicit allowance.");
+    }
+
+    [Fact]
+    public void Focused_account_authentication_and_admin_boundaries_cannot_reacquire_the_legacy_store()
+    {
+        var focusedFiles = new[]
+        {
+            "Api/ApiAdminRoleEndpoints.cs",
+            "Api/DashboardAccessMiddleware.cs",
+            "Api/DevelopmentAuth.cs",
+            "Api/ExternalAuthentication.cs",
+            "Api/TrustedPlayerSelection.cs"
+        };
+        var sourceFiles = ReadOnlineSourceFiles()
+            .Where(file => focusedFiles.Contains(file.Path, StringComparer.Ordinal))
+            .ToArray();
+
+        Assert.Equal(focusedFiles.Order(StringComparer.Ordinal), sourceFiles.Select(file => file.Path).Order(StringComparer.Ordinal));
+        Assert.All(sourceFiles, file =>
+        {
+            Assert.DoesNotContain("IGameStateStore", file.Content, StringComparison.Ordinal);
+            Assert.DoesNotContain("SqlServerGameStateStore", file.Content, StringComparison.Ordinal);
+        });
     }
 
     private static OnlineSourceFile[] ReadOnlineSourceFiles()
