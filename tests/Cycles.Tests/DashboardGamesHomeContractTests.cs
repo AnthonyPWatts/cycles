@@ -13,6 +13,8 @@ public sealed class DashboardGamesHomeContractTests
         Assert.Contains("id=\"gamesHome\"", html);
         Assert.Contains("id=\"attentionGames\"", html);
         Assert.Contains("id=\"gamesEmptyState\"", html);
+        Assert.Contains("id=\"trainingOffer\"", html);
+        Assert.Contains("id=\"startTrainingButton\"", html);
         Assert.Contains("id=\"activeGames\"", html);
         Assert.Contains("id=\"waitingGames\"", html);
         Assert.Contains("id=\"completedGames\"", html);
@@ -40,6 +42,10 @@ public sealed class DashboardGamesHomeContractTests
         Assert.True(navigate > catalogue);
         Assert.Contains("const home = await getJson(\"/games\");", script);
         Assert.Contains("elements.gamesEmptyState.hidden = total !== 0;", script);
+        Assert.Contains("elements.trainingOffer.hidden = !home.training;", script);
+        Assert.Contains("async function startTraining()", script);
+        Assert.Contains("crypto.randomUUID()", script);
+        Assert.Contains("await loadGamesHome();", script);
         Assert.Contains("hideTutorialForAccount();", script);
         Assert.Contains("elements.tutorialPanel.hidden = true;", script);
     }
@@ -75,6 +81,9 @@ public sealed class DashboardGamesHomeContractTests
         Assert.Contains("catalogue.ListForPlayer(", route);
         Assert.Contains("GameCataloguePage.MaximumPageSize", route);
         Assert.Contains("GamesHomeProjection.Create(page, DateTimeOffset.UtcNow)", route);
+        Assert.Contains("features.TrainingGames.Includes(account.PlayerId)", route);
+        Assert.Contains("app.MapPost(\"/training/{tutorialKey}/attempts\"", route);
+        Assert.Contains(".RequireCyclesAntiforgery();", route);
     }
 
     private static string ExtractFunction(string script, string startMarker, string endMarker)

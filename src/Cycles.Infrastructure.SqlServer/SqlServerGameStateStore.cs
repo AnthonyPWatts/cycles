@@ -18,7 +18,8 @@ public sealed partial class SqlServerGameStateStore :
     ILegacyRuntimeScopeQuery,
     IPlayerAccountCommandStore,
     ITrustedPlayerSelectionQuery,
-    IAdminRoleCommandStore
+    IAdminRoleCommandStore,
+    ITrainingGameProvisioningStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
     private const string GameResolutionLockPrefix = "Cycles.Game.";

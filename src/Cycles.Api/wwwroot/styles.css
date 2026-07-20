@@ -3537,7 +3537,8 @@ body.account-active {
 }
 
 .games-ledger-section,
-.games-empty-state {
+.games-empty-state,
+.training-offer {
     margin-top: 28px;
     border: 1px solid rgba(217, 179, 93, 0.28);
     background: rgba(12, 18, 21, 0.86);
@@ -3634,6 +3635,52 @@ body.account-active {
     padding: clamp(24px, 4vw, 44px);
 }
 
+.training-offer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 28px;
+    padding: clamp(22px, 3vw, 34px);
+    border-color: rgba(143, 180, 244, 0.42);
+    background:
+        linear-gradient(135deg, rgba(95, 130, 201, 0.14), transparent 58%),
+        rgba(12, 18, 21, 0.9);
+}
+
+.training-offer[hidden] {
+    display: none;
+}
+
+.training-offer h2 {
+    margin: 5px 0 10px;
+    color: var(--system);
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 500;
+}
+
+.training-offer p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.training-offer-action {
+    display: grid;
+    justify-items: stretch;
+    gap: 8px;
+    min-width: 172px;
+}
+
+.training-offer-action button {
+    min-height: 42px;
+    padding: 8px 18px;
+}
+
+.training-offer-action p {
+    min-height: 18px;
+    max-width: 240px;
+    font-size: 0.78rem;
+}
+
 .games-empty-state h2 {
     margin: 6px 0 12px;
 }
@@ -3697,6 +3744,7 @@ body.account-active {
     .games-home-heading,
     .games-ledger-heading,
     .game-ledger-row,
+    .training-offer,
     .selected-game-context {
         align-items: stretch;
         grid-template-columns: minmax(0, 1fr);

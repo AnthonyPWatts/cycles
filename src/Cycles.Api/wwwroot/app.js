@@ -260,6 +260,10 @@ const elements = {
     gamesHomeSummary: document.querySelector("#gamesHomeSummary"),
     gamesHomeMessage: document.querySelector("#gamesHomeMessage"),
     gamesEmptyState: document.querySelector("#gamesEmptyState"),
+    trainingOffer: document.querySelector("#trainingOffer"),
+    trainingOfferCopy: document.querySelector("#trainingOfferCopy"),
+    startTrainingButton: document.querySelector("#startTrainingButton"),
+    trainingOfferMessage: document.querySelector("#trainingOfferMessage"),
     attentionSection: document.querySelector("#attentionSection"),
     attentionGames: document.querySelector("#attentionGames"),
     attentionMore: document.querySelector("#attentionMore"),
@@ -397,6 +401,7 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.signOutButton.addEventListener("click", signOut);
+elements.startTrainingButton.addEventListener("click", startTraining);
 
 elements.gameSelector.addEventListener("change", () => {
     const gameId = elements.gameSelector.value;
@@ -1269,6 +1274,12 @@ function renderGamesHome() {
         ? "Showing the first 100 memberships. Older records remain safely paged."
         : "";
     elements.gamesEmptyState.hidden = total !== 0;
+    elements.trainingOffer.hidden = !home.training;
+    if (home.training) {
+        elements.trainingOfferCopy.textContent =
+            `About ${formatNumber(home.training.estimatedMinutes)} minutes. ` +
+            "Your progress is a private game you can leave and resume, using the same mechanics as standard play.";
+    }
     renderGamesHomeSection(
         elements.attentionSection,
         elements.attentionGames,
@@ -1293,6 +1304,37 @@ function renderGamesHome() {
         elements.completedGames,
         home.completedGames ?? []);
     elements.completedGamesCount.textContent = formatCount(home.completedGames?.length ?? 0, "game");
+}
+
+async function startTraining() {
+    const offer = state.gamesHome?.training;
+    if (!offer) {
+        return;
+    }
+
+    elements.startTrainingButton.disabled = true;
+    elements.startTrainingButton.textContent = "Preparing…";
+    elements.trainingOfferMessage.textContent = `Preparing ${offer.displayName}…`;
+    try {
+        const attempt = await postJson(
+            `/training/${encodeURIComponent(offer.tutorialKey)}/attempts`,
+            { requestId: crypto.randomUUID() });
+        await loadGamesHome();
+        const game = gameById(attempt.gameId);
+        if (!game) {
+            throw new Error("Training was prepared, but its Game is not yet visible. Refresh your game ledger.");
+        }
+
+        elements.trainingOfferMessage.textContent = attempt.created
+            ? `${offer.displayName} is ready.`
+            : `Resuming ${offer.displayName}.`;
+        window.location.hash = selectedGameHash(game, "command");
+    } catch (error) {
+        elements.trainingOfferMessage.textContent = error.message;
+    } finally {
+        elements.startTrainingButton.disabled = false;
+        elements.startTrainingButton.textContent = "Start Training";
+    }
 }
 
 function renderGamesHomeSection(section, container, games, { attention = false } = {}) {

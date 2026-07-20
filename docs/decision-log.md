@@ -2099,3 +2099,25 @@ Consequences:
 - One-Game accounts see the same Games home but no redundant selector. Unknown, withdrawn, or non-playable selections fail safely rather than silently switching Games.
 - Waiting, intermission, completed and recovery actions remain descriptive until their dedicated lobby, observation, archive and recovery experiences exist.
 - Fresh zero-Game admission is technically safe but remains rollout-gated until MG-08 gives the empty state a useful private Training action.
+
+## 2026-07-20: Provision Private Training As An Ordinary Scoped Game
+
+Decision: expose `POST /training/tutorial-foundations-v1/attempts` only to the typed `TrainingGames` pilot audience. Under a transaction-owned `cycles:training:{playerId}:{profileVersion}` lock, return the Player's current Twin Reaches attempt when one exists; otherwise create one private Training Game, direct enrolment and locked configuration, materialise it through the immutable roster-aware factory, and insert only that new Game's rows. Authentication remains account-only and never performs this command implicitly.
+
+The Games-home projection supplies the Start Training offer only to an allow-listed Player without a current attempt. After provisioning, the Training Game appears in the normal account ledger and opens through the same selected-Game reads, commands and explicit authoritative resolution boundary as a standard Game. Disabling exposure removes the offer and creation route without hiding or deleting an existing attempt. The first hosted pilot allow-lists Tony; every checked-in default keeps Training creation off.
+
+Status: MG-08 is implemented. Concurrent SQL requests converge on one Game/Cycle, and an ordinary Home Guard Move through `OrderService`, focused command persistence, authoritative resolution and a fresh-store reload reaches Firstlight at T1. The full server-derived journey, pause/skip, player-facing resolve policy, recovery and fresh-attempt/supersession rules remain MG-09.
+
+Reasoning:
+
+- A natural current-attempt identity plus a narrow Player/profile lock makes retries and two-tab races safe without creating a premature tutorial-run schema.
+- Inserting the factory result through a focused writer avoids the global deletion semantics of offline whole-state persistence.
+- Reusing normal commands and resolution proves that Training teaches the real game rather than a scripted approximation.
+- A typed audience and startup validation keep pilot rollout and rollback at route/discovery composition boundaries without weakening stored ownership or authorisation.
+
+Consequences:
+
+- One Player may now have the legacy standard Game and a private self-paced Training Game simultaneously; the Worker continues to ignore Training.
+- The account home changes Start to the normal Training-in-progress/Continue presentation after creation. A concurrent second request returns `created: false` and the same identifiers.
+- Training provisioning has typed unavailable/busy outcomes, antiforgery, immutable profile provenance and lifecycle correlation, but no general lobby, public join, reset or replacement API.
+- Production Player-controlled tutorial resolution remains unavailable; the trusted Development playground can use its already accepted selected-Game advance control during the pilot.

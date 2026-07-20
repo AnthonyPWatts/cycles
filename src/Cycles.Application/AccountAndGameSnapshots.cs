@@ -60,7 +60,13 @@ public sealed record GamesHomeSnapshot(
     IReadOnlyList<GamesHomeItem> ActiveGames,
     IReadOnlyList<GamesHomeItem> WaitingGames,
     IReadOnlyList<GamesHomeItem> CompletedGames,
-    bool HasMore);
+    bool HasMore,
+    TrainingGameOffer? Training = null);
+
+public sealed record TrainingGameOffer(
+    string TutorialKey,
+    string DisplayName,
+    int EstimatedMinutes);
 
 public static class GamesHomeProjection
 {

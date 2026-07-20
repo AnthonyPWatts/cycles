@@ -11,6 +11,7 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 GameProfileCatalogue.EnsureValid();
+var multiGameFeatures = MultiGameFeatureOptions.Read(builder.Configuration);
 var trustedPlayerSelectionEnabled = builder.Configuration.GetValue<bool?>("Cycles:TrustedPlayerSelection:Enabled")
     ?? builder.Environment.IsDevelopment();
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
@@ -32,6 +33,8 @@ builder.Services.AddSingleton<ILegacyRuntimeScopeQuery>(services => services.Get
 builder.Services.AddSingleton<IPlayerAccountCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ITrustedPlayerSelectionQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IAdminRoleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ITrainingGameProvisioningStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton(multiGameFeatures);
 builder.Services.AddSingleton<SelectedGameRequestService>();
 builder.Services.AddResponseCompression(options =>
 {
@@ -65,6 +68,14 @@ if (!builder.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
 }
 
 var app = builder.Build();
+app.Logger.LogInformation(
+    "Multi-game exposure: account shell {AccountShell}; Training {Training} ({TrainingPilotCount} pilot Players); manual enrolment {ManualEnrolment} ({ManualPilotCount} pilot Players); multi-Cycle batch {MultiCycleBatch}.",
+    multiGameFeatures.GamesAccountShell.Enabled,
+    multiGameFeatures.TrainingGames.Enabled,
+    multiGameFeatures.TrainingGames.PilotPlayerIds.Count,
+    multiGameFeatures.ManualGameEnrolment.Enabled,
+    multiGameFeatures.ManualGameEnrolment.PilotPlayerIds.Count,
+    multiGameFeatures.MultiCycleBatchEnabled);
 var playgroundAccessCode = TrustedPlayerSelectionConfiguration.ResolvePlaygroundAccessCode(
     trustedPlayerSelectionEnabled,
     app.Environment.IsDevelopment(),
@@ -200,7 +211,8 @@ app.MapGet("/auth/session", (
 app.MapGet("/games", (
     HttpContext httpContext,
     IPlayerAccountQuery accounts,
-    IGameCatalogueQuery catalogue) =>
+    IGameCatalogueQuery catalogue,
+    MultiGameFeatureOptions features) =>
     TryResult(() =>
     {
         var account = DevelopmentAuth.RequireAccount(httpContext, accounts);
@@ -208,8 +220,38 @@ app.MapGet("/games", (
             account.PlayerId,
             cursor: null,
             pageSize: GameCataloguePage.MaximumPageSize);
-        return GamesHomeProjection.Create(page, DateTimeOffset.UtcNow);
+        var home = GamesHomeProjection.Create(page, DateTimeOffset.UtcNow);
+        var hasCurrentTraining = page.Items.Any(item =>
+            item.Purpose == GamePurpose.Training
+            && item.EnrolmentStatus == GameEnrolmentStatus.Enrolled
+            && item.GameStatus is GameLifecycleStatus.Active or GameLifecycleStatus.Intermission);
+        return features.TrainingGames.Includes(account.PlayerId) && !hasCurrentTraining
+            ? home with
+            {
+                Training = new TrainingGameOffer(
+                    GameProfileCatalogue.TwinReachesProfileKey,
+                    GameProfileCatalogue.TwinReaches.DisplayName,
+                    EstimatedMinutes: 15)
+            }
+            : home;
     }));
+
+app.MapPost("/training/{tutorialKey}/attempts", (
+    string tutorialKey,
+    TrainingAttemptRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    ITrainingGameProvisioningStore training,
+    MultiGameFeatureOptions features) =>
+    ProvisionTraining(
+        tutorialKey,
+        request,
+        httpContext,
+        accounts,
+        training,
+        features,
+        DateTimeOffset.UtcNow))
+    .RequireCyclesAntiforgery();
 
 var selectedGameRoutes = app.MapGroup("/games/{gameId:guid}");
 
@@ -542,6 +584,49 @@ static IResult GetChronicle(
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return ToChronicleEntryResponses(state, cycle, actor, visibleSystemIds);
     }));
+
+static IResult ProvisionTraining(
+    string tutorialKey,
+    TrainingAttemptRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    ITrainingGameProvisioningStore training,
+    MultiGameFeatureOptions features,
+    DateTimeOffset now)
+{
+    try
+    {
+        var account = DevelopmentAuth.RequireAccount(httpContext, accounts);
+        if (!features.TrainingGames.Includes(account.PlayerId)
+            || !string.Equals(
+                tutorialKey,
+                GameProfileCatalogue.TwinReachesProfileKey,
+                StringComparison.Ordinal))
+        {
+            throw new ApiNotFoundException("Training is not available.");
+        }
+
+        var result = training.ProvisionTwinReaches(
+            new TrainingGameProvisioningCommand(account.PlayerId, request.RequestId, now));
+        return result switch
+        {
+            TrainingGameProvisioningResult.Success { Value.Created: true } created =>
+                Results.Created(
+                    $"/games/{created.Value.GameId}/dashboard/bootstrap",
+                    created.Value),
+            TrainingGameProvisioningResult.Success existing => Results.Ok(existing.Value),
+            TrainingGameProvisioningResult.Unavailable => throw new ApiStateConflictException(
+                "Training cannot be prepared for this Player account."),
+            TrainingGameProvisioningResult.Busy => throw new ApiStateConflictException(
+                "Training is temporarily busy. Try again."),
+            _ => throw new InvalidOperationException("Unknown Training provisioning result.")
+        };
+    }
+    catch (Exception ex) when (ApiErrorResponses.IsHandled(ex))
+    {
+        return ApiErrorResponses.ToResult(ex);
+    }
+}
 
 static IResult TryResult<T>(Func<T> action)
 {
@@ -1271,6 +1356,8 @@ public sealed record LoginRequest(
     string? EmpireName = null,
     bool IsAdmin = false,
     Guid? PlayerId = null);
+
+public sealed record TrainingAttemptRequest(Guid RequestId);
 
 public sealed record TrustedPlayerResponse(
     Guid PlayerId,

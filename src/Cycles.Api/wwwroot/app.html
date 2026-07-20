@@ -81,7 +81,19 @@
             <section id="gamesEmptyState" class="games-empty-state" hidden aria-labelledby="gamesEmptyTitle">
                 <span class="section-kicker">No memberships</span>
                 <h2 id="gamesEmptyTitle">Your archive is ready for its first game</h2>
-                <p>No games have been enrolled for this account. Private Training provisioning is the next delivery slice; no placeholder game has been created.</p>
+                <p>No games have been enrolled for this account. Nothing has been created implicitly by signing in.</p>
+            </section>
+
+            <section id="trainingOffer" class="training-offer" hidden aria-labelledby="trainingOfferTitle">
+                <div>
+                    <span class="section-kicker">Private foundations course</span>
+                    <h2 id="trainingOfferTitle">Learn the real command loop in Twin Reaches</h2>
+                    <p id="trainingOfferCopy">A short, resumable Training game using ordinary fleets, orders and authoritative turns.</p>
+                </div>
+                <div class="training-offer-action">
+                    <button id="startTrainingButton" type="button">Start Training</button>
+                    <p id="trainingOfferMessage" role="status"></p>
+                </div>
             </section>
 
             <section id="activeGamesSection" class="games-ledger-section" aria-labelledby="activeGamesTitle" hidden>
