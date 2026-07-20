@@ -13,15 +13,23 @@ public sealed class GalaxyMapExperienceContractTests
         var masters = Directory.GetFiles(atlasDirectory, "*.png");
         var deliveryAssets = Directory.GetFiles(atlasDirectory, "*.webp");
 
-        Assert.Equal(9, masters.Length);
-        Assert.Equal(9, deliveryAssets.Length);
+        Assert.Equal(12, masters.Length);
+        Assert.Equal(12, deliveryAssets.Length);
         Assert.Contains(masters, path => Path.GetFileName(path) == "galaxy-overview.png");
         Assert.Contains(deliveryAssets, path => Path.GetFileName(path) == "galaxy-overview.webp");
+        Assert.Contains(masters, path => Path.GetFileName(path) == "twin-reaches-overview.png");
+        Assert.Contains(deliveryAssets, path => Path.GetFileName(path) == "twin-reaches-overview.webp");
         foreach (var master in masters)
         {
             var header = File.ReadAllBytes(master).AsSpan(0, 24);
-            Assert.Equal(2400, BinaryPrimitives.ReadInt32BigEndian(header[16..20]));
-            Assert.Equal(992, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
+            var dimensions = Path.GetFileName(master) switch
+            {
+                "twin-reaches-overview.png" => (Width: 1774, Height: 887),
+                "twin-reaches-inner-reach.png" or "twin-reaches-outer-reach.png" => (Width: 1254, Height: 1254),
+                _ => (Width: 2400, Height: 992)
+            };
+            Assert.Equal(dimensions.Width, BinaryPrimitives.ReadInt32BigEndian(header[16..20]));
+            Assert.Equal(dimensions.Height, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
 
             var deliveryAsset = Path.ChangeExtension(master, ".webp");
             var deliveryHeader = File.ReadAllBytes(deliveryAsset).AsSpan(0, 12);
@@ -53,9 +61,12 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.DoesNotContain("mapRecentSystemIds", script);
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
-        Assert.Contains("const authoredGalaxyAtlas", script);
+        Assert.Contains("const mapAtlasesByProfileKey", script);
+        Assert.Contains("\"territorial-graph-v2\": standardGalaxyAtlas", script);
+        Assert.Contains("\"tutorial-foundations-v1\": twinReachesAtlas", script);
         Assert.Contains("galaxyAsset: \"/assets/galaxy/galaxy-overview.webp?v=20260718-webp-1\"", script);
         Assert.Equal(8, Regex.Matches(script, "asset: \"/assets/galaxy/sector-").Count);
+        Assert.Equal(3, Regex.Matches(script, "assets/galaxy/twin-reaches-").Count);
     }
 
     [Fact]
@@ -97,7 +108,12 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("function mapAtlasSectorRoutePath", script);
         Assert.Contains("presence[state.empire.factionId]", script);
         Assert.DoesNotContain("presence[state.empire.empireId]", script);
+        Assert.Contains("function activeMapAtlas", script);
+        Assert.Contains("mapAtlasesByProfileKey[state.cycle?.mapProfileKey]", script);
         Assert.Contains("<image class=\"atlas-background\"", script);
+        Assert.Contains("renderMapStarfield()", script);
+        Assert.Contains("function mapAtlasGalaxyRoutePath", script);
+        Assert.Contains("return `M ${firstPosition.x} ${firstPosition.y} L ${secondPosition.x} ${secondPosition.y}`;", script);
         Assert.Contains("<path class=\"link", script);
         Assert.DoesNotContain("<line class=\"link", script);
         Assert.DoesNotContain("(firstPosition.x + secondPosition.x) / 2", script);
@@ -124,6 +140,50 @@ public sealed class GalaxyMapExperienceContractTests
         Assert.Contains("--accent: #8fb4f4", galaxyPalette);
         Assert.DoesNotContain("#8fd1bd", galaxyPalette, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("#52b69a", galaxyPalette, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Galaxy_map_exposes_a_keyboard_operable_systems_and_routes_equivalent()
+    {
+        var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
+        var css = ReadDashboardAsset("styles.css");
+
+        Assert.Contains("id=\"systemsRoutesSection\"", html);
+        Assert.Contains("id=\"systemsRoutesHeading\">Systems and routes", html);
+        Assert.Contains("id=\"systemsRoutesList\"", html);
+        Assert.Contains("aria-describedby=\"systemsRoutesHelp\"", html);
+
+        var renderer = Regex.Match(
+            script,
+            @"function renderSystemsAndRoutes\(.*?(?=\nfunction topologyRoutesForSystem)",
+            RegexOptions.Singleline).Value;
+        Assert.NotEmpty(renderer);
+        Assert.Contains("galaxy.systems", renderer);
+        Assert.Contains("galaxy.links", renderer);
+        Assert.Contains("groupSystemsBySector(galaxy.systems)", renderer);
+        Assert.Contains("data-topology-system-id", renderer);
+        Assert.Contains("data-topology-destination-id", renderer);
+        Assert.Contains("aria-current=\\\"location\\\"", renderer);
+        Assert.Contains("Known ownership", renderer);
+        Assert.Contains("item.fleet.currentSystemId === system.systemId", renderer);
+        Assert.DoesNotContain("Firstlight", renderer);
+        Assert.DoesNotContain("Gatehouse", renderer);
+
+        var routeBuilder = Regex.Match(
+            script,
+            @"function topologyRoutesForSystem\(.*?(?=\nfunction topologyKnownOwnership)",
+            RegexOptions.Singleline).Value;
+        Assert.NotEmpty(routeBuilder);
+        Assert.Contains("galaxy.links", routeBuilder);
+        Assert.Contains("travelTicks: Number(link.travelTicks)", routeBuilder);
+        Assert.Contains("selectSystem(destinationButton.dataset.topologyDestinationId, { restoreTopologyFocus: true })", script);
+        Assert.Contains("function focusTopologySystem", script);
+
+        Assert.Contains(".systems-routes {", css);
+        Assert.Contains(".topology-system-select[aria-current=\"location\"]", css);
+        Assert.Contains(".topology-route {", css);
+        Assert.Contains("min-height: 44px;", css);
     }
 
     private static string ReadDashboardAsset(string fileName) =>

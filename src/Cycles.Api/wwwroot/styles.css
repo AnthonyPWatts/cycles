@@ -250,7 +250,7 @@ select {
 .app-shell {
     flex: 1 1 auto;
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     min-height: 0;
     background: var(--surface);
 }
@@ -711,6 +711,64 @@ select {
     .tutorial-panel.is-right {
         right: 24px;
         left: auto;
+    }
+}
+
+@media (min-width: 1200px) {
+    body.tutorial-active .app-shell {
+        margin-right: 464px;
+    }
+
+    body.tutorial-active .tutorial-panel,
+    body.tutorial-active .tutorial-panel.is-right {
+        right: 24px;
+        left: auto;
+        max-height: calc(100dvh - 118px);
+    }
+
+    body.turn-ribbon-active.tutorial-active .tutorial-panel {
+        max-height: calc(100dvh - var(--turn-ribbon-height) - 118px);
+    }
+}
+
+@media (min-width: 1200px) and (max-width: 1600px) {
+    body.tutorial-active .command-overview-grid,
+    body.tutorial-active .command-rail,
+    body.tutorial-active .fleet-command-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.tutorial-active .command-rail {
+        grid-column: auto;
+    }
+
+    body.tutorial-active .fleets-workspace {
+        grid-template-columns: minmax(220px, 240px) minmax(0, 1fr);
+        gap: 12px;
+        padding: 12px;
+    }
+}
+
+@media (min-width: 901px) and (max-width: 1199px) {
+    body.tutorial-active .app-view {
+        padding-bottom: min(48dvh, 380px);
+    }
+
+    body.tutorial-active .tutorial-panel,
+    body.tutorial-active .tutorial-panel.is-right {
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        max-height: min(48dvh, 380px);
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 10px 10px 0 0;
+    }
+
+    body.turn-ribbon-active.tutorial-active .tutorial-panel {
+        bottom: var(--turn-ribbon-height);
     }
 }
 
@@ -2251,6 +2309,213 @@ dd {
     line-height: 1.4;
 }
 
+.systems-routes {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border-top: 1px solid rgba(223, 186, 104, 0.24);
+    background: rgba(5, 8, 18, 0.48);
+}
+
+.systems-routes-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.systems-routes-heading > div {
+    display: grid;
+    gap: 3px;
+}
+
+.systems-routes-heading h3 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+}
+
+.systems-routes-help {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.5;
+}
+
+.systems-routes-list,
+.topology-sector-systems {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.topology-sector {
+    min-width: 0;
+    border: 1px solid var(--line-soft);
+    background: rgba(7, 10, 20, 0.7);
+}
+
+.topology-sector summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 8px 10px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.topology-sector summary::marker {
+    color: var(--gold);
+}
+
+.topology-sector summary::before {
+    color: var(--gold);
+    content: "+";
+    font-family: Consolas, "Courier New", monospace;
+    font-weight: 900;
+}
+
+.topology-sector details[open] > summary::before {
+    content: "−";
+}
+
+.topology-sector summary span {
+    flex: 1 1 auto;
+    font-weight: 800;
+}
+
+.topology-sector summary small {
+    color: var(--muted);
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.topology-sector details[open] > summary {
+    border-bottom: 1px solid var(--line-soft);
+    background: rgba(91, 124, 191, 0.08);
+}
+
+.topology-sector-systems {
+    gap: 0;
+}
+
+.topology-system {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.topology-system:last-child {
+    border-bottom: 0;
+}
+
+.topology-system.is-selected {
+    padding-left: 7px;
+    border-left: 2px solid var(--gold);
+    background: rgba(223, 186, 104, 0.07);
+}
+
+.topology-system-select {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    min-height: 44px;
+    padding: 7px 8px;
+    border-color: transparent;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    box-shadow: none;
+}
+
+.topology-system-select:hover {
+    border-color: rgba(137, 174, 235, 0.4);
+    background: rgba(137, 174, 235, 0.08);
+    transform: none;
+}
+
+.topology-system-select[aria-current="location"] {
+    color: var(--gold);
+}
+
+.topology-system-select span {
+    font-weight: 800;
+}
+
+.topology-system-select small {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.topology-system-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    color: var(--muted);
+    font-size: 0.68rem;
+}
+
+.topology-system-facts > div {
+    display: flex;
+    gap: 5px;
+}
+
+.topology-system-facts dt {
+    color: var(--muted);
+}
+
+.topology-system-facts dd {
+    color: var(--text);
+}
+
+.topology-routes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 5px;
+}
+
+.topology-route {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    min-width: 0;
+    padding: 6px 8px;
+    border-color: var(--line-soft);
+    border-radius: 2px;
+    background: rgba(10, 15, 28, 0.8);
+    color: var(--text);
+    text-align: left;
+    box-shadow: none;
+}
+
+.topology-route:hover {
+    border-color: rgba(137, 174, 235, 0.5);
+    background: rgba(137, 174, 235, 0.09);
+    transform: none;
+}
+
+.topology-route span {
+    overflow-wrap: anywhere;
+}
+
+.topology-route small {
+    color: var(--accent);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.66rem;
+    text-align: right;
+}
+
 .fleet-details {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3364,6 +3629,14 @@ dd {
         padding-inline: 12px;
     }
 
+    .systems-routes {
+        padding: 12px;
+    }
+
+    .topology-routes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .system-rating {
         gap: 6px;
     }
@@ -3834,7 +4107,7 @@ body {
     background-size: 83px 83px, 131px 131px, 197px 197px, auto, auto;
 }
 
-body.dashboard-active {
+body.turn-ribbon-active {
     padding-bottom: var(--turn-ribbon-height);
 }
 
@@ -4110,7 +4383,7 @@ select {
 }
 
 .app-shell {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     background: #080d10;
 }
 
@@ -4228,7 +4501,7 @@ select {
     text-align: right;
 }
 
-.dashboard-active .tutorial-panel {
+.turn-ribbon-active .tutorial-panel {
     bottom: calc(var(--turn-ribbon-height) + 24px);
 }
 
@@ -5110,11 +5383,11 @@ select {
         background: rgba(6, 10, 12, 0.98);
     }
 
-    body.dashboard-active.tutorial-active {
+    body.turn-ribbon-active.tutorial-active {
         padding-bottom: calc(min(42dvh, 360px) + var(--turn-ribbon-height));
     }
 
-    .dashboard-active .tutorial-panel {
+    .turn-ribbon-active .tutorial-panel {
         bottom: var(--turn-ribbon-height);
     }
 

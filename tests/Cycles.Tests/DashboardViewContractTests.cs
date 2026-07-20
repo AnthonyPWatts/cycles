@@ -59,7 +59,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-training-journey-2", html);
+        Assert.Contains("styles.css?v=20260720-self-paced-1", html);
+        Assert.Contains("app.js?v=20260720-self-paced-1", html);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -99,11 +100,13 @@ public sealed class DashboardViewContractTests
         Assert.Contains("elements.turnProgressTrack.style.setProperty(\"--turn-progress\"", script);
         Assert.Contains("document.body.classList.add(\"dashboard-active\");", script);
         Assert.Contains("document.body.classList.remove(\"dashboard-active\");", script);
+        Assert.Contains("document.body.classList.toggle(\"turn-ribbon-active\", !selfPaced);", script);
 
         Assert.Matches(
             new Regex(@"\.turn-progress-ribbon\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*0;", RegexOptions.Singleline),
             css);
         Assert.Contains("background-size: 0.6666667% 100%;", css);
+        Assert.Contains("body.turn-ribbon-active", css);
         Assert.Contains("padding-bottom: var(--turn-ribbon-height);", css);
     }
 
@@ -115,6 +118,7 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("/assets/galaxy/galaxy-overview.webp", script);
         Assert.Equal(8, Regex.Matches(script, @"/assets/galaxy/sector-[a-z-]+\.webp").Count);
+        Assert.Equal(3, Regex.Matches(script, @"/assets/galaxy/twin-reaches-[a-z-]+\.webp").Count);
         Assert.Equal(4, Regex.Matches(css, @"navigation-backgrounds/letterbox/[a-z-]+\.webp").Count);
         Assert.Equal(3, Regex.Matches(css, @"resource-backgrounds/[a-z-]+\.webp").Count);
         Assert.Contains("navigation-backgrounds/command.webp", css);
@@ -146,7 +150,7 @@ public sealed class DashboardViewContractTests
         Assert.DoesNotContain("function zoomMap", script);
         Assert.Contains("function setMapRange", script);
         Assert.Contains("function mapComposition", script);
-        Assert.Contains("authoredGalaxyAtlas", script);
+        Assert.Contains("mapAtlasesByProfileKey", script);
         Assert.Contains("viewBox=\"-407 0 2400 992\"", html);
         Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", html);
         Assert.Contains("function renderMapOwnershipStats", script);
@@ -156,6 +160,11 @@ public sealed class DashboardViewContractTests
         Assert.Contains("data-command-fleet", script);
 
         Assert.Contains("grid-template-rows: auto minmax(0, 1fr);", css);
+        Assert.Equal(
+            2,
+            Regex.Matches(css, @"grid-template-rows:\s*auto auto auto minmax\(0, 1fr\);").Count);
+        Assert.Contains("body.tutorial-active .app-shell", css);
+        Assert.Contains("body.tutorial-active .app-view", css);
         Assert.Contains(".map-panel {", css);
         Assert.Contains("position: sticky;", css);
     }

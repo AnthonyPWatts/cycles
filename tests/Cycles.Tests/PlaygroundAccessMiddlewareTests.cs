@@ -17,6 +17,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/media/promo/concept-treaty-gate-battle.png")]
     [InlineData("/media/navigation-backgrounds/command.webp")]
     [InlineData("/assets/galaxy/galaxy-overview.webp")]
+    [InlineData("/assets/galaxy/twin-reaches-inner-reach.webp")]
     [InlineData("/health")]
     public async Task PublicLandingRequest_RemainsAvailableWithoutAPlaygroundCookie(string path)
     {

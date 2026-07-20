@@ -2146,3 +2146,38 @@ Consequences:
 - Core completion is recorded once at account level while later replay attempts remain allowed.
 - Disabling the Training pilot offer does not delete committed Games, runs, acknowledgements or completion evidence.
 - The optional Frontier travel module, general lobby/archive experiences, full keyboard/screen-reader proof and novice pilot evidence remain later work.
+
+## 2026-07-20: Treat Self-Paced Resolution As A Cycle Capability
+
+Decision: expose an explicit participant resolution policy for self-paced Cycles rather than making Training depend on the Development administrator control or the scheduled Worker. Guided resolution remains tied to the exact active TutorialRun and lesson predicate. A separate participant route becomes available only when no active or paused journey owns the turn, allowing skipped and completed Training Games to continue as ordinary self-paced games. Every participant-triggered request carries the observed current tick and rechecks it under the existing Game-then-Cycle locks.
+
+Keep automatic resolution out of the first version. Submitting an intention must not unexpectedly close an irreversible turn before the player has reviewed other commands. The interface instead offers one immediate resolve action, outside as well as inside the journey drawer, and identifies the Cycle as self-paced without a cadence track or 150-turn ribbon.
+
+Reasoning:
+
+- Scheduling mode, not a Training display name, defines who owns the clock. This also supports a future non-tutorial self-paced profile without another special endpoint.
+- A current-tick token makes two-tab clicks deterministic: one transaction may advance, while a follower observes stale state rather than advancing a second turn.
+- Active and paused journeys retain control because free advancement could invalidate their curated mechanical predicates. Explicit skip or completion deliberately releases that control.
+- Administrator authority remains a deliberate operator escape hatch. The Development Standard participant policy rejects Training even if its hidden endpoint is called directly.
+
+Consequences:
+
+- `CycleResponse` now carries `SchedulingMode`, `NextTickAt` and `MapProfileKey`; scheduled Standard presentation and Worker selection remain unchanged.
+- Recovery-required self-paced Cycles remain blocked. A failed tick does not become an implicit retry loop.
+- A later automatic tutorial engine must use a durable idempotent work item keyed by Game, Cycle and expected tick; it must not be a side effect after order submission.
+
+## 2026-07-20: Select Atlas Presentation By Map Profile And Fall Back To Topology
+
+Decision: select optional client artwork through `Cycle.MapProfileKey`, keeping presentation outside immutable gameplay profile hashes. The canonical `territorial-graph-v2` atlas retains its authored overview, sectors and traces. `tutorial-foundations-v1` has its own atlas slot, but until its generated overview and sector files are available it deliberately renders a deterministic vector starfield. Galaxy bridges and sector routes derive from the returned links whenever an authored trace is absent.
+
+Reasoning:
+
+- Showing the Standard galaxy painting behind Twin Reaches is misleading even when its live nodes are correct.
+- Artwork is decorative. Missing, partial or future profile art must not erase a legal route, change coordinates or remove the keyboard-readable topology.
+- Changing a PNG or WebP must not invalidate stored Cycle profile provenance. Map hashes describe gameplay topology and policy, not a presentation revision.
+
+Consequences:
+
+- Unknown and partial atlas profiles degrade to an accurate chart rather than a broken image or another profile's painting.
+- The non-visual Systems and routes list contains every returned system and link and shares selection with the SVG; it remains authoritative when artwork fails.
+- The Twin Reaches delivery set contains one overview plus Inner Reach and Outer Reach PNG masters and quality-90 WebPs. Cloudflare must deploy and verify those three WebPs before the Azure dashboard revision publishes their URLs.

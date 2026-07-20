@@ -117,6 +117,20 @@ public sealed partial class SqlServerGameStateStore
                 return new CycleResolutionResult.Unavailable();
             }
 
+            if (explicitRequest?.ExpectedCurrentTickNumber is { } expectedCurrentTickNumber
+                && snapshot.CurrentTickNumber != expectedCurrentTickNumber)
+            {
+                transaction.Commit();
+                return new CycleResolutionResult.Stale();
+            }
+
+            if (explicitRequest is not null
+                && !ExplicitPolicyMatchesSnapshot(explicitRequest.Policy, snapshot))
+            {
+                transaction.Commit();
+                return new CycleResolutionResult.Unavailable();
+            }
+
             if (dueWorkItem is not null)
             {
                 if (snapshot.GamePurpose != GamePurpose.Standard
@@ -139,7 +153,7 @@ public sealed partial class SqlServerGameStateStore
                 }
             }
 
-            var tutorialRequest = explicitRequest is { RequireActiveTutorialRun: true }
+            var tutorialRequest = explicitRequest is { Policy: ExplicitCycleResolutionPolicy.TutorialJourney }
                 ? explicitRequest
                 : null;
             var state = tutorialRequest is not null
@@ -205,7 +219,20 @@ public sealed partial class SqlServerGameStateStore
                 RETURN;
             END;
 
-            IF @RequireActiveTutorialRun = 1
+            IF NOT EXISTS
+            (
+                SELECT 1
+                FROM dbo.Cycles WITH (UPDLOCK, HOLDLOCK)
+                WHERE CycleID = @CycleID
+                  AND GameID = @GameID
+                  AND Status = @ActiveCycleStatus
+            )
+            BEGIN
+                SELECT 0;
+                RETURN;
+            END;
+
+            IF @ResolutionPolicy = @TutorialJourneyPolicy
                AND NOT EXISTS
                (
                    SELECT 1
@@ -222,14 +249,16 @@ public sealed partial class SqlServerGameStateStore
                 RETURN;
             END;
 
-            IF NOT EXISTS
-            (
-                SELECT 1
-                FROM dbo.Cycles WITH (UPDLOCK, HOLDLOCK)
-                WHERE CycleID = @CycleID
-                  AND GameID = @GameID
-                  AND Status = @ActiveCycleStatus
-            )
+            IF @ResolutionPolicy = @SelfPacedParticipantPolicy
+               AND EXISTS
+               (
+                   SELECT 1
+                   FROM dbo.TutorialRuns WITH (UPDLOCK, HOLDLOCK)
+                   WHERE GameID = @GameID
+                     AND CycleID = @CycleID
+                     AND PlayerID = @PlayerID
+                     AND Status IN (@ActiveTutorialStatus, @PausedTutorialStatus)
+               )
             BEGIN
                 SELECT 0;
                 RETURN;
@@ -294,7 +323,7 @@ public sealed partial class SqlServerGameStateStore
                 RETURN;
             END;
 
-            IF @RequireAdministerPermission = 1
+            IF @ResolutionPolicy = @AdministratorPolicy
                AND @PlayerRole <> @AdminPlayerRole
             BEGIN
                 SELECT 1;
@@ -316,11 +345,14 @@ public sealed partial class SqlServerGameStateStore
         AddString(command, "@ActiveCycleStatus", CycleStatus.Active.ToString(), 32);
         AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
         AddString(command, "@ActiveEmpireStatus", EmpireStatus.Active.ToString(), 32);
-        AddInt(command, "@RequireAdministerPermission", request.RequireAdminister ? 1 : 0);
-        AddInt(command, "@RequireActiveTutorialRun", request.RequireActiveTutorialRun ? 1 : 0);
+        AddString(command, "@ResolutionPolicy", request.Policy.ToString(), 32);
+        AddString(command, "@AdministratorPolicy", ExplicitCycleResolutionPolicy.Administrator.ToString(), 32);
+        AddString(command, "@SelfPacedParticipantPolicy", ExplicitCycleResolutionPolicy.SelfPacedParticipant.ToString(), 32);
+        AddString(command, "@TutorialJourneyPolicy", ExplicitCycleResolutionPolicy.TutorialJourney.ToString(), 32);
         AddString(command, "@TutorialKey", GameProfileCatalogue.TwinReachesProfileKey, 128);
         AddInt(command, "@DefinitionVersion", TutorialJourneyEvaluator.FoundationsDefinitionVersion);
         AddString(command, "@ActiveTutorialStatus", TutorialRunStatus.Active.ToString(), 32);
+        AddString(command, "@PausedTutorialStatus", TutorialRunStatus.Paused.ToString(), 32);
         AddString(command, "@AdminPlayerRole", PlayerRole.Admin.ToString(), 32);
 
         return (ExplicitResolutionAuthority)Convert.ToInt32(command.ExecuteScalar(), null);
@@ -336,6 +368,7 @@ public sealed partial class SqlServerGameStateStore
                 game.Purpose AS GamePurpose,
                 game.Status AS GameStatus,
                 cycle.Status AS CycleStatus,
+                cycle.CurrentTickNumber,
                 cycle.SchedulingMode,
                 cycle.NextTickAt,
                 configuration.Status AS ConfigurationStatus,
@@ -362,6 +395,7 @@ public sealed partial class SqlServerGameStateStore
             GetEnum<GamePurpose>(reader, "GamePurpose"),
             GetEnum<GameLifecycleStatus>(reader, "GameStatus"),
             GetEnum<CycleStatus>(reader, "CycleStatus"),
+            GetInt(reader, "CurrentTickNumber"),
             GetEnum<CycleSchedulingMode>(reader, "SchedulingMode"),
             GetNullableDateTimeOffset(reader, "NextTickAt"),
             GetEnum<CycleConfigurationStatus>(reader, "ConfigurationStatus"),
@@ -372,10 +406,26 @@ public sealed partial class SqlServerGameStateStore
         GamePurpose GamePurpose,
         GameLifecycleStatus GameStatus,
         CycleStatus CycleStatus,
+        int CurrentTickNumber,
         CycleSchedulingMode SchedulingMode,
         DateTimeOffset? NextTickAt,
         CycleConfigurationStatus ConfigurationStatus,
         CycleSchedulingMode ConfigurationSchedulingMode);
+
+    private static bool ExplicitPolicyMatchesSnapshot(
+        ExplicitCycleResolutionPolicy policy,
+        ResolutionSnapshot snapshot) => policy switch
+        {
+            ExplicitCycleResolutionPolicy.Administrator => true,
+            ExplicitCycleResolutionPolicy.DevelopmentStandard =>
+                snapshot.GamePurpose == GamePurpose.Standard,
+            ExplicitCycleResolutionPolicy.SelfPacedParticipant =>
+                snapshot.SchedulingMode == CycleSchedulingMode.SelfPaced,
+            ExplicitCycleResolutionPolicy.TutorialJourney =>
+                snapshot.GamePurpose == GamePurpose.Training
+                && snapshot.SchedulingMode == CycleSchedulingMode.SelfPaced,
+            _ => false
+        };
 
     private enum ExplicitResolutionAuthority
     {

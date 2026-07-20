@@ -33,6 +33,7 @@ public sealed class ApiAdminBoundaryTests
         Assert.NotNull(game.LastResolutionRequest);
         Assert.Equal(admin.PlayerId, game.LastResolutionRequest.Context.GameAccess.PlayerId);
         Assert.True(game.LastResolutionRequest.RequireAdminister);
+        Assert.Equal(ExplicitCycleResolutionPolicy.Administrator, game.LastResolutionRequest.Policy);
         Assert.Equal(1, state.GetActiveCycle()!.CurrentTickNumber);
     }
 
@@ -80,7 +81,42 @@ public sealed class ApiAdminBoundaryTests
         Assert.NotNull(game.LastResolutionRequest);
         Assert.Equal(player.PlayerId, game.LastResolutionRequest.Context.GameAccess.PlayerId);
         Assert.False(game.LastResolutionRequest.RequireAdminister);
+        Assert.Equal(ExplicitCycleResolutionPolicy.DevelopmentStandard, game.LastResolutionRequest.Policy);
         Assert.Equal(1, state.GetActiveCycle()!.CurrentTickNumber);
+    }
+
+    [Fact]
+    public async Task Development_tick_endpoint_rejects_training_player_but_preserves_admin_authority()
+    {
+        var state = TestState.CreateSingleEmpireState();
+        var player = Assert.Single(state.Players);
+        var game = new FocusedAdminFixture(state);
+        Assert.Single(state.Games).Purpose = GamePurpose.Training;
+
+        var rejected = await ExecuteAsync(ApiAdminEndpoints.RunTick(
+            CreateAuthenticatedContext(player),
+            game.GameId,
+            game.Requests,
+            game,
+            allowDevelopmentPlayer: true,
+            TestState.Now));
+
+        Assert.Equal(StatusCodes.Status403Forbidden, rejected.StatusCode);
+        Assert.Contains("\"code\":\"forbidden\"", rejected.Body, StringComparison.Ordinal);
+        Assert.Equal(0, game.RunTickCalls);
+
+        player.Role = PlayerRole.Admin;
+        var authorised = await ExecuteAsync(ApiAdminEndpoints.RunTick(
+            CreateAuthenticatedContext(player),
+            game.GameId,
+            game.Requests,
+            game,
+            allowDevelopmentPlayer: true,
+            TestState.Now));
+
+        Assert.Equal(StatusCodes.Status200OK, authorised.StatusCode);
+        Assert.Equal(1, game.RunTickCalls);
+        Assert.Equal(ExplicitCycleResolutionPolicy.Administrator, game.LastResolutionRequest?.Policy);
     }
 
     [Fact]

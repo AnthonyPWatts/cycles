@@ -97,16 +97,24 @@ public sealed class DashboardGamesHomeContractTests
         Assert.Contains("state.tutorialJourney = isTrainingGame()", script);
         Assert.Contains("gameApi.getJson(\"/tutorial/journey\")", script);
         Assert.Contains("gameApi.postJson(\"/tutorial/resolve\", {})", script);
+        Assert.Contains("gameApi.postJson(\n                \"/turns/resolve\"", script);
+        Assert.Contains("expectedCurrentTickNumber: state.cycle.currentTickNumber", script);
+        Assert.Contains("function selfPacedTurnControl()", script);
+        Assert.Contains("Self-paced", script);
         Assert.Contains("\"/tutorial/acknowledgements\"", script);
         Assert.Contains("\"/tutorial/start-fresh\"", script);
         Assert.Contains("function renderTrainingTutorial()", script);
+        Assert.Matches(
+            new Regex(@"function renderTrainingTutorial\(\)\s*\{.*?updateTutorialButton\(\);", RegexOptions.Singleline),
+            script);
         Assert.Contains("lesson.mechanicalEvidence.summary", script);
         Assert.Contains("selectedGameRoutes.MapGet(\"/tutorial/journey\"", program);
         Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/acknowledgements\"", program);
         Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/status\"", program);
         Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/resolve\"", program);
+        Assert.Contains("selectedGameRoutes.MapPost(\"/turns/resolve\"", program);
         Assert.Contains("selectedGameRoutes.MapPost(\"/tutorial/start-fresh\"", program);
-        Assert.Contains("requireActiveTutorialRun: true", program);
+        Assert.Contains("ExplicitCycleResolutionPolicy.TutorialJourney", program);
     }
 
     private static string ExtractFunction(string script, string startMarker, string endMarker)

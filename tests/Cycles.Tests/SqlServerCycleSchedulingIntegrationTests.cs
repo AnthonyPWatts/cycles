@@ -201,13 +201,99 @@ public sealed class SqlServerCycleSchedulingIntegrationTests
 
         Assert.Null(store.GetNextDue(Now.AddDays(1)));
         var result = store.ResolveExplicit(
-            new ExplicitCycleResolutionRequest(CreateContext(state), requireAdminister: false),
+            new ExplicitCycleResolutionRequest(
+                CreateContext(state),
+                ExplicitCycleResolutionPolicy.SelfPacedParticipant,
+                expectedCurrentTickNumber: 0),
             Now);
 
         Assert.IsType<CycleResolutionResult.Completed>(result);
         var persisted = Assert.Single(store.LoadOrCreate().Cycles);
         Assert.Equal(1, persisted.CurrentTickNumber);
         Assert.Null(persisted.NextTickAt);
+    }
+
+    [Fact]
+    public async Task Self_paced_resolution_uses_the_observed_tick_as_a_concurrency_token()
+    {
+        var connectionString = ConnectionString();
+        if (connectionString is null)
+        {
+            return;
+        }
+
+        var state = CreateState(
+            "self-paced-concurrency",
+            GamePurpose.Training,
+            CycleSchedulingMode.SelfPaced,
+            CycleStatus.Active,
+            nextTickAt: null);
+        var firstStore = new SqlServerGameStateStore(connectionString, () => new GameState());
+        var secondStore = new SqlServerGameStateStore(connectionString, () => new GameState());
+        firstStore.Replace(state);
+        var request = new ExplicitCycleResolutionRequest(
+            CreateContext(state),
+            ExplicitCycleResolutionPolicy.SelfPacedParticipant,
+            expectedCurrentTickNumber: 0);
+        using var barrier = new Barrier(2);
+
+        var first = Resolve(firstStore);
+        var second = Resolve(secondStore);
+        var outcomes = await Task.WhenAll(first, second);
+
+        Assert.Single(outcomes, outcome => outcome is CycleResolutionResult.Completed);
+        Assert.Single(outcomes, outcome => outcome is CycleResolutionResult.Stale);
+        var persisted = firstStore.LoadOrCreate();
+        Assert.Equal(1, Assert.Single(persisted.Cycles).CurrentTickNumber);
+        Assert.Single(persisted.TickLogs, item => item.Status == TickLogStatus.Completed);
+
+        Task<CycleResolutionResult> Resolve(SqlServerGameStateStore store) => Task.Run(() =>
+        {
+            Assert.True(barrier.SignalAndWait(TimeSpan.FromSeconds(5)));
+            return store.ResolveExplicit(request, Now);
+        });
+    }
+
+    [Fact]
+    public void Explicit_resolution_policies_reject_the_wrong_game_pacing()
+    {
+        var connectionString = ConnectionString();
+        if (connectionString is null)
+        {
+            return;
+        }
+
+        var scheduled = CreateState(
+            "scheduled-policy",
+            GamePurpose.Standard,
+            CycleSchedulingMode.Scheduled,
+            CycleStatus.Active,
+            Now);
+        var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+        store.Replace(scheduled);
+
+        Assert.IsType<CycleResolutionResult.Unavailable>(store.ResolveExplicit(
+            new ExplicitCycleResolutionRequest(
+                CreateContext(scheduled),
+                ExplicitCycleResolutionPolicy.SelfPacedParticipant,
+                expectedCurrentTickNumber: 0),
+            Now));
+
+        var training = CreateState(
+            "training-policy",
+            GamePurpose.Training,
+            CycleSchedulingMode.SelfPaced,
+            CycleStatus.Active,
+            nextTickAt: null);
+        store.Replace(training);
+
+        Assert.IsType<CycleResolutionResult.Unavailable>(store.ResolveExplicit(
+            new ExplicitCycleResolutionRequest(
+                CreateContext(training),
+                ExplicitCycleResolutionPolicy.DevelopmentStandard,
+                expectedCurrentTickNumber: 0),
+            Now));
+        Assert.Equal(0, Assert.Single(store.LoadOrCreate().Cycles).CurrentTickNumber);
     }
 
     [Fact]

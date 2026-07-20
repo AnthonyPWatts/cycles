@@ -59,7 +59,7 @@ const activePriorityKeys = ["militaryWeight", "expansionWeight"];
 const mapBounds = Object.freeze({ x: 0, y: 0, width: 1586, height: 992 });
 const atlasBounds = Object.freeze({ x: -407, y: 0, width: 2400, height: 992 });
 const mapRanges = new Set(["galaxy", "sector", "local"]);
-const authoredGalaxyAtlas = Object.freeze({
+const standardGalaxyAtlas = Object.freeze({
     galaxyAsset: "/assets/galaxy/galaxy-overview.webp?v=20260718-webp-1",
     galaxyRoutes: [
         ["Warden Line", "Hollow Crown", "M 515 200 C 585 210 625 210 700 200"],
@@ -215,6 +215,22 @@ const authoredGalaxyAtlas = Object.freeze({
         }
     })
 });
+const twinReachesAtlas = Object.freeze({
+    galaxyAsset: "/assets/galaxy/twin-reaches-overview.webp?v=20260720-training-atlas-1",
+    galaxyRoutes: Object.freeze([]),
+    sectors: Object.freeze({
+        "Inner Reach": Object.freeze({
+            asset: "/assets/galaxy/twin-reaches-inner-reach.webp?v=20260720-training-atlas-1"
+        }),
+        "Outer Reach": Object.freeze({
+            asset: "/assets/galaxy/twin-reaches-outer-reach.webp?v=20260720-training-atlas-1"
+        })
+    })
+});
+const mapAtlasesByProfileKey = Object.freeze({
+    "territorial-graph-v2": standardGalaxyAtlas,
+    "tutorial-foundations-v1": twinReachesAtlas
+});
 const mapLensLabels = Object.freeze({
     overview: "Overview",
     presence: "Presence",
@@ -294,6 +310,7 @@ const elements = {
     historyViewBadge: document.querySelector("#historyViewBadge"),
     cycleStatus: document.querySelector("#cycleStatus"),
     nextTurnStatus: document.querySelector("#nextTurnStatus"),
+    nextTurnTrack: document.querySelector("#nextTurnTrack"),
     turnProgressStatus: document.querySelector("#turnProgressStatus"),
     turnProgressTrack: document.querySelector("#turnProgressTrack"),
     empireName: document.querySelector("#empireName"),
@@ -314,6 +331,8 @@ const elements = {
     strategicWatchSummary: document.querySelector("#strategicWatchSummary"),
     resources: document.querySelector("#resources"),
     systemDetails: document.querySelector("#systemDetails"),
+    systemsRoutesList: document.querySelector("#systemsRoutesList"),
+    systemsRoutesSummary: document.querySelector("#systemsRoutesSummary"),
     prioritySection: document.querySelector("#prioritySection"),
     priorityForm: document.querySelector("#priorityForm"),
     priorityInputs: [...document.querySelectorAll("[data-priority-key]")],
@@ -472,7 +491,12 @@ window.addEventListener("beforeunload", event => {
     event.returnValue = "";
 });
 
-elements.advanceTurnButton.addEventListener("click", () => {
+elements.advanceTurnButton.addEventListener("click", async () => {
+    if (isSelfPacedCycle()) {
+        await resolveSelfPacedTurn();
+        return;
+    }
+
     if (tutorial.active
         && tutorial.briefing
         && state.cycle?.currentTickNumber === 0
@@ -515,6 +539,40 @@ async function advanceTurn() {
         setTurnMessage(error.message);
     } finally {
         elements.confirmAdvanceTurnButton.disabled = false;
+        syncCommandWindowControls();
+    }
+}
+
+async function resolveSelfPacedTurn() {
+    const control = selfPacedTurnControl();
+    if (!control.enabled) {
+        setTurnMessage(control.blockedMessage);
+        if (control.opensGuide) {
+            await startOrResumeTutorial();
+        }
+        return;
+    }
+
+    elements.advanceTurnButton.disabled = true;
+    elements.commandAdvanceTurnButton.disabled = true;
+    try {
+        const guided = control.mode === "guided";
+        const result = guided
+            ? await gameApi.postJson("/tutorial/resolve", {})
+            : await gameApi.postJson(
+                "/turns/resolve",
+                { expectedCurrentTickNumber: state.cycle.currentTickNumber });
+        if (guided) {
+            state.tutorialJourney = result.journey;
+        }
+        setTurnMessage(
+            `Published self-paced T${result.tickNumber}: ${formatCount(result.ordersProcessed, "fleet intention")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}.`);
+        await refresh();
+    } catch (error) {
+        if (!isGameRequestCancellation(error)) {
+            setTurnMessage(error.message);
+        }
+    } finally {
         syncCommandWindowControls();
     }
 }
@@ -677,6 +735,19 @@ elements.fleetDetails.addEventListener("click", async event => {
     const cancelButton = event.target.closest("[data-cancel-order-id]");
     if (cancelButton) {
         await cancelOrder(cancelButton.dataset.cancelOrderId);
+    }
+});
+
+elements.systemsRoutesList.addEventListener("click", event => {
+    const destinationButton = event.target.closest("[data-topology-destination-id]");
+    if (destinationButton) {
+        selectSystem(destinationButton.dataset.topologyDestinationId, { restoreTopologyFocus: true });
+        return;
+    }
+
+    const systemButton = event.target.closest("[data-topology-system-id]");
+    if (systemButton) {
+        selectSystem(systemButton.dataset.topologySystemId, { restoreTopologyFocus: true });
     }
 });
 
@@ -1155,6 +1226,7 @@ function showLogin(message) {
     elements.gamesHome.hidden = true;
     elements.selectedGameContext.hidden = true;
     document.body.classList.remove("dashboard-active");
+    document.body.classList.remove("turn-ribbon-active");
     document.body.classList.remove("account-active");
 }
 
@@ -1511,6 +1583,7 @@ function showGamesHome({ focusHeading = false } = {}) {
     elements.turnProgressRibbon.hidden = true;
     elements.turnMessage.hidden = true;
     elements.appHeaderControls.hidden = true;
+    document.body.classList.remove("turn-ribbon-active");
     document.body.classList.add("account-active");
     document.title = "Your games · Cycles";
     if (focusHeading) {
@@ -1533,7 +1606,7 @@ function showSelectedGameShell(item) {
     elements.selectedGameContext.hidden = false;
     elements.viewNav.hidden = false;
     elements.viewStack.hidden = false;
-    elements.turnProgressRibbon.hidden = false;
+    elements.turnProgressRibbon.hidden = isSelfPacedCycle() || isTrainingGame();
     elements.turnMessage.hidden = false;
     elements.appHeaderControls.hidden = false;
     elements.selectedGameName.textContent = item.game.gameName;
@@ -1669,14 +1742,22 @@ function syncTabSet(buttons, panels, dataKey, selected) {
 
 function renderCycle(cycle) {
     const stageLabel = state.turnResolution?.stageLabel ?? formatStatus(cycle.turnStage);
+    const selfPaced = isSelfPacedCycle(cycle);
     elements.cycleStatus.innerHTML = `
         <span class="cycle-name">${escapeHtml(cycle.name)}</span>
         <span class="cycle-pill">T${cycle.currentTickNumber}</span>
         <span class="turn-stage-inline">${escapeHtml(stageLabel)}</span>
         ${statusChip(cycle.status)}
     `;
-    elements.nextTurnStatus.textContent = `${stageLabel} · T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
-    renderTurnTimeline(cycle.currentTickNumber);
+    elements.nextTurnStatus.textContent = selfPaced
+        ? `${stageLabel} · T${cycle.currentTickNumber + 1} · Self-paced`
+        : `${stageLabel} · T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
+    elements.nextTurnTrack.hidden = selfPaced;
+    elements.turnProgressRibbon.hidden = selfPaced;
+    document.body.classList.toggle("turn-ribbon-active", !selfPaced);
+    if (!selfPaced) {
+        renderTurnTimeline(cycle.currentTickNumber);
+    }
 }
 
 function renderTurnResolution(turnResolution) {
@@ -1769,12 +1850,21 @@ function commandsAreOpen() {
 function syncCommandWindowControls() {
     const commandsOpen = commandsAreOpen();
     const stageLabel = state.turnResolution?.stageLabel ?? formatStatus(state.cycle?.turnStage ?? "commandOpen");
-    const showDevelopmentAdvance = state.canAdvanceTurn && !isTrainingGame();
+    const selfPaced = isSelfPacedCycle();
+    const selfPacedControl = selfPaced ? selfPacedTurnControl() : null;
+    const showDevelopmentAdvance = state.canAdvanceTurn && !selfPaced && !isTrainingGame();
+    const showAdvance = showDevelopmentAdvance || selfPaced;
     elements.turnResolutionSection.classList.toggle("is-commands-closed", !commandsOpen);
-    elements.advanceTurnButton.hidden = !showDevelopmentAdvance;
-    elements.commandAdvanceTurnButton.hidden = !showDevelopmentAdvance;
-    elements.advanceTurnButton.disabled = !commandsOpen;
-    elements.commandAdvanceTurnButton.disabled = !commandsOpen;
+    elements.advanceTurnButton.hidden = !showAdvance;
+    elements.commandAdvanceTurnButton.hidden = !showAdvance;
+    elements.advanceTurnButton.disabled = !commandsOpen || Boolean(selfPacedControl && !selfPacedControl.enabled);
+    elements.commandAdvanceTurnButton.disabled = !commandsOpen || Boolean(selfPacedControl && !selfPacedControl.enabled);
+    const advanceLabel = selfPacedControl?.label ?? "Close command window and advance";
+    const advanceTitle = selfPacedControl?.title ?? "Close this game's command window and resolve one authoritative turn.";
+    elements.advanceTurnButton.setAttribute("aria-label", advanceLabel);
+    elements.advanceTurnButton.title = advanceTitle;
+    elements.commandAdvanceTurnButton.textContent = advanceLabel;
+    elements.commandAdvanceTurnButton.title = advanceTitle;
 
     for (const control of document.querySelectorAll("[data-cancel-order-id], [data-recall-fleet-id]")) {
         control.disabled = !commandsOpen;
@@ -1790,6 +1880,67 @@ function syncCommandWindowControls() {
     }
 
     renderPriorityControls();
+}
+
+function isSelfPacedCycle(cycle = state.cycle) {
+    return String(cycle?.schedulingMode ?? "").replace(/[^a-z]/gi, "").toLowerCase() === "selfpaced";
+}
+
+function selfPacedTurnControl() {
+    const journey = state.tutorialJourney;
+    if (!journey) {
+        return {
+            mode: "free",
+            enabled: commandsAreOpen(),
+            label: "Resolve next turn",
+            title: "Resolve this self-paced game's next authoritative turn now.",
+            blockedMessage: "This self-paced turn is not accepting commands.",
+            opensGuide: false
+        };
+    }
+
+    const status = normaliseTutorialStatus(journey.journeyStatus);
+    if (status === "recovery-required") {
+        return {
+            mode: "blocked",
+            enabled: false,
+            label: "Recovery required",
+            title: "This Training attempt needs recovery before another turn can resolve.",
+            blockedMessage: "This Training attempt needs recovery. Open the guide to start fresh.",
+            opensGuide: true
+        };
+    }
+    if (status === "paused") {
+        return {
+            mode: "blocked",
+            enabled: false,
+            label: "Resume Training guide",
+            title: "Resume or skip the paused guide before resolving another Training turn.",
+            blockedMessage: "Resume or skip the paused guide before resolving another Training turn.",
+            opensGuide: true
+        };
+    }
+    if (["completed", "skipped"].includes(status)) {
+        return {
+            mode: "free",
+            enabled: commandsAreOpen(),
+            label: "Resolve next turn",
+            title: "Resolve this self-paced Training game's next authoritative turn now.",
+            blockedMessage: "This self-paced turn is not accepting commands.",
+            opensGuide: false
+        };
+    }
+
+    return {
+        mode: "guided",
+        enabled: commandsAreOpen() && Boolean(journey.canResolve),
+        label: "Resolve Training turn",
+        title: journey.canResolve
+            ? "Resolve the current guided Training turn now."
+            : "Complete the current lesson commitment before resolving this Training turn.",
+        blockedMessage: "Complete the current lesson commitment before resolving this Training turn.",
+        opensGuide: true
+    };
 }
 
 function renderTurnTimeline(currentTickNumber) {
@@ -3093,6 +3244,7 @@ function renderTrainingTutorial() {
         return;
     }
 
+    updateTutorialButton();
     const status = normaliseTutorialStatus(journey.journeyStatus);
     const lesson = journey.currentLesson;
     const completedCount = journey.lessons.filter(item =>
@@ -3207,6 +3359,7 @@ async function advanceTrainingTutorial() {
                 { acknowledgementKey: lesson.presentationAcknowledgement.key });
             tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
             renderTrainingTutorial();
+            syncCommandWindowControls();
             return;
         }
 
@@ -3239,6 +3392,7 @@ async function startOrResumeTutorial() {
         tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
         tutorial.active = true;
         renderTrainingTutorial();
+        syncCommandWindowControls();
         return;
     }
 
@@ -3319,6 +3473,7 @@ async function pauseTutorial() {
             tutorial.status = "paused";
             tutorial.active = false;
             hideTutorial();
+            syncCommandWindowControls();
         } catch (error) {
             if (!isGameRequestCancellation(error)) {
                 setMessage(error.message);
@@ -3346,6 +3501,7 @@ async function skipTutorial() {
             tutorial.status = "skipped";
             tutorial.active = false;
             hideTutorial();
+            syncCommandWindowControls();
         } catch (error) {
             if (!isGameRequestCancellation(error)) {
                 setMessage(error.message);
@@ -4300,10 +4456,13 @@ function renderGalaxy(galaxy, empire) {
     elements.galaxyMap.dataset.mapLens = state.mapLens;
     elements.galaxyMap.dataset.mapRange = range;
     const atlasAsset = range === "galaxy"
-        ? authoredGalaxyAtlas.galaxyAsset
-        : mapAtlasSectorEntry(activeSector)?.asset ?? authoredGalaxyAtlas.galaxyAsset;
+        ? activeMapAtlas()?.galaxyAsset
+        : mapAtlasSectorEntry(activeSector)?.asset;
+    const chartBackground = atlasAsset
+        ? `<image class="atlas-background" href="${escapeHtml(atlasAsset)}" x="${atlasBounds.x}" y="${atlasBounds.y}" width="${atlasBounds.width}" height="${atlasBounds.height}" preserveAspectRatio="xMidYMid slice"></image>`
+        : `<g class="chart-starfield" aria-hidden="true">${renderMapStarfield()}</g>`;
     elements.galaxyMap.innerHTML = `
-        <image class="atlas-background" href="${atlasAsset}" x="${atlasBounds.x}" y="${atlasBounds.y}" width="${atlasBounds.width}" height="${atlasBounds.height}" preserveAspectRatio="none"></image>
+        ${chartBackground}
         <rect class="atlas-vignette" x="${atlasBounds.x}" y="${atlasBounds.y}" width="${atlasBounds.width}" height="${atlasBounds.height}"></rect>
         ${range === "local" ? `<rect class="atlas-local-wash" x="${atlasBounds.x}" y="${atlasBounds.y}" width="${atlasBounds.width}" height="${atlasBounds.height}"></rect>` : ""}
         <g class="sector-layer">${sectorLayer}</g>
@@ -4329,25 +4488,137 @@ function renderGalaxy(galaxy, empire) {
     renderMapOwnershipStats(galaxy, empire, presenceBySystem);
     renderMapInsight(galaxy, empire, presenceBySystem);
     renderMapRecoveryState(galaxy, presenceBySystem);
+    renderSystemsAndRoutes(galaxy, empire, presenceBySystem);
+}
+
+function renderSystemsAndRoutes(galaxy, empire, presenceBySystem) {
+    const sectors = normaliseGalaxySectors(galaxy)
+        .slice()
+        .sort((left, right) => left.sortOrder - right.sortOrder || left.sectorName.localeCompare(right.sectorName));
+    const sectorsById = new Map(sectors.map(sector => [sector.sectorId, sector]));
+    const systemsById = new Map(galaxy.systems.map(system => [system.systemId, system]));
+    const systemsBySector = groupSystemsBySector(galaxy.systems);
+
+    elements.systemsRoutesSummary.textContent = `${formatCount(galaxy.systems.length, "system")} · ${formatCount(galaxy.links.length, "route")}`;
+    elements.systemsRoutesList.innerHTML = sectors.map(sector => {
+        const sectorSystems = (systemsBySector.get(sector.sectorId) ?? [])
+            .slice()
+            .sort((left, right) => left.systemName.localeCompare(right.systemName));
+        const containsSelection = sectorSystems.some(system => system.systemId === state.selectedSystemId);
+        const systemRows = sectorSystems.map(system => {
+            const selected = system.systemId === state.selectedSystemId;
+            const localFleetCount = state.fleets.filter(item =>
+                item.fleet.currentSystemId === system.systemId
+                && item.fleet.status === "active"
+                && Number(item.fleet.shipCount) > 0).length;
+            const routes = topologyRoutesForSystem(galaxy, systemsById, system.systemId);
+            const routeButtons = routes.map(route => {
+                const destinationSector = sectorsById.get(route.destination.sectorId);
+                const crossesSector = route.destination.sectorId !== system.sectorId;
+                const sectorNote = crossesSector && destinationSector
+                    ? ` · ${mapSectorDisplayName(destinationSector)}`
+                    : "";
+                const routeLabel = `${route.destination.systemName}, ${formatCount(route.travelTicks, "tick")} from ${system.systemName}${sectorNote}`;
+                return `
+                    <button type="button"
+                            class="topology-route"
+                            data-topology-destination-id="${escapeHtml(route.destination.systemId)}"
+                            aria-label="Inspect ${escapeHtml(routeLabel)}">
+                        <span>${escapeHtml(route.destination.systemName)}</span>
+                        <small>${formatCount(route.travelTicks, "tick")}${escapeHtml(sectorNote)}</small>
+                    </button>
+                `;
+            }).join("");
+            const knownOwnership = topologyKnownOwnership(galaxy, empire, presenceBySystem, system.systemId);
+
+            return `
+                <li class="topology-system${selected ? " is-selected" : ""}" data-topology-record-id="${escapeHtml(system.systemId)}">
+                    <button type="button"
+                            class="topology-system-select"
+                            data-topology-system-id="${escapeHtml(system.systemId)}"
+                            ${selected ? "aria-current=\"location\"" : ""}>
+                        <span>${escapeHtml(system.systemName)}</span>
+                        <small>${escapeHtml(mapSectorDisplayName(sector))} · Known ownership: ${escapeHtml(knownOwnership)}</small>
+                    </button>
+                    <dl class="topology-system-facts">
+                        <div><dt>Your fleets</dt><dd>${formatNumber(localFleetCount)}</dd></div>
+                        <div><dt>Routes</dt><dd>${formatNumber(routes.length)}</dd></div>
+                    </dl>
+                    <div class="topology-routes" aria-label="Adjacent destinations from ${escapeHtml(system.systemName)}">
+                        ${routeButtons || `<span class="system-empty-note">No adjacent routes.</span>`}
+                    </div>
+                </li>
+            `;
+        }).join("");
+
+        return `
+            <li class="topology-sector">
+                <details ${containsSelection ? "open" : ""}>
+                    <summary>
+                        <span>${escapeHtml(mapSectorDisplayName(sector))}</span>
+                        <small>${formatCount(sectorSystems.length, "system")}</small>
+                    </summary>
+                    <ol class="topology-sector-systems">${systemRows}</ol>
+                </details>
+            </li>
+        `;
+    }).join("");
+}
+
+function topologyRoutesForSystem(galaxy, systemsById, systemId) {
+    return galaxy.links
+        .filter(link => link.systemAId === systemId || link.systemBId === systemId)
+        .map(link => ({
+            destination: systemsById.get(link.systemAId === systemId ? link.systemBId : link.systemAId),
+            travelTicks: Number(link.travelTicks)
+        }))
+        .filter(route => route.destination)
+        .sort((left, right) => left.destination.systemName.localeCompare(right.destination.systemName));
+}
+
+function topologyKnownOwnership(galaxy, empire, presenceBySystem, systemId) {
+    const visiblePresence = Object.entries(presenceBySystem.get(systemId) ?? {})
+        .map(([factionId, value]) => [factionId, Number(value)])
+        .filter(([, value]) => value > 0)
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+    if (visiblePresence.length === 0) {
+        return "Unclaimed or unknown";
+    }
+
+    const strongestPresence = visiblePresence[0][1];
+    const leaders = visiblePresence
+        .filter(([, value]) => value === strongestPresence)
+        .map(([factionId]) => topologyFactionName(galaxy, empire, factionId));
+    return leaders.length === 1 ? leaders[0] : `Contested: ${leaders.join(" / ")}`;
+}
+
+function topologyFactionName(galaxy, empire, factionId) {
+    if (factionId === empire.factionId) {
+        return empire.empireName;
+    }
+
+    return (galaxy.factions ?? []).find(faction => faction.factionId === factionId)?.factionName
+        ?? `Unknown signal ${factionId.slice(0, 5)}`;
 }
 
 function renderAtlasGalaxyRoutes(galaxy, systems, sectorsById) {
-    const linkedSectorPairs = new Set(galaxy.links.map(link => {
+    const linkedSectorPairs = new Map();
+    for (const link of galaxy.links) {
         const first = systems.get(link.systemAId);
         const second = systems.get(link.systemBId);
         const firstSector = sectorsById.get(first?.sectorId);
         const secondSector = sectorsById.get(second?.sectorId);
-        return firstSector && secondSector && firstSector.sectorId !== secondSector.sectorId
-            ? mapAtlasRouteKey(firstSector.sectorName, secondSector.sectorName)
-            : null;
-    }).filter(Boolean));
-
-    return authoredGalaxyAtlas.galaxyRoutes.map(([firstName, secondName, path]) => {
-        if (!linkedSectorPairs.has(mapAtlasRouteKey(firstName, secondName))) {
-            return "";
+        if (firstSector && secondSector && firstSector.sectorId !== secondSector.sectorId) {
+            linkedSectorPairs.set(
+                mapAtlasRouteKey(firstSector.sectorName, secondSector.sectorName),
+                { firstSector, secondSector });
         }
-        const firstSector = [...sectorsById.values()].find(sector => sector.sectorName === firstName);
-        const secondSector = [...sectorsById.values()].find(sector => sector.sectorName === secondName);
+    }
+
+    const authoredRoutes = new Map((activeMapAtlas()?.galaxyRoutes ?? [])
+        .map(([firstName, secondName, path]) => [mapAtlasRouteKey(firstName, secondName), path]));
+    return [...linkedSectorPairs.entries()].map(([routeKey, { firstSector, secondSector }]) => {
+        const path = authoredRoutes.get(routeKey) ?? mapAtlasGalaxyRoutePath(firstSector, secondSector);
         const isContextRoute = firstSector?.sectorId === state.selectedSectorId || secondSector?.sectorId === state.selectedSectorId;
         return `
             <g class="atlas-route-overlay is-bridge${isContextRoute ? " is-selected-sector-route" : ""}">
@@ -4396,7 +4667,7 @@ function mapAtlasSectorRoutePath(sector, firstName, secondName, firstPosition, s
     const trace = mapAtlasSectorEntry(sector)?.routes?.find(route =>
         mapAtlasRouteKey(route[0], route[1]) === mapAtlasRouteKey(firstName, secondName));
     if (!trace) {
-        return null;
+        return `M ${firstPosition.x} ${firstPosition.y} L ${secondPosition.x} ${secondPosition.y}`;
     }
 
     if (typeof trace[2] === "string") {
@@ -4407,8 +4678,19 @@ function mapAtlasSectorRoutePath(sector, firstName, secondName, firstPosition, s
     return `M ${firstPosition.x} ${firstPosition.y} Q ${control[0]} ${control[1]} ${secondPosition.x} ${secondPosition.y}`;
 }
 
+function mapAtlasGalaxyRoutePath(firstSector, secondSector) {
+    const first = mapAtlasSectorPosition(firstSector);
+    const second = mapAtlasSectorPosition(secondSector);
+    const middleX = (first.x + second.x) / 2;
+    return `M ${first.x} ${first.y} C ${middleX} ${first.y} ${middleX} ${second.y} ${second.x} ${second.y}`;
+}
+
+function activeMapAtlas() {
+    return mapAtlasesByProfileKey[state.cycle?.mapProfileKey] ?? null;
+}
+
 function mapAtlasSectorEntry(sector) {
-    return sector ? authoredGalaxyAtlas.sectors[sector.sectorName] ?? null : null;
+    return sector ? activeMapAtlas()?.sectors?.[sector.sectorName] ?? null : null;
 }
 
 function mapAtlasSectorPosition(sector) {
@@ -4727,7 +5009,7 @@ function mapSelectionReticle(x, y, radius) {
     `;
 }
 
-function selectSystem(systemId, { focusMap = false, restoreMapFocus = false } = {}) {
+function selectSystem(systemId, { focusMap = false, restoreMapFocus = false, restoreTopologyFocus = false } = {}) {
     const system = state.galaxy?.systems.find(candidate => candidate.systemId === systemId);
     if (!system) {
         return;
@@ -4743,7 +5025,16 @@ function selectSystem(systemId, { focusMap = false, restoreMapFocus = false } = 
     if (restoreMapFocus) {
         focusRenderedMapNode(".system-node", "systemId", systemId);
     }
+    if (restoreTopologyFocus) {
+        requestAnimationFrame(() => focusTopologySystem(systemId));
+    }
     syncTutorialDisplay();
+}
+
+function focusTopologySystem(systemId) {
+    const button = [...elements.systemsRoutesList.querySelectorAll("[data-topology-system-id]")]
+        .find(candidate => candidate.dataset.topologySystemId === systemId);
+    button?.focus({ preventScroll: true });
 }
 
 function setMapLens(lens) {

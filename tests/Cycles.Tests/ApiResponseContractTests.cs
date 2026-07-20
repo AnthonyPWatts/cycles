@@ -25,6 +25,25 @@ public sealed class ApiResponseContractTests
     }
 
     [Fact]
+    public void Cycle_contract_exposes_pacing_deadline_and_map_profile()
+    {
+        Assert.Equal(
+            typeof(CycleSchedulingMode),
+            typeof(CycleResponse).GetProperty(nameof(CycleResponse.SchedulingMode))!.PropertyType);
+        Assert.Equal(
+            typeof(DateTimeOffset?),
+            typeof(CycleResponse).GetProperty(nameof(CycleResponse.NextTickAt))!.PropertyType);
+        Assert.Equal(
+            typeof(string),
+            typeof(CycleResponse).GetProperty(nameof(CycleResponse.MapProfileKey))!.PropertyType);
+        Assert.Equal(
+            typeof(int),
+            typeof(SelfPacedTurnResolutionRequest)
+                .GetProperty(nameof(SelfPacedTurnResolutionRequest.ExpectedCurrentTickNumber))!
+                .PropertyType);
+    }
+
+    [Fact]
     public void Move_contracts_expose_legal_destination_and_queued_journey_projections()
     {
         Assert.Equal(

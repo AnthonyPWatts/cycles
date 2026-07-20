@@ -64,11 +64,19 @@ public static class ApiAdminEndpoints
                 if (!actor.IsAdmin)
                 {
                     _ = DevelopmentAuth.RequireCommandableEmpire(state, actor, context);
+                    var game = state.Games.Single(item => item.GameId == context.GameAccess.GameId);
+                    if (game.Purpose == GamePurpose.Training)
+                    {
+                        throw new ApiForbiddenException(
+                            "Training turns use the self-paced or tutorial resolution controls.");
+                    }
                 }
 
                 return new ExplicitCycleResolutionRequest(
                     context,
-                    requireAdminister: !allowDevelopmentPlayer);
+                    actor.IsAdmin
+                        ? ExplicitCycleResolutionPolicy.Administrator
+                        : ExplicitCycleResolutionPolicy.DevelopmentStandard);
             });
 
             var result = resolutions.ResolveExplicit(request, now) switch

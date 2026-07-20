@@ -95,6 +95,46 @@ public sealed class SqlServerTrainingProvisioningIntegrationTests
     }
 
     [Fact]
+    public void Self_paced_player_control_waits_until_the_guided_run_is_terminal()
+    {
+        var connectionString = SqlIntegrationGuard.GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var player = CreatePlayer();
+        var store = PrepareStore(connectionString, player);
+        var provisioned = Assert.IsType<TrainingGameProvisioningResult.Success>(
+            store.ProvisionTwinReaches(
+                new TrainingGameProvisioningCommand(player.PlayerId, Guid.NewGuid(), Now))).Value;
+        var context = ((IGameCommandAccessQuery)store).Get(
+            player.PlayerId,
+            new GameCycleScope(provisioned.GameId, provisioned.CycleId));
+        Assert.NotNull(context);
+        var request = new ExplicitCycleResolutionRequest(
+            context!,
+            ExplicitCycleResolutionPolicy.SelfPacedParticipant,
+            expectedCurrentTickNumber: 0);
+
+        Assert.IsType<CycleResolutionResult.Unavailable>(store.ResolveExplicit(request, Now.AddMinutes(1)));
+        _ = Journey(store.ChangeStatus(new TutorialStatusCommand(
+            player.PlayerId,
+            provisioned.GameId,
+            TutorialRunStatus.Paused,
+            Now.AddMinutes(2))));
+        Assert.IsType<CycleResolutionResult.Unavailable>(store.ResolveExplicit(request, Now.AddMinutes(3)));
+        _ = Journey(store.ChangeStatus(new TutorialStatusCommand(
+            player.PlayerId,
+            provisioned.GameId,
+            TutorialRunStatus.Skipped,
+            Now.AddMinutes(4))));
+
+        Assert.IsType<CycleResolutionResult.Completed>(store.ResolveExplicit(request, Now.AddMinutes(5)));
+        Assert.Equal(1, Assert.Single(store.LoadOrCreate().Cycles).CurrentTickNumber);
+    }
+
+    [Fact]
     public void First_normal_move_resolves_and_is_visible_after_a_new_store_returns_to_the_game()
     {
         var connectionString = SqlIntegrationGuard.GetConnectionString();
@@ -129,7 +169,10 @@ public sealed class SqlServerTrainingProvisioningIntegrationTests
         Assert.IsType<ScopedCommandResult<FleetOrder>.Success>(submitted);
 
         var resolved = store.ResolveExplicit(
-            new ExplicitCycleResolutionRequest(context!, requireAdminister: false),
+            new ExplicitCycleResolutionRequest(
+                context!,
+                ExplicitCycleResolutionPolicy.TutorialJourney,
+                expectedCurrentTickNumber: 0),
             Now.AddMinutes(2));
         Assert.IsType<CycleResolutionResult.Completed>(resolved);
 

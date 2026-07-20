@@ -32,24 +32,62 @@ public interface ICycleResolutionStore
         DateTimeOffset now);
 }
 
+public enum ExplicitCycleResolutionPolicy
+{
+    Administrator,
+    DevelopmentStandard,
+    SelfPacedParticipant,
+    TutorialJourney
+}
+
 public sealed record ExplicitCycleResolutionRequest
 {
     public ExplicitCycleResolutionRequest(
         GameCommandContext context,
         bool requireAdminister,
         bool requireActiveTutorialRun = false)
+        : this(
+            context,
+            requireActiveTutorialRun
+                ? ExplicitCycleResolutionPolicy.TutorialJourney
+                : requireAdminister
+                    ? ExplicitCycleResolutionPolicy.Administrator
+                    : ExplicitCycleResolutionPolicy.DevelopmentStandard)
+    {
+    }
+
+    public ExplicitCycleResolutionRequest(
+        GameCommandContext context,
+        ExplicitCycleResolutionPolicy policy,
+        int? expectedCurrentTickNumber = null)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (!Enum.IsDefined(policy))
+        {
+            throw new ArgumentOutOfRangeException(nameof(policy), policy, "The explicit resolution policy is invalid.");
+        }
+        if (expectedCurrentTickNumber < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedCurrentTickNumber),
+                expectedCurrentTickNumber,
+                "The expected current tick number cannot be negative.");
+        }
+
         Context = context;
-        RequireAdminister = requireAdminister;
-        RequireActiveTutorialRun = requireActiveTutorialRun;
+        Policy = policy;
+        ExpectedCurrentTickNumber = expectedCurrentTickNumber;
     }
 
     public GameCommandContext Context { get; }
 
-    public bool RequireAdminister { get; }
+    public ExplicitCycleResolutionPolicy Policy { get; }
 
-    public bool RequireActiveTutorialRun { get; }
+    public int? ExpectedCurrentTickNumber { get; }
+
+    public bool RequireAdminister => Policy == ExplicitCycleResolutionPolicy.Administrator;
+
+    public bool RequireActiveTutorialRun => Policy == ExplicitCycleResolutionPolicy.TutorialJourney;
 
     public GameCycleScope Scope => Context.Scope;
 }

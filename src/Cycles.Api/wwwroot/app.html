@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260720-training-journey-2">
+    <link rel="stylesheet" href="styles.css?v=20260720-self-paced-1">
 </head>
 <body>
     <header class="topbar">
@@ -28,7 +28,7 @@
             <div class="next-turn-instrument" aria-label="Next turn">
                 <span class="instrument-label">Next turn</span>
                 <strong id="nextTurnStatus">Loading...</strong>
-                <span class="turn-track" aria-hidden="true"><i></i></span>
+                <span id="nextTurnTrack" class="turn-track" aria-hidden="true"><i></i></span>
             </div>
             <div class="toolbar-actions">
                 <button id="tutorialButton" class="toolbar-icon-button" type="button" aria-label="Guide" aria-controls="tutorialPanel" title="Guide">
@@ -411,6 +411,17 @@
                             </div>
                         </div>
                         <div id="systemDetails" class="system-details"></div>
+                        <section id="systemsRoutesSection" class="systems-routes" aria-labelledby="systemsRoutesHeading">
+                            <div class="systems-routes-heading">
+                                <div>
+                                    <span class="section-kicker">Non-visual chart</span>
+                                    <h3 id="systemsRoutesHeading">Systems and routes</h3>
+                                </div>
+                                <span id="systemsRoutesSummary" class="section-note"></span>
+                            </div>
+                            <p id="systemsRoutesHelp" class="systems-routes-help">Select a system to share focus with the atlas. Route buttons inspect an adjacent destination; fleet commands provide the matching keyboard-operable order control.</p>
+                            <ol id="systemsRoutesList" class="systems-routes-list" aria-describedby="systemsRoutesHelp"></ol>
+                        </section>
                     </aside>
                 </div>
             </section>
@@ -688,6 +699,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260720-training-journey-1"></script>
+    <script src="app.js?v=20260720-self-paced-1"></script>
 </body>
 </html>

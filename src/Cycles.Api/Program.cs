@@ -312,6 +312,14 @@ selectedGameRoutes.MapPost("/tutorial/resolve", (
     ICycleResolutionStore resolutions) =>
     ResolveTutorial(gameId, httpContext, games, tutorials, resolutions))
     .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/turns/resolve", (
+    Guid gameId,
+    SelfPacedTurnResolutionRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ICycleResolutionStore resolutions) =>
+    ResolveSelfPacedTurn(gameId, request, httpContext, games, resolutions))
+    .RequireCyclesAntiforgery();
 selectedGameRoutes.MapPost("/tutorial/start-fresh", (
     Guid gameId,
     FreshTrainingAttemptRequest request,
@@ -734,8 +742,8 @@ static IResult ResolveTutorial(
         var tick = resolutions.ResolveExplicit(
             new ExplicitCycleResolutionRequest(
                 context,
-                requireAdminister: false,
-                requireActiveTutorialRun: true),
+                ExplicitCycleResolutionPolicy.TutorialJourney,
+                before.CurrentTickNumber),
             DateTimeOffset.UtcNow) switch
         {
             CycleResolutionResult.Completed completed => completed.Value,
@@ -758,6 +766,50 @@ static IResult ResolveTutorial(
             tick.EventsCreated,
             tick.BattlesCreated,
             after);
+    });
+
+static IResult ResolveSelfPacedTurn(
+    Guid gameId,
+    SelfPacedTurnResolutionRequest request,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ICycleResolutionStore resolutions) =>
+    TryResult(() =>
+    {
+        if (request.ExpectedCurrentTickNumber < 0)
+        {
+            throw new ApiValidationException("The expected current tick number cannot be negative.");
+        }
+
+        var context = games.RequireContext(httpContext, gameId);
+        var tick = resolutions.ResolveExplicit(
+            new ExplicitCycleResolutionRequest(
+                context,
+                ExplicitCycleResolutionPolicy.SelfPacedParticipant,
+                request.ExpectedCurrentTickNumber),
+            DateTimeOffset.UtcNow) switch
+        {
+            CycleResolutionResult.Completed completed => completed.Value,
+            CycleResolutionResult.RecoveryRequired recovery => recovery.Value,
+            CycleResolutionResult.Forbidden => throw new ApiForbiddenException(
+                "The authenticated player is no longer authorised to resolve this Game."),
+            CycleResolutionResult.Busy => throw new ApiStateConflictException(
+                "The self-paced turn is temporarily busy. Try again."),
+            CycleResolutionResult.Unavailable => throw new ApiStateConflictException(
+                "This Game is not currently available for player-controlled resolution."),
+            CycleResolutionResult.Stale => throw new ApiStateConflictException(
+                "The self-paced turn already changed. Refresh before resolving again."),
+            CycleResolutionResult.NotDue => throw new ApiStateConflictException(
+                "The self-paced turn is not ready to resolve."),
+            _ => throw new InvalidOperationException("The Cycle resolution store returned an unsupported result.")
+        };
+        return new TickCommandResponse(
+            tick.TickNumber,
+            tick.Status,
+            tick.OrdersProcessed,
+            tick.EventsCreated,
+            tick.BattlesCreated,
+            tick.ChronicleEntriesCreated);
     });
 
 static IResult StartFreshTutorial(
@@ -1190,7 +1242,10 @@ static CycleResponse ToCycleResponse(Cycle cycle) =>
         cycle.CurrentTickNumber,
         cycle.TurnStage,
         cycle.Status,
-        cycle.CreatedAt);
+        cycle.CreatedAt,
+        cycle.SchedulingMode,
+        cycle.NextTickAt,
+        cycle.MapProfileKey);
 
 static GalaxySystemResponse ToGalaxySystemResponse(GalaxySystem system, bool isGateway = false) =>
     new(
@@ -1533,6 +1588,8 @@ public sealed record TutorialStatusRequest(TutorialRunStatus Status);
 
 public sealed record FreshTrainingAttemptRequest(Guid RequestId);
 
+public sealed record SelfPacedTurnResolutionRequest(int ExpectedCurrentTickNumber);
+
 public sealed record TutorialResolutionResponse(
     int TickNumber,
     TickLogStatus Status,
@@ -1742,7 +1799,10 @@ public sealed record CycleResponse(
     int CurrentTickNumber,
     TurnResolutionStage TurnStage,
     CycleStatus Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    CycleSchedulingMode SchedulingMode,
+    DateTimeOffset? NextTickAt,
+    string? MapProfileKey);
 
 public sealed record GalaxySystemResponse(
     Guid SystemId,
