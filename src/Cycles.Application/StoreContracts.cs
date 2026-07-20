@@ -20,9 +20,26 @@ public interface IGameAccessQuery
     GameAccessSnapshot? Get(Guid playerId, Guid gameId);
 }
 
+public interface IGameCommandAccessQuery
+{
+    GameCommandContext? Get(Guid playerId, GameCycleScope scope);
+}
+
+public interface ICycleViewQuery
+{
+    ScopedQueryResult<T> Query<T>(
+        GameCommandContext context,
+        Func<GameState, T> projection);
+}
+
 public interface ICycleCommandStore
 {
     ScopedCommandResult<T> Execute<T>(
-        GameCycleScope scope,
+        GameCommandContext context,
         Func<GameState, T> command);
+}
+
+public interface ILegacyRuntimeScopeQuery
+{
+    GameCycleScope GetRequired();
 }

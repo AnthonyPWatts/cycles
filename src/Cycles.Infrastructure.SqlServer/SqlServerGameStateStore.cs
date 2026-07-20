@@ -10,7 +10,10 @@ public sealed partial class SqlServerGameStateStore :
     IPlayerAccountQuery,
     IGameCatalogueQuery,
     IGameAccessQuery,
-    ICycleCommandStore
+    IGameCommandAccessQuery,
+    ICycleViewQuery,
+    ICycleCommandStore,
+    ILegacyRuntimeScopeQuery
 {
     private const string ApplicationLockName = "Cycles.GameState";
     private const string TickLockPrefix = "Cycles.Tick.";
@@ -273,13 +276,20 @@ public sealed partial class SqlServerGameStateStore :
                 connection,
                 transaction,
                 """
-                SELECT DISTINCT players.*
+                SELECT DISTINCT
+                    players.PlayerID,
+                    players.Username,
+                    players.PlayerKind,
+                    players.Role,
+                    players.CreatedAt,
+                    players.LastLoginAt,
+                    players.Status
                 FROM dbo.Players players
                 INNER JOIN dbo.Empires empires ON empires.PlayerID = players.PlayerID
                 WHERE empires.CycleID = @CycleID
                 """,
                 command => AddGuid(command, "@CycleID", cycleId),
-                ReadPlayer),
+                ReadScopedPlayer),
             Cycles = ReadRows(
                 connection,
                 transaction,

@@ -189,31 +189,121 @@ public sealed partial class SqlServerGameStateStore
         return rows.SingleOrDefault();
     }
 
-    public ScopedCommandResult<T> Execute<T>(
-        GameCycleScope scope,
-        Func<GameState, T> command)
+    public GameCommandContext? Get(Guid playerId, GameCycleScope scope)
     {
         ArgumentNullException.ThrowIfNull(scope);
-        ArgumentNullException.ThrowIfNull(command);
+        if (playerId == Guid.Empty)
+        {
+            return null;
+        }
 
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+        var contexts = ReadRows(
+            connection,
+            transaction,
+            """
+            SELECT
+                player.PlayerID,
+                player.Role AS PlayerRole,
+                game.GameID,
+                game.CreatedByPlayerID,
+                enrolment.GameEnrolmentID,
+                cycle.CycleID,
+                participant.MatchParticipantID,
+                empire.EmpireID
+            FROM dbo.Players AS player
+            INNER JOIN dbo.GameEnrolments AS enrolment
+                ON enrolment.PlayerID = player.PlayerID
+               AND enrolment.Status <> @WithdrawnEnrolmentStatus
+            INNER JOIN dbo.Games AS game
+                ON game.GameID = enrolment.GameID
+            INNER JOIN dbo.Cycles AS cycle
+                ON cycle.GameID = game.GameID
+            INNER JOIN dbo.MatchParticipants AS participant
+                ON participant.GameID = game.GameID
+               AND participant.CycleID = cycle.CycleID
+               AND participant.PlayerID = player.PlayerID
+               AND participant.Status IN
+                   (@ActiveParticipantStatus, @DefeatedParticipantStatus, @CompletedParticipantStatus)
+            INNER JOIN dbo.Empires AS empire
+                ON empire.EmpireID = participant.EmpireID
+               AND empire.CycleID = cycle.CycleID
+               AND empire.PlayerID = player.PlayerID
+            WHERE player.PlayerID = @PlayerID
+              AND player.Status = @ActivePlayerStatus
+              AND player.PlayerKind = @HumanPlayerKind
+              AND game.GameID = @GameID
+              AND cycle.CycleID = @CycleID;
+            """,
+            command =>
+            {
+                AddGuid(command, "@PlayerID", playerId);
+                AddGuid(command, "@GameID", scope.GameId);
+                AddGuid(command, "@CycleID", scope.CycleId);
+                AddString(command, "@ActivePlayerStatus", PlayerStatus.Active.ToString(), 32);
+                AddString(command, "@HumanPlayerKind", PlayerKind.Human.ToString(), 32);
+                AddString(command, "@WithdrawnEnrolmentStatus", GameEnrolmentStatus.Withdrawn.ToString(), 32);
+                AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
+                AddString(command, "@DefeatedParticipantStatus", MatchParticipantStatus.Defeated.ToString(), 32);
+                AddString(command, "@CompletedParticipantStatus", MatchParticipantStatus.Completed.ToString(), 32);
+            },
+            ReadGameCommandContext);
+
+        transaction.Commit();
+        return contexts.SingleOrDefault();
+    }
+
+    public ScopedQueryResult<T> Query<T>(
+        GameCommandContext context,
+        Func<GameState, T> projection)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(projection);
+
+        GameState state;
+        using (var connection = OpenConnection())
+        using (var transaction = connection.BeginTransaction(IsolationLevel.Serializable))
+        {
+            if (!ReadableContextExists(connection, transaction, context))
+            {
+                transaction.Commit();
+                return new ScopedQueryResult<T>.Unavailable();
+            }
+
+            state = LoadFocusedViewStateUnsafe(connection, transaction, context);
+            transaction.Commit();
+        }
+
+        return new ScopedQueryResult<T>.Success(projection(state));
+    }
+
+    public ScopedCommandResult<T> Execute<T>(
+        GameCommandContext context,
+        Func<GameState, T> command)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(command);
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
         {
-            AcquireCycleTickLock(connection, transaction, scope.CycleId);
+            AcquireCycleTickLock(connection, transaction, context.CycleId);
         }
         catch (TimeoutException)
         {
             return new ScopedCommandResult<T>.Busy();
         }
 
-        if (!GameCycleScopeExists(connection, transaction, scope))
+        if (!ActiveCommandContextExists(connection, transaction, context))
         {
             transaction.Commit();
             return new ScopedCommandResult<T>.Unavailable();
         }
 
-        var state = LoadFocusedTickStateUnsafe(connection, transaction, scope.CycleId);
+        var scope = context.Scope;
+        var state = LoadFocusedTickStateUnsafe(connection, transaction, context.CycleId);
         var before = state.DeepClone();
         var value = command(state);
         var changes = ValidateScopedCommandChanges(scope, before, state);
@@ -255,6 +345,56 @@ public sealed partial class SqlServerGameStateStore
         return new ScopedCommandResult<T>.Success(value);
     }
 
+    public GameCycleScope GetRequired()
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        var cycleIds = ReadRows(
+            connection,
+            transaction,
+            """
+            SELECT cycle.CycleID
+            FROM dbo.Games AS game
+            LEFT JOIN dbo.Cycles AS cycle
+                ON cycle.GameID = game.GameID
+               AND cycle.Status IN (@ActiveCycleStatus, @RecoveryCycleStatus)
+            WHERE game.GameID = @GameID
+            ORDER BY cycle.CycleID;
+            """,
+            command =>
+            {
+                AddGuid(command, "@GameID", GameFoundationConstants.LegacyGameId);
+                AddString(command, "@ActiveCycleStatus", CycleStatus.Active.ToString(), 32);
+                AddString(command, "@RecoveryCycleStatus", CycleStatus.RecoveryRequired.ToString(), 32);
+            },
+            reader => GetNullableGuid(reader, "CycleID"));
+        transaction.Commit();
+
+        if (cycleIds.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"The fixed legacy Game '{GameFoundationConstants.LegacyGameId:D}' does not exist. Apply the Game-foundation migrations and seed or import the runtime before using legacy routes.");
+        }
+
+        var operationalCycleIds = cycleIds
+            .Where(item => item.HasValue)
+            .Select(item => item!.Value)
+            .ToArray();
+        if (operationalCycleIds.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"The fixed legacy Game '{GameFoundationConstants.LegacyGameId:D}' has no operational Active or RecoveryRequired Cycle. Select an explicit Game/Cycle or restore the legacy runtime before using legacy routes.");
+        }
+
+        if (operationalCycleIds.Length > 1)
+        {
+            throw new InvalidOperationException(
+                $"The fixed legacy Game '{GameFoundationConstants.LegacyGameId:D}' has {operationalCycleIds.Length} operational Cycles. Repair the Game's operational-Cycle invariant before using legacy routes.");
+        }
+
+        return new GameCycleScope(GameFoundationConstants.LegacyGameId, operationalCycleIds[0]);
+    }
+
     private static GameCatalogueItem ReadGameCatalogueItem(SqlDataReader reader) =>
         new(
             GetGuid(reader, "GameID"),
@@ -271,22 +411,299 @@ public sealed partial class SqlServerGameStateStore
             GetNullableEnum<TurnResolutionStage>(reader, "TurnStage"),
             GetDateTimeOffset(reader, "CreatedAt"));
 
-    private static bool GameCycleScopeExists(
+    private static GameCommandContext ReadGameCommandContext(SqlDataReader reader)
+    {
+        var playerId = GetGuid(reader, "PlayerID");
+        var gameId = GetGuid(reader, "GameID");
+        var permissions = GamePermission.Read;
+        if (GetNullableGuid(reader, "CreatedByPlayerID") == playerId)
+        {
+            permissions |= GamePermission.Organise;
+        }
+
+        if (GetEnum<PlayerRole>(reader, "PlayerRole") == PlayerRole.Admin)
+        {
+            permissions |= GamePermission.Administer;
+        }
+
+        return new GameCommandContext(
+            new GameAccessContext(
+                playerId,
+                gameId,
+                GetGuid(reader, "GameEnrolmentID"),
+                permissions),
+            GetGuid(reader, "CycleID"),
+            GetGuid(reader, "MatchParticipantID"),
+            GetGuid(reader, "EmpireID"));
+    }
+
+    private static Player ReadScopedPlayer(SqlDataReader reader) => new()
+    {
+        PlayerId = GetGuid(reader, "PlayerID"),
+        Username = GetString(reader, "Username"),
+        Email = "",
+        PasswordHash = "",
+        ExternalIssuer = "",
+        ExternalSubject = "",
+        Kind = GetEnum<PlayerKind>(reader, "PlayerKind"),
+        Role = GetEnum<PlayerRole>(reader, "Role"),
+        CreatedAt = GetDateTimeOffset(reader, "CreatedAt"),
+        LastLoginAt = GetNullableDateTimeOffset(reader, "LastLoginAt"),
+        Status = GetEnum<PlayerStatus>(reader, "Status")
+    };
+
+    private static bool ReadableContextExists(
         SqlConnection connection,
         SqlTransaction transaction,
-        GameCycleScope scope)
+        GameCommandContext context)
     {
         using var command = CreateCommand(
             connection,
             transaction,
             """
             SELECT TOP (1) 1
-            FROM dbo.Cycles WITH (UPDLOCK, HOLDLOCK)
-            WHERE CycleID = @CycleID
-              AND GameID = @GameID;
+            FROM dbo.Players AS player
+            INNER JOIN dbo.GameEnrolments AS enrolment
+                ON enrolment.GameEnrolmentID = @GameEnrolmentID
+               AND enrolment.PlayerID = player.PlayerID
+               AND enrolment.GameID = @GameID
+               AND enrolment.Status <> @WithdrawnEnrolmentStatus
+            INNER JOIN dbo.Games AS game
+                ON game.GameID = enrolment.GameID
+            INNER JOIN dbo.Cycles AS cycle
+                ON cycle.GameID = game.GameID
+               AND cycle.CycleID = @CycleID
+            INNER JOIN dbo.MatchParticipants AS participant
+                ON participant.MatchParticipantID = @MatchParticipantID
+               AND participant.GameID = game.GameID
+               AND participant.CycleID = cycle.CycleID
+               AND participant.PlayerID = player.PlayerID
+               AND participant.EmpireID = @EmpireID
+               AND participant.Status IN
+                   (@ActiveParticipantStatus, @DefeatedParticipantStatus, @CompletedParticipantStatus)
+            INNER JOIN dbo.Empires AS empire
+                ON empire.EmpireID = participant.EmpireID
+               AND empire.CycleID = cycle.CycleID
+               AND empire.PlayerID = player.PlayerID
+            WHERE player.PlayerID = @PlayerID
+              AND player.Status = @ActivePlayerStatus
+              AND player.PlayerKind = @HumanPlayerKind
+              AND (@RequireOrganisePermission = 0 OR game.CreatedByPlayerID = player.PlayerID)
+              AND (@RequireAdministerPermission = 0 OR player.Role = @AdminPlayerRole);
             """);
-        AddGuid(command, "@CycleID", scope.CycleId);
-        AddGuid(command, "@GameID", scope.GameId);
+        AddGuid(command, "@PlayerID", context.GameAccess.PlayerId);
+        AddGuid(command, "@GameID", context.GameAccess.GameId);
+        AddGuid(command, "@GameEnrolmentID", context.GameAccess.GameEnrolmentId!.Value);
+        AddGuid(command, "@CycleID", context.CycleId);
+        AddGuid(command, "@MatchParticipantID", context.MatchParticipantId);
+        AddGuid(command, "@EmpireID", context.EmpireId);
+        AddString(command, "@ActivePlayerStatus", PlayerStatus.Active.ToString(), 32);
+        AddString(command, "@HumanPlayerKind", PlayerKind.Human.ToString(), 32);
+        AddString(command, "@WithdrawnEnrolmentStatus", GameEnrolmentStatus.Withdrawn.ToString(), 32);
+        AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
+        AddString(command, "@DefeatedParticipantStatus", MatchParticipantStatus.Defeated.ToString(), 32);
+        AddString(command, "@CompletedParticipantStatus", MatchParticipantStatus.Completed.ToString(), 32);
+        AddInt(
+            command,
+            "@RequireOrganisePermission",
+            context.GameAccess.Permissions.HasFlag(GamePermission.Organise) ? 1 : 0);
+        AddInt(
+            command,
+            "@RequireAdministerPermission",
+            context.GameAccess.Permissions.HasFlag(GamePermission.Administer) ? 1 : 0);
+        AddString(command, "@AdminPlayerRole", PlayerRole.Admin.ToString(), 32);
+        return command.ExecuteScalar() is not null;
+    }
+
+    private static GameState LoadFocusedViewStateUnsafe(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameCommandContext context)
+    {
+        var state = LoadFocusedTickStateUnsafe(connection, transaction, context.CycleId);
+        state.Games = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.Games WHERE GameID = @GameID",
+            command => AddGuid(command, "@GameID", context.GameAccess.GameId),
+            ReadGame);
+        state.CycleConfigurations = ReadRows(
+            connection,
+            transaction,
+            """
+            SELECT configuration.*
+            FROM dbo.CycleConfigurations AS configuration
+            INNER JOIN dbo.Cycles AS cycle
+                ON cycle.CycleConfigurationID = configuration.CycleConfigurationID
+               AND cycle.GameID = configuration.GameID
+            WHERE cycle.CycleID = @CycleID
+              AND configuration.GameID = @GameID
+            """,
+            command =>
+            {
+                AddGuid(command, "@CycleID", context.CycleId);
+                AddGuid(command, "@GameID", context.GameAccess.GameId);
+            },
+            ReadCycleConfiguration);
+        state.GameEnrolments = ReadRows(
+            connection,
+            transaction,
+            """
+            SELECT *
+            FROM dbo.GameEnrolments
+            WHERE GameEnrolmentID = @GameEnrolmentID
+              AND GameID = @GameID
+              AND PlayerID = @PlayerID
+            """,
+            command =>
+            {
+                AddGuid(command, "@GameEnrolmentID", context.GameAccess.GameEnrolmentId!.Value);
+                AddGuid(command, "@GameID", context.GameAccess.GameId);
+                AddGuid(command, "@PlayerID", context.GameAccess.PlayerId);
+            },
+            ReadGameEnrolment);
+        state.EmpireMetrics = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.EmpireMetrics WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadEmpireMetric);
+        state.CycleRankings = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.CycleRankings WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadCycleRanking);
+        state.CycleMajorEvents = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.CycleMajorEvents WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadCycleMajorEvent);
+        state.SystemHistoricalSignals = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.SystemHistoricalSignals WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadSystemHistoricalSignal);
+        state.AdmiralBattleHistories = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.AdmiralBattleHistories WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadAdmiralBattleHistory);
+        state.FleetOrders = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.FleetOrders WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadFleetOrder);
+        state.ShipConstructions = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.ShipConstructions WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadShipConstruction);
+        state.TickLogs = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.TickLogs WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadTickLog);
+        state.Events = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.Events WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadEvent);
+        state.BattleRecords = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.BattleRecords WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadBattleRecord);
+        state.BattleFleetParticipants = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.BattleFleetParticipants WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadBattleFleetParticipant);
+        state.ChronicleEntries = ReadRows(
+            connection,
+            transaction,
+            "SELECT * FROM dbo.ChronicleEntries WHERE CycleID = @CycleID",
+            command => AddGuid(command, "@CycleID", context.CycleId),
+            ReadChronicleEntry);
+
+        BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
+        return state;
+    }
+
+    private static bool ActiveCommandContextExists(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameCommandContext context)
+    {
+        using var command = CreateCommand(
+            connection,
+            transaction,
+            """
+            SELECT TOP (1) 1
+            FROM dbo.Players AS player
+            INNER JOIN dbo.GameEnrolments AS enrolment
+                ON enrolment.GameEnrolmentID = @GameEnrolmentID
+               AND enrolment.PlayerID = player.PlayerID
+               AND enrolment.GameID = @GameID
+               AND enrolment.Status = @EnrolledStatus
+               AND enrolment.EndedAt IS NULL
+            INNER JOIN dbo.Games AS game
+                ON game.GameID = enrolment.GameID
+               AND game.Status = @ActiveGameStatus
+            INNER JOIN dbo.Cycles AS cycle WITH (UPDLOCK, HOLDLOCK)
+                ON cycle.GameID = game.GameID
+               AND cycle.CycleID = @CycleID
+               AND cycle.Status = @ActiveCycleStatus
+            INNER JOIN dbo.MatchParticipants AS participant
+                ON participant.MatchParticipantID = @MatchParticipantID
+               AND participant.GameID = game.GameID
+               AND participant.CycleID = cycle.CycleID
+               AND participant.PlayerID = player.PlayerID
+               AND participant.EmpireID = @EmpireID
+               AND participant.Status = @ActiveParticipantStatus
+               AND participant.EndedAt IS NULL
+            INNER JOIN dbo.Empires AS empire
+                ON empire.EmpireID = participant.EmpireID
+               AND empire.CycleID = cycle.CycleID
+               AND empire.PlayerID = player.PlayerID
+               AND empire.Status = @ActiveEmpireStatus
+            WHERE player.PlayerID = @PlayerID
+              AND player.Status = @ActivePlayerStatus
+              AND player.PlayerKind = @HumanPlayerKind
+              AND (@RequireOrganisePermission = 0 OR game.CreatedByPlayerID = player.PlayerID)
+              AND (@RequireAdministerPermission = 0 OR player.Role = @AdminPlayerRole);
+            """);
+        AddGuid(command, "@PlayerID", context.GameAccess.PlayerId);
+        AddGuid(command, "@GameID", context.GameAccess.GameId);
+        AddGuid(command, "@GameEnrolmentID", context.GameAccess.GameEnrolmentId!.Value);
+        AddGuid(command, "@CycleID", context.CycleId);
+        AddGuid(command, "@MatchParticipantID", context.MatchParticipantId);
+        AddGuid(command, "@EmpireID", context.EmpireId);
+        AddString(command, "@ActivePlayerStatus", PlayerStatus.Active.ToString(), 32);
+        AddString(command, "@HumanPlayerKind", PlayerKind.Human.ToString(), 32);
+        AddString(command, "@EnrolledStatus", GameEnrolmentStatus.Enrolled.ToString(), 32);
+        AddString(command, "@ActiveGameStatus", GameLifecycleStatus.Active.ToString(), 32);
+        AddString(command, "@ActiveCycleStatus", CycleStatus.Active.ToString(), 32);
+        AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
+        AddString(command, "@ActiveEmpireStatus", EmpireStatus.Active.ToString(), 32);
+        AddInt(
+            command,
+            "@RequireOrganisePermission",
+            context.GameAccess.Permissions.HasFlag(GamePermission.Organise) ? 1 : 0);
+        AddInt(
+            command,
+            "@RequireAdministerPermission",
+            context.GameAccess.Permissions.HasFlag(GamePermission.Administer) ? 1 : 0);
+        AddString(command, "@AdminPlayerRole", PlayerRole.Admin.ToString(), 32);
         return command.ExecuteScalar() is not null;
     }
 

@@ -105,6 +105,382 @@ public sealed class SqlServerScopedStoreIntegrationTests
     }
 
     [Fact]
+    public void Command_context_query_resolves_only_the_exact_player_game_cycle_tuple()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var query = (IGameCommandAccessQuery)CreateStore(fixture.ConnectionString);
+
+        var context = Assert.IsType<GameCommandContext>(query.Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
+
+        Assert.Equal(fixture.Ids.PlayerA, context.GameAccess.PlayerId);
+        Assert.Equal(fixture.Ids.GameA, context.GameAccess.GameId);
+        Assert.Equal(fixture.Ids.EnrolmentAA, context.GameAccess.GameEnrolmentId);
+        Assert.Equal(fixture.Ids.CycleA, context.CycleId);
+        Assert.Equal(fixture.Ids.ParticipantA1, context.MatchParticipantId);
+        Assert.Equal(fixture.Ids.EmpireA1, context.EmpireId);
+        Assert.Equal(GamePermission.Read | GamePermission.Organise, context.GameAccess.Permissions);
+        Assert.NotEqual(fixture.Ids.GameB, context.GameAccess.GameId);
+        Assert.NotEqual(fixture.Ids.EnrolmentBA, context.GameAccess.GameEnrolmentId);
+        Assert.NotEqual(fixture.Ids.CycleB, context.CycleId);
+        Assert.NotEqual(fixture.Ids.ParticipantB1, context.MatchParticipantId);
+        Assert.NotEqual(fixture.Ids.EmpireB1, context.EmpireId);
+        Assert.Null(query.Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleB)));
+        Assert.Null(query.Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameB, fixture.Ids.CycleA)));
+    }
+
+    [Fact]
+    public void Cycle_view_loads_complete_target_data_without_other_cycle_rows_or_player_secrets()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var context = ResolveContext(store, fixture);
+
+        var result = ((ICycleViewQuery)store).Query(context, state => state);
+
+        var state = Assert.IsType<ScopedQueryResult<GameState>.Success>(result).Value;
+        Assert.Equal(fixture.Ids.GameA, Assert.Single(state.Games).GameId);
+        Assert.Equal(fixture.Ids.ConfigurationA, Assert.Single(state.CycleConfigurations).CycleConfigurationId);
+        Assert.Equal(fixture.Ids.EnrolmentAA, Assert.Single(state.GameEnrolments).GameEnrolmentId);
+        Assert.Equal(fixture.Ids.CycleA, Assert.Single(state.Cycles).CycleId);
+        Assert.True(new HashSet<Guid> { fixture.Ids.PlayerA, fixture.Ids.PlayerB, fixture.Ids.PlayerC }
+            .SetEquals(state.Players.Select(player => player.PlayerId)));
+        Assert.All(state.Players, AssertPlayerIsRedacted);
+
+        var json = JsonSerializer.Serialize(state);
+        foreach (var expectedId in TargetViewIdentifiers(fixture.Ids))
+        {
+            Assert.Contains(expectedId.ToString("D"), json, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var excludedId in ExcludedViewIdentifiers(fixture))
+        {
+            Assert.DoesNotContain(excludedId.ToString("D"), json, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.DoesNotContain(fixture.SecretEmail, json, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.SecretPasswordHash, json, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.SecretIssuer, json, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.SecretSubject, json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Defeated_and_completed_participation_remains_readable_but_withdrawal_does_not()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var context = ResolveContext(store, fixture);
+
+        Execute(
+            fixture.ConnectionString,
+            """
+            UPDATE dbo.MatchParticipants
+            SET Status = N'Defeated', EndedAt = @EndedAt
+            WHERE MatchParticipantID = @ParticipantID;
+            UPDATE dbo.Empires SET Status = N'Defeated' WHERE EmpireID = @EmpireID;
+            """,
+            ("@EndedAt", CommandTime),
+            ("@ParticipantID", fixture.Ids.ParticipantA1),
+            ("@EmpireID", fixture.Ids.EmpireA1));
+
+        Assert.NotNull(((IGameCommandAccessQuery)store).Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
+        AssertReadableButNotCommandable(store, context, "defeated participation");
+
+        Execute(
+            fixture.ConnectionString,
+            """
+            UPDATE dbo.Games SET Status = N'Completed', CompletedAt = @EndedAt WHERE GameID = @GameID;
+            UPDATE dbo.Cycles SET Status = N'Completed' WHERE CycleID = @CycleID;
+            UPDATE dbo.GameEnrolments
+            SET Status = N'Completed', EndedAt = @EndedAt
+            WHERE GameEnrolmentID = @EnrolmentID;
+            UPDATE dbo.MatchParticipants
+            SET Status = N'Completed', EndedAt = @EndedAt
+            WHERE MatchParticipantID = @ParticipantID;
+            """,
+            ("@EndedAt", CommandTime),
+            ("@GameID", fixture.Ids.GameA),
+            ("@CycleID", fixture.Ids.CycleA),
+            ("@EnrolmentID", fixture.Ids.EnrolmentAA),
+            ("@ParticipantID", fixture.Ids.ParticipantA1));
+
+        Assert.NotNull(((IGameCommandAccessQuery)store).Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
+        AssertReadableButNotCommandable(store, context, "completed participation");
+
+        Execute(
+            fixture.ConnectionString,
+            "UPDATE dbo.GameEnrolments SET Status = N'Withdrawn' WHERE GameEnrolmentID = @EnrolmentID;",
+            ("@EnrolmentID", fixture.Ids.EnrolmentAA));
+
+        Assert.Null(((IGameCommandAccessQuery)store).Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
+        var viewCallbackInvoked = false;
+        var viewResult = ((ICycleViewQuery)store).Query(
+            context,
+            _ =>
+            {
+                viewCallbackInvoked = true;
+                return 42;
+            });
+        Assert.IsType<ScopedQueryResult<int>.Unavailable>(viewResult);
+        Assert.False(viewCallbackInvoked);
+
+        var commandCallbackInvoked = false;
+        var commandResult = ((ICycleCommandStore)store).Execute(
+            context,
+            _ =>
+            {
+                commandCallbackInvoked = true;
+                return 42;
+            });
+        Assert.IsType<ScopedCommandResult<int>.Unavailable>(commandResult);
+        Assert.False(commandCallbackInvoked);
+    }
+
+    [Fact]
+    public void Cycle_command_revalidates_every_live_authority_status_before_invoking_the_callback()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var context = ResolveContext(store, fixture);
+        var mutations = new[]
+        {
+            new CommandAuthorityMutation(
+                "suspended Player",
+                "UPDATE dbo.Players SET Status = N'Suspended' WHERE PlayerID = @ID;",
+                "UPDATE dbo.Players SET Status = N'Active' WHERE PlayerID = @ID;",
+                fixture.Ids.PlayerA),
+            new CommandAuthorityMutation(
+                "AI Player",
+                "UPDATE dbo.Players SET PlayerKind = N'AI' WHERE PlayerID = @ID;",
+                "UPDATE dbo.Players SET PlayerKind = N'Human' WHERE PlayerID = @ID;",
+                fixture.Ids.PlayerA),
+            new CommandAuthorityMutation(
+                "historical enrolment",
+                "UPDATE dbo.GameEnrolments SET Status = N'Historical' WHERE GameEnrolmentID = @ID;",
+                "UPDATE dbo.GameEnrolments SET Status = N'Enrolled' WHERE GameEnrolmentID = @ID;",
+                fixture.Ids.EnrolmentAA),
+            new CommandAuthorityMutation(
+                "completed enrolment",
+                "UPDATE dbo.GameEnrolments SET Status = N'Completed', EndedAt = '2026-07-20T13:00:00+00:00' WHERE GameEnrolmentID = @ID;",
+                "UPDATE dbo.GameEnrolments SET Status = N'Enrolled', EndedAt = NULL WHERE GameEnrolmentID = @ID;",
+                fixture.Ids.EnrolmentAA),
+            new CommandAuthorityMutation(
+                "completed Game",
+                "UPDATE dbo.Games SET Status = N'Completed', CompletedAt = '2026-07-20T13:00:00+00:00' WHERE GameID = @ID;",
+                "UPDATE dbo.Games SET Status = N'Active', CompletedAt = NULL WHERE GameID = @ID;",
+                fixture.Ids.GameA),
+            new CommandAuthorityMutation(
+                "completed Cycle",
+                "UPDATE dbo.Cycles SET Status = N'Completed' WHERE CycleID = @ID;",
+                "UPDATE dbo.Cycles SET Status = N'Active' WHERE CycleID = @ID;",
+                fixture.Ids.CycleA),
+            new CommandAuthorityMutation(
+                "defeated participant",
+                "UPDATE dbo.MatchParticipants SET Status = N'Defeated' WHERE MatchParticipantID = @ID;",
+                "UPDATE dbo.MatchParticipants SET Status = N'Active' WHERE MatchParticipantID = @ID;",
+                fixture.Ids.ParticipantA1),
+            new CommandAuthorityMutation(
+                "ended participant",
+                "UPDATE dbo.MatchParticipants SET EndedAt = '2026-07-20T13:00:00+00:00' WHERE MatchParticipantID = @ID;",
+                "UPDATE dbo.MatchParticipants SET EndedAt = NULL WHERE MatchParticipantID = @ID;",
+                fixture.Ids.ParticipantA1),
+            new CommandAuthorityMutation(
+                "defeated Empire",
+                "UPDATE dbo.Empires SET Status = N'Defeated' WHERE EmpireID = @ID;",
+                "UPDATE dbo.Empires SET Status = N'Active' WHERE EmpireID = @ID;",
+                fixture.Ids.EmpireA1)
+        };
+
+        var baseline = ((ICycleCommandStore)store).Execute(context, _ => 7);
+        Assert.Equal(7, Assert.IsType<ScopedCommandResult<int>.Success>(baseline).Value);
+
+        foreach (var mutation in mutations)
+        {
+            Execute(fixture.ConnectionString, mutation.ApplySql, ("@ID", mutation.Id));
+            try
+            {
+                var callbackInvoked = false;
+                var result = ((ICycleCommandStore)store).Execute(
+                    context,
+                    _ =>
+                    {
+                        callbackInvoked = true;
+                        return 42;
+                    });
+
+                Assert.True(
+                    result is ScopedCommandResult<int>.Unavailable,
+                    $"Expected neutral command unavailability for {mutation.Description}, but got {result.GetType().Name}.");
+                Assert.False(callbackInvoked, $"The command callback ran for {mutation.Description}.");
+            }
+            finally
+            {
+                Execute(fixture.ConnectionString, mutation.RestoreSql, ("@ID", mutation.Id));
+            }
+        }
+    }
+
+    [Fact]
+    public void Hostile_context_identifier_combinations_are_neutrally_unavailable()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var contexts = new[]
+        {
+            CreateContext(fixture, playerId: fixture.Ids.PlayerB),
+            CreateContext(fixture, gameId: fixture.Ids.GameB),
+            CreateContext(fixture, gameEnrolmentId: fixture.Ids.EnrolmentAB),
+            CreateContext(fixture, cycleId: fixture.Ids.CycleB),
+            CreateContext(fixture, matchParticipantId: fixture.Ids.ParticipantB1),
+            CreateContext(fixture, empireId: fixture.Ids.EmpireB1)
+        };
+
+        foreach (var context in contexts)
+        {
+            var viewCallbackInvoked = false;
+            var viewResult = ((ICycleViewQuery)store).Query(
+                context,
+                _ =>
+                {
+                    viewCallbackInvoked = true;
+                    return 42;
+                });
+            Assert.IsType<ScopedQueryResult<int>.Unavailable>(viewResult);
+            Assert.False(viewCallbackInvoked);
+
+            var commandCallbackInvoked = false;
+            var commandResult = ((ICycleCommandStore)store).Execute(
+                context,
+                _ =>
+                {
+                    commandCallbackInvoked = true;
+                    return 42;
+                });
+            Assert.IsType<ScopedCommandResult<int>.Unavailable>(commandResult);
+            Assert.False(commandCallbackInvoked);
+        }
+    }
+
+    [Fact]
+    public void Stale_elevated_permissions_are_revalidated_before_view_or_command_callbacks()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var organiserContext = ResolveContext(store, fixture);
+        Assert.True(organiserContext.GameAccess.Permissions.HasFlag(GamePermission.Organise));
+
+        Execute(
+            fixture.ConnectionString,
+            "UPDATE dbo.Games SET CreatedByPlayerID = @NewCreatorID WHERE GameID = @GameID;",
+            ("@NewCreatorID", fixture.Ids.PlayerB),
+            ("@GameID", fixture.Ids.GameA));
+
+        AssertContextIsUnavailable(store, organiserContext, "revoked organiser permission");
+
+        Execute(
+            fixture.ConnectionString,
+            """
+            UPDATE dbo.Games SET CreatedByPlayerID = @PlayerID WHERE GameID = @GameID;
+            UPDATE dbo.Players SET Role = N'Admin' WHERE PlayerID = @PlayerID;
+            """,
+            ("@PlayerID", fixture.Ids.PlayerA),
+            ("@GameID", fixture.Ids.GameA));
+
+        var administratorContext = ResolveContext(store, fixture);
+        Assert.True(administratorContext.GameAccess.Permissions.HasFlag(GamePermission.Administer));
+
+        Execute(
+            fixture.ConnectionString,
+            "UPDATE dbo.Players SET Role = N'Player' WHERE PlayerID = @PlayerID;",
+            ("@PlayerID", fixture.Ids.PlayerA));
+
+        AssertContextIsUnavailable(store, administratorContext, "revoked administrator permission");
+    }
+
+    [Fact]
+    public void Cycle_command_returns_busy_when_a_second_connection_holds_the_cycle_lock()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var context = ResolveContext(store, fixture);
+        using var blockingConnection = new SqlConnection(fixture.ConnectionString);
+        blockingConnection.Open();
+        using var blockingTransaction = blockingConnection.BeginTransaction();
+        using var lockCommand = blockingConnection.CreateCommand();
+        lockCommand.Transaction = blockingTransaction;
+        lockCommand.CommandText = """
+            DECLARE @Result int;
+            EXEC @Result = sys.sp_getapplock
+                @Resource = @Resource,
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 0;
+            SELECT @Result;
+            """;
+        lockCommand.Parameters.AddWithValue("@Resource", $"Cycles.Tick.{fixture.Ids.CycleA:D}");
+        var lockResult = Convert.ToInt32(lockCommand.ExecuteScalar(), null);
+        Assert.True(lockResult >= 0, $"Could not acquire the blocking Cycle lock. Result code: {lockResult}.");
+
+        var callbackInvoked = false;
+        var result = ((ICycleCommandStore)store).Execute(
+            context,
+            _ =>
+            {
+                callbackInvoked = true;
+                return 42;
+            });
+
+        Assert.IsType<ScopedCommandResult<int>.Busy>(result);
+        Assert.False(callbackInvoked);
+    }
+
+    [Fact]
     public void Cycle_command_returns_unavailable_for_a_game_cycle_mismatch_without_invoking_the_callback()
     {
         var fixture = CreateFixture();
@@ -117,7 +493,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
         var callbackInvoked = false;
 
         var result = store.Execute(
-            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleB),
+            CreateContext(fixture, cycleId: fixture.Ids.CycleB),
             _ =>
             {
                 callbackInvoked = true;
@@ -138,15 +514,18 @@ public sealed class SqlServerScopedStoreIntegrationTests
         }
 
         var beforeOtherCycle = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleB);
-        var store = (ICycleCommandStore)CreateStore(fixture.ConnectionString);
+        var sqlStore = CreateStore(fixture.ConnectionString);
+        var store = (ICycleCommandStore)sqlStore;
+        var context = ResolveContext(sqlStore, fixture);
 
         var result = store.Execute(
-            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA),
+            context,
             state =>
             {
                 Assert.Single(state.Cycles, cycle => cycle.CycleId == fixture.Ids.CycleA);
                 Assert.DoesNotContain(state.Cycles, cycle => cycle.CycleId == fixture.Ids.CycleB);
                 Assert.DoesNotContain(state.Fleets, fleet => fleet.FleetId == fixture.Ids.FleetB2);
+                Assert.All(state.Players, AssertPlayerIsRedacted);
                 var order = OrderService.SubmitHoldOrder(state, fixture.Ids.FleetA2, CommandTime);
                 var gameEvent = CreateEvent(fixture.Ids.CycleA, fixture.Ids.EmpireA2, fixture.Ids.SystemA2);
                 state.Events.Add(gameEvent);
@@ -178,11 +557,13 @@ public sealed class SqlServerScopedStoreIntegrationTests
 
         var beforeTarget = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleA);
         var beforeForeign = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleB);
-        var store = (ICycleCommandStore)CreateStore(fixture.ConnectionString);
+        var sqlStore = CreateStore(fixture.ConnectionString);
+        var store = (ICycleCommandStore)sqlStore;
+        var context = ResolveContext(sqlStore, fixture);
         var foreignFleetWasLoaded = false;
 
         Assert.Throws<InvalidOperationException>(() => store.Execute<FleetOrder>(
-            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA),
+            context,
             state =>
             {
                 foreignFleetWasLoaded = state.Fleets.Any(fleet => fleet.FleetId == fixture.Ids.FleetB2);
@@ -206,11 +587,12 @@ public sealed class SqlServerScopedStoreIntegrationTests
 
         var beforeTarget = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleA);
         var beforeForeign = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleB);
-        var store = (ICycleCommandStore)CreateStore(fixture.ConnectionString);
-        var scope = new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA);
+        var sqlStore = CreateStore(fixture.ConnectionString);
+        var store = (ICycleCommandStore)sqlStore;
+        var context = ResolveContext(sqlStore, fixture);
 
         Assert.Throws<InvalidOperationException>(() => store.Execute(
-            scope,
+            context,
             state =>
             {
                 state.Events.Add(CreateEvent(
@@ -223,7 +605,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
         Assert.Equal(beforeForeign, ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleB));
 
         Assert.Throws<InvalidOperationException>(() => store.Execute(
-            scope,
+            context,
             state =>
             {
                 var collidingEvent = CreateEvent(
@@ -238,7 +620,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
         Assert.Equal(beforeForeign, ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleB));
 
         Assert.Throws<InvalidOperationException>(() => store.Execute(
-            scope,
+            context,
             state =>
             {
                 var existing = state.FleetOrders.Single(order => order.FleetOrderId == fixture.Ids.OrderA2);
@@ -259,10 +641,12 @@ public sealed class SqlServerScopedStoreIntegrationTests
         }
 
         var beforeTarget = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleA);
-        var store = (ICycleCommandStore)CreateStore(fixture.ConnectionString);
+        var sqlStore = CreateStore(fixture.ConnectionString);
+        var store = (ICycleCommandStore)sqlStore;
+        var context = ResolveContext(sqlStore, fixture);
 
         Assert.Throws<CallbackFailureException>(() => store.Execute<int>(
-            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA),
+            context,
             state =>
             {
                 state.FleetOrders.Add(CreateHoldOrder(fixture.Ids.CycleA, fixture.Ids.FleetA2));
@@ -283,10 +667,12 @@ public sealed class SqlServerScopedStoreIntegrationTests
         }
 
         var beforeTarget = ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleA);
-        var store = (ICycleCommandStore)CreateStore(fixture.ConnectionString);
+        var sqlStore = CreateStore(fixture.ConnectionString);
+        var store = (ICycleCommandStore)sqlStore;
+        var context = ResolveContext(sqlStore, fixture);
 
         Assert.Throws<InvalidOperationException>(() => store.Execute(
-            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA),
+            context,
             state =>
             {
                 var fleet = state.Fleets.Single(item => item.FleetId == fixture.Ids.FleetA2);
@@ -297,6 +683,179 @@ public sealed class SqlServerScopedStoreIntegrationTests
 
         Assert.Equal(beforeTarget, ReadCycleFingerprint(fixture.ConnectionString, fixture.Ids.CycleA));
     }
+
+    private static GameCommandContext ResolveContext(
+        SqlServerGameStateStore store,
+        ScopedStoreFixture fixture) =>
+        Assert.IsType<GameCommandContext>(((IGameCommandAccessQuery)store).Get(
+            fixture.Ids.PlayerA,
+            new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
+
+    private static GameCommandContext CreateContext(
+        ScopedStoreFixture fixture,
+        Guid? playerId = null,
+        Guid? gameId = null,
+        Guid? gameEnrolmentId = null,
+        Guid? cycleId = null,
+        Guid? matchParticipantId = null,
+        Guid? empireId = null) =>
+        new(
+            new GameAccessContext(
+                playerId ?? fixture.Ids.PlayerA,
+                gameId ?? fixture.Ids.GameA,
+                gameEnrolmentId ?? fixture.Ids.EnrolmentAA,
+                GamePermission.Read),
+            cycleId ?? fixture.Ids.CycleA,
+            matchParticipantId ?? fixture.Ids.ParticipantA1,
+            empireId ?? fixture.Ids.EmpireA1);
+
+    private static void AssertReadableButNotCommandable(
+        SqlServerGameStateStore store,
+        GameCommandContext context,
+        string stateDescription)
+    {
+        var viewCallbackInvoked = false;
+        var viewResult = ((ICycleViewQuery)store).Query(
+            context,
+            state =>
+            {
+                viewCallbackInvoked = true;
+                return state.Cycles.Count;
+            });
+        Assert.True(
+            viewResult is ScopedQueryResult<int>.Success,
+            $"Expected {stateDescription} to remain readable, but got {viewResult.GetType().Name}.");
+        Assert.True(viewCallbackInvoked, $"The view callback did not run for {stateDescription}.");
+
+        var commandCallbackInvoked = false;
+        var commandResult = ((ICycleCommandStore)store).Execute(
+            context,
+            _ =>
+            {
+                commandCallbackInvoked = true;
+                return 42;
+            });
+        Assert.True(
+            commandResult is ScopedCommandResult<int>.Unavailable,
+            $"Expected commands to be unavailable for {stateDescription}, but got {commandResult.GetType().Name}.");
+        Assert.False(commandCallbackInvoked, $"The command callback ran for {stateDescription}.");
+    }
+
+    private static void AssertContextIsUnavailable(
+        SqlServerGameStateStore store,
+        GameCommandContext context,
+        string stateDescription)
+    {
+        var viewCallbackInvoked = false;
+        var viewResult = ((ICycleViewQuery)store).Query(
+            context,
+            _ =>
+            {
+                viewCallbackInvoked = true;
+                return 42;
+            });
+        Assert.True(
+            viewResult is ScopedQueryResult<int>.Unavailable,
+            $"Expected the view to be unavailable for {stateDescription}, but got {viewResult.GetType().Name}.");
+        Assert.False(viewCallbackInvoked, $"The view callback ran for {stateDescription}.");
+
+        var commandCallbackInvoked = false;
+        var commandResult = ((ICycleCommandStore)store).Execute(
+            context,
+            _ =>
+            {
+                commandCallbackInvoked = true;
+                return 42;
+            });
+        Assert.True(
+            commandResult is ScopedCommandResult<int>.Unavailable,
+            $"Expected the command to be unavailable for {stateDescription}, but got {commandResult.GetType().Name}.");
+        Assert.False(commandCallbackInvoked, $"The command callback ran for {stateDescription}.");
+    }
+
+    private static void AssertPlayerIsRedacted(Player player)
+    {
+        Assert.Equal("", player.Email);
+        Assert.Equal("", player.PasswordHash);
+        Assert.Equal("", player.ExternalIssuer);
+        Assert.Equal("", player.ExternalSubject);
+    }
+
+    private static Guid[] TargetViewIdentifiers(SqlServerCycleScopeFixtureIds ids) =>
+    [
+        ids.PlayerA,
+        ids.PlayerB,
+        ids.PlayerC,
+        ids.GameA,
+        ids.ConfigurationA,
+        ids.CycleA,
+        ids.EnrolmentAA,
+        ids.SectorA,
+        ids.SystemA1,
+        ids.SystemA2,
+        ids.EmpireA1,
+        ids.EmpireA2,
+        ids.EmpireA3,
+        ids.ParticipantA1,
+        ids.ParticipantA2,
+        ids.MetricA,
+        ids.ConstructionA,
+        ids.RankingA,
+        ids.AdmiralA,
+        ids.OutpostA,
+        ids.DoctrineA,
+        ids.DiplomacyA,
+        ids.LinkA,
+        ids.FleetA1,
+        ids.FleetA2,
+        ids.OrderA1,
+        ids.OrderA2,
+        ids.EventA,
+        ids.BattleA,
+        ids.ChronicleA,
+        ids.MajorEventA,
+        ids.SignalA,
+        ids.HistoryA
+    ];
+
+    private static Guid[] ExcludedViewIdentifiers(ScopedStoreFixture fixture) =>
+    [
+        fixture.HiddenGameId,
+        fixture.Ids.GameB,
+        fixture.Ids.ConfigurationB,
+        fixture.Ids.ConfigurationBUnused,
+        fixture.Ids.CycleB,
+        fixture.Ids.EnrolmentAB,
+        fixture.Ids.EnrolmentBA,
+        fixture.Ids.EnrolmentBB,
+        fixture.Ids.SectorB,
+        fixture.Ids.SystemB1,
+        fixture.Ids.SystemB2,
+        fixture.Ids.EmpireB1,
+        fixture.Ids.EmpireB2,
+        fixture.Ids.EmpireB3,
+        fixture.Ids.ParticipantB1,
+        fixture.Ids.ParticipantB2,
+        fixture.Ids.MetricB,
+        fixture.Ids.ConstructionB,
+        fixture.Ids.RankingB,
+        fixture.Ids.AdmiralB,
+        fixture.Ids.AdmiralBUnused,
+        fixture.Ids.OutpostB,
+        fixture.Ids.DoctrineB,
+        fixture.Ids.DiplomacyB,
+        fixture.Ids.LinkB,
+        fixture.Ids.FleetB1,
+        fixture.Ids.FleetB2,
+        fixture.Ids.OrderB1,
+        fixture.Ids.OrderB2,
+        fixture.Ids.EventB,
+        fixture.Ids.BattleB,
+        fixture.Ids.ChronicleB,
+        fixture.Ids.MajorEventB,
+        fixture.Ids.SignalB,
+        fixture.Ids.HistoryB
+    ];
 
     private static SqlServerGameStateStore CreateStore(string connectionString) =>
         new(connectionString, () => new GameState());
@@ -329,8 +888,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
             WHERE PlayerID = @PlayerID;
 
             UPDATE dbo.FleetOrders
-            SET OrderType = N'MoveFleet',
-                Status = N'Pending',
+            SET Status = N'Pending',
                 ProcessedTick = NULL
             WHERE FleetOrderID = @LoadedOrderID;
 
@@ -469,6 +1027,12 @@ public sealed class SqlServerScopedStoreIntegrationTests
     }
 
     private sealed record CommandArtifacts(Guid OrderId, Guid EventId);
+
+    private sealed record CommandAuthorityMutation(
+        string Description,
+        string ApplySql,
+        string RestoreSql,
+        Guid Id);
 
     private sealed record ScopedStoreFixture(
         string ConnectionString,

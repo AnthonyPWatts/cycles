@@ -169,18 +169,18 @@ internal static class SqlServerCycleScopeFixture
             VALUES
                 (@OrderA1, @CycleA, @FleetA1, N'Attack', @SystemA2, @EmpireA2, @EmpireA2,
                  0, 1, 1, N'Superseded', N'Human', 1, @Now, NULL, @OrderA2, @Now),
-                (@OrderA2, @CycleA, @FleetA1, N'Move', @SystemA2, @EmpireA2, @EmpireA2,
+                (@OrderA2, @CycleA, @FleetA1, N'MoveFleet', @SystemA2, @EmpireA2, @EmpireA2,
                  0, 1, 1, N'Processed', N'Human', 1, @Now, NULL, NULL, @Now),
                 (@OrderB1, @CycleB, @FleetB1, N'Attack', @SystemB2, @EmpireB2, @EmpireB2,
                  0, 1, 1, N'Superseded', N'Human', 1, @Now, NULL, @OrderB2, @Now),
-                (@OrderB2, @CycleB, @FleetB1, N'Move', @SystemB2, @EmpireB2, @EmpireB2,
+                (@OrderB2, @CycleB, @FleetB1, N'MoveFleet', @SystemB2, @EmpireB2, @EmpireB2,
                  0, 1, 1, N'Processed', N'Human', 1, @Now, NULL, NULL, @Now);
 
             INSERT INTO dbo.Events
                 (EventID, CycleID, TickNumber, EventType, SystemID, EmpireID, FactionID, Severity, FactJson, DisplayText, CreatedAt)
             VALUES
-                (@EventA, @CycleA, 1, N'BattleResolved', @SystemA1, @EmpireA1, @EmpireA1, N'Normal', N'{}', N'Scope event A', @Now),
-                (@EventB, @CycleB, 1, N'BattleResolved', @SystemB1, @EmpireB1, @EmpireB1, N'Normal', N'{}', N'Scope event B', @Now);
+                (@EventA, @CycleA, 1, N'CombatResolved', @SystemA1, @EmpireA1, @EmpireA1, N'Normal', N'{}', N'Scope event A', @Now),
+                (@EventB, @CycleB, 1, N'CombatResolved', @SystemB1, @EmpireB1, @EmpireB1, N'Normal', N'{}', N'Scope event B', @Now);
 
             INSERT INTO dbo.BattleRecords
                 (BattleID, CycleID, TickNumber, SystemID, AttackerEmpireID, DefenderEmpireID, AttackerFactionID,
@@ -221,8 +221,8 @@ internal static class SqlServerCycleScopeFixture
                  LargestBattleLosses, HostedCycleLargestBattle, HistoricalSignificanceIncrease,
                  HistoricalSignificanceAfter, Summary, FactJson, CreatedAt)
             VALUES
-                (@SignalA, @CycleA, @SystemA1, N'BattleSite', @BattleA, 1, 3, 3, 1, 1, 1, N'Summary', N'{}', @Now),
-                (@SignalB, @CycleB, @SystemB1, N'BattleSite', @BattleB, 1, 3, 3, 1, 1, 1, N'Summary', N'{}', @Now);
+                (@SignalA, @CycleA, @SystemA1, N'BattleActivity', @BattleA, 1, 3, 3, 1, 1, 1, N'Summary', N'{}', @Now),
+                (@SignalB, @CycleB, @SystemB1, N'BattleActivity', @BattleB, 1, 3, 3, 1, 1, 1, N'Summary', N'{}', @Now);
 
             INSERT INTO dbo.AdmiralBattleHistories
                 (AdmiralBattleHistoryID, CycleID, AdmiralID, BattleID, SystemID, FleetID, Role, Outcome,

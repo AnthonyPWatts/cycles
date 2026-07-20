@@ -61,7 +61,7 @@ During the transition, legacy global active-Cycle selection fails closed if the 
 
 The persistence prerequisites now include both the additive foundation and its scope contract. `GameState` and SQL carry `Game`, `CycleConfiguration`, `GameEnrolment`, `GameLifecycleEvent`, explicit participant Game scope, and normalised battle-fleet membership. Migration 022 deterministically adapts the existing lineage; migration 023 validates and enforces every currently representable same-Game or same-Cycle relationship before making the foundational ownership fields non-null. State-transfer v6 validates the same graph and adapts v1-v5 input. Generic legacy saves fill missing foundation rows but preserve a complete v6 foundation, while fully scoped Game records remain representable for migration and isolation tests. Operational import is explicitly pinned to the deterministic legacy Game identity even though the transfer representation can describe several Games.
 
-The first MG-03 boundary is also implemented. `Cycles.Application` defines provider-neutral redacted account, per-player Game catalogue, Game access, explicit Game/Cycle scope, and one-Cycle command contracts. SQL reads those projections directly. Its command path holds the Cycle lock and exact scope-row lock, loads one Cycle, rejects non-allow-listed or foreign mutations, protects newly added identifiers from colliding with omitted history, and performs targeted writes with transaction rollback. API and Worker consumers have not yet moved to these contracts, so their legacy whole-state allowance remains and creating a second durable Game is still prohibited.
+The MG-03 application boundary is also implemented. `Cycles.Application` defines provider-neutral redacted account and bounded per-player Game projections, explicit Game/Cycle scope, a complete Player/Game/enrolment/Cycle/participant/empire command context, a coherent one-Cycle view, and focused command contracts. SQL resolves and revalidates the exact authority tuple directly. Read views use one serialisable snapshot, expose no Player credential material, and include only the selected Game and Cycle. Commands revalidate active authority and any asserted organiser or administrator permission, hold that authority stable with the Cycle lock for the transaction, reject non-allow-listed or foreign mutations, protect new identifiers from colliding with omitted history, and perform targeted writes with rollback. A fixed legacy-scope query fails closed unless the deterministic legacy Game has exactly one Active or RecoveryRequired Cycle. API and Worker consumers have not yet moved to these contracts, so their legacy whole-state allowance remains and creating a second durable Game is still prohibited.
 
 ## Project Boundaries
 
@@ -73,7 +73,7 @@ It must not depend on database providers, HTTP concerns, authentication provider
 
 ### `Cycles.Application`
 
-Owns provider-neutral use-case contracts and projections that should not depend on HTTP or SQL. The initial boundary covers redacted Player accounts, bounded Player-to-Game catalogue/access reads, explicit Game/Cycle scope, and one-Cycle command execution over existing Core services.
+Owns provider-neutral use-case contracts and projections that should not depend on HTTP or SQL. The initial boundary covers redacted Player accounts, bounded Player-to-Game catalogue/access reads, explicit Game/Cycle and actor authority, coherent one-Cycle views, and one-Cycle command execution over existing Core services.
 
 Keep this layer small. It is not a generic repository framework and must not absorb simulation rules from Core, transport policy from API, or provider behaviour from infrastructure.
 
@@ -142,7 +142,7 @@ SQL Server-specific features are not categorically forbidden. They may be used i
 Current SQL paths:
 
 - generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;
-- focused account/Game queries issue bounded direct SQL projections, while `ICycleCommandStore` takes the Cycle lock plus an exact scope-row lock and persists only allow-listed target-Cycle changes;
+- focused account/Game queries issue bounded direct SQL projections; actor-context and Cycle-view queries revalidate the exact authority tuple and load one coherent, credential-redacted Cycle; `ICycleCommandStore` holds the Cycle lock and serialisable authority reads while persisting only allow-listed target-Cycle changes;
 - `RunTick` acquires a per-Cycle lock, loads only the active tick workspace, and persists targeted outcomes without loading unrelated retained history;
 - plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`;
 - migration 022 adds the legacy Game foundation, per-Game operational-Cycle uniqueness, single-successor lineage, append-only lifecycle audit, canonical hash/bounds checks, and materialised-configuration snapshot immutability without making the new Cycle references non-null or introducing a second-Game writer.
