@@ -59,8 +59,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-self-paced-1", html);
-        Assert.Contains("app.js?v=20260720-self-paced-1", html);
+        Assert.Contains("styles.css?v=20260720-guide-focus-1", html);
+        Assert.Contains("app.js?v=20260720-guide-focus-1", html);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -344,7 +344,8 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("id=\"tutorialAdmiralPortrait\"", html);
         Assert.Contains("id=\"tutorialAdmiralName\"", html);
-        Assert.Contains("role=\"region\" aria-live=\"polite\"", html);
+        Assert.Contains("role=\"complementary\"", html);
+        Assert.Contains("id=\"tutorialRequirement\" class=\"tutorial-requirement\" role=\"status\"", html);
         Assert.DoesNotContain("id=\"tutorialTitle\" tabindex", html);
         Assert.DoesNotContain("id=\"tutorialAdmiralPortrait\" src=", html);
         Assert.Contains("astrolabe-gold-human-01", script);

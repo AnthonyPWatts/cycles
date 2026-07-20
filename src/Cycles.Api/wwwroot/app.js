@@ -257,7 +257,10 @@ const tutorial = {
     target: null,
     targetDescribedBy: null,
     returnFocus: null,
-    freshRequestId: null
+    freshRequestId: null,
+    dismissed: false,
+    modal: false,
+    inertElements: []
 };
 
 const tutorialSessionStore = new Map();
@@ -404,6 +407,7 @@ const elements = {
     tutorialPanel: document.querySelector("#tutorialPanel"),
     tutorialKicker: document.querySelector("#tutorialKicker"),
     tutorialProgress: document.querySelector("#tutorialProgress"),
+    tutorialCloseButton: document.querySelector("#tutorialCloseButton"),
     tutorialResetButton: document.querySelector("#tutorialResetButton"),
     tutorialAdmiralPortrait: document.querySelector("#tutorialAdmiralPortrait"),
     tutorialAdmiralRole: document.querySelector("#tutorialAdmiralRole"),
@@ -437,6 +441,7 @@ elements.refreshButton.addEventListener("click", refresh);
 elements.commandAdvanceTurnButton.addEventListener("click", () => elements.advanceTurnButton.click());
 
 elements.tutorialButton.addEventListener("click", startOrResumeTutorial);
+elements.tutorialCloseButton.addEventListener("click", closeTutorialPanel);
 elements.tutorialResetButton.addEventListener("click", resetTutorial);
 elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
 elements.tutorialSkipButton.addEventListener("click", skipTutorial);
@@ -444,6 +449,16 @@ elements.tutorialBackButton.addEventListener("click", previousTutorialStep);
 elements.tutorialNextButton.addEventListener("click", nextTutorialStep);
 
 document.addEventListener("keydown", event => {
+    if (tutorial.modal) {
+        if (event.key === "Tab") {
+            containTutorialFocus(event);
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            closeTutorialPanel();
+        }
+        return;
+    }
+
     const shortcutView = event.altKey && !event.ctrlKey && !event.metaKey
         ? viewShortcuts.get(event.key)
         : null;
@@ -460,9 +475,9 @@ document.addEventListener("keydown", event => {
         return;
     }
 
-    if (event.key === "Escape" && tutorial.active) {
+    if (event.key === "Escape" && tutorial.active && !tutorial.dismissed) {
         event.preventDefault();
-        pauseTutorial();
+        closeTutorialPanel();
     }
 });
 
@@ -735,6 +750,12 @@ elements.fleetDetails.addEventListener("click", async event => {
     const cancelButton = event.target.closest("[data-cancel-order-id]");
     if (cancelButton) {
         await cancelOrder(cancelButton.dataset.cancelOrderId);
+    }
+});
+
+window.addEventListener("resize", () => {
+    if (tutorial.active) {
+        syncTutorialPresentation();
     }
 });
 
@@ -1595,7 +1616,9 @@ function hideTutorialForAccount() {
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     clearTutorialTarget();
+    tutorial.dismissed = true;
     tutorial.returnFocus = null;
+    syncTutorialPresentation();
 }
 
 function showSelectedGameShell(item) {
@@ -3184,6 +3207,7 @@ function syncTutorialAfterRefresh() {
         tutorial.stepIndex = 0;
         tutorial.status = "available";
         tutorial.active = false;
+        tutorial.dismissed = false;
 
         const saved = loadTutorialState(storageKey);
         if (saved) {
@@ -3221,6 +3245,7 @@ function syncTrainingTutorialAfterRefresh() {
         clearTutorialTarget();
         tutorial.storageKey = storageKey;
         tutorial.active = status === "active";
+        tutorial.dismissed = false;
         tutorial.returnFocus = null;
     }
 
@@ -3229,12 +3254,13 @@ function syncTrainingTutorialAfterRefresh() {
         tutorial.active = false;
     }
     updateTutorialButton();
-    if (tutorial.active) {
+    if (tutorial.active && !tutorial.dismissed) {
         renderTrainingTutorial();
     } else {
         elements.tutorialPanel.hidden = true;
         document.body.classList.remove("tutorial-active");
         clearTutorialTarget();
+        syncTutorialPresentation();
     }
 }
 
@@ -3307,6 +3333,7 @@ function renderTrainingTutorial() {
     if (target) {
         applyTutorialTarget(target);
     }
+    syncTutorialPresentation();
 }
 
 function trainingTutorialTarget(lesson) {
@@ -3391,7 +3418,9 @@ async function startOrResumeTutorial() {
         }
         tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
         tutorial.active = true;
+        tutorial.dismissed = false;
         renderTrainingTutorial();
+        syncTutorialPresentation({ moveFocus: true });
         syncCommandWindowControls();
         return;
     }
@@ -3401,6 +3430,7 @@ async function startOrResumeTutorial() {
     }
 
     tutorial.returnFocus = elements.tutorialButton;
+    tutorial.dismissed = false;
     if (tutorial.status === "paused") {
         tutorial.status = "active";
         tutorial.active = true;
@@ -3415,6 +3445,7 @@ async function startOrResumeTutorial() {
 
     saveTutorialState();
     renderTutorial();
+    syncTutorialPresentation({ moveFocus: true });
 }
 
 async function resetTutorial() {
@@ -3571,12 +3602,13 @@ function completeTutorialAction(action) {
 
 function syncTutorialDisplay() {
     updateTutorialButton();
-    if (tutorial.active) {
+    if (tutorial.active && !tutorial.dismissed) {
         renderTutorial();
     } else {
         elements.tutorialPanel.hidden = true;
         document.body.classList.remove("tutorial-active");
         clearTutorialTarget();
+        syncTutorialPresentation();
     }
 }
 
@@ -3632,6 +3664,7 @@ function renderTutorial() {
     if (target) {
         applyTutorialTarget(target);
     }
+    syncTutorialPresentation();
 }
 
 function tutorialPanelShouldSitOnRight(step, target) {
@@ -3647,18 +3680,109 @@ function tutorialPanelShouldSitOnRight(step, target) {
 }
 
 function hideTutorial() {
+    tutorial.dismissed = false;
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     clearTutorialTarget();
     updateTutorialButton();
+    syncTutorialPresentation();
     (tutorial.returnFocus ?? elements.tutorialButton).focus();
     tutorial.returnFocus = null;
 }
 
+function closeTutorialPanel() {
+    tutorial.dismissed = true;
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    clearTutorialTarget();
+    updateTutorialButton();
+    syncTutorialPresentation();
+    (tutorial.returnFocus ?? elements.tutorialButton).focus();
+    tutorial.returnFocus = null;
+}
+
+function syncTutorialPresentation({ moveFocus = false } = {}) {
+    const modal = tutorial.active
+        && !tutorial.dismissed
+        && !elements.tutorialPanel.hidden
+        && window.innerWidth < 1200;
+    const enteredModal = modal && !tutorial.modal;
+    tutorial.modal = modal;
+
+    elements.tutorialPanel.setAttribute("role", modal ? "dialog" : "complementary");
+    if (modal) {
+        elements.tutorialPanel.setAttribute("aria-modal", "true");
+    } else {
+        elements.tutorialPanel.removeAttribute("aria-modal");
+    }
+    document.body.classList.toggle("tutorial-modal", modal);
+    setTutorialBackgroundInert(modal);
+    updateTutorialButton();
+
+    if (modal
+        && (enteredModal || moveFocus)
+        && !elements.tutorialPanel.contains(document.activeElement)) {
+        focusTutorialClose();
+    }
+}
+
+function focusTutorialClose() {
+    elements.tutorialCloseButton.focus({ preventScroll: true });
+}
+
+function setTutorialBackgroundInert(inert) {
+    if (inert) {
+        if (tutorial.inertElements.length > 0) {
+            return;
+        }
+
+        tutorial.inertElements = [...document.body.children]
+            .filter(element => element !== elements.tutorialPanel
+                && element.tagName !== "SCRIPT"
+                && !element.inert);
+        tutorial.inertElements.forEach(element => {
+            element.inert = true;
+        });
+        return;
+    }
+
+    tutorial.inertElements.forEach(element => {
+        element.inert = false;
+    });
+    tutorial.inertElements = [];
+}
+
+function containTutorialFocus(event) {
+    const focusable = [...elements.tutorialPanel.querySelectorAll(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")]
+        .filter(element => !element.hidden && element.getClientRects().length > 0);
+
+    if (focusable.length === 0) {
+        event.preventDefault();
+        focusTutorialClose();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (!elements.tutorialPanel.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
 function updateTutorialButton() {
+    const open = tutorial.active && !tutorial.dismissed && !elements.tutorialPanel.hidden;
     if (isTrainingGame() && state.tutorialJourney) {
         const status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
-        const label = tutorial.active
+        const label = open
             ? "Core foundations open"
             : status === "paused" ? "Resume Core foundations"
                 : status === "completed" ? "Review completed Training"
@@ -3667,18 +3791,18 @@ function updateTutorialButton() {
                             : "Open Core foundations";
         elements.tutorialButton.setAttribute("aria-label", label);
         elements.tutorialButton.title = label;
-        elements.tutorialButton.setAttribute("aria-expanded", String(tutorial.active));
+        elements.tutorialButton.setAttribute("aria-expanded", String(open));
         return;
     }
 
-    const label = tutorial.active
+    const label = open
         ? "Guide open"
         : tutorial.status === "paused" ? "Resume guide"
             : tutorial.status === "completed" || tutorial.status === "skipped" ? "Restart guide"
                 : "Guide";
     elements.tutorialButton.setAttribute("aria-label", label);
     elements.tutorialButton.title = label;
-    elements.tutorialButton.setAttribute("aria-expanded", String(tutorial.active));
+    elements.tutorialButton.setAttribute("aria-expanded", String(open));
 }
 
 function applyTutorialTarget(target) {
@@ -3744,6 +3868,8 @@ function resetTutorialContext() {
     tutorial.briefing = null;
     tutorial.completedActions = new Set();
     tutorial.freshRequestId = null;
+    tutorial.dismissed = false;
+    syncTutorialPresentation();
 }
 
 const tutorialAdmiralPortraits = Object.freeze([

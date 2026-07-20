@@ -707,6 +707,14 @@ select {
     display: none;
 }
 
+body.tutorial-modal::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(0, 0, 0, 0.58);
+}
+
 @media (min-width: 901px) {
     .tutorial-panel.is-right {
         right: 24px;
@@ -895,6 +903,7 @@ select {
 }
 
 .tutorial-pause,
+.tutorial-close,
 .tutorial-reset,
 .tutorial-actions button {
     min-height: 44px;
