@@ -59,6 +59,7 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
+        Assert.Contains("styles.css?v=20260720-training-journey-2", html);
         Assert.Contains("aria-label=\"Guide\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
