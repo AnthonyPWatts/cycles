@@ -4062,6 +4062,10 @@ select {
     place-items: center;
 }
 
+.toolbar-actions .toolbar-icon-button[hidden] {
+    display: none;
+}
+
 .toolbar-action-icon {
     display: block;
     inline-size: 20px;

@@ -68,6 +68,7 @@ public sealed class DashboardViewContractTests
         Assert.Matches(
             new Regex(@"\.toolbar-actions \.toolbar-icon-button\s*\{[^}]*inline-size:\s*36px;[^}]*block-size:\s*36px;", RegexOptions.Singleline),
             css);
+        Assert.Contains(".toolbar-actions .toolbar-icon-button[hidden]", css);
         Assert.Contains("assets/icons/guide.svg", css);
         Assert.Contains("assets/icons/advance-turn.svg", css);
         Assert.Contains("assets/icons/refresh.svg", css);
