@@ -241,6 +241,41 @@ public sealed class ApiResponseContractTests
     }
 
     [Fact]
+    public async Task Global_error_middleware_maps_typed_api_errors()
+    {
+        var middleware = new ApiErrorMiddleware(_ =>
+            throw new ApiStateConflictException("Safe conflict."));
+        var context = CreateResultContext();
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(StatusCodes.Status409Conflict, context.Response.StatusCode);
+        Assert.Equal(ApiErrorCodes.StateConflict, document.RootElement.GetProperty("code").GetString());
+        Assert.Equal("Safe conflict.", document.RootElement.GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Global_error_middleware_does_not_map_or_disclose_unexpected_base_exceptions(
+        bool argumentException)
+    {
+        Exception exception = argumentException
+            ? new ArgumentException("Sensitive argument detail.")
+            : new InvalidOperationException("Sensitive operation detail.");
+        var middleware = new ApiErrorMiddleware(_ => throw exception);
+        var context = CreateResultContext();
+
+        var actual = await Assert.ThrowsAsync(exception.GetType(), () => middleware.InvokeAsync(context));
+
+        Assert.Same(exception, actual);
+        Assert.Equal(0, context.Response.Body.Length);
+        Assert.False(context.Response.HasStarted);
+    }
+
+    [Fact]
     public async Task Optional_json_results_write_a_literal_null_body()
     {
         var result = ApiEndpointResults.TryJson<OpeningBriefingResponse?>(() => null);
@@ -274,4 +309,17 @@ public sealed class ApiResponseContractTests
     }
 
     private sealed record EnumContract(EventSeverity Severity);
+
+    private static DefaultHttpContext CreateResultContext()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.ConfigureHttpJsonOptions(options => ApiJson.Configure(options.SerializerOptions));
+        var context = new DefaultHttpContext
+        {
+            RequestServices = services.BuildServiceProvider()
+        };
+        context.Response.Body = new MemoryStream();
+        return context;
+    }
 }

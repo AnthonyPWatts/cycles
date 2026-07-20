@@ -224,7 +224,7 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("data-recall-fleet-id", script);
         Assert.Contains("async function recallFleet(fleetId)", script);
-        Assert.Contains("/orders/fleet/recall", script);
+        Assert.Contains("gameApi.postJson(\"/orders/recall\"", script);
         Assert.Contains("Recall ${transit.fleetName} to ${transit.originSystemName}?", script);
         Assert.Contains("The original move remains in history.", script);
         Assert.Contains("Recall ordered", script);

@@ -180,7 +180,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
     }
 
     [Fact]
-    public void Defeated_and_completed_participation_remains_readable_but_withdrawal_does_not()
+    public void Defeated_participation_remains_readable_but_completed_operational_scope_and_withdrawal_do_not()
     {
         var fixture = CreateFixture();
         if (fixture is null)
@@ -212,7 +212,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
             fixture.ConnectionString,
             """
             UPDATE dbo.Games SET Status = N'Completed', CompletedAt = @EndedAt WHERE GameID = @GameID;
-            UPDATE dbo.Cycles SET Status = N'Completed' WHERE CycleID = @CycleID;
+            UPDATE dbo.Cycles SET Status = N'Completed', NextTickAt = NULL WHERE CycleID = @CycleID;
             UPDATE dbo.GameEnrolments
             SET Status = N'Completed', EndedAt = @EndedAt
             WHERE GameEnrolmentID = @EnrolmentID;
@@ -229,7 +229,7 @@ public sealed class SqlServerScopedStoreIntegrationTests
         Assert.NotNull(((IGameCommandAccessQuery)store).Get(
             fixture.Ids.PlayerA,
             new GameCycleScope(fixture.Ids.GameA, fixture.Ids.CycleA)));
-        AssertReadableButNotCommandable(store, context, "completed participation");
+        AssertContextIsUnavailable(store, context, "completed Game and Cycle");
 
         Execute(
             fixture.ConnectionString,
@@ -260,6 +260,35 @@ public sealed class SqlServerScopedStoreIntegrationTests
             });
         Assert.IsType<ScopedCommandResult<int>.Unavailable>(commandResult);
         Assert.False(commandCallbackInvoked);
+    }
+
+    [Fact]
+    public void Recovery_required_operational_cycle_remains_readable()
+    {
+        var fixture = CreateFixture();
+        if (fixture is null)
+        {
+            return;
+        }
+
+        var store = CreateStore(fixture.ConnectionString);
+        var context = ResolveContext(store, fixture);
+        Execute(
+            fixture.ConnectionString,
+            """
+            UPDATE dbo.Cycles
+            SET Status = N'RecoveryRequired',
+                TurnStage = N'Resolving',
+                NextTickAt = NULL
+            WHERE CycleID = @CycleID;
+            """,
+            ("@CycleID", fixture.Ids.CycleA));
+
+        var result = ((ICycleViewQuery)store).Query(context, state =>
+            state.Cycles.Single(item => item.CycleId == fixture.Ids.CycleA).Status);
+
+        var success = Assert.IsType<ScopedQueryResult<CycleStatus>.Success>(result);
+        Assert.Equal(CycleStatus.RecoveryRequired, success.Value);
     }
 
     [Fact]
@@ -302,8 +331,8 @@ public sealed class SqlServerScopedStoreIntegrationTests
                 fixture.Ids.GameA),
             new CommandAuthorityMutation(
                 "completed Cycle",
-                "UPDATE dbo.Cycles SET Status = N'Completed' WHERE CycleID = @ID;",
-                "UPDATE dbo.Cycles SET Status = N'Active' WHERE CycleID = @ID;",
+                "UPDATE dbo.Cycles SET Status = N'Completed', NextTickAt = NULL WHERE CycleID = @ID;",
+                "UPDATE dbo.Cycles SET Status = N'Active', NextTickAt = '2026-07-20T12:00:00+00:00' WHERE CycleID = @ID;",
                 fixture.Ids.CycleA),
             new CommandAuthorityMutation(
                 "defeated participant",

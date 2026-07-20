@@ -22,6 +22,13 @@ public static class ApiErrorCodes
 
 public static class ApiErrorResponses
 {
+    public static bool IsTypedApiError(Exception exception) =>
+        exception is ApiUnauthorizedException
+            or ApiForbiddenException
+            or ApiNotFoundException
+            or ApiValidationException
+            or ApiStateConflictException;
+
     public static bool IsHandled(Exception exception) =>
         exception is ApiUnauthorizedException
             or ApiForbiddenException
@@ -72,6 +79,12 @@ public sealed class ApiErrorMiddleware(RequestDelegate next)
         try
         {
             await next(context);
+        }
+        catch (Exception exception) when (
+            !context.Response.HasStarted
+            && ApiErrorResponses.IsTypedApiError(exception))
+        {
+            await ApiErrorResponses.ToResult(exception, context).ExecuteAsync(context);
         }
         catch (BadHttpRequestException) when (!context.Response.HasStarted)
         {

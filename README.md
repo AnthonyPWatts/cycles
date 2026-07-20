@@ -19,6 +19,8 @@ The current pre-alpha development build supports a complete gameplay loop locall
 - start from a curated Day One with movement, colonisation, and combat decisions ready to make;
 - explore a canonical 8-sector, 64-system galaxy through authored Galaxy, Sector, and Local charts with live routes, strategic lenses, search, focus controls, and selected-system intelligence;
 - submit durable movement, in-transit recall, attack, cancellation, and colonisation orders;
+- scope dashboard reads and player commands to an explicit Game while compatibility URLs remain pinned to the fixed legacy Game;
+- protect cookie-authenticated mutations with an antiforgery token shared by trusted and OIDC sessions;
 - resolve authoritative ticks through the CLI, a scheduled worker, or a temporary development-player control;
 - inspect the current command-window stage, the complete processing order, projected income and automatic spending, and construction already committed for delivery before closing the turn;
 - generate resources from influence and spend military industry on queued ships;
@@ -102,7 +104,7 @@ Run the API and dashboard:
 dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --ConnectionStrings:Cycles "$connectionString"
 ```
 
-Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Select Tony or Will to command that player's assigned empire. The trusted selector accepts only seeded human participants; it cannot create arbitrary accounts or take over Ariadne. It issues a protected HttpOnly cookie, while **Sign out** removes that cookie and returns to the selector. A defeated participant may still inspect the match but cannot issue or cancel orders, change priorities, or advance the turn. This flow remains suitable only for trusted Development testing behind the access-code boundary.
+Open `http://127.0.0.1:5086/` for the public site or `http://127.0.0.1:5086/app.html` for the dashboard. Select Tony or Will to command that player's assigned empire. The trusted selector accepts only seeded human participants; it cannot create arbitrary accounts or take over Ariadne. It issues a protected HttpOnly session cookie. The browser obtains a separate antiforgery token before sending mutations, and **Sign out** submits a protected `POST` that removes the session cookie and returns to the selector. A defeated participant may still inspect the match but cannot issue or cancel orders, change priorities, or advance the turn. This flow remains suitable only for trusted Development testing behind the access-code boundary.
 
 The Galaxy workspace uses three authored ranges rather than a free camera. **Galaxy** shows the eight-sector partial mesh, **Sector** shows one eight-system territorial chart and its outbound bridges, and **Local** subdues systems outside the selected neighbourhood. Search, strategic lenses, Home/Selected/Flashpoint focus controls, direct chart selection, a maximised view, and the adjacent-system inspector recover context without covering the map with a duplicate navigator.
 
@@ -121,7 +123,7 @@ Run scheduled ticks against the same database:
 dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "$connectionString"
 ```
 
-The worker polls every 30 seconds by default and runs at most one tick when the active Cycle is due. `Cycles:Worker:Enabled` and `Cycles:Worker:PollIntervalSeconds` are normal .NET configuration values; the Cycle's `TickLengthMinutes` defines simulation cadence.
+The worker polls every 30 seconds by default and resolves at most one due Cycle per poll. Due discovery reads the earliest persisted `NextTickAt` for an active Standard Game whose active Cycle uses `Scheduled` mode. A completed tick sets the next deadline from its completion time and `TickLengthMinutes`. A `SelfPaced` Cycle has no deadline and requires the explicit resolution boundary, so the worker does not select it. `Cycles:Worker:Enabled` and `Cycles:Worker:PollIntervalSeconds` are normal .NET configuration values.
 
 See [Operations](docs/operations.md) for diagnostics, recovery, worker behaviour, and guarded SQL profiling. The CLI also supports `cycle end`, `cycle next`, and deterministic `balance` scenarios; the [Simulation Reference](docs/simulation-reference.md) records their contracts.
 
@@ -149,19 +151,21 @@ Complete exports are operator artefacts containing identities, audit context, hi
 
 ```powershell
 # One-time bridge for a retired raw runtime file; the input is not modified.
-dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v6.json
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v7.json
 
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v6.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v6.json
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v6.json "sqlserver:$connectionString" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v7.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v7.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v7.json "sqlserver:$connectionString" --confirm-import --confirm-replace
 ```
 
-`convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, same-scope references, Game lineage and provenance, normalised battle membership, tick/recovery invariants, and retained JSON before it opens the target. The v6 transfer contract can represent several Games for forward-compatible transfer and isolation evidence, but the current operational importer deliberately accepts only the fixed legacy Game identity until Game-scoped API, Worker, store, and player-selection paths exist. The identity check does not rederive or freeze mutable metadata from an otherwise valid v6 transfer. An accepted transfer imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
+`convert-runtime-file` is a bounded migration bridge for the old unversioned file-store shape. It requires every persisted collection, normalises inactive priorities, validates the state, and writes a versioned document without changing the source. Export and conversion refuse to overwrite a file unless `--confirm-overwrite` is supplied. Import validates format, complete collection shape, identifiers, same-scope references, Game lineage and provenance, Cycle scheduling, normalised battle membership, tick/recovery invariants, and retained JSON before it opens the target. The v7 transfer contract can represent several Games and preserves each Cycle's `SchedulingMode` and `NextTickAt`. The current operational importer accepts only the fixed legacy Game identity while the Games home, player selection between Games, Training provisioning, and a second runtime Game remain absent. The identity check does not rederive or freeze mutable metadata from an otherwise valid v7 transfer. An accepted transfer imports into an empty database with `--confirm-import`; a non-empty target additionally requires `--confirm-replace`, then is reloaded and validated.
 
 ## Architectural Position
 
-Clients submit intentions and read filtered state; they do not decide simulation outcomes. The Worker owns scheduled execution. As a temporary development convenience, every authenticated development session can invoke the same store-level tick boundary through **Close command window and advance** without receiving admin visibility or cross-empire authority. The confirmation identifies this as a game-wide closure rather than a player-ready action. Production players cannot use that capability.
+Clients submit intentions and read filtered state; they do not decide simulation outcomes. Canonical gameplay routes place the selected Game at `/games/{gameId}` and resolve its current Cycle, participant, and empire before loading or changing state. The old unscoped URLs remain pinned adapters for the fixed legacy Game and call the same scoped handlers. The browser uses the legacy bootstrap only until it learns the Game ID, then sends selected-Game requests through one client that rejects responses from an earlier selection generation.
 
-SQL Server is the mandatory gameplay and operator-store path for the API, Worker, and CLI. They fail clearly when a Cycles SQL connection string is absent. The generic API/admin store still loads and synchronises the prototype `GameState`, while SQL-backed ticks use a narrower Cycle-scoped workspace, targeted outcome writes, and a per-Cycle transaction lock. Versioned, validated JSON import/export and the bounded legacy-file conversion remain explicit operator CLI paths; no executable file-backed game store remains.
+The Worker owns scheduled execution. It discovers one persisted due Cycle per poll and revalidates the Game, Cycle, schedule, deadline, and locks before resolution. The explicit resolution boundary handles authorised manual and self-paced resolution without placing `SelfPaced` Cycles in the Worker queue. As a temporary development convenience, every authenticated development session can invoke that boundary for the pinned legacy Game through **Close command window and advance** without receiving admin visibility or cross-empire authority. Production players cannot use that capability.
+
+SQL Server is the mandatory gameplay and operator-store path for the API, Worker, and CLI. They fail clearly when a Cycles SQL connection string is absent. Selected gameplay reads and commands use an explicit Game/Cycle context and focused Cycle stores. SQL-backed resolution uses a Cycle-scoped workspace, targeted outcome writes, and Game plus Cycle transaction locks. Versioned, validated JSON import/export and the bounded legacy-file conversion remain explicit operator CLI paths; no executable file-backed game store remains.
 
 Events and battle records remain authoritative facts. Chronicle prose is deterministic template output stored separately from those facts, leaving future narrative generation non-authoritative.

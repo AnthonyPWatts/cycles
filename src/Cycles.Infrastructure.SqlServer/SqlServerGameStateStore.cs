@@ -13,12 +13,15 @@ public sealed partial class SqlServerGameStateStore :
     IGameCommandAccessQuery,
     ICycleViewQuery,
     ICycleCommandStore,
+    IDueCycleQuery,
+    ICycleResolutionStore,
     ILegacyRuntimeScopeQuery,
     IPlayerAccountCommandStore,
     ITrustedPlayerSelectionQuery,
     IAdminRoleCommandStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
+    private const string GameResolutionLockPrefix = "Cycles.Game.";
     private const string TickLockPrefix = "Cycles.Tick.";
     private const int ApplicationLockTimeoutMilliseconds = 5000;
 
@@ -208,6 +211,9 @@ public sealed partial class SqlServerGameStateStore :
 
     private static void AcquireCycleTickLock(SqlConnection connection, SqlTransaction transaction, Guid cycleId) =>
         AcquireSqlApplicationLock(connection, transaction, $"{TickLockPrefix}{cycleId:D}");
+
+    private static void AcquireGameResolutionLock(SqlConnection connection, SqlTransaction transaction, Guid gameId) =>
+        AcquireSqlApplicationLock(connection, transaction, $"{GameResolutionLockPrefix}{gameId:D}");
 
     private static void AcquireSqlApplicationLock(SqlConnection connection, SqlTransaction transaction, string resourceName)
     {
@@ -482,6 +488,7 @@ public sealed partial class SqlServerGameStateStore :
     private static void SaveUnsafe(SqlConnection connection, SqlTransaction transaction, GameState state)
     {
         EnsureGameFoundations(state);
+        CycleScheduling.NormalizePersistedSchedule(state);
         BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
         BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
         DeleteRowsMissingFromState(connection, transaction, state);
@@ -806,6 +813,7 @@ public sealed partial class SqlServerGameStateStore :
         CyclePolicyKey = GetString(reader, "CyclePolicyKey"),
         CyclePolicyVersion = GetInt(reader, "CyclePolicyVersion"),
         CyclePolicyContentHash = GetNullableString(reader, "CyclePolicyContentHash"),
+        SchedulingMode = GetEnum<CycleSchedulingMode>(reader, "SchedulingMode"),
         MinimumHumanSeats = GetNullableInt(reader, "MinimumHumanSeats"),
         MaximumHumanSeats = GetNullableInt(reader, "MaximumHumanSeats"),
         ScheduledStartAt = GetNullableDateTimeOffset(reader, "ScheduledStartAt"),
@@ -842,6 +850,8 @@ public sealed partial class SqlServerGameStateStore :
         CyclePolicyKey = GetNullableString(reader, "CyclePolicyKey"),
         CyclePolicyVersion = GetNullableInt(reader, "CyclePolicyVersion"),
         CyclePolicyContentHash = GetNullableString(reader, "CyclePolicyContentHash"),
+        SchedulingMode = GetEnum<CycleSchedulingMode>(reader, "SchedulingMode"),
+        NextTickAt = GetNullableDateTimeOffset(reader, "NextTickAt"),
         ProfileProvenanceStatus = GetNullableEnum<ProvenanceStatus>(reader, "ProfileProvenanceStatus"),
         CreatedByPlayerId = GetNullableGuid(reader, "CreatedByPlayerID"),
         CreatedAt = GetDateTimeOffset(reader, "CreatedAt")
@@ -1379,6 +1389,7 @@ public sealed partial class SqlServerGameStateStore :
                 CyclePolicyKey = @CyclePolicyKey,
                 CyclePolicyVersion = @CyclePolicyVersion,
                 CyclePolicyContentHash = @CyclePolicyContentHash,
+                SchedulingMode = @SchedulingMode,
                 MinimumHumanSeats = @MinimumHumanSeats,
                 MaximumHumanSeats = @MaximumHumanSeats,
                 ScheduledStartAt = @ScheduledStartAt,
@@ -1398,6 +1409,7 @@ public sealed partial class SqlServerGameStateStore :
                     MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed,
                     ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed,
                     CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash,
+                    SchedulingMode,
                     MinimumHumanSeats, MaximumHumanSeats, ScheduledStartAt, ScheduledEndAt,
                     TickLengthMinutes, CreatedAt, LockedAt, MaterializedAt, CancelledAt
                 )
@@ -1407,6 +1419,7 @@ public sealed partial class SqlServerGameStateStore :
                     @MapProfileKey, @MapProfileVersion, @MapProfileContentHash, @MapSeed,
                     @ScenarioProfileKey, @ScenarioProfileVersion, @ScenarioProfileContentHash, @ScenarioSeed,
                     @CyclePolicyKey, @CyclePolicyVersion, @CyclePolicyContentHash,
+                    @SchedulingMode,
                     @MinimumHumanSeats, @MaximumHumanSeats, @ScheduledStartAt, @ScheduledEndAt,
                     @ConfigurationTickLengthMinutes, @CreatedAt, @LockedAt, @MaterializedAt, @CancelledAt
                 );
@@ -1429,6 +1442,7 @@ public sealed partial class SqlServerGameStateStore :
             AddString(command, "@CyclePolicyKey", item.CyclePolicyKey, 128);
             AddInt(command, "@CyclePolicyVersion", item.CyclePolicyVersion);
             AddNullableString(command, "@CyclePolicyContentHash", item.CyclePolicyContentHash, 64);
+            AddString(command, "@SchedulingMode", item.SchedulingMode.ToString(), 32);
             AddNullableInt(command, "@MinimumHumanSeats", item.MinimumHumanSeats);
             AddNullableInt(command, "@MaximumHumanSeats", item.MaximumHumanSeats);
             AddNullableDateTimeOffset(command, "@ScheduledStartAt", item.ScheduledStartAt);
@@ -1464,6 +1478,8 @@ public sealed partial class SqlServerGameStateStore :
                 CyclePolicyKey = @CyclePolicyKey,
                 CyclePolicyVersion = @CyclePolicyVersion,
                 CyclePolicyContentHash = @CyclePolicyContentHash,
+                SchedulingMode = @SchedulingMode,
+                NextTickAt = @NextTickAt,
                 ProfileProvenanceStatus = @ProfileProvenanceStatus,
                 CreatedByPlayerID = @CreatedByPlayerID,
                 CreatedAt = @CreatedAt
@@ -1478,6 +1494,7 @@ public sealed partial class SqlServerGameStateStore :
                     MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed,
                     ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed,
                     CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, ProfileProvenanceStatus,
+                    SchedulingMode, NextTickAt,
                     CreatedByPlayerID, CreatedAt
                 )
                 VALUES
@@ -1487,6 +1504,7 @@ public sealed partial class SqlServerGameStateStore :
                     @MapProfileKey, @MapProfileVersion, @MapProfileContentHash, @MapSeed,
                     @ScenarioProfileKey, @ScenarioProfileVersion, @ScenarioProfileContentHash, @ScenarioSeed,
                     @CyclePolicyKey, @CyclePolicyVersion, @CyclePolicyContentHash, @ProfileProvenanceStatus,
+                    @SchedulingMode, @NextTickAt,
                     @CreatedByPlayerID, @CreatedAt
                 );
             END;
@@ -1514,6 +1532,8 @@ public sealed partial class SqlServerGameStateStore :
             AddNullableString(command, "@CyclePolicyKey", item.CyclePolicyKey, 128);
             AddNullableInt(command, "@CyclePolicyVersion", item.CyclePolicyVersion);
             AddNullableString(command, "@CyclePolicyContentHash", item.CyclePolicyContentHash, 64);
+            AddString(command, "@SchedulingMode", item.SchedulingMode.ToString(), 32);
+            AddNullableDateTimeOffset(command, "@NextTickAt", item.NextTickAt);
             AddNullableString(command, "@ProfileProvenanceStatus", item.ProfileProvenanceStatus?.ToString(), 32);
             AddNullableGuid(command, "@CreatedByPlayerID", item.CreatedByPlayerId);
             AddDateTimeOffset(command, "@CreatedAt", item.CreatedAt);

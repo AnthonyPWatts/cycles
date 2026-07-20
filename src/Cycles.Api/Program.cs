@@ -1,6 +1,7 @@
 using Cycles.Application;
 using Cycles.Core;
 using Cycles.Infrastructure.SqlServer;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -18,22 +19,19 @@ if (string.IsNullOrWhiteSpace(configuredSqlConnectionString))
 {
     throw new InvalidOperationException("Cycles.Api requires a Cycles SQL connection string. Configure ConnectionStrings:Cycles or CYCLES_SQL_CONNECTION_STRING.");
 }
-Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
-    ? () => GameSeeder.CreateCuratedColdStart()
-    : null;
-
-builder.Services.AddSingleton(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
-builder.Services.AddSingleton<IGameStateStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton(new SqlServerGameStateStore(configuredSqlConnectionString));
 builder.Services.AddSingleton<IPlayerAccountQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IGameCatalogueQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IGameAccessQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IGameCommandAccessQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ICycleViewQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ICycleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ICycleResolutionStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ILegacyRuntimeScopeQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IPlayerAccountCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<ITrustedPlayerSelectionQuery>(services => services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.AddSingleton<IAdminRoleCommandStore>(services => services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<SelectedGameRequestService>();
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -44,6 +42,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 builder.Services.AddDataProtection();
+builder.Services.AddCyclesApiAntiforgery(builder.Environment);
 
 ExternalAuthenticationOptions? externalAuthentication = null;
 if (!builder.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
@@ -108,6 +107,8 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet(ApiAntiforgery.EndpointPath, (HttpContext httpContext, IAntiforgery antiforgery) =>
+    Results.Ok(ApiAntiforgery.IssueToken(httpContext, antiforgery)));
 
 if (trustedPlayerSelectionEnabled)
 {
@@ -132,19 +133,16 @@ if (trustedPlayerSelectionEnabled)
             legacyScope,
             gameAccess,
             cycleView,
-            DateTimeOffset.UtcNow)));
+            DateTimeOffset.UtcNow)))
+        .RequireCyclesAntiforgery();
 
     app.MapPost("/auth/logout", (HttpContext httpContext) =>
     {
         DevelopmentAuth.SignOut(httpContext);
-        return Results.Ok(new { signedOut = true });
-    });
-
-    app.MapGet("/auth/logout", (HttpContext httpContext) =>
-    {
-        DevelopmentAuth.SignOut(httpContext);
-        return Results.Redirect("/app.html");
-    });
+        ApiAntiforgery.ExpireTokenCookie(httpContext);
+        httpContext.Response.Headers.Location = "/app.html";
+        return Results.StatusCode(StatusCodes.Status303SeeOther);
+    }).RequireCyclesAntiforgery();
 }
 else
 {
@@ -152,9 +150,13 @@ else
         new AuthenticationProperties { RedirectUri = "/app.html" },
         [CyclesAuthenticationSchemes.OpenIdConnect]));
 
-    app.MapGet("/auth/logout", () => Results.SignOut(
-        new AuthenticationProperties { RedirectUri = "/" },
-        [CyclesAuthenticationSchemes.Cookie, CyclesAuthenticationSchemes.OpenIdConnect]));
+    app.MapPost("/auth/logout", (HttpContext httpContext) =>
+    {
+        ApiAntiforgery.ExpireTokenCookie(httpContext);
+        return Results.SignOut(
+            new AuthenticationProperties { RedirectUri = "/" },
+            [CyclesAuthenticationSchemes.Cookie, CyclesAuthenticationSchemes.OpenIdConnect]);
+    }).RequireCyclesAntiforgery();
 
     app.MapGet("/auth/error", (string? code) =>
     {
@@ -194,25 +196,192 @@ app.MapGet("/auth/session", (
             account.Role);
     }));
 
-app.MapGet("/dashboard/bootstrap", (Guid? selectedFleetId, HttpContext httpContext, IGameStateStore store) =>
+var selectedGameRoutes = app.MapGroup("/games/{gameId:guid}");
+
+selectedGameRoutes.MapGet("/dashboard/bootstrap", (
+    Guid gameId,
+    Guid? selectedFleetId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    GetDashboardBootstrap(gameId, selectedFleetId, httpContext, games, trustedPlayerSelectionEnabled));
+selectedGameRoutes.MapGet("/cycles/current", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetCurrentCycle(gameId, httpContext, games));
+selectedGameRoutes.MapGet("/ticks/last-summary", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetLastTickSummary(gameId, httpContext, games));
+selectedGameRoutes.MapGet("/empire", (Guid gameId, Guid? empireId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetEmpire(gameId, empireId, httpContext, games));
+selectedGameRoutes.MapGet("/galaxy", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetGalaxy(gameId, httpContext, games));
+selectedGameRoutes.MapGet("/systems/{systemId:guid}", (Guid gameId, Guid systemId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetSystem(gameId, systemId, httpContext, games));
+selectedGameRoutes.MapGet("/fleets", (Guid gameId, Guid? empireId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetFleets(gameId, empireId, httpContext, games));
+selectedGameRoutes.MapGet("/fleets/{fleetId:guid}", (Guid gameId, Guid fleetId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetFleet(gameId, fleetId, httpContext, games));
+selectedGameRoutes.MapGet("/orders", (Guid gameId, Guid? empireId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetOrders(gameId, empireId, httpContext, games));
+selectedGameRoutes.MapGet("/events/recent", (Guid gameId, int? limit, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetRecentEvents(gameId, limit, httpContext, games));
+selectedGameRoutes.MapGet("/briefings/opening", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetOpeningBriefing(gameId, httpContext, games));
+selectedGameRoutes.MapGet("/chronicle", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
+    GetChronicle(gameId, httpContext, games));
+selectedGameRoutes.MapPost("/orders/move", (Guid gameId, MoveFleetRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
+    ApiOrderEndpoints.SubmitMove(request, httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/orders/recall", (Guid gameId, RecallFleetRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
+    ApiOrderEndpoints.SubmitRecall(request, httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/orders/attack", (Guid gameId, AttackFleetRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
+    ApiOrderEndpoints.SubmitAttack(request, httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/orders/colonise", (Guid gameId, ColoniseFleetRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
+    ApiOrderEndpoints.SubmitColonise(request, httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapDelete("/orders/{fleetOrderId:guid}", (
+    Guid gameId,
+    Guid fleetOrderId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    ApiOrderEndpoints.Cancel(new CancelFleetOrderRequest(fleetOrderId), httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPut("/priorities", (Guid gameId, PriorityRequest request, HttpContext httpContext, SelectedGameRequestService games) =>
+    ApiOrderEndpoints.UpdatePriorities(request, httpContext, gameId, games))
+    .RequireCyclesAntiforgery();
+selectedGameRoutes.MapPost("/admin/tick", (
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ICycleResolutionStore resolutions) =>
+    ApiAdminEndpoints.RunTick(
+        httpContext,
+        gameId,
+        games,
+        resolutions,
+        trustedPlayerSelectionEnabled))
+    .RequireCyclesAntiforgery();
+
+app.MapGet("/dashboard/bootstrap", (
+    Guid? selectedFleetId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ILegacyRuntimeScopeQuery legacyScope) =>
+    GetDashboardBootstrap(
+        GetLegacyGameId(httpContext, games, legacyScope),
+        selectedFleetId,
+        httpContext,
+        games,
+        trustedPlayerSelectionEnabled));
+app.MapGet("/cycles/current", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetCurrentCycle(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
+app.MapGet("/ticks/last-summary", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetLastTickSummary(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
+app.MapGet("/empire", (Guid? empireId, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetEmpire(GetLegacyGameId(httpContext, games, legacyScope), empireId, httpContext, games));
+app.MapGet("/galaxy", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetGalaxy(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
+app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetSystem(GetLegacyGameId(httpContext, games, legacyScope), systemId, httpContext, games));
+app.MapGet("/fleets", (Guid? empireId, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetFleets(GetLegacyGameId(httpContext, games, legacyScope), empireId, httpContext, games));
+app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetFleet(GetLegacyGameId(httpContext, games, legacyScope), fleetId, httpContext, games));
+app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetOrders(GetLegacyGameId(httpContext, games, legacyScope), empireId, httpContext, games));
+app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.SubmitMove(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+app.MapPost("/orders/fleet/recall", (RecallFleetRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.SubmitRecall(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.SubmitAttack(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+app.MapPost("/orders/fleet/colonise", (ColoniseFleetRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.SubmitColonise(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.Cancel(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiOrderEndpoints.UpdatePriorities(request, httpContext, GetLegacyGameId(httpContext, games, legacyScope), games))
+    .RequireCyclesAntiforgery();
+
+app.MapPost("/admin/tick", (
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ICycleResolutionStore resolutions,
+    ILegacyRuntimeScopeQuery legacyScope) =>
+    ApiAdminEndpoints.RunTick(
+        httpContext,
+        GetLegacyGameId(httpContext, games, legacyScope),
+        games,
+        resolutions,
+        trustedPlayerSelectionEnabled))
+    .RequireCyclesAntiforgery();
+
+app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (
+    Guid targetPlayerId,
+    AdminRoleChangeRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    IAdminRoleCommandStore roleCommands) =>
+    ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, accounts, roleCommands))
+    .RequireCyclesAntiforgery();
+
+app.MapDelete("/admin/players/{targetPlayerId:guid}/roles/admin", (
+    Guid targetPlayerId,
+    [FromBody] AdminRoleChangeRequest request,
+    HttpContext httpContext,
+    IPlayerAccountQuery accounts,
+    IAdminRoleCommandStore roleCommands) =>
+    ApiAdminRoleEndpoints.Revoke(targetPlayerId, request, httpContext, accounts, roleCommands))
+    .RequireCyclesAntiforgery();
+
+app.MapGet("/events/recent", (int? limit, HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetRecentEvents(GetLegacyGameId(httpContext, games, legacyScope), limit, httpContext, games));
+app.MapGet("/briefings/opening", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetOpeningBriefing(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
+app.MapGet("/chronicle", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
+    GetChronicle(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
+
+app.Run();
+
+static Guid GetLegacyGameId(
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    ILegacyRuntimeScopeQuery legacyScope)
+{
+    _ = games.RequireAccount(httpContext);
+    return legacyScope.GetRequired().GameId;
+}
+
+static IResult GetDashboardBootstrap(
+    Guid gameId,
+    Guid? selectedFleetId,
+    HttpContext httpContext,
+    SelectedGameRequestService games,
+    bool trustedPlayerSelectionEnabled) =>
     TryResult(() => ToDashboardBootstrapResponse(
-        DashboardBootstrapContextFactory.Load(selectedFleetId, httpContext, store),
-        trustedPlayerSelectionEnabled)));
+        gameId,
+        DashboardBootstrapContextFactory.Load(selectedFleetId, httpContext, gameId, games),
+        trustedPlayerSelectionEnabled));
 
-app.MapGet("/cycles/current", (HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
-    {
-        var state = store.LoadOrCreate();
-        _ = DevelopmentAuth.RequireActor(httpContext, state);
-        return ToCycleResponse(state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists."));
-    }));
+static IResult GetCurrentCycle(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
+        ToCycleResponse(GetCycle(state, context))));
 
-app.MapGet("/ticks/last-summary", (HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetLastTickSummary(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var tickLog = state.TickLogs
             .Where(log => log.CycleId == cycle.CycleId)
@@ -223,64 +392,82 @@ app.MapGet("/ticks/last-summary", (HttpContext httpContext, IGameStateStore stor
         return ToLastTickSummaryResponse(state, cycle, tickLog, actor, visibleSystemIds);
     }));
 
-app.MapGet("/empire", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetEmpire(
+    Guid gameId,
+    Guid? empireId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
-        var targetEmpireId = DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
-        var empire = state.Empires
-            .Where(item => item.CycleId == cycle.CycleId)
-            .First(item => item.EmpireId == targetEmpireId);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
+        var targetEmpireId = DevelopmentAuth.ResolveEmpireId(state, actor, context, empireId);
+        var empire = state.Empires.Single(item =>
+            item.CycleId == cycle.CycleId
+            && item.EmpireId == targetEmpireId);
 
         return ToEmpireResponse(state, empire);
     }));
 
-app.MapGet("/galaxy", (HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetGalaxy(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return ToGalaxyResponse(state, cycle, actor, visibleSystemIds);
     }));
 
-app.MapGet("/systems/{systemId:guid}", (Guid systemId, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetSystem(
+    Guid gameId,
+    Guid systemId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
-        var system = state.Systems.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.SystemId == systemId)
-            ?? throw new ApiNotFoundException("System was not found in the active cycle.");
+        var system = state.Systems.SingleOrDefault(item =>
+                item.CycleId == context.CycleId
+                && item.SystemId == systemId)
+            ?? throw new ApiNotFoundException("System was not found in the selected Cycle.");
 
         return ToSystemDetailResponse(state, cycle, system, actor, visibleSystemIds);
     }));
 
-app.MapGet("/fleets", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetFleets(
+    Guid gameId,
+    Guid? empireId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
             ? null
-            : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
+            : DevelopmentAuth.ResolveEmpireId(state, actor, context, empireId);
         return ToFleetResponses(state, cycle, targetEmpireId);
     }));
 
-app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetFleet(
+    Guid gameId,
+    Guid fleetId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
-        var fleet = state.Fleets.SingleOrDefault(item => item.CycleId == cycle.CycleId && item.FleetId == fleetId)
-            ?? throw new ApiNotFoundException("Fleet was not found in the active cycle.");
-        if (!actor.IsAdmin && fleet.EmpireId != DevelopmentAuth.ResolveEmpireId(state, actor))
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
+        var fleet = state.Fleets.SingleOrDefault(item =>
+                item.CycleId == context.CycleId
+                && item.FleetId == fleetId)
+            ?? throw new ApiNotFoundException("Fleet was not found in the selected Cycle.");
+        if (!actor.IsAdmin && fleet.EmpireId != context.EmpireId)
         {
             throw new ApiForbiddenException("The authenticated player cannot inspect this fleet.");
         }
@@ -289,86 +476,57 @@ app.MapGet("/fleets/{fleetId:guid}", (Guid fleetId, HttpContext httpContext, IGa
         return ToFleetDetailResponse(state, cycle, fleet, actor, visibleSystemIds);
     }));
 
-app.MapGet("/orders", (Guid? empireId, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetOrders(
+    Guid gameId,
+    Guid? empireId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         Guid? targetEmpireId = actor.IsAdmin && !empireId.HasValue
             ? null
-            : DevelopmentAuth.ResolveEmpireId(state, actor, empireId);
+            : DevelopmentAuth.ResolveEmpireId(state, actor, context, empireId);
         return ToOrderResponses(state, cycle, targetEmpireId);
     }));
 
-app.MapPost("/orders/fleet/move", (MoveFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitMove(request, httpContext, store));
-
-app.MapPost("/orders/fleet/recall", (RecallFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitRecall(request, httpContext, store));
-
-app.MapPost("/orders/fleet/attack", (AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitAttack(request, httpContext, store));
-
-app.MapPost("/orders/fleet/colonise", (ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.SubmitColonise(request, httpContext, store));
-
-app.MapPost("/orders/fleet/cancel", (CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.Cancel(request, httpContext, store));
-
-app.MapPost("/orders/priorities", (PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
-    ApiOrderEndpoints.UpdatePriorities(request, httpContext, store));
-
-app.MapPost("/admin/tick", (HttpContext httpContext, IGameStateStore store) =>
-    ApiAdminEndpoints.RunTick(httpContext, store, trustedPlayerSelectionEnabled));
-
-app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (
-    Guid targetPlayerId,
-    AdminRoleChangeRequest request,
+static IResult GetRecentEvents(
+    Guid gameId,
+    int? limit,
     HttpContext httpContext,
-    IPlayerAccountQuery accounts,
-    IAdminRoleCommandStore roleCommands) =>
-    ApiAdminRoleEndpoints.Grant(targetPlayerId, request, httpContext, accounts, roleCommands));
-
-app.MapDelete("/admin/players/{targetPlayerId:guid}/roles/admin", (
-    Guid targetPlayerId,
-    [FromBody] AdminRoleChangeRequest request,
-    HttpContext httpContext,
-    IPlayerAccountQuery accounts,
-    IAdminRoleCommandStore roleCommands) =>
-    ApiAdminRoleEndpoints.Revoke(targetPlayerId, request, httpContext, accounts, roleCommands));
-
-app.MapGet("/events/recent", (int? limit, HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return ToEventResponses(state, cycle, actor, visibleSystemIds, limit ?? 25);
     }));
 
-app.MapGet("/briefings/opening", (HttpContext httpContext, IGameStateStore store) =>
-    ApiEndpointResults.TryJson(() =>
+static IResult GetOpeningBriefing(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    ApiEndpointResults.TryJson(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return OpeningBriefingContract.FindVisible(state, cycle, actor, visibleSystemIds);
     }));
 
-app.MapGet("/chronicle", (HttpContext httpContext, IGameStateStore store) =>
-    TryResult(() =>
+static IResult GetChronicle(
+    Guid gameId,
+    HttpContext httpContext,
+    SelectedGameRequestService games) =>
+    TryResult(() => games.Query(httpContext, gameId, (state, context) =>
     {
-        var state = store.LoadOrCreate();
-        var cycle = GetActiveCycle(state);
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
+        var cycle = GetCycle(state, context);
+        var actor = DevelopmentAuth.RequireActor(state, context);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         return ToChronicleEntryResponses(state, cycle, actor, visibleSystemIds);
     }));
-
-app.Run();
 
 static IResult TryResult<T>(Func<T> action)
 {
@@ -382,8 +540,9 @@ static IResult TryResult<T>(Func<T> action)
     }
 }
 
-static Cycle GetActiveCycle(GameState state) =>
-    state.GetActiveCycle() ?? throw new InvalidOperationException("No active cycle exists.");
+static Cycle GetCycle(GameState state, GameCommandContext context) =>
+    state.Cycles.SingleOrDefault(item => item.CycleId == context.CycleId)
+        ?? throw new InvalidOperationException("The selected Cycle is unavailable.");
 
 static LoginResponse Login(
     LoginRequest request,
@@ -415,6 +574,7 @@ static LoginResponse Login(
     // Do not issue a durable browser identity unless every authoritative read
     // needed to construct the legacy response has succeeded.
     DevelopmentAuth.SignIn(httpContext, account.PlayerId);
+    ApiAntiforgery.ExpireTokenCookie(httpContext);
     return response;
 }
 
@@ -428,7 +588,12 @@ static LoginResponse QueryLoginResponse(
         var actor = DevelopmentAuth.RequireActor(state, context);
         var empire = actor.Empire
             ?? throw new InvalidOperationException("The scoped player has no empire in the current Cycle.");
-        return ToLoginResponse(state, actor.Player, empire, trustedPlayerSelectionEnabled);
+        return ToLoginResponse(
+            context.GameAccess.GameId,
+            state,
+            actor.Player,
+            empire,
+            trustedPlayerSelectionEnabled);
     });
     return result switch
     {
@@ -439,12 +604,18 @@ static LoginResponse QueryLoginResponse(
     };
 }
 
-static LoginResponse ToLoginResponse(GameState state, Player player, Empire empire, bool trustedPlayerSelectionEnabled)
+static LoginResponse ToLoginResponse(
+    Guid gameId,
+    GameState state,
+    Player player,
+    Empire empire,
+    bool trustedPlayerSelectionEnabled)
 {
     var participant = state.GetParticipant(empire.CycleId, player.PlayerId)
         ?? throw new InvalidOperationException("The player is not participating in the Empire's Cycle.");
     return
     new(
+        gameId,
         player.PlayerId,
         player.Username,
         player.Role,
@@ -478,16 +649,19 @@ static EmpireResponse ToEmpireResponse(GameState state, Empire empire)
 }
 
 static DashboardBootstrapResponse ToDashboardBootstrapResponse(
+    Guid gameId,
     DashboardBootstrapContext context,
     bool trustedPlayerSelectionEnabled)
 {
     var login = ToLoginResponse(
+        gameId,
         context.State,
         context.Actor.Player,
         context.Empire,
         trustedPlayerSelectionEnabled);
 
     return new DashboardBootstrapResponse(
+        gameId,
         new DashboardSessionResponse(login.PlayerId, login.Username, login.Role, login.CanAdvanceTurn),
         ToCycleResponse(context.Cycle),
         login.Empire,
@@ -1089,6 +1263,7 @@ public sealed record TrustedPlayerResponse(
     MatchParticipantStatus ParticipantStatus);
 
 public sealed record LoginResponse(
+    Guid GameId,
     Guid PlayerId,
     string Username,
     PlayerRole Role,
@@ -1107,6 +1282,7 @@ public sealed record DashboardSessionResponse(
     bool CanAdvanceTurn);
 
 public sealed record DashboardBootstrapResponse(
+    Guid GameId,
     DashboardSessionResponse Session,
     CycleResponse Cycle,
     EmpireResponse Empire,

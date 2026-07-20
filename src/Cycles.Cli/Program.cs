@@ -293,13 +293,8 @@ static int RunCycleCommand(string[] args)
             {
                 var requestedCycleId = args.Length > 3 ? Guid.Parse(args[3]) : (Guid?)null;
                 var store = CreateRequiredSqlServerStore(args, 2);
-                var rankings = store.Update(state =>
-                {
-                    var cycleId = requestedCycleId
-                        ?? state.GetActiveCycle()?.CycleId
-                        ?? throw new InvalidOperationException("No active cycle exists.");
-                    return CycleEndService.CompleteCycle(state, cycleId, DateTimeOffset.UtcNow);
-                });
+                var cycleId = requestedCycleId ?? store.GetRequired().CycleId;
+                var rankings = store.CompleteCycle(cycleId, DateTimeOffset.UtcNow);
 
                 var winner = rankings.Single(ranking => ranking.IsWinner);
                 Console.WriteLine($"Cycle ended at tick {winner.CutoffTickNumber}.");
@@ -440,7 +435,7 @@ static int RunRecoveryCommand(string[] args)
                 var cycleId = ParseRequiredGuid(args, 3, "cycle id");
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
-                var recoveryEvent = store.Update(state => RecoveryService.ClearRecovery(state, cycleId, operatorName, reason, DateTimeOffset.UtcNow));
+                var recoveryEvent = store.ClearRecovery(cycleId, operatorName, reason, DateTimeOffset.UtcNow);
 
                 Console.WriteLine($"Recovery cleared for cycle {cycleId}.");
                 Console.WriteLine($"Audit event: {recoveryEvent.EventId}");
@@ -454,11 +449,7 @@ static int RunRecoveryCommand(string[] args)
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
                 var now = DateTimeOffset.UtcNow;
-                var result = store.Update(state =>
-                {
-                    RecoveryService.ClearRecovery(state, cycleId, operatorName, reason, now);
-                    return new TickEngine().RunTick(state, cycleId, now);
-                });
+                var result = store.RetryRecovery(cycleId, operatorName, reason, now);
 
                 Console.WriteLine($"Retry tick {result.TickNumber}: {result.Status}");
                 Console.WriteLine($"Orders: {result.OrdersProcessed}; events: {result.EventsCreated}; battles: {result.BattlesCreated}; Chronicle entries: {result.ChronicleEntriesCreated}");
@@ -471,13 +462,12 @@ static int RunRecoveryCommand(string[] args)
                 var tickLogId = ParseRequiredGuid(args, 3, "tick attempt id");
                 var operatorName = ParseRequiredOption(args, "--operator");
                 var reason = ParseRequiredOption(args, "--reason");
-                var auditEvent = store.Update(state => RecoveryService.MarkTickAbandoned(
-                    state,
+                var auditEvent = store.MarkTickAbandoned(
                     tickLogId,
                     operatorName,
                     reason,
                     DateTimeOffset.UtcNow,
-                    GetRunningTickSuspicionThreshold()));
+                    GetRunningTickSuspicionThreshold());
 
                 Console.WriteLine($"Tick attempt {tickLogId} was marked abandoned.");
                 Console.WriteLine($"Audit event: {auditEvent.EventId}");

@@ -63,6 +63,7 @@ public static class MatchControl
         var cycle = state.Cycles.Single(item => item.CycleId == cycleId);
         cycle.Status = CycleStatus.Completed;
         cycle.EndAt = endedAt;
+        cycle.NextTickAt = null;
 
         foreach (var participant in state.MatchParticipants.Where(item =>
                      item.CycleId == cycleId

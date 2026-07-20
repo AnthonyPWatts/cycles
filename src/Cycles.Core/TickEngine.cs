@@ -71,6 +71,7 @@ public sealed class TickEngine
 
             cycle.Status = CycleStatus.RecoveryRequired;
             cycle.TurnStage = working.Cycles.Single(item => item.CycleId == cycleId).TurnStage;
+            cycle.NextTickAt = null;
             return new TickResult(nextTick, TickLogStatus.Failed, 0, 0, 0, 0);
         }
     }
@@ -183,6 +184,9 @@ public sealed class TickEngine
         log.CompletedAt = now;
         log.DiagnosticLog = $"Sealed and processed {ledger.Orders.Count} order(s) through deterministic resolution phases.";
         cycle.TurnStage = TurnResolutionStage.CommandOpen;
+        cycle.NextTickAt = cycle.SchedulingMode == CycleSchedulingMode.Scheduled
+            ? CycleScheduling.NextAfterCompletion(cycle, now)
+            : null;
 
         return new TickResult(
             tickNumber,

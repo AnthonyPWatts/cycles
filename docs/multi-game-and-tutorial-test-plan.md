@@ -1,6 +1,6 @@
 # Multi-game and tutorial test plan
 
-Status: approved baseline; prerequisite implementation is in progress. MG-01 and MG-02 provide the legacy Game foundation, mandatory SQL evidence, same-scope relationship contract, and normalised battle membership. MG-03 now has focused account/Game projections and a one-Cycle SQL command-store isolation suite; online consumers, the account shell, second-Game runtime, Training profile, and tutorial journey are not implemented.
+Status: MG-01 through MG-05 prerequisite baseline implemented and verified through the integrated local technical gate. MG-03 and MG-04 cut online API and Worker consumers over to focused selected-Game stores and routes with resource authorisation, legacy-Game adapters, and antiforgery. MG-05 adds v7 scheduling state, batch-one due discovery, and explicit Game-then-Cycle resolution. The account shell, second-Game runtime, roster-aware profile factory, Training profile, and tutorial journey are not implemented.
 
 Companion plan: [Multi-game and tutorial programme](multi-game-and-tutorial-plan.md).
 
@@ -8,7 +8,7 @@ Companion plan: [Multi-game and tutorial programme](multi-game-and-tutorial-plan
 
 This plan turns the programme's product and architecture promises into executable evidence. It covers the account shell, Game and Cycle lifecycle, enrolment, explicit authorisation, tutorial profiles and journey, SQL migration, concurrent Workers, failure recovery, accessibility and live rollout.
 
-The existing xUnit project remains the automated test home. SQL Server integration tests remain locally opt-in through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`. The existing mandatory `sql-server-integration` CI job must be strengthened in Increment 1 by setting `CYCLES_REQUIRE_SQL_INTEGRATION=1`; the fixture must fail fast, not return/skip, when the connection string or database is unavailable. The same switch applies to predeployment evidence. The repository test helper remains the normal entry point. Static browser contract tests are useful but do not replace live interaction, keyboard or assistive-technology checks.
+The existing xUnit project remains the automated test home. SQL Server integration tests remain locally opt-in through `CYCLES_SQL_INTEGRATION_CONNECTION_STRING`. The mandatory `sql-server-integration` CI job sets `CYCLES_REQUIRE_SQL_INTEGRATION=1`, and the fixture fails fast rather than returning or skipping when the connection string or database is unavailable. The same switch applies to predeployment evidence. The repository test helper remains the normal entry point. Static browser contract tests are useful but do not replace live interaction, keyboard or assistive-technology checks.
 
 ## 2. Non-negotiable invariants
 
@@ -212,7 +212,7 @@ Required evidence:
 - scoped loads never return rows from another Cycle;
 - focused tick persistence changes only its Cycle plus the required containing-Game lifecycle row/events;
 - the administrative global save rejects or clearly labels partial state and remains absent from player routes;
-- v1-v5 import deterministically applies the required compatibility foundation; v6 round-trip preserves Games, enrolments, configurations, battle membership and several operational Games;
+- v1-v6 import deterministically applies the required compatibility and scheduling adaptations; a v7 export round-trip preserves Games, enrolments, configurations, battle membership, scheduling mode, next-due time and several operational Games;
 - rollback of a pre-contract deployment leaves old columns/data readable.
 
 ## 10. Concurrency and hostile-timing suites

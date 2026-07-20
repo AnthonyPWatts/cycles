@@ -43,6 +43,7 @@ public static class RecoveryService
             ? abandonmentDiagnostic
             : $"{tickLog.DiagnosticLog.TrimEnd()}{Environment.NewLine}{abandonmentDiagnostic}";
         cycle.Status = CycleStatus.RecoveryRequired;
+        cycle.NextTickAt = null;
 
         var abandonmentEvent = new EventRecord
         {
@@ -105,6 +106,9 @@ public static class RecoveryService
 
         cycle.Status = CycleStatus.Active;
         cycle.TurnStage = TurnResolutionStage.CommandOpen;
+        cycle.NextTickAt = cycle.SchedulingMode == CycleSchedulingMode.Scheduled
+            ? now
+            : null;
 
         var recoveryEvent = new EventRecord
         {

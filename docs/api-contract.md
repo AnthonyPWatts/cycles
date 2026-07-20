@@ -24,9 +24,26 @@ For example, a successful order response includes camelCase properties and a str
 
 Clients must not send numeric enum values such as `"orderType": 1`.
 
+## Selected Game Routing
+
+Gameplay routes identify the Game in the path. The server resolves the authenticated account, Game enrolment, current operational Cycle, participant, and empire before it loads or changes Cycle state. Possession of a Game, fleet, system, empire, or order identifier grants no authority.
+
+The selected-Game routes are:
+
+| Purpose | Routes |
+| --- | --- |
+| Coherent player view | `GET /games/{gameId}/dashboard/bootstrap` |
+| Focused reads | `GET /games/{gameId}/cycles/current`, `/ticks/last-summary`, `/empire`, `/galaxy`, `/systems/{systemId}`, `/fleets`, `/fleets/{fleetId}`, `/orders`, `/events/recent`, `/briefings/opening`, and `/chronicle` |
+| Fleet intentions | `POST /games/{gameId}/orders/move`, `/orders/recall`, `/orders/attack`, and `/orders/colonise` |
+| Cancellation | `DELETE /games/{gameId}/orders/{orderId}` |
+| Priorities | `PUT /games/{gameId}/priorities` |
+| Development turn resolution | `POST /games/{gameId}/admin/tick` |
+
+An unknown, inaccessible, or withdrawn Game returns the same `404 notFound` response. An authorised Game with no current playable Cycle returns `409 stateConflict`. The command store rechecks the context inside its transaction, so a withdrawn enrolment, changed participant, foreign child identifier, or closed command window cannot use a context obtained by an earlier request.
+
 ## Fleet Order Intent Contract
 
-Move, attack, and colonise requests accept an optional `replacesOrderId` alongside their normal fleet and target fields. A fleet can have only one pending intention for the requested execution tick. `POST /orders/fleet/recall` accepts an owned outbound in-transit `fleetId`; its target is always the fleet's last occupied system and it cannot replace a different intention.
+Move, attack, and colonise requests accept an optional `replacesOrderId` alongside their normal fleet and target fields. A fleet can have only one pending intention for the requested execution tick. `POST /games/{gameId}/orders/recall` accepts an owned outbound in-transit `fleetId`; its target is always the fleet's last occupied system and it cannot replace a different intention.
 
 - Repeating the identical intention is idempotent and returns the existing pending order.
 - A different intention without `replacesOrderId`, or with an ID that no longer identifies the current pending order, returns `409 Conflict` with `code: "stateConflict"`.
@@ -73,13 +90,25 @@ Before sealing, each empire's otherwise-eligible Colonise orders are admitted as
 
 The sealed ledger resolves as resource income; due construction; programme spending and construction starts; recalls, arrivals, movement, and Holds; combat; colonisation; derived state; next-window progression; then publication. Recall runs before passive arrival so a sealed last-turn reversal can prevent the destination arrival. Successful colonisation alone spends its reserved Population; a later eligibility failure leaves the amount unspent and cannot revive an order rejected at closure. That order is part of the gameplay contract. `createdAt`, `submittedAt`, response order, and event display order do not grant or report initiative. Clients should use the documented phases when explaining causality; timestamps cannot supply that meaning.
 
+SQL stores Cycle scheduling as operational state. The current player `CycleResponse` omits it. A `Scheduled` Cycle has a non-null `NextTickAt`; the Worker selects the earliest due active Standard Cycle and processes one item per poll. A `SelfPaced` Cycle has no deadline and requires the explicit resolution boundary. `POST /games/{gameId}/admin/tick` resolves the selected Game after its normal player/admin policy check. The temporary `POST /admin/tick` compatibility route invokes the same boundary for the pinned legacy Game. The API does not yet expose Training provisioning.
+
 ## Trusted Development Selection
 
-When `Cycles:TrustedPlayerSelection:Enabled` is deliberately enabled, `GET /auth/trusted-players` returns active human accounts participating in the current match. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector is intended only for an access-restricted Development host and does not replace external identity or create accounts.
+When `Cycles:TrustedPlayerSelection:Enabled` is enabled, `GET /auth/trusted-players` returns active human accounts participating in the fixed legacy Game's operational Cycle. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector serves an access-restricted Development host and does not replace external identity or create accounts.
+
+## Cookie Mutation And Antiforgery Contract
+
+Trusted and OIDC sessions use cookie authentication, so the browser obtains a request token from `GET /auth/antiforgery`. The response contains only `requestToken`, sets the matching HttpOnly antiforgery cookie, and uses `Cache-Control: no-store`. The static client keeps the request token in memory.
+
+JSON `POST`, `PUT`, `PATCH`, and `DELETE` requests send the token in `X-Cycles-Antiforgery`. The logout form sends the same token as `__RequestVerificationToken`. The API validates the cookie and request-token pair before it invokes login, selected-Game, legacy-adapter, tick, or admin mutation handlers. A missing, expired, or mismatched pair returns `400 Bad Request` with `code: "antiforgeryFailed"`; the client fetches a fresh token but does not replay the rejected mutation.
+
+Trusted login rotates the antiforgery cookie before the dashboard enables commands for the selected player. Logout is `POST /auth/logout`; the trusted branch clears the local session and the OIDC branch starts provider sign-out. Both branches expire the antiforgery cookie. No `GET /auth/logout` mutation exists.
 
 ## Dashboard Bootstrap Contract
 
-`GET /dashboard/bootstrap` supplies the dashboard's initial player view and normal refresh from one authoritative store snapshot. The typed response contains the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, visible Events, visible Chronicle entries, the visible opening briefing, and a player-scoped `turnResolution` presentation contract.
+`GET /games/{gameId}/dashboard/bootstrap` supplies the selected dashboard view from one authoritative Cycle snapshot. The typed response contains `gameId`, the authenticated session summary, active Cycle, empire, visible galaxy, owned fleets, selected-fleet detail, up to 50 pending or recent orders, visible Events, visible Chronicle entries, the visible opening briefing, and a player-scoped `turnResolution` presentation contract. Trusted login also returns `gameId`, so its first refresh can use the selected-Game route.
+
+`GET /dashboard/bootstrap` remains a pinned compatibility adapter for the first browser load before the client knows the fixed legacy Game ID. It resolves that Game on the server and calls the same selected-Game handler. After the response supplies `gameId`, one client owns the selected Game's request generation and `AbortController`. It clears Game-scoped state on a selection change and applies a response only while its Game ID and generation still match. The Games home and player selection between Games are not implemented.
 
 The Event collection keeps the latest visible tick complete. It then adds older visible Events up to the normal 100-record bound; a latest tick containing more than 100 visible Events remains complete rather than being cut in half.
 
@@ -154,6 +183,7 @@ Current error codes are:
 | `401 Unauthorized` | `authenticationRequired` | The request has no accepted authenticated player. |
 | `403 Forbidden` | `forbidden` | The authenticated player lacks authority for the operation or resource. |
 | `400 Bad Request` | `validationFailed` | The request body or requested action is invalid. |
+| `400 Bad Request` | `antiforgeryFailed` | The mutation's antiforgery cookie and request token are missing, expired, or do not match. |
 | `409 Conflict` | `stateConflict` | Valid input conflicts with the current authoritative state. |
 | `404 Not Found` | `notFound` | The requested resource does not exist in the permitted scope. |
 
@@ -163,7 +193,7 @@ Unhandled server failures do not become additional documented client codes and m
 
 Raw `FactJson` is internal flexible storage and is not part of ordinary player event, battle, or tick-result responses. History uses `displayText` and factual Chronicle summaries for normal presentation.
 
-The Day One guide consumes the purpose-built `GET /briefings/opening` response. Its shape contains only the stable scenario, focus-system, and objective identifiers required by the guide:
+The Day One guide consumes the purpose-built `GET /games/{gameId}/briefings/opening` response. Its shape contains only the stable scenario, focus-system, and objective identifiers required by the guide:
 
 ```json
 {
@@ -190,6 +220,8 @@ The Day One guide consumes the purpose-built `GET /briefings/opening` response. 
 The endpoint applies the same authenticated-player, empire, Cycle, event-visibility, and fog-of-war rules as the source briefing fact. It returns JSON `null` when no visible briefing exists.
 
 ## Compatibility
+
+The previous unscoped gameplay URLs remain pinned adapters for the fixed legacy Game. Each adapter resolves that Game and invokes the same selected-Game handler and authorisation path. It cannot accept a caller-selected Game. Current examples include `GET /dashboard/bootstrap`, the focused read URLs, `POST /orders/fleet/*`, `POST /orders/priorities`, and `POST /admin/tick`. New clients should use `/games/{gameId}` after obtaining `gameId` from login or bootstrap, including `POST /games/{gameId}/admin/tick` where the temporary development turn-advance capability is enabled.
 
 The following changes are compatible:
 

@@ -21,15 +21,17 @@ public static class TickSchedule
 
     public static bool IsDue(Cycle cycle, DateTimeOffset? lastCompletedAt, DateTimeOffset now)
     {
-        if (cycle.Status != CycleStatus.Active)
+        if (cycle.Status != CycleStatus.Active
+            || cycle.SchedulingMode != CycleSchedulingMode.Scheduled)
         {
             return false;
         }
 
         var cadence = TimeSpan.FromMinutes(Math.Max(1, cycle.TickLengthMinutes));
-        var nextDueAt = lastCompletedAt.HasValue
-            ? lastCompletedAt.Value + cadence
-            : cycle.StartAt;
+        var nextDueAt = cycle.NextTickAt
+            ?? (lastCompletedAt.HasValue
+                ? lastCompletedAt.Value + cadence
+                : cycle.StartAt);
 
         return now >= nextDueAt;
     }

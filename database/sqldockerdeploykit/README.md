@@ -36,7 +36,7 @@ Expected result:
 - `CycleCount` is `1`.
 - The seed contains one `Legacy Standard Game`, one materialised Cycle configuration, one enrolment per participant, and one `LegacyImported` lifecycle event. Its canonical map/scenario keys are recorded with `LegacyUnverified` provenance; no second Game is created.
 - Normal saves append Game lifecycle audit rows and cannot erase them; explicit whole-state replacement is the destructive exception. SQL also freezes every materialised configuration field and rejects malformed hashes, half-specified seat bounds, a second successor for one Cycle, or a second operational Cycle in one Game.
-- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Games`, `CycleConfigurations`, `GameEnrolments`, `GameLifecycleEvents`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `Factions`, `MatchParticipants`, `EmpireResources`, `EmpireDoctrineUnlocks`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, and `ChronicleEntries`.
+- The table list includes `SchemaMigrations`, `Players`, `AdminRoleAuditRecords`, `Games`, `CycleConfigurations`, `GameEnrolments`, `GameLifecycleEvents`, `Cycles`, `GalaxySectors`, `Systems`, `Empires`, `Factions`, `MatchParticipants`, `EmpireResources`, `EmpireDoctrineUnlocks`, `EmpirePriorities`, `EmpireMetrics`, `CycleRankings`, `CycleMajorEvents`, `SystemHistoricalSignals`, `ColonialOutposts`, `DiplomaticRelationships`, `Admirals`, `AdmiralBattleHistories`, `Fleets`, `FleetOrders`, `ShipConstructions`, `TickLogs`, `Events`, `BattleRecords`, `BattleFleetParticipants`, and `ChronicleEntries`.
 - The canonical seed contains 8 sectors, 64 systems, 91 routes, three empire participants, and six neutral fleets; every sector contains 8 systems, exactly two gateway systems, and the active Cycle ends 90 days after container startup.
 
 ## Connection String
@@ -63,14 +63,14 @@ dotnet run --project src/Cycles.Api -- --urls http://127.0.0.1:5086 --Connection
 dotnet run --project src/Cycles.Worker -- --ConnectionStrings:Cycles "Server=localhost,14333;Database=CyclesDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;Connect Timeout=10"
 ```
 
-The SQL Server store currently uses the whole prototype `GameState` for generic API/admin mutations inside one transaction protected by `sp_getapplock`, then synchronises mapped rows with targeted deletes and upserts. Tick execution uses a focused SQL workspace and targeted outcome writes. Migrations are explicit and non-destructive, but the generic state store remains a practical bridge from the prototype aggregate boundary to a future application-service/repository model if measured pressure justifies that extraction.
+The SQL Server store uses focused account, selected-Game, Cycle-command, resolution and operator-recovery workspaces for API, Worker and online-safe mutations. Explicit offline CLI/import, seed, continuation and profiling commands retain the generic whole-state bridge under `sp_getapplock`. Migrations are explicit and non-destructive, and the bridge remains a practical compatibility path while measured pressure determines whether further repository extraction is justified.
 
 Use the guarded state-transfer commands for migration, controlled debugging, or reproducible fixtures. A JSON document cannot be placed on disk and used as live game state:
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v5.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v5.json
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v5.json "sqlserver:<target-connection-string>" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:<source-connection-string>" C:\secure\cycles-state-v7.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v7.json
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v7.json "sqlserver:<target-connection-string>" --confirm-import --confirm-replace
 ```
 
 The export contains player identity and game state. Store it as a sensitive temporary artefact, verify the imported record count, and remove it through the approved secure-file process after the restore or cutover evidence has been retained.

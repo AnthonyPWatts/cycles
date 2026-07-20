@@ -15,6 +15,7 @@ public sealed class GameStateTransferTests
     public void Versioned_round_trip_preserves_every_persisted_collection_and_retained_history()
     {
         var state = CreateCompleteValidState();
+        var expectedNextTickAt = Assert.Single(state.Cycles).NextTickAt;
         using var stream = new MemoryStream();
 
         GameStateTransfer.Write(stream, state, TestState.Now);
@@ -22,6 +23,7 @@ public sealed class GameStateTransferTests
         var document = GameStateTransfer.Read(stream);
 
         Assert.Equal(GameStateTransfer.CurrentFormatVersion, document.FormatVersion);
+        Assert.Equal(7, document.FormatVersion);
         Assert.Equal(TestState.Now, document.ExportedAt);
         foreach (var property in PersistedCollections())
         {
@@ -45,6 +47,41 @@ public sealed class GameStateTransferTests
         Assert.Contains(document.State.ChronicleEntries, entry => entry.NarrativeContextJson == "{\"retained\":true}");
         var superseded = Assert.Single(document.State.FleetOrders, order => order.Status == FleetOrderStatus.Superseded);
         Assert.Contains(document.State.FleetOrders, order => order.FleetOrderId == superseded.SupersededByOrderId);
+        var scheduledCycle = Assert.Single(document.State.Cycles);
+        Assert.Equal(CycleSchedulingMode.Scheduled, scheduledCycle.SchedulingMode);
+        Assert.Equal(expectedNextTickAt, scheduledCycle.NextTickAt);
+    }
+
+    [Fact]
+    public void Version_six_import_adds_scheduled_capability_and_derives_the_next_tick()
+    {
+        var state = CreateCompleteValidState();
+        var completedAt = Assert.Single(state.TickLogs, log => log.Status == TickLogStatus.Completed).CompletedAt!.Value;
+        var cadence = TimeSpan.FromMinutes(Assert.Single(state.Cycles).TickLengthMinutes);
+        var root = JsonSerializer.SerializeToNode(
+            new GameStateTransferDocument(6, TestState.Now, state),
+            GameStateJson.Options)!.AsObject();
+        var stateNode = root["state"]!.AsObject();
+        foreach (var configuration in stateNode["cycleConfigurations"]!.AsArray().Select(item => item!.AsObject()))
+        {
+            configuration.Remove("schedulingMode");
+        }
+
+        foreach (var cycleNode in stateNode["cycles"]!.AsArray().Select(item => item!.AsObject()))
+        {
+            cycleNode.Remove("schedulingMode");
+            cycleNode.Remove("nextTickAt");
+        }
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString(GameStateJson.Options)));
+        var document = GameStateTransfer.Read(stream);
+
+        Assert.Equal(6, document.FormatVersion);
+        Assert.All(document.State.CycleConfigurations, configuration =>
+            Assert.Equal(CycleSchedulingMode.Scheduled, configuration.SchedulingMode));
+        var cycle = Assert.Single(document.State.Cycles);
+        Assert.Equal(CycleSchedulingMode.Scheduled, cycle.SchedulingMode);
+        Assert.Equal(completedAt + cadence, cycle.NextTickAt);
     }
 
     [Fact]

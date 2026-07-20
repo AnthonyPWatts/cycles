@@ -1,6 +1,6 @@
 # Operations
 
-Last updated: 2026-07-14
+Last updated: 2026-07-20
 
 This runbook covers local SQL development, external identity configuration, admin recovery, versioned state transfer, tick diagnostics, failed-tick recovery, and guarded profiling. It does not by itself establish production readiness.
 
@@ -36,13 +36,23 @@ Use explicit generation arguments when a generic galaxy is required:
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" 24 4 71421 --confirm-replace
 ```
 
-The curated `development-match-v2` seed is fixed so participant assignments, distinct-sector homes, neutral fleets, tutorial objective identifiers, and first-turn outcomes are reproducible. It creates Tony and Will as selectable human players, Ariadne as a game-AI player, three empires with three fleets and 60 ships apiece, and six weaker neutral Free Captain fleets. Development API and Worker hosts seed an empty configured store; shared environments should be provisioned deliberately rather than relying on generic implicit seeding.
+The curated `development-match-v2` seed is fixed so participant assignments, distinct-sector homes, neutral fleets, tutorial objective identifiers, and first-turn outcomes are reproducible. It creates Tony and Will as selectable human players, Ariadne as a game-AI player, three empires with three fleets and 60 ships apiece, and six weaker neutral Free Captain fleets. Development API and Worker hosts leave a configured empty store empty; they do not provision the curated scenario implicitly. Provision local state deliberately with the CLI seed command above or the ordered Docker migration-and-seed bootstrap; provision shared environments through their guarded operator workflow.
 
 `Cycles:TrustedPlayerSelection:Enabled` controls the fixed Development selector. It is enabled by `appsettings.Development.json`, disabled by default elsewhere, and must be enabled deliberately for an access-restricted hosted playground. A non-Development process with the selector enabled refuses to start unless `CYCLES_PLAYGROUND_ACCESS_CODE` or `Cycles:PlaygroundAccessCode` is present. It selects only existing active human accounts that participate in the match, stores the selected identity in a protected cookie, and is not an account-registration or production-identity mechanism. Defeated and completed participants can sign in to inspect the match but cannot mutate it.
 
 ## Scheduled And Manual Ticks
 
-`Cycles.Worker` checks once on startup and then polls every 30 seconds by default. It runs at most one tick if the active Cycle is due; it does not process a backlog of catch-up ticks after downtime.
+SQL stores Cycle scheduling. `CycleConfigurations.SchedulingMode` records the immutable configured capability, while each materialised `Cycle` stores the matching `SchedulingMode` and its nullable `NextTickAt` deadline. SQL constraints allow these states:
+
+| Cycle state | `SchedulingMode` | `NextTickAt` |
+| --- | --- | --- |
+| Active scheduled Cycle | `Scheduled` | Required |
+| Active self-paced Cycle | `SelfPaced` | `NULL` |
+| Completed or recovery-required Cycle | Either configured value | `NULL` |
+
+Migration `025_add_cycle_scheduling` backfills existing configurations and Cycles as `Scheduled`. It derives an active Cycle's first persisted deadline from the latest completed tick plus `TickLengthMinutes`, or from `StartAt` when no tick has completed.
+
+`Cycles.Worker` checks once on startup and then polls every 30 seconds by default. Each poll selects the earliest due active `Scheduled` Cycle from an active Standard Game, ordered by `NextTickAt` and Cycle ID. It processes one work item per poll, so downtime does not trigger an unbounded catch-up batch. Another poll handles the next due item.
 
 Configuration keys:
 
@@ -50,7 +60,9 @@ Configuration keys:
 - `Cycles:Worker:PollIntervalSeconds`;
 - `ConnectionStrings:Cycles`.
 
-The Cycle's `TickLengthMinutes` controls simulation cadence. Recovery-required and non-active Cycles are not scheduled.
+Before resolution, the store rechecks the Game, Cycle, materialised configuration, scheduling mode, and captured deadline under the Game and Cycle locks. Stale, early, unavailable, and busy work does not run. A completed tick sets `NextTickAt` to its completion time plus `TickLengthMinutes`. A failed tick moves the Cycle to `RecoveryRequired` and clears the deadline.
+
+`SelfPaced` Cycles never enter due discovery. An authorised caller must use `ICycleResolutionStore.ResolveExplicit` with a complete Game command context and the applicable administrator policy. `POST /games/{gameId}/admin/tick` uses that boundary for the selected Game; the temporary `POST /admin/tick` route is only its fixed legacy-Game adapter. The store acquires the Game and Cycle locks, then locks and revalidates the live Game, Cycle, player, enrolment, participant, empire and administrator authority in that order. Those authority rows remain locked until resolution commits or rolls back, so a concurrent revocation cannot race an authorised tick. No Training provisioning route exists yet.
 
 Every authenticated Development session can run the same authoritative store operation from **Close command window and advance**. This is a temporary play-testing capability, not role promotion: normal players keep ordinary visibility and empire authority. In Production, ordinary players cannot advance turns and the endpoint remains admin-only. The CLI remains available for deliberate local operation:
 
@@ -123,10 +135,10 @@ Complete state transfer is an operator/developer support path for migration, rec
 
 ```powershell
 # One-time bridge for a retired raw runtime file; the input is not modified.
-dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v1.json
+dotnet run --project src/Cycles.Cli -- state convert-runtime-file C:\secure\legacy-cycles-state.json C:\secure\cycles-state-v7.json
 
-dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v1.json
-dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.json
+dotnet run --project src/Cycles.Cli -- state export "sqlserver:$connectionString" C:\secure\cycles-state-v7.json
+dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v7.json
 ```
 
 `convert-runtime-file` exists only to move the retired unversioned file-store shape into the strict transfer format. It requires every persisted collection, normalises inactive priorities, validates the state, writes atomically, and does not modify the source. SQL export requires a migrated source and applies the same state validation. Both commands refuse an existing destination unless `--confirm-overwrite` is supplied and never print the connection string or payload.
@@ -134,13 +146,13 @@ dotnet run --project src/Cycles.Cli -- state validate C:\secure\cycles-state-v1.
 ### Import
 
 ```powershell
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:$connectionString" --confirm-import
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v7.json "sqlserver:$connectionString" --confirm-import
 
 # A non-empty target additionally requires deliberate replacement confirmation.
-dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v1.json "sqlserver:$connectionString" --confirm-import --confirm-replace
+dotnet run --project src/Cycles.Cli -- state import C:\secure\cycles-state-v7.json "sqlserver:$connectionString" --confirm-import --confirm-replace
 ```
 
-Validation happens before the target is opened. It checks the format version, every persisted collection, identifiers, references, one operational Cycle, empire ownership, tick/recovery invariants, retained history, and embedded JSON. After replacement, the CLI reloads and revalidates the SQL state and record count.
+Validation happens before the target is opened. It checks the v7 format, every persisted collection, identifiers, references, Game and Cycle lineage, scheduling-mode provenance, `NextTickAt` coherence, empire ownership, tick/recovery invariants, retained history, and embedded JSON. The v7 document can represent several Games, but the current operational importer accepts only the fixed legacy Game identity. After replacement, the CLI reloads and revalidates the SQL state and record count.
 
 ### Sensitive-Data Handling
 
@@ -175,18 +187,23 @@ Cycles__Authentication__KnownProxies__0=10.0.0.10
 
 Only exact case-sensitive issuer-and-subject pairs admit or bootstrap a player. Leading or trailing whitespace is unsupported; operator configuration may contain surrounding layout whitespace, but the parsed issuer and subject must both remain non-empty. Migration `024_enforce_external_identity_binary_collation` fails before schema changes if an existing issuer or subject starts or ends with U+0020. Investigate and correct those rows from authoritative provider evidence rather than trimming an ambiguous identity blindly. Email, display name, invitation state, provider groups, and provider role claims do not grant Cycles authority. Known proxy addresses are explicit so forwarded host/protocol values are not trusted from arbitrary clients.
 
-An admitted identity creates or updates only its active Human Player account. Authentication does not create a Game enrolment, participant, empire, or admiral. `/auth/session` is account-level, but the current playable dashboard bootstrap remains pinned to the legacy Game. Until the Games home is deployed, do not add a fresh unmapped identity to `InvitedIdentities`; keep invitation rollout to identities that already map to an enrolled legacy Player. A transient account-lock conflict returns a safe retryable `stateConflict` response rather than being flattened into a bad-identity failure.
+An admitted identity creates or updates only its active Human Player account. Authentication does not create a Game enrolment, participant, empire, or admiral. `/auth/session` is account-level. Canonical gameplay requests use `/games/{gameId}` and resolve the Game's current Cycle, participant, and empire before access. The unscoped bootstrap, focused reads, order routes, priorities route, and `/admin/tick` remain pinned adapters for the fixed legacy Game. They call the same scoped handlers and cannot select another Game.
+
+The browser obtains `gameId` from trusted login or the first pinned bootstrap, then sends selected-Game requests. This client foundation has no Games home or player selection between Games. Training provisioning and a second Game also remain absent. Until the Games home is deployed, do not add a fresh unmapped identity to `InvitedIdentities`; keep invitation rollout to identities that already map to an enrolled legacy Player. A transient account-lock conflict returns a safe retryable `stateConflict` response rather than being flattened into a bad-identity failure.
+
+All application mutations use ASP.NET Core antiforgery validation. The browser first calls `GET /auth/antiforgery`, retains the returned `requestToken` in memory, and sends it as `X-Cycles-Antiforgery` with JSON `POST`, `PUT`, `PATCH`, and `DELETE` requests. The matching cookie is HttpOnly. Missing or mismatched tokens return `400 antiforgeryFailed` before the handler runs. Trusted login rotates the token. Sign-out uses a tokenised `POST /auth/logout`; no GET logout operation exists. The OIDC branch follows the provider sign-out redirect after the protected POST.
 
 The first configured admin bootstrap writes a high-severity audit record with target, reason, source revision, and timestamp. After verifying that initial access and audit record, remove the bootstrap identity from configuration so later routine revocation is not undone by a subsequent sign-in. Routine changes require an authenticated local admin and non-empty reason:
 
 ```http
 POST /admin/players/{playerId}/roles/admin
 Content-Type: application/json
+X-Cycles-Antiforgery: <request-token>
 
 { "reason": "Primary private-alpha operator" }
 ```
 
-Revocation uses `DELETE` on the same route with a reason body. Successful grants and revocations append actor/target audit records; routine revocation cannot remove the final active Human admin. While the legacy whole-state persistence bridge remains online, account and admin mutations deliberately take its global lock before narrower identity/admin locks; a busy response is retryable and performs no partial mutation.
+Revocation uses `DELETE` on the same route with a reason body. Successful grants and revocations append actor/target audit records; routine revocation cannot remove the final active Human admin. While operator/CLI whole-state paths remain executable, account and admin mutations deliberately take their global lock before narrower identity/admin locks; a busy response is retryable and performs no partial mutation.
 
 ### Break-Glass Admin Recovery
 

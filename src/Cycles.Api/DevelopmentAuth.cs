@@ -126,6 +126,27 @@ public static class DevelopmentAuth
         return fleet;
     }
 
+    public static Fleet RequireCommandableFleet(
+        GameState state,
+        DevelopmentActor actor,
+        GameCommandContext context,
+        Guid fleetId)
+    {
+        var fleet = state.Fleets.SingleOrDefault(item =>
+                item.CycleId == context.CycleId
+                && item.FleetId == fleetId)
+            ?? throw new ApiNotFoundException("Fleet does not exist in the selected Cycle.");
+
+        _ = RequireCommandableEmpire(state, actor, context);
+
+        if (!actor.IsAdmin && fleet.EmpireId != context.EmpireId)
+        {
+            throw new ApiForbiddenException("The authenticated player cannot command this fleet.");
+        }
+
+        return fleet;
+    }
+
     public static Empire? RequireCommandableEmpire(GameState state, DevelopmentActor actor)
     {
         if (actor.IsAdmin)
@@ -138,6 +159,32 @@ public static class DevelopmentAuth
         try
         {
             return state.RequireCommandableEmpire(cycle.CycleId, actor.Player.PlayerId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new ApiForbiddenException(exception.Message);
+        }
+    }
+
+    public static Empire? RequireCommandableEmpire(
+        GameState state,
+        DevelopmentActor actor,
+        GameCommandContext context)
+    {
+        if (actor.IsAdmin)
+        {
+            return actor.Empire;
+        }
+
+        try
+        {
+            var empire = state.RequireCommandableEmpire(context.CycleId, actor.Player.PlayerId);
+            if (empire.EmpireId != context.EmpireId)
+            {
+                throw new InvalidOperationException("The scoped empire authority no longer matches the active participant.");
+            }
+
+            return empire;
         }
         catch (InvalidOperationException exception)
         {
@@ -167,6 +214,27 @@ public static class DevelopmentAuth
         return playerEmpireId;
     }
 
+    public static Guid ResolveEmpireId(
+        GameState state,
+        DevelopmentActor actor,
+        GameCommandContext context,
+        Guid? requestedEmpireId = null)
+    {
+        if (actor.IsAdmin)
+        {
+            var empireId = requestedEmpireId ?? context.EmpireId;
+            EnsureEmpireExists(state, context.CycleId, empireId);
+            return empireId;
+        }
+
+        if (requestedEmpireId.HasValue && requestedEmpireId.Value != context.EmpireId)
+        {
+            throw new ApiForbiddenException("The authenticated player cannot act for another empire.");
+        }
+
+        return context.EmpireId;
+    }
+
     public static Guid ResolveOrderOwnerEmpireId(GameState state, DevelopmentActor actor, Guid fleetOrderId)
     {
         var cycle = state.GetActiveCycle()
@@ -184,6 +252,34 @@ public static class DevelopmentAuth
         if (!actor.IsAdmin)
         {
             _ = RequireCommandableEmpire(state, actor);
+        }
+
+        return fleet.EmpireId;
+    }
+
+    public static Guid ResolveOrderOwnerEmpireId(
+        GameState state,
+        DevelopmentActor actor,
+        GameCommandContext context,
+        Guid fleetOrderId)
+    {
+        var order = state.FleetOrders.SingleOrDefault(item =>
+                item.CycleId == context.CycleId
+                && item.FleetOrderId == fleetOrderId)
+            ?? throw new ApiNotFoundException("Fleet order does not exist in the selected Cycle.");
+        var fleet = state.Fleets.SingleOrDefault(item =>
+                item.CycleId == context.CycleId
+                && item.FleetId == order.FleetId)
+            ?? throw new InvalidOperationException("Fleet for order does not exist in the selected Cycle.");
+
+        if (!actor.IsAdmin && fleet.EmpireId != context.EmpireId)
+        {
+            throw new ApiForbiddenException("The authenticated player cannot cancel another empire's order.");
+        }
+
+        if (!actor.IsAdmin)
+        {
+            _ = RequireCommandableEmpire(state, actor, context);
         }
 
         return fleet.EmpireId;

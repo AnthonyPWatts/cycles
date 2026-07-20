@@ -32,31 +32,31 @@ internal static class SqlServerCycleScopeFixture
             INSERT INTO dbo.CycleConfigurations
                 (CycleConfigurationID, GameID, SequenceNumber, Status, ProvenanceStatus, MapProfileKey, MapProfileVersion,
                  MapProfileContentHash, MapSeed, ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash,
-                 ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, MinimumHumanSeats, MaximumHumanSeats,
+                 ScenarioSeed, CyclePolicyKey, CyclePolicyVersion, CyclePolicyContentHash, SchedulingMode, MinimumHumanSeats, MaximumHumanSeats,
                  ScheduledStartAt, ScheduledEndAt, TickLengthMinutes, CreatedAt, LockedAt, MaterializedAt, CancelledAt)
             VALUES
                 (@ConfigurationA, @GameA, 1, N'Materialized', N'Verified', N'scope-map', 1, NULL, 101,
-                 N'scope-scenario', 1, NULL, 201, N'scope-cycle-policy', 1, NULL, 1, 3,
+                 N'scope-scenario', 1, NULL, 201, N'scope-cycle-policy', 1, NULL, N'Scheduled', 1, 3,
                  @Now, DATEADD(DAY, 30, @Now), 60, @Now, @Now, @Now, NULL),
                 (@ConfigurationB, @GameB, 1, N'Materialized', N'Verified', N'scope-map', 1, NULL, 102,
-                 N'scope-scenario', 1, NULL, 202, N'scope-cycle-policy', 1, NULL, 1, 2,
+                 N'scope-scenario', 1, NULL, 202, N'scope-cycle-policy', 1, NULL, N'Scheduled', 1, 2,
                  @Now, DATEADD(DAY, 30, @Now), 60, @Now, @Now, @Now, NULL),
                 (@ConfigurationBUnused, @GameB, 2, N'Draft', N'Verified', N'scope-map', 1, NULL, 103,
-                 N'scope-scenario', 1, NULL, 203, N'scope-cycle-policy', 1, NULL, 1, 2,
+                 N'scope-scenario', 1, NULL, 203, N'scope-cycle-policy', 1, NULL, N'Scheduled', 1, 2,
                  NULL, NULL, 60, @Now, NULL, NULL, NULL);
 
             INSERT INTO dbo.Cycles
                 (CycleID, GameID, CycleConfigurationID, PreviousCycleID, Name, StartAt, EndAt, TickLengthMinutes,
                  CurrentTickNumber, Status, TurnStage, MapProfileKey, MapProfileVersion, MapProfileContentHash, MapSeed,
                  ScenarioProfileKey, ScenarioProfileVersion, ScenarioProfileContentHash, ScenarioSeed, CyclePolicyKey,
-                 CyclePolicyVersion, CyclePolicyContentHash, ProfileProvenanceStatus, CreatedByPlayerID, CreatedAt)
+                 CyclePolicyVersion, CyclePolicyContentHash, SchedulingMode, NextTickAt, ProfileProvenanceStatus, CreatedByPlayerID, CreatedAt)
             VALUES
                 (@CycleA, @GameA, @ConfigurationA, NULL, N'Scope Cycle A', @Now, DATEADD(DAY, 30, @Now), 60,
                  1, N'Active', N'CommandOpen', N'scope-map', 1, NULL, 101, N'scope-scenario', 1, NULL, 201,
-                 N'scope-cycle-policy', 1, NULL, N'Verified', @PlayerA, @Now),
+                 N'scope-cycle-policy', 1, NULL, N'Scheduled', @Now, N'Verified', @PlayerA, @Now),
                 (@CycleB, @GameB, @ConfigurationB, NULL, N'Scope Cycle B', @Now, DATEADD(DAY, 30, @Now), 60,
                  1, N'Active', N'CommandOpen', N'scope-map', 1, NULL, 102, N'scope-scenario', 1, NULL, 202,
-                 N'scope-cycle-policy', 1, NULL, N'Verified', @PlayerB, @Now);
+                 N'scope-cycle-policy', 1, NULL, N'Scheduled', @Now, N'Verified', @PlayerB, @Now);
 
             INSERT INTO dbo.GameEnrolments
                 (GameEnrolmentID, GameID, PlayerID, Status, Origin, OriginatingRequestID, EnrolledAt, StatusChangedAt, EndedAt)

@@ -470,9 +470,11 @@ public sealed partial class SqlServerGameStateStore
                AND enrolment.Status <> @WithdrawnEnrolmentStatus
             INNER JOIN dbo.Games AS game
                 ON game.GameID = enrolment.GameID
+               AND game.Status = @ActiveGameStatus
             INNER JOIN dbo.Cycles AS cycle
                 ON cycle.GameID = game.GameID
                AND cycle.CycleID = @CycleID
+               AND cycle.Status IN (@ActiveCycleStatus, @RecoveryCycleStatus)
             INNER JOIN dbo.MatchParticipants AS participant
                 ON participant.MatchParticipantID = @MatchParticipantID
                AND participant.GameID = game.GameID
@@ -500,6 +502,9 @@ public sealed partial class SqlServerGameStateStore
         AddString(command, "@ActivePlayerStatus", PlayerStatus.Active.ToString(), 32);
         AddString(command, "@HumanPlayerKind", PlayerKind.Human.ToString(), 32);
         AddString(command, "@WithdrawnEnrolmentStatus", GameEnrolmentStatus.Withdrawn.ToString(), 32);
+        AddString(command, "@ActiveGameStatus", GameLifecycleStatus.Active.ToString(), 32);
+        AddString(command, "@ActiveCycleStatus", CycleStatus.Active.ToString(), 32);
+        AddString(command, "@RecoveryCycleStatus", CycleStatus.RecoveryRequired.ToString(), 32);
         AddString(command, "@ActiveParticipantStatus", MatchParticipantStatus.Active.ToString(), 32);
         AddString(command, "@DefeatedParticipantStatus", MatchParticipantStatus.Defeated.ToString(), 32);
         AddString(command, "@CompletedParticipantStatus", MatchParticipantStatus.Completed.ToString(), 32);
@@ -642,7 +647,20 @@ public sealed partial class SqlServerGameStateStore
     private static bool ActiveCommandContextExists(
         SqlConnection connection,
         SqlTransaction transaction,
-        GameCommandContext context)
+        GameCommandContext context) =>
+        ActiveCommandContextExists(
+            connection,
+            transaction,
+            context,
+            requireOrganisePermission: context.GameAccess.Permissions.HasFlag(GamePermission.Organise),
+            requireAdministerPermission: context.GameAccess.Permissions.HasFlag(GamePermission.Administer));
+
+    private static bool ActiveCommandContextExists(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        GameCommandContext context,
+        bool requireOrganisePermission,
+        bool requireAdministerPermission)
     {
         using var command = CreateCommand(
             connection,
@@ -698,11 +716,11 @@ public sealed partial class SqlServerGameStateStore
         AddInt(
             command,
             "@RequireOrganisePermission",
-            context.GameAccess.Permissions.HasFlag(GamePermission.Organise) ? 1 : 0);
+            requireOrganisePermission ? 1 : 0);
         AddInt(
             command,
             "@RequireAdministerPermission",
-            context.GameAccess.Permissions.HasFlag(GamePermission.Administer) ? 1 : 0);
+            requireAdministerPermission ? 1 : 0);
         AddString(command, "@AdminPlayerRole", PlayerRole.Admin.ToString(), 32);
         return command.ExecuteScalar() is not null;
     }

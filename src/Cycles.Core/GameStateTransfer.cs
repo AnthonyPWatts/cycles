@@ -18,7 +18,7 @@ public sealed record GameStateValidationResult(IReadOnlyList<string> Errors)
 
 public static class GameStateTransfer
 {
-    public const int CurrentFormatVersion = 6;
+    public const int CurrentFormatVersion = 7;
 
     private static readonly JsonSerializerOptions TransferJsonOptions = CreateJsonOptions();
     private static readonly PropertyInfo[] PersistedCollections = typeof(GameState)
@@ -34,6 +34,7 @@ public static class GameStateTransfer
         UpgradeTransitTiming(state);
         UpgradeDoctrineUnlocks(state);
         EnrichLegacyGameFoundationForWrite(state);
+        CycleScheduling.NormalizePersistedSchedule(state);
         UpgradeLegacyMatchParticipantGameScope(state);
         BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
         BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
@@ -117,6 +118,20 @@ public static class GameStateTransfer
                 }
             }
 
+            if (formatVersion >= 7)
+            {
+                foreach (var configuration in RequireProperty(stateElement, "cycleConfigurations").EnumerateArray())
+                {
+                    _ = RequireProperty(configuration, "schedulingMode");
+                }
+
+                foreach (var cycle in RequireProperty(stateElement, "cycles").EnumerateArray())
+                {
+                    _ = RequireProperty(cycle, "schedulingMode");
+                    _ = RequireProperty(cycle, "nextTickAt");
+                }
+            }
+
             GameStateTransferDocument document;
             try
             {
@@ -143,6 +158,12 @@ public static class GameStateTransfer
                 UpgradeLegacyMatchParticipantGameScope(document.State);
                 BattleFleetParticipantCompatibility.UpgradeLegacyMembership(document.State);
                 BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(document.State);
+            }
+            if (formatVersion < 7)
+            {
+                CycleScheduling.NormalizePersistedSchedule(
+                    document.State,
+                    upgradeLegacyFormat: true);
             }
             StrategicPriorityPolicy.Normalize(document.State);
             var validation = Validate(document.State);
@@ -215,6 +236,7 @@ public static class GameStateTransfer
             UpgradeLegacyMatchParticipantGameScope(state);
             BattleFleetParticipantCompatibility.UpgradeLegacyMembership(state);
             BattleFleetParticipantCompatibility.SynchronizeLegacyFleetIds(state);
+            CycleScheduling.NormalizePersistedSchedule(state, upgradeLegacyFormat: true);
             StrategicPriorityPolicy.Normalize(state);
             var validation = Validate(state);
             if (!validation.IsValid)
@@ -977,6 +999,7 @@ public static class GameStateTransfer
             || !string.Equals(cycle.CyclePolicyKey, configuration.CyclePolicyKey, StringComparison.Ordinal)
             || cycle.CyclePolicyVersion != configuration.CyclePolicyVersion
             || !string.Equals(cycle.CyclePolicyContentHash, configuration.CyclePolicyContentHash, StringComparison.Ordinal)
+            || cycle.SchedulingMode != configuration.SchedulingMode
             || configuration.TickLengthMinutes.HasValue && configuration.TickLengthMinutes.Value != cycle.TickLengthMinutes
             || configuration.ScheduledStartAt.HasValue && configuration.ScheduledStartAt.Value != cycle.StartAt
             || (cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired
@@ -1046,6 +1069,19 @@ public static class GameStateTransfer
             if (cycle.Status == CycleStatus.Active && cycle.TurnStage != TurnResolutionStage.CommandOpen)
             {
                 errors.Add($"Active Cycle {cycle.CycleId} must have an open command window in committed state.");
+            }
+
+            if (cycle.NextTickAt.HasValue
+                && (cycle.Status != CycleStatus.Active
+                    || cycle.SchedulingMode != CycleSchedulingMode.Scheduled))
+            {
+                errors.Add($"Cycle {cycle.CycleId} has a next tick timestamp outside active scheduled play.");
+            }
+            else if (cycle.Status == CycleStatus.Active
+                     && cycle.SchedulingMode == CycleSchedulingMode.Scheduled
+                     && !cycle.NextTickAt.HasValue)
+            {
+                errors.Add($"Active scheduled Cycle {cycle.CycleId} has no next tick timestamp.");
             }
         }
 

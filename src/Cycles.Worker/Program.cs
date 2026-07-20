@@ -1,4 +1,4 @@
-using Cycles.Core;
+using Cycles.Application;
 using Cycles.Infrastructure.SqlServer;
 using Cycles.Worker;
 using Microsoft.Extensions.Configuration;
@@ -13,11 +13,11 @@ if (string.IsNullOrWhiteSpace(configuredSqlConnectionString))
 {
     throw new InvalidOperationException("Cycles.Worker requires a Cycles SQL connection string. Configure ConnectionStrings:Cycles or CYCLES_SQL_CONNECTION_STRING.");
 }
-Func<GameState>? developmentSeedFactory = builder.Environment.IsDevelopment()
-    ? () => GameSeeder.CreateCuratedColdStart()
-    : null;
-
-builder.Services.AddSingleton<IGameStateStore>(new SqlServerGameStateStore(configuredSqlConnectionString, developmentSeedFactory));
+builder.Services.AddSingleton(new SqlServerGameStateStore(configuredSqlConnectionString));
+builder.Services.AddSingleton<IDueCycleQuery>(services =>
+    services.GetRequiredService<SqlServerGameStateStore>());
+builder.Services.AddSingleton<ICycleResolutionStore>(services =>
+    services.GetRequiredService<SqlServerGameStateStore>());
 builder.Services.Configure<TickWorkerOptions>(builder.Configuration.GetSection("Cycles:Worker"));
 builder.Services.AddHostedService<TickWorker>();
 builder.Services.AddSingleton(TimeProvider.System);

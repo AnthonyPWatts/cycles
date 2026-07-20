@@ -35,6 +35,9 @@ public sealed class SqlServerDockerBootstrapTests
         Assert.Contains("COMMIT TRANSACTION;", script, StringComparison.Ordinal);
         Assert.Contains("DECLARE @SeededAt DATETIMEOFFSET = SYSDATETIMEOFFSET();", script, StringComparison.Ordinal);
         Assert.Contains("DATEADD(DAY, 90, @SeededAt)", script, StringComparison.Ordinal);
+        Assert.Contains("CyclePolicyContentHash, SchedulingMode, MinimumHumanSeats", script, StringComparison.Ordinal);
+        Assert.Contains("CyclePolicyContentHash, SchedulingMode, NextTickAt, ProfileProvenanceStatus", script, StringComparison.Ordinal);
+        Assert.Contains("N'Scheduled', @SeededAt, N'LegacyUnverified'", script, StringComparison.Ordinal);
         Assert.DoesNotContain("2026-07-15", script, StringComparison.Ordinal);
     }
 

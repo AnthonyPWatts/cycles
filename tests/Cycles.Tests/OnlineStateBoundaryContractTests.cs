@@ -4,25 +4,9 @@ namespace Cycles.Tests;
 
 public sealed class OnlineStateBoundaryContractTests
 {
-    private static readonly string[] ExpectedLegacyStoreTypeReferences =
-    [
-        "Api/ApiAdminEndpoints.cs|4",
-        "Api/ApiOrderEndpoints.cs|12",
-        "Api/DashboardBootstrapContext.cs|1",
-        "Api/Program.cs|20",
-        "Worker/Program.cs|1",
-        "Worker/TickWorker.cs|1"
-    ];
+    private static readonly string[] ExpectedLegacyStoreTypeReferences = [];
 
-    private static readonly string[] ExpectedLegacyStoreCalls =
-    [
-        "Api/ApiAdminEndpoints.cs|LoadOrCreate|1",
-        "Api/ApiAdminEndpoints.cs|RunTick|1",
-        "Api/ApiOrderEndpoints.cs|UpdateActiveCycleExclusively|6",
-        "Api/DashboardBootstrapContext.cs|LoadOrCreate|1",
-        "Api/Program.cs|LoadOrCreate|11",
-        "Worker/TickWorker.cs|RunTickIfDue|1"
-    ];
+    private static readonly string[] ExpectedLegacyStoreCalls = [];
 
     private static readonly Regex LegacyStoreTypePattern = new(
         @"\bIGameStateStore\b",

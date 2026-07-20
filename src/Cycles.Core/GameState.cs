@@ -254,6 +254,7 @@ public sealed class GameState
         CyclePolicyKey = item.CyclePolicyKey,
         CyclePolicyVersion = item.CyclePolicyVersion,
         CyclePolicyContentHash = item.CyclePolicyContentHash,
+        SchedulingMode = item.SchedulingMode,
         MinimumHumanSeats = item.MinimumHumanSeats,
         MaximumHumanSeats = item.MaximumHumanSeats,
         ScheduledStartAt = item.ScheduledStartAt,
@@ -319,6 +320,8 @@ public sealed class GameState
         CyclePolicyKey = item.CyclePolicyKey,
         CyclePolicyVersion = item.CyclePolicyVersion,
         CyclePolicyContentHash = item.CyclePolicyContentHash,
+        SchedulingMode = item.SchedulingMode,
+        NextTickAt = item.NextTickAt,
         ProfileProvenanceStatus = item.ProfileProvenanceStatus,
         CreatedByPlayerId = item.CreatedByPlayerId,
         CreatedAt = item.CreatedAt
@@ -724,6 +727,8 @@ public sealed class Cycle
     public string? CyclePolicyKey { get; set; }
     public int? CyclePolicyVersion { get; set; }
     public string? CyclePolicyContentHash { get; set; }
+    public CycleSchedulingMode SchedulingMode { get; set; } = CycleSchedulingMode.Scheduled;
+    public DateTimeOffset? NextTickAt { get; set; }
     public ProvenanceStatus? ProfileProvenanceStatus { get; set; }
     public Guid? CreatedByPlayerId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

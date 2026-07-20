@@ -519,6 +519,7 @@ public sealed class OrderAndTickTests
         var state = TestState.CreateSingleEmpireState();
         var cycle = state.GetActiveCycle()!;
         cycle.Status = CycleStatus.RecoveryRequired;
+        cycle.NextTickAt = null;
 
         Assert.Throws<InvalidOperationException>(() => new TickEngine().RunTick(state, cycle.CycleId, TestState.Now));
     }
@@ -553,6 +554,7 @@ public sealed class OrderAndTickTests
         var recoveryEvent = RecoveryService.ClearRecovery(state, cycle.CycleId, "admin", "restored missing resources", TestState.Now);
 
         Assert.Equal(CycleStatus.Active, cycle.Status);
+        Assert.Equal(TestState.Now, cycle.NextTickAt);
         Assert.Equal(EventType.RecoveryCleared, recoveryEvent.EventType);
         Assert.Equal(EventSeverity.High, recoveryEvent.Severity);
         Assert.Contains("admin", recoveryEvent.FactJson, StringComparison.Ordinal);

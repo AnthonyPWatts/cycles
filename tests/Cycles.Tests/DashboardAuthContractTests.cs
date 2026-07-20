@@ -20,7 +20,10 @@ public sealed class DashboardAuthContractTests
         Assert.Contains("elements.loginForm.hidden = false;", script);
         Assert.Contains("elements.sessionSummary.hidden = true;", script);
         Assert.Contains("elements.appShell.hidden = true;", script);
-        Assert.Contains("window.location.assign(\"/auth/logout\");", script);
+        Assert.Contains("form.method = \"post\";", script);
+        Assert.Contains("form.action = \"/auth/logout\";", script);
+        Assert.Contains("token.name = antiforgeryFormFieldName;", script);
+        Assert.DoesNotContain("window.location.assign(\"/auth/logout\");", script);
     }
 
     [Fact]
@@ -52,7 +55,8 @@ public sealed class DashboardAuthContractTests
         Assert.True(refreshEnd > refreshStart);
 
         var refreshFunction = script[refreshStart..refreshEnd];
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(refreshFunction, "getJson\\(").Cast<System.Text.RegularExpressions.Match>());
+        Assert.Contains("const bootstrap = state.gameId", refreshFunction);
+        Assert.Contains("gameApi.getJson(`/dashboard/bootstrap${selectedFleetQuery}`)", refreshFunction);
         Assert.Contains("getJson(`/dashboard/bootstrap${selectedFleetQuery}`)", refreshFunction);
         Assert.DoesNotContain("Promise.all", refreshFunction);
         Assert.DoesNotContain("/fleets/${state.selectedFleetId}", refreshFunction);

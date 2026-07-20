@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,13 +22,14 @@ public sealed class ApiOrderBoundaryTests
         var state = TestState.CreateMovementState(linkSystems: true, travelTicks: travelTicks);
         var fleet = Assert.Single(state.Fleets);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitMove(
             new MoveFleetRequest(fleet.FleetId, destination.SystemId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -53,13 +55,14 @@ public sealed class ApiOrderBoundaryTests
         var state = TestState.CreateMovementState(linkSystems: false);
         var fleet = Assert.Single(state.Fleets);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitMove(
             new MoveFleetRequest(fleet.FleetId, destination.SystemId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -75,13 +78,14 @@ public sealed class ApiOrderBoundaryTests
     {
         var state = TestState.CreateMovementState(linkSystems: true);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitMove(
             new MoveFleetRequest(Guid.NewGuid(), destination.SystemId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -101,11 +105,13 @@ public sealed class ApiOrderBoundaryTests
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
         OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
         new TickEngine().RunTick(state, cycle.CycleId, TestState.Now);
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.SubmitRecall(
             new RecallFleetRequest(fleet.FleetId),
             CreateAuthenticatedContext(state),
-            new InMemoryGameStateStore(state),
+            game.GameId,
+            game.Requests,
             TestState.Now.AddMinutes(1));
 
         var response = await ExecuteAsync(result);
@@ -121,11 +127,13 @@ public sealed class ApiOrderBoundaryTests
     {
         var state = TestState.CreateMovementState(linkSystems: true);
         var fleet = Assert.Single(state.Fleets);
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.SubmitRecall(
             new RecallFleetRequest(fleet.FleetId),
             CreateAuthenticatedContext(state),
-            new InMemoryGameStateStore(state),
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -140,13 +148,14 @@ public sealed class ApiOrderBoundaryTests
         var state = TestState.CreateSingleEmpireState();
         var fleet = Assert.Single(state.Fleets);
         var empire = Assert.Single(state.Empires);
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, empire.EmpireId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -161,13 +170,14 @@ public sealed class ApiOrderBoundaryTests
     {
         var state = TestState.CreateSingleEmpireState();
         var fleet = Assert.Single(state.Fleets);
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, Guid.NewGuid()),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -182,11 +192,13 @@ public sealed class ApiOrderBoundaryTests
     {
         var state = TestState.CreateSingleEmpireState();
         var fleet = Assert.Single(state.Fleets);
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, null),
             CreateAuthenticatedContext(state),
-            new InMemoryGameStateStore(state),
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -224,11 +236,13 @@ public sealed class ApiOrderBoundaryTests
             Status = FleetStatus.Active,
             CreatedAt = TestState.Now
         });
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(attacker.FleetId, secondEmpire.EmpireId),
             CreateAuthenticatedContext(state, state.Players.Single(player => player.PlayerId == firstEmpire.PlayerId)),
-            new InMemoryGameStateStore(state),
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -246,20 +260,22 @@ public sealed class ApiOrderBoundaryTests
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
         var fleet = state.Fleets.Single(item => item.EmpireId == firstEmpire.EmpireId);
         var player = state.Players.Single(item => item.PlayerId == firstEmpire.PlayerId);
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state, player);
 
         var firstResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, secondEmpire.EmpireId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now));
         var pending = Assert.Single(state.FleetOrders);
 
         var conflictResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, null),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now.AddSeconds(1)));
 
         Assert.Equal(StatusCodes.Status200OK, firstResponse.StatusCode);
@@ -270,7 +286,8 @@ public sealed class ApiOrderBoundaryTests
         var replacementResponse = await ExecuteAsync(ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(fleet.FleetId, null, pending.FleetOrderId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now.AddSeconds(2)));
         var replacement = state.FleetOrders.Single(order => order.Status == FleetOrderStatus.Pending);
 
@@ -287,13 +304,14 @@ public sealed class ApiOrderBoundaryTests
         var fleet = Assert.Single(state.Fleets);
         fleet.CurrentSystemId = state.Systems.Single(system => system.SystemName == "Destination").SystemId;
         state.EmpireResources.Single().Population = OrderService.ColonisationPopulationCost;
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.SubmitColonise(
             new ColoniseFleetRequest(fleet.FleetId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -315,13 +333,14 @@ public sealed class ApiOrderBoundaryTests
         var firstPlayer = state.Players.Single(player => player.Username == "first");
         var secondFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires.Single(empire => empire.EmpireName == "Second").EmpireId);
         state.EmpireResources.Single(resource => resource.EmpireId == secondFleet.EmpireId).Population = OrderService.ColonisationPopulationCost;
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state, firstPlayer);
 
         var result = ApiOrderEndpoints.SubmitColonise(
             new ColoniseFleetRequest(secondFleet.FleetId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -338,13 +357,14 @@ public sealed class ApiOrderBoundaryTests
         var fleet = Assert.Single(state.Fleets);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
         var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.Cancel(
             new CancelFleetOrderRequest(order.FleetOrderId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -363,13 +383,14 @@ public sealed class ApiOrderBoundaryTests
         var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
         order.Status = FleetOrderStatus.Processed;
         order.ProcessedTick = 1;
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.Cancel(
             new CancelFleetOrderRequest(order.FleetOrderId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -390,11 +411,13 @@ public sealed class ApiOrderBoundaryTests
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
         var order = OrderService.SubmitMoveOrder(state, fleet.FleetId, destination.SystemId, TestState.Now);
         MatchControl.DefeatEmpire(state, empire.EmpireId, TestState.Now.AddMinutes(1));
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.Cancel(
             new CancelFleetOrderRequest(order.FleetOrderId),
             CreateAuthenticatedContext(state, player),
-            new InMemoryGameStateStore(state),
+            game.GameId,
+            game.Requests,
             TestState.Now.AddMinutes(2));
         var response = await ExecuteAsync(result);
 
@@ -406,13 +429,14 @@ public sealed class ApiOrderBoundaryTests
     public async Task PriorityEndpointRejectsWeightsThatDoNotTotalOneHundred()
     {
         var state = TestState.CreateSingleEmpireState();
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.UpdatePriorities(
             new PriorityRequest(null, 25, 25, 25, 20),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -426,13 +450,14 @@ public sealed class ApiOrderBoundaryTests
     public async Task PriorityEndpointRejectsInactiveWeights()
     {
         var state = TestState.CreateSingleEmpireState();
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state);
 
         var result = ApiOrderEndpoints.UpdatePriorities(
             new PriorityRequest(null, 1, 0, 66, 33),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -448,12 +473,13 @@ public sealed class ApiOrderBoundaryTests
         var state = TestState.CreateMovementState(linkSystems: true);
         var fleet = Assert.Single(state.Fleets);
         var destination = state.Systems.Single(system => system.SystemName == "Destination");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
 
         var result = ApiOrderEndpoints.SubmitMove(
             new MoveFleetRequest(fleet.FleetId, destination.SystemId),
             new DefaultHttpContext(),
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -470,13 +496,14 @@ public sealed class ApiOrderBoundaryTests
         var firstPlayer = state.Players.Single(player => player.Username == "first");
         var secondFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires.Single(empire => empire.EmpireName == "Second").EmpireId);
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state, firstPlayer);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(secondFleet.FleetId, firstEmpire.EmpireId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -493,13 +520,14 @@ public sealed class ApiOrderBoundaryTests
         admin.Role = PlayerRole.Admin;
         var secondFleet = state.Fleets.Single(fleet => fleet.EmpireId == state.Empires.Single(empire => empire.EmpireName == "Second").EmpireId);
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state, admin);
 
         var result = ApiOrderEndpoints.SubmitAttack(
             new AttackFleetRequest(secondFleet.FleetId, firstEmpire.EmpireId),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -514,13 +542,14 @@ public sealed class ApiOrderBoundaryTests
         var state = TestState.CreateTwoEmpireContest(attackerShips: 20, defenderShips: 20);
         var firstPlayer = state.Players.Single(player => player.Username == "first");
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
-        var store = new InMemoryGameStateStore(state);
+        var game = new FocusedSelectedGameFixture(state);
         var httpContext = CreateAuthenticatedContext(state, firstPlayer);
 
         var result = ApiOrderEndpoints.UpdatePriorities(
             new PriorityRequest(secondEmpire.EmpireId, 25, 25, 25, 25),
             httpContext,
-            store,
+            game.GameId,
+            game.Requests,
             TestState.Now);
 
         var response = await ExecuteAsync(result);
@@ -561,26 +590,148 @@ public sealed class ApiOrderBoundaryTests
         return services.BuildServiceProvider();
     }
 
-    private sealed class InMemoryGameStateStore(GameState state) : IGameStateStore
+    private sealed class FocusedSelectedGameFixture :
+        IPlayerAccountQuery,
+        IGameAccessQuery,
+        IGameCommandAccessQuery,
+        ICycleViewQuery,
+        ICycleCommandStore
     {
-        public string Description => "In-memory test state";
+        private static readonly Guid SyntheticGameId = new("b358ff83-c7fd-4d44-90a4-bab7fa85ca72");
+        private readonly GameState state;
+        private readonly Cycle cycle;
 
-        public GameState LoadOrCreate() => state;
-
-        public T Update<T>(Func<GameState, T> update) => update(state);
-
-        public TickResult RunTick(DateTimeOffset now)
+        public FocusedSelectedGameFixture(GameState state)
         {
-            var cycle = state.GetActiveCycle()
-                ?? throw new InvalidOperationException("No active cycle exists.");
-            return new TickEngine().RunTick(state, cycle.CycleId, now);
+            this.state = state;
+            cycle = state.GetActiveCycle()
+                ?? throw new InvalidOperationException("The focused API test state requires one active Cycle.");
+            GameId = cycle.GameId.GetValueOrDefault() is { } gameId && gameId != Guid.Empty
+                ? gameId
+                : SyntheticGameId;
+            Requests = new SelectedGameRequestService(this, this, this, this, this);
         }
 
-        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
+        public Guid GameId { get; }
 
-        public void Replace(GameState replacement)
+        public SelectedGameRequestService Requests { get; }
+
+        public PlayerAccountSnapshot? Get(Guid playerId)
         {
-            throw new NotSupportedException("Replacement is not needed for API boundary tests.");
+            var player = state.Players.SingleOrDefault(item => item.PlayerId == playerId);
+            return player is null
+                ? null
+                : new PlayerAccountSnapshot(
+                    player.PlayerId,
+                    player.Username,
+                    player.Kind,
+                    player.Role,
+                    player.Status,
+                    player.CreatedAt,
+                    player.LastLoginAt);
         }
+
+        public GameAccessSnapshot? Get(Guid playerId, Guid gameId)
+        {
+            if (gameId != GameId || state.Players.All(item => item.PlayerId != playerId))
+            {
+                return null;
+            }
+
+            var participant = state.MatchParticipants.SingleOrDefault(item =>
+                item.CycleId == cycle.CycleId && item.PlayerId == playerId);
+            return new GameAccessSnapshot(
+                playerId,
+                GameId,
+                "Focused API test Game",
+                GamePurpose.Standard,
+                GameLifecycleStatus.Active,
+                GameVisibility.Private,
+                cycle.CreatedByPlayerId,
+                participant?.MatchParticipantId,
+                participant is null ? null : GameEnrolmentStatus.Enrolled,
+                cycle.CycleId,
+                cycle.Status,
+                cycle.CurrentTickNumber,
+                cycle.TurnStage);
+        }
+
+        public GameCommandContext? Get(Guid playerId, GameCycleScope scope)
+        {
+            if (scope.GameId != GameId || scope.CycleId != cycle.CycleId)
+            {
+                return null;
+            }
+
+            var player = state.Players.SingleOrDefault(item => item.PlayerId == playerId);
+            var participant = state.MatchParticipants.SingleOrDefault(item =>
+                item.CycleId == cycle.CycleId && item.PlayerId == playerId);
+            var empire = participant is null
+                ? null
+                : state.Empires.SingleOrDefault(item =>
+                    item.CycleId == cycle.CycleId && item.EmpireId == participant.EmpireId);
+            if (player is null || participant is null || empire is null)
+            {
+                return null;
+            }
+
+            var permissions = GamePermission.Read;
+            if (cycle.CreatedByPlayerId == playerId)
+            {
+                permissions |= GamePermission.Organise;
+            }
+
+            if (player.Role == PlayerRole.Admin)
+            {
+                permissions |= GamePermission.Administer;
+            }
+
+            return new GameCommandContext(
+                new GameAccessContext(
+                    playerId,
+                    GameId,
+                    participant.MatchParticipantId,
+                    permissions),
+                cycle.CycleId,
+                participant.MatchParticipantId,
+                empire.EmpireId);
+        }
+
+        public ScopedQueryResult<T> Query<T>(
+            GameCommandContext context,
+            Func<GameState, T> projection) =>
+            ContextMatches(context)
+                ? new ScopedQueryResult<T>.Success(projection(state))
+                : new ScopedQueryResult<T>.Unavailable();
+
+        public ScopedCommandResult<T> Execute<T>(
+            GameCommandContext context,
+            Func<GameState, T> command)
+        {
+            if (!ContextMatches(context)
+                || cycle.Status != CycleStatus.Active
+                || state.MatchParticipants.Single(item =>
+                    item.MatchParticipantId == context.MatchParticipantId).Status != MatchParticipantStatus.Active
+                || state.Empires.Single(item => item.EmpireId == context.EmpireId).Status != EmpireStatus.Active)
+            {
+                return new ScopedCommandResult<T>.Unavailable();
+            }
+
+            return new ScopedCommandResult<T>.Success(command(state));
+        }
+
+        private bool ContextMatches(GameCommandContext context) =>
+            context.GameAccess.GameId == GameId
+            && context.CycleId == cycle.CycleId
+            && state.Players.Any(item => item.PlayerId == context.GameAccess.PlayerId)
+            && state.MatchParticipants.Any(item =>
+                item.MatchParticipantId == context.MatchParticipantId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == context.GameAccess.PlayerId
+                && item.EmpireId == context.EmpireId)
+            && state.Empires.Any(item =>
+                item.EmpireId == context.EmpireId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == context.GameAccess.PlayerId);
     }
 }

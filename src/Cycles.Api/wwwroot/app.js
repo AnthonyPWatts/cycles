@@ -3,6 +3,7 @@ const state = {
     username: null,
     role: null,
     canAdvanceTurn: false,
+    gameId: null,
     cycle: null,
     empire: null,
     galaxy: null,
@@ -38,6 +39,15 @@ const state = {
 };
 
 const viewIds = ["command", "galaxy", "fleets", "history"];
+const antiforgeryEndpoint = "/auth/antiforgery";
+const antiforgeryHeaderName = "X-Cycles-Antiforgery";
+const antiforgeryFormFieldName = "__RequestVerificationToken";
+const antiforgeryErrorCode = "antiforgeryFailed";
+const gameIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let antiforgeryRequestToken = null;
+let antiforgeryTokenPromise = null;
+let antiforgeryReady = false;
+const gameApi = createGameApi();
 const cycleTurnLimit = 150;
 const priorityKeys = ["industryWeight", "researchWeight", "militaryWeight", "expansionWeight"];
 const inactivePriorityKeys = ["industryWeight", "researchWeight"];
@@ -439,7 +449,7 @@ async function advanceTurn() {
     elements.commandAdvanceTurnButton.disabled = true;
     elements.confirmAdvanceTurnButton.disabled = true;
     try {
-        const result = await postJson("/admin/tick", {});
+        const result = await gameApi.postJson("/admin/tick", {});
         setTurnMessage(`Published T${result.tickNumber}: ${formatCount(result.ordersProcessed, "sealed fleet intention")}, ${formatCount(result.eventsCreated, "event")}, ${formatCount(result.battlesCreated, "battle")}, ${formatCount(result.chronicleEntriesCreated, "Chronicle entry", "Chronicle entries")}. Display order did not grant initiative.`);
         await refresh();
     } catch (error) {
@@ -728,11 +738,15 @@ elements.priorityForm.addEventListener("submit", async event => {
     state.prioritySaving = true;
     renderPriorityControls();
     try {
-        await postJson("/orders/priorities", payload);
+        await gameApi.putJson("/priorities", payload);
         await refresh();
         setPriorityMessage("Priorities saved for the next tick.");
         completeTutorialAction("prioritiesSaved");
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         setPriorityMessage(error.message);
     } finally {
         state.prioritySaving = false;
@@ -772,10 +786,14 @@ elements.moveForm.addEventListener("submit", async event => {
     }
 
     try {
-        await postJson("/orders/fleet/move", { fleetId, targetSystemId, replacesOrderId: replacement.replacesOrderId });
+        await gameApi.postJson("/orders/move", { fleetId, targetSystemId, replacesOrderId: replacement.replacesOrderId });
         setMessage(replacement.replacesOrderId ? "Move order replaced." : "Move order queued.");
         await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         if (error.code === "stateConflict") {
             await refresh();
         }
@@ -830,10 +848,14 @@ elements.attackForm.addEventListener("submit", async event => {
     }
 
     try {
-        await postJson("/orders/fleet/attack", { fleetId, targetEmpireId: null, targetFactionId, replacesOrderId: replacement.replacesOrderId });
+        await gameApi.postJson("/orders/attack", { fleetId, targetEmpireId: null, targetFactionId, replacesOrderId: replacement.replacesOrderId });
         setMessage(replacement.replacesOrderId ? "Attack order replaced." : "Attack order queued.");
         await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         if (error.code === "stateConflict") {
             await refresh();
         }
@@ -873,10 +895,14 @@ elements.coloniseForm.addEventListener("submit", async event => {
     }
 
     try {
-        await postJson("/orders/fleet/colonise", { fleetId, replacesOrderId: replacement.replacesOrderId });
+        await gameApi.postJson("/orders/colonise", { fleetId, replacesOrderId: replacement.replacesOrderId });
         setMessage(replacement.replacesOrderId ? "Colonisation order replaced." : "Colonisation order queued.");
         await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         if (error.code === "stateConflict") {
             await refresh();
         }
@@ -938,8 +964,14 @@ elements.orderHistory.addEventListener("click", event => {
 
 async function boot() {
     try {
+        await requireAntiforgeryToken();
         await refresh({ applySessionFromBootstrap: true });
     } catch (error) {
+        if (!antiforgeryReady) {
+            showLogin("Secure session setup failed. Refresh the page to try again.");
+            return;
+        }
+
         await loadTrustedPlayers();
         showLogin("Choose a player to continue.");
         elements.username.focus();
@@ -967,6 +999,8 @@ async function login(playerId) {
 
     try {
         const login = await postJson("/auth/login", { playerId });
+        clearAntiforgeryToken();
+        await requireAntiforgeryToken();
         applySession(login);
         writeStoredValue("cycles.username", login.username);
         writeStoredValue("cycles.playerId", login.playerId);
@@ -980,14 +1014,34 @@ async function login(playerId) {
 
 async function signOut() {
     elements.signOutButton.disabled = true;
-    window.location.assign("/auth/logout");
+    try {
+        clearAntiforgeryToken();
+        const requestToken = await requireAntiforgeryToken();
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = "/auth/logout";
+        form.hidden = true;
+
+        const token = document.createElement("input");
+        token.type = "hidden";
+        token.name = antiforgeryFormFieldName;
+        token.value = requestToken;
+        form.append(token);
+        document.body.append(form);
+        form.submit();
+    } catch (error) {
+        elements.signOutButton.disabled = false;
+        setMessage(error.message);
+    }
 }
 
 function applySession(login) {
     const playerChanged = state.playerId !== login.playerId;
     if (state.playerId && playerChanged) {
         resetTutorialContext();
+        clearSelectedGame();
     }
+    selectGame(login.gameId);
     if (playerChanged) {
         state.orderHistoryLimit = 20;
     }
@@ -1012,6 +1066,7 @@ function applySession(login) {
 }
 
 function showLogin(message) {
+    clearSelectedGame();
     if (state.playerId) {
         resetTutorialContext();
     }
@@ -1030,15 +1085,62 @@ function showLogin(message) {
     document.body.classList.remove("dashboard-active");
 }
 
+function selectGame(gameId) {
+    const selection = gameApi.selectGame(gameId);
+    if (selection.changed) {
+        clearGameScopedState();
+    }
+
+    state.gameId = selection.gameId;
+    return selection;
+}
+
+function clearSelectedGame() {
+    gameApi.clearGame();
+    state.gameId = null;
+    clearGameScopedState();
+}
+
+function clearGameScopedState() {
+    state.cycle = null;
+    state.empire = null;
+    state.galaxy = null;
+    state.selectedSystemId = null;
+    state.selectedSectorId = null;
+    state.selectedFleetId = null;
+    state.fleetDetail = null;
+    state.fleets = [];
+    state.orders = [];
+    state.events = [];
+    state.chronicle = [];
+    state.openingBriefing = null;
+    state.turnResolution = null;
+    state.priorityDraft = null;
+    state.prioritySaving = false;
+}
+
 async function refresh({ applySessionFromBootstrap = false } = {}) {
     const selectedFleetQuery = state.selectedFleetId
         ? `?selectedFleetId=${encodeURIComponent(state.selectedFleetId)}`
         : "";
-    const bootstrap = await getJson(`/dashboard/bootstrap${selectedFleetQuery}`);
+    const bootstrap = state.gameId
+        ? await gameApi.getJson(`/dashboard/bootstrap${selectedFleetQuery}`)
+        : await getJson(`/dashboard/bootstrap${selectedFleetQuery}`);
+    if (!bootstrap?.gameId) {
+        throw new Error("The dashboard bootstrap did not identify its Game.");
+    }
+
+    const bootstrapGameId = String(bootstrap.gameId).toLowerCase();
+    if (!state.gameId) {
+        selectGame(bootstrapGameId);
+    } else if (bootstrapGameId !== state.gameId) {
+        throw createGameRequestCancellation();
+    }
+
     const { cycle, empire, galaxy, fleets, orders, events, chronicle, openingBriefing, turnResolution } = bootstrap;
 
     if (applySessionFromBootstrap) {
-        applySession({ ...bootstrap.session, empire });
+        applySession({ ...bootstrap.session, gameId: bootstrap.gameId, empire });
     }
 
     state.empire = empire;
@@ -1276,6 +1378,10 @@ function renderTurnResolution(turnResolution) {
 }
 
 function commandsAreOpen() {
+    if (!antiforgeryReady || !state.gameId) {
+        return false;
+    }
+
     if (state.turnResolution) {
         return state.turnResolution.commandsAccepted;
     }
@@ -2472,10 +2578,14 @@ async function cancelOrder(fleetOrderId) {
     }
 
     try {
-        await postJson("/orders/fleet/cancel", { fleetOrderId });
+        await gameApi.deleteJson(`/orders/${encodeURIComponent(fleetOrderId)}`);
         setMessage("Order cancelled.");
         await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         setMessage(error.message);
     }
 }
@@ -2510,10 +2620,14 @@ async function recallFleet(fleetId) {
     }
 
     try {
-        await postJson("/orders/fleet/recall", { fleetId });
+        await gameApi.postJson("/orders/recall", { fleetId });
         setMessage("Recall order queued.");
         await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         setMessage(error.message);
     }
 }
@@ -4219,13 +4333,12 @@ function setMapMaximised(maximised) {
 async function selectFleet(fleetId) {
     state.selectedFleetId = fleetId;
     try {
-        state.fleetDetail = await getJson(`/fleets/${fleetId}`);
-        renderFleets(state.fleets);
-        renderFleetDetails();
-        renderOrders();
-        renderOrderHistory();
-        syncTutorialDisplay();
+        await refresh();
     } catch (error) {
+        if (isGameRequestCancellation(error)) {
+            return;
+        }
+
         setMessage(error.message);
     }
 }
@@ -4312,18 +4425,166 @@ function formatAdmiral(admiral) {
     return `${admiral.admiralName} (${formatNumber(admiral.reputationScore)} rep, ${formatStatus(admiral.status)})`;
 }
 
-async function getJson(url) {
-    const response = await fetch(url);
-    return readResponse(response);
+function createGameApi() {
+    let selectedGameId = null;
+    let generation = 0;
+    let controller = null;
+
+    function selectGame(gameId) {
+        const normalisedGameId = String(gameId ?? "").trim().toLowerCase();
+        if (!gameIdPattern.test(normalisedGameId)
+            || normalisedGameId === "00000000-0000-0000-0000-000000000000") {
+            throw new Error("The server did not identify a valid Game.");
+        }
+
+        if (selectedGameId === normalisedGameId && controller) {
+            return { gameId: selectedGameId, generation, changed: false };
+        }
+
+        controller?.abort();
+        selectedGameId = normalisedGameId;
+        generation += 1;
+        controller = new AbortController();
+        return { gameId: selectedGameId, generation, changed: true };
+    }
+
+    function clearGame() {
+        controller?.abort();
+        selectedGameId = null;
+        generation += 1;
+        controller = null;
+    }
+
+    function captureRequest() {
+        if (!selectedGameId || !controller) {
+            throw new Error("A Game must be selected before making a gameplay request.");
+        }
+
+        return {
+            gameId: selectedGameId,
+            generation,
+            signal: controller.signal
+        };
+    }
+
+    function isCurrent(request) {
+        return selectedGameId === request.gameId
+            && generation === request.generation
+            && controller?.signal === request.signal
+            && !request.signal.aborted;
+    }
+
+    async function requestJson(path, options = {}) {
+        if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
+            throw new Error("Game API paths must be root-relative paths within the selected Game.");
+        }
+
+        const request = captureRequest();
+        try {
+            const result = await requestJsonCore(
+                `/games/${encodeURIComponent(request.gameId)}${path}`,
+                { ...options, signal: request.signal });
+            if (!isCurrent(request)) {
+                throw createGameRequestCancellation();
+            }
+
+            return result;
+        } catch (error) {
+            if (!isCurrent(request) || isGameRequestCancellation(error)) {
+                throw createGameRequestCancellation();
+            }
+
+            throw error;
+        }
+    }
+
+    return Object.freeze({
+        selectGame,
+        clearGame,
+        getJson: path => requestJson(path),
+        postJson: (path, body) => requestJson(path, { method: "POST", body }),
+        putJson: (path, body) => requestJson(path, { method: "PUT", body }),
+        deleteJson: path => requestJson(path, { method: "DELETE" })
+    });
 }
 
-async function postJson(url, body) {
+function createGameRequestCancellation() {
+    return new DOMException("The selected Game changed before the request completed.", "AbortError");
+}
+
+function isGameRequestCancellation(error) {
+    return error?.name === "AbortError";
+}
+
+function clearAntiforgeryToken() {
+    antiforgeryRequestToken = null;
+    antiforgeryTokenPromise = null;
+    antiforgeryReady = false;
+}
+
+async function requireAntiforgeryToken() {
+    if (antiforgeryRequestToken) {
+        return antiforgeryRequestToken;
+    }
+
+    antiforgeryTokenPromise ??= requestJsonCore(antiforgeryEndpoint)
+        .then(payload => {
+            if (!payload?.requestToken) {
+                throw new Error("The server did not issue a security token.");
+            }
+
+            antiforgeryRequestToken = payload.requestToken;
+            antiforgeryReady = true;
+            return antiforgeryRequestToken;
+        })
+        .finally(() => {
+            antiforgeryTokenPromise = null;
+        });
+    return antiforgeryTokenPromise;
+}
+
+async function getJson(url, options = {}) {
+    return requestJsonCore(url, options);
+}
+
+async function postJson(url, body, options = {}) {
+    return requestJsonCore(url, { ...options, method: "POST", body });
+}
+
+async function requestJsonCore(url, { method = "GET", body, signal } = {}) {
+    const normalisedMethod = method.toUpperCase();
+    const stateChanging = !["GET", "HEAD", "OPTIONS"].includes(normalisedMethod);
+    const headers = { Accept: "application/json" };
+    if (body !== undefined) {
+        headers["Content-Type"] = "application/json";
+    }
+
+    if (stateChanging) {
+        headers[antiforgeryHeaderName] = await requireAntiforgeryToken();
+    }
+
     const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        method: normalisedMethod,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        credentials: "same-origin",
+        signal
     });
-    return readResponse(response);
+
+    try {
+        return await readResponse(response);
+    } catch (error) {
+        if (stateChanging && error.code === antiforgeryErrorCode) {
+            clearAntiforgeryToken();
+            try {
+                await requireAntiforgeryToken();
+            } catch {
+                // Keep mutation controls disabled. The original request is never replayed.
+            }
+        }
+
+        throw error;
+    }
 }
 
 async function readResponse(response) {

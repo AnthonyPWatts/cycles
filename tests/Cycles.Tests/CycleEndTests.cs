@@ -11,6 +11,7 @@ public sealed class CycleEndTests
         var state = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
         var cycle = state.GetActiveCycle() ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
         cycle.CurrentTickNumber = 12;
+        cycle.NextTickAt = TestState.Now.AddMinutes(30);
         var firstEmpire = state.Empires.Single(empire => empire.EmpireName == "First");
         var secondEmpire = state.Empires.Single(empire => empire.EmpireName == "Second");
         LegacyGameFoundation.Apply(state);
@@ -20,6 +21,7 @@ public sealed class CycleEndTests
         var rankings = CycleEndService.CompleteCycle(state, cycle.CycleId, TestState.Now);
 
         Assert.Equal(CycleStatus.Completed, cycle.Status);
+        Assert.Null(cycle.NextTickAt);
         Assert.Equal(2, rankings.Count);
         Assert.Equal(2, state.CycleRankings.Count);
 
@@ -217,12 +219,15 @@ public sealed class CycleEndTests
 
         Assert.Equal(CycleStatus.Active, nextCycle.Status);
         Assert.Equal(TestState.Now.AddDays(1), nextCycle.StartAt);
+        Assert.Equal(CycleSchedulingMode.Scheduled, nextCycle.SchedulingMode);
+        Assert.Equal(nextCycle.StartAt, nextCycle.NextTickAt);
         Assert.Equal(sourceCycle.CycleId, nextCycle.PreviousCycleId);
         Assert.Equal(GameFoundationConstants.LegacyGameId, nextCycle.GameId);
         Assert.Contains(state.CycleConfigurations, configuration =>
             configuration.CycleConfigurationId == nextCycle.CycleConfigurationId
             && configuration.GameId == nextCycle.GameId
-            && configuration.SequenceNumber == 2);
+            && configuration.SequenceNumber == 2
+            && configuration.SchedulingMode == nextCycle.SchedulingMode);
         Assert.Equal(GameLifecycleStatus.Active, Assert.Single(state.Games).Status);
         Assert.Equal(9876, result.Seed);
         Assert.Equal(2, nextEmpires.Length);

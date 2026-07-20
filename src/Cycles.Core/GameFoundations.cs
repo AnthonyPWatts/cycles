@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace Cycles.Core;
@@ -133,6 +130,8 @@ public static class LegacyGameFoundation
                 CreatedAt = gameCreatedAt
             });
         }
+
+        CycleScheduling.NormalizePersistedSchedule(state);
     }
 
     public static void ApplyLifecycleTransition(GameState state)
@@ -145,158 +144,7 @@ public static class LegacyGameFoundation
         }
 
         ValidateLifecycleTransitionScope(state);
-
-        var operationalCycles = state.Cycles
-            .Where(cycle => cycle.Status is CycleStatus.Active or CycleStatus.RecoveryRequired)
-            .ToArray();
-        if (operationalCycles.Length > 1)
-        {
-            throw new InvalidOperationException(
-                "Legacy Game lifecycle transition requires at most one operational Cycle; the stored state contains more than one.");
-        }
-
-        var game = state.Games.SingleOrDefault()
-            ?? throw new InvalidOperationException(
-                "Legacy Game lifecycle transition requires an existing Game foundation.");
-        if (game.Status is GameLifecycleStatus.Cancelled or GameLifecycleStatus.Terminated
-            || game.CancelledAt.HasValue
-            || game.TerminatedAt.HasValue)
-        {
-            throw new InvalidOperationException(
-                "The fixed legacy Game cannot transition after cancellation or termination.");
-        }
-
-        var previousStatus = game.Status;
-        var nextStatus = operationalCycles.Length == 1
-            ? GameLifecycleStatus.Active
-            : GameLifecycleStatus.Completed;
-        DateTimeOffset? completedAt = nextStatus == GameLifecycleStatus.Completed
-            ? state.Cycles.Max(cycle => cycle.EndAt)
-            : null;
-        var transitionCycle = nextStatus == GameLifecycleStatus.Active
-            ? operationalCycles[0]
-            : state.Cycles
-                .OrderByDescending(cycle => cycle.EndAt)
-                .ThenBy(cycle => cycle.CycleId)
-                .First();
-        var transitionAt = nextStatus == GameLifecycleStatus.Active
-            ? transitionCycle.StartAt
-            : completedAt!.Value;
-
-        game.Status = nextStatus;
-        game.CompletedAt = completedAt;
-
-        foreach (var participantGroup in state.MatchParticipants
-                     .GroupBy(participant => participant.PlayerId)
-                     .OrderBy(group => group.Key))
-        {
-            var participants = participantGroup
-                .OrderByDescending(participant => participant.JoinedAt)
-                .ThenBy(participant => participant.MatchParticipantId)
-                .ToArray();
-            var operationalParticipant = operationalCycles.Length == 0
-                ? null
-                : participants.SingleOrDefault(participant => participant.CycleId == operationalCycles[0].CycleId);
-            var status = ResolveEnrolmentStatus(operationalParticipant, game.Status);
-            var statusChangedAt = ResolveStatusChangedAt(
-                participants.Max(participant => participant.EndedAt ?? participant.JoinedAt),
-                operationalParticipant,
-                game,
-                status);
-            var enrolment = state.GameEnrolments.SingleOrDefault(item =>
-                    item.GameId == GameFoundationConstants.LegacyGameId
-                    && item.PlayerId == participantGroup.Key)
-                ?? throw new InvalidOperationException(
-                    $"Legacy Game lifecycle transition found no enrolment for player {participantGroup.Key}.");
-
-            enrolment.Status = status;
-            enrolment.StatusChangedAt = statusChangedAt;
-            enrolment.EndedAt = status is GameEnrolmentStatus.Completed or GameEnrolmentStatus.Withdrawn
-                ? statusChangedAt
-                : null;
-        }
-
-        if (previousStatus != nextStatus)
-        {
-            AppendStatusChangedEvent(
-                state,
-                game.GameId,
-                transitionCycle.CycleId,
-                transitionAt,
-                previousStatus,
-                nextStatus);
-        }
-    }
-
-    private static void AppendStatusChangedEvent(
-        GameState state,
-        Guid gameId,
-        Guid cycleId,
-        DateTimeOffset transitionAt,
-        GameLifecycleStatus fromStatus,
-        GameLifecycleStatus toStatus)
-    {
-        var factJson = JsonSerializer.Serialize(new
-        {
-            source = "legacy-game-lifecycle-transition",
-            schemaVersion = 1,
-            cycleId,
-            transitionAt,
-            fromStatus = fromStatus.ToString(),
-            toStatus = toStatus.ToString()
-        }, GameStateJson.Options);
-        var eventId = CreateStatusChangedEventId(
-            gameId,
-            cycleId,
-            transitionAt,
-            fromStatus,
-            toStatus);
-        var existing = state.GameLifecycleEvents.SingleOrDefault(item =>
-            item.GameLifecycleEventId == eventId);
-        if (existing is not null)
-        {
-            if (existing.GameId != gameId
-                || existing.Type != GameLifecycleEventType.StatusChanged
-                || existing.FromStatus != fromStatus.ToString()
-                || existing.ToStatus != toStatus.ToString()
-                || existing.FactJson != factJson
-                || existing.CreatedAt != transitionAt)
-            {
-                throw new InvalidOperationException(
-                    $"Game lifecycle event {eventId} conflicts with the deterministic status transition audit.");
-            }
-            return;
-        }
-
-        state.GameLifecycleEvents.Add(new GameLifecycleEvent
-        {
-            GameLifecycleEventId = eventId,
-            GameId = gameId,
-            Type = GameLifecycleEventType.StatusChanged,
-            FromStatus = fromStatus.ToString(),
-            ToStatus = toStatus.ToString(),
-            FactJson = factJson,
-            CreatedAt = transitionAt
-        });
-    }
-
-    private static Guid CreateStatusChangedEventId(
-        Guid gameId,
-        Guid cycleId,
-        DateTimeOffset transitionAt,
-        GameLifecycleStatus fromStatus,
-        GameLifecycleStatus toStatus)
-    {
-        var identity = string.Join(
-            '|',
-            "cycles-game-status-v1",
-            gameId.ToString("D"),
-            cycleId.ToString("D"),
-            transitionAt.ToString("O", CultureInfo.InvariantCulture),
-            fromStatus.ToString(),
-            toStatus.ToString());
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
-        return new Guid(hash.AsSpan(0, 16));
+        GameLifecycleTransitions.ApplyCycleState(state, GameFoundationConstants.LegacyGameId);
     }
 
     private static void ValidateLifecycleTransitionScope(GameState state)
@@ -466,6 +314,7 @@ public static class LegacyGameFoundation
         cycle.CyclePolicyKey ??= GameFoundationConstants.LegacyCyclePolicyKey;
         cycle.CyclePolicyVersion ??= GameFoundationConstants.LegacyCyclePolicyVersion;
         cycle.ProfileProvenanceStatus ??= ProvenanceStatus.LegacyUnverified;
+        cycle.SchedulingMode = CycleSchedulingMode.Scheduled;
     }
 
     private static CycleConfiguration CreateConfiguration(Cycle cycle, int sequenceNumber) => new()
@@ -485,6 +334,7 @@ public static class LegacyGameFoundation
         ScenarioSeed = cycle.ScenarioSeed,
         CyclePolicyKey = GameFoundationConstants.LegacyCyclePolicyKey,
         CyclePolicyVersion = GameFoundationConstants.LegacyCyclePolicyVersion,
+        SchedulingMode = CycleSchedulingMode.Scheduled,
         MinimumHumanSeats = null,
         MaximumHumanSeats = null,
         ScheduledStartAt = cycle.StartAt,
@@ -520,6 +370,7 @@ public static class LegacyGameFoundation
         configuration.CyclePolicyVersion = configuration.CyclePolicyVersion == 0
             ? GameFoundationConstants.LegacyCyclePolicyVersion
             : configuration.CyclePolicyVersion;
+        configuration.SchedulingMode = CycleSchedulingMode.Scheduled;
         configuration.ScheduledStartAt ??= cycle.StartAt;
         configuration.ScheduledEndAt ??= cycle.EndAt;
         configuration.TickLengthMinutes ??= cycle.TickLengthMinutes;
@@ -786,6 +637,7 @@ public sealed class CycleConfiguration
     public string CyclePolicyKey { get; set; } = "";
     public int CyclePolicyVersion { get; set; }
     public string? CyclePolicyContentHash { get; set; }
+    public CycleSchedulingMode SchedulingMode { get; set; } = CycleSchedulingMode.Scheduled;
     public int? MinimumHumanSeats { get; set; }
     public int? MaximumHumanSeats { get; set; }
     public DateTimeOffset? ScheduledStartAt { get; set; }
@@ -831,6 +683,12 @@ public enum GamePurpose
 {
     Standard,
     Training
+}
+
+public enum CycleSchedulingMode
+{
+    Scheduled,
+    SelfPaced
 }
 
 public enum GameLifecycleStatus

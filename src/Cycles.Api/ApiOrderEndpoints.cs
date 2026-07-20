@@ -1,15 +1,25 @@
+using Cycles.Application;
 using Cycles.Core;
 
 public static class ApiOrderEndpoints
 {
-    public static IResult SubmitMove(MoveFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-        SubmitMove(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult SubmitMove(
+        MoveFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        SubmitMove(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult SubmitMove(MoveFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult SubmitMove(
+        MoveFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
-            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            var actor = DevelopmentAuth.RequireActor(state, context);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, context, request.FleetId);
             return ToCommandResponse(state, OrderService.SubmitMoveOrder(
                 state,
                 request.FleetId,
@@ -18,25 +28,43 @@ public static class ApiOrderEndpoints
                 request.ReplacesOrderId));
         }));
 
-    public static IResult SubmitRecall(RecallFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-        SubmitRecall(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult SubmitRecall(
+        RecallFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        SubmitRecall(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult SubmitRecall(RecallFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult SubmitRecall(
+        RecallFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
-            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            var actor = DevelopmentAuth.RequireActor(state, context);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, context, request.FleetId);
             return ToCommandResponse(state, OrderService.SubmitRecallOrder(state, request.FleetId, now));
         }));
 
-    public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-        SubmitAttack(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult SubmitAttack(
+        AttackFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        SubmitAttack(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult SubmitAttack(AttackFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult SubmitAttack(
+        AttackFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
-            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            var actor = DevelopmentAuth.RequireActor(state, context);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, context, request.FleetId);
             var order = request.TargetFactionId.HasValue
                 ? OrderService.SubmitAttackOrderAgainstFaction(
                     state,
@@ -53,14 +81,23 @@ public static class ApiOrderEndpoints
             return ToCommandResponse(state, order);
         }));
 
-    public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store) =>
-        SubmitColonise(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult SubmitColonise(
+        ColoniseFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        SubmitColonise(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult SubmitColonise(ColoniseFleetRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult SubmitColonise(
+        ColoniseFleetRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
-            DevelopmentAuth.RequireCommandableFleet(state, actor, request.FleetId);
+            var actor = DevelopmentAuth.RequireActor(state, context);
+            DevelopmentAuth.RequireCommandableFleet(state, actor, context, request.FleetId);
             return ToCommandResponse(state, OrderService.SubmitColoniseOrder(
                 state,
                 request.FleetId,
@@ -68,14 +105,23 @@ public static class ApiOrderEndpoints
                 request.ReplacesOrderId));
         }));
 
-    public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store) =>
-        Cancel(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult Cancel(
+        CancelFleetOrderRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        Cancel(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult Cancel(CancelFleetOrderRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult Cancel(
+        CancelFleetOrderRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
-            var empireId = DevelopmentAuth.ResolveOrderOwnerEmpireId(state, actor, request.FleetOrderId);
+            var actor = DevelopmentAuth.RequireActor(state, context);
+            var empireId = DevelopmentAuth.ResolveOrderOwnerEmpireId(state, actor, context, request.FleetOrderId);
             return ToCommandResponse(state, OrderService.CancelFleetOrder(
                 state,
                 request.FleetOrderId,
@@ -83,18 +129,27 @@ public static class ApiOrderEndpoints
                 now));
         }), invalidOperationIsConflict: true);
 
-    public static IResult UpdatePriorities(PriorityRequest request, HttpContext httpContext, IGameStateStore store) =>
-        UpdatePriorities(request, httpContext, store, DateTimeOffset.UtcNow);
+    public static IResult UpdatePriorities(
+        PriorityRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        UpdatePriorities(request, httpContext, gameId, games, DateTimeOffset.UtcNow);
 
-    public static IResult UpdatePriorities(PriorityRequest request, HttpContext httpContext, IGameStateStore store, DateTimeOffset now) =>
-        TryResult(() => store.UpdateActiveCycleExclusively(state =>
+    public static IResult UpdatePriorities(
+        PriorityRequest request,
+        HttpContext httpContext,
+        Guid gameId,
+        SelectedGameRequestService games,
+        DateTimeOffset now) =>
+        TryResult(() => games.Command(httpContext, gameId, (state, context) =>
         {
-            var actor = DevelopmentAuth.RequireActor(httpContext, state);
+            var actor = DevelopmentAuth.RequireActor(state, context);
             if (!actor.IsAdmin)
             {
-                _ = DevelopmentAuth.RequireCommandableEmpire(state, actor);
+                _ = DevelopmentAuth.RequireCommandableEmpire(state, actor, context);
             }
-            var empireId = DevelopmentAuth.ResolveEmpireId(state, actor, request.EmpireId);
+            var empireId = DevelopmentAuth.ResolveEmpireId(state, actor, context, request.EmpireId);
             return ToCommandResponse(OrderService.UpdatePriorities(
                 state,
                 empireId,

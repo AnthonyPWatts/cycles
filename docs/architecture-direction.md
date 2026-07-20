@@ -1,6 +1,6 @@
 # Architecture Direction
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
 Cycles is server-authoritative and simulation-first. Clients submit intentions and read permitted state. A tick host decides outcomes, persistence stores authoritative facts, and narrative systems interpret those facts only after the simulation has resolved them.
 
@@ -22,16 +22,21 @@ Browser
    |
    v
 Cycles.Api ---- OIDC/cookie identity outside Development
-   |            Cycles-owned admission, empire, and admin authority
-   |                         |
-   |                         v
-   +---- IGameStateStore.RunTick <---- Cycles.Worker / Cycles.Cli
+   |            Player-only account admission and local admin authority
+   |
+   +---- account/Game projections
+   |
+   +---- selected Game context ---- focused Cycle views and commands
+   |
+   +---- explicit Cycle resolution
                   |
                   v
-            SQL Server store
+            SQL Server store <---- Cycles.Worker
+                  ^                    |
+                  |                    +---- bounded due-Cycle query
+                  |                    +---- Game-then-Cycle resolution
                   |
-                  v
-       focused Cycle tick workspace
+             Cycles.Cli
 
 Operator CLI <---- versioned validated JSON ----> SQL Server
 
@@ -39,11 +44,11 @@ Cycles.Core owns simulation rules used by every host and store path.
 Events, battles, Chronicle entries, metrics, and Cycle history are outputs.
 ```
 
-The API also uses the generic store for authenticated state queries and player/admin mutations. SQL-backed ticks use a narrower path than those generic mutations.
+The API and Worker have no online `IGameStateStore` dependency. Account queries, selected-Game reads, player commands, admin operations, explicit resolution and scheduled resolution use focused application contracts implemented directly by the SQL store. The generic whole-state bridge remains available only to explicit offline CLI/import, seed, continuation, profiling and compatibility workflows outside the online hosts; Cycle completion and failed-tick recovery use focused Game-then-Cycle mutations.
 
 ## Approved Multi-Game And Training Direction
 
-The [multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [test plan](multi-game-and-tutorial-test-plan.md) define approved future architecture. The current runtime supports one operational Cycle across the deployment; `docs/project-state.md` remains authoritative for implemented behaviour.
+The [multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [test plan](multi-game-and-tutorial-test-plan.md) define the approved target architecture. MG-01 through MG-05 now implement its persistence, isolation, online-scope and batch-one scheduling prerequisites, but the player product remains a single legacy Game. `docs/project-state.md` remains authoritative for implemented behaviour.
 
 - A player-visible `Game` contains one or more `Cycle` epochs and at most one operational Cycle. Each Cycle locks its own configuration, map, scenario, execution policy, seed, roster, and content provenance.
 - `Player` owns account identity, `GameEnrolment` owns the durable Player-to-Game relationship, and `MatchParticipant` owns Cycle-specific empire authority.
@@ -55,13 +60,15 @@ The [multi-game and tutorial plan](multi-game-and-tutorial-plan.md) and its [tes
 - Twin Reaches is the first Training profile. Its four-resolution Core journey uses ordinary orders, ticks, facts, and recovery. Reset supersedes the old attempt and creates a new Training Game.
 - Intermission requires each player to reconfirm before a successor Cycle. The first release uses in-app cross-Game urgency and does not add email or push.
 
-No second durable Game may exist until scoped routes and stores, explicit Worker selection, resource authorisation, antiforgery, same-Cycle SQL constraints, migration evidence, and mandatory SQL tests pass the approved hard gate. This decision does not authorise a new paid Worker host for the cost-capped playground.
+The MG-01–05 technical hard gate has passed its integrated local evidence: scoped routes and stores, explicit Worker selection, resource authorisation, antiforgery, same-Cycle constraints, migration 025, and mandatory SQL execution are all verified together. That clears implementation to proceed to the roster-aware factory and Games shell; it does not itself create or expose a second durable Game, and it does not authorise a new paid Worker host for the cost-capped playground.
 
-During the transition, legacy global active-Cycle selection fails closed if the database contains more than one Active Cycle, and an executable source allowance freezes the remaining online whole-state and unspecified-tick call sites. This guard exposes unsafe growth; it does not relax the hard gate or make those paths multi-Game safe.
+The executable online source allowance is now empty: neither API nor Worker may reference `IGameStateStore` or its global/unspecified operations. Explicit `/games/{gameId}` gameplay routes resolve the complete account, Game, Cycle, participant and empire context. Existing unscoped player routes are compatibility adapters pinned to the deterministic legacy Game and call the same scoped handlers; they are not a second authorisation path. Legacy global active-Cycle selection still fails closed for offline compatibility callers if more than one Active Cycle exists.
 
-The persistence prerequisites now include both the additive foundation and its scope contract. `GameState` and SQL carry `Game`, `CycleConfiguration`, `GameEnrolment`, `GameLifecycleEvent`, explicit participant Game scope, and normalised battle-fleet membership. Migration 022 deterministically adapts the existing lineage; migration 023 validates and enforces every currently representable same-Game or same-Cycle relationship before making the foundational ownership fields non-null. State-transfer v6 validates the same graph and adapts v1-v5 input. Generic legacy saves fill missing foundation rows but preserve a complete v6 foundation, while fully scoped Game records remain representable for migration and isolation tests. Operational import is explicitly pinned to the deterministic legacy Game identity even though the transfer representation can describe several Games.
+The persistence prerequisites include the additive foundation, its scope contract and explicit scheduling capability. `GameState` and SQL carry `Game`, `CycleConfiguration`, `GameEnrolment`, `GameLifecycleEvent`, explicit participant Game scope, normalised battle-fleet membership, immutable `Scheduled`/`SelfPaced` configuration provenance and authoritative `NextTickAt`. Migration 022 deterministically adapts the existing lineage; migration 023 enforces every currently representable same-Game or same-Cycle relationship; migration 024 hardens external identity matching; and migration 025 backfills scheduling, enforces configuration/Cycle agreement and adds the filtered due index. State-transfer v7 validates these rules and adapts v1-v6 input. Operational import remains pinned to the deterministic legacy Game identity even though the transfer representation can describe several Games.
 
-The MG-03 application boundary is also implemented. `Cycles.Application` defines provider-neutral redacted account and bounded per-player Game projections, explicit Game/Cycle scope, a complete Player/Game/enrolment/Cycle/participant/empire command context, a coherent one-Cycle view, and focused command contracts. SQL resolves and revalidates the exact authority tuple directly. Read views use one serialisable snapshot, expose no Player credential material, and include only the selected Game and Cycle. Commands revalidate active authority and any asserted organiser or administrator permission, hold that authority stable with the Cycle lock for the transaction, reject non-allow-listed or foreign mutations, protect new identifiers from colliding with omitted history, and perform targeted writes with rollback. A fixed legacy-scope query fails closed unless the deterministic legacy Game has exactly one Active or RecoveryRequired Cycle. API and Worker consumers have not yet moved to these contracts, so their legacy whole-state allowance remains and creating a second durable Game is still prohibited.
+MG-03, MG-04 and MG-05 are implemented in the code boundary. `Cycles.Application` defines provider-neutral redacted account and bounded per-player Game projections, explicit Game/Cycle scope, a complete Player/Game/enrolment/Cycle/participant/empire command context, coherent one-Cycle views, allow-listed Cycle commands, due-Cycle discovery and explicit resolution. SQL resolves and revalidates the exact authority tuple directly. Read views use one serialisable snapshot, expose no Player credential material, and include only the selected Game and Cycle. Commands revalidate live authority, reject foreign or non-allow-listed changes and persist targeted rows with rollback. API mutations share the ASP.NET Core antiforgery-token policy, and resource identifiers are checked inside the resolved Game/Cycle scope. The Worker selects at most one due scheduled Standard Cycle per poll, then resolution rechecks the work under Game-then-Cycle locks; self-paced Cycles are not selected. A fixed legacy-scope query still provides fail-closed compatibility for the present single-Game dashboard.
+
+This does not implement the Games home, a second-Game creation/runtime path, the roster-aware profile factory, Twin Reaches, Training provisioning or the tutorial journey. Those remain MG-06 onward. A second Game must still be created only through those scoped factory and account-shell paths, never by bypassing the verified prerequisite boundary.
 
 ## Project Boundaries
 
@@ -73,7 +80,7 @@ It must not depend on database providers, HTTP concerns, authentication provider
 
 ### `Cycles.Application`
 
-Owns provider-neutral use-case contracts and projections that should not depend on HTTP or SQL. The initial boundary covers redacted Player accounts, bounded Player-to-Game catalogue/access reads, explicit Game/Cycle and actor authority, coherent one-Cycle views, and one-Cycle command execution over existing Core services.
+Owns provider-neutral use-case contracts and projections that should not depend on HTTP or SQL. The current boundary covers redacted Player accounts, bounded Player-to-Game catalogue/access reads, explicit Game/Cycle and actor authority, coherent one-Cycle views, one-Cycle command execution, due-Cycle selection and explicit Cycle resolution over existing Core services.
 
 Keep this layer small. It is not a generic repository framework and must not absorb simulation rules from Core, transport policy from API, or provider behaviour from infrastructure.
 
@@ -81,7 +88,9 @@ Keep this layer small. It is not a generic repository framework and must not abs
 
 Owns HTTP contracts, Development authentication, external OIDC/cookie authentication, local player/admin authorisation, visibility filtering, dashboard hosting, and player intention submission.
 
-Ordinary order endpoints must not run ticks. The protected tick endpoint invokes the same authoritative `IGameStateStore.RunTick` boundary as the Worker and does not implement simulation logic in the API. It is available to admins in every environment and, temporarily, to any authenticated player in Development. That capability does not promote the actor or bypass normal visibility and empire ownership.
+Ordinary order endpoints must not run ticks. The selected `POST /games/{gameId}/admin/tick` route invokes `ICycleResolutionStore.ResolveExplicit` and does not implement simulation logic in the API; `POST /admin/tick` is only its fixed legacy-Game adapter. After acquiring the Game and Cycle locks, the store locks and revalidates the complete live Game/Cycle/player/enrolment/participant/empire authority tuple in a fixed order and holds those rows through resolution commit. The route is available to admins in every environment and, temporarily, to an authenticated commandable player in Development. That capability does not promote the actor or bypass normal Game, Cycle, participant, visibility or empire authority.
+
+Selected gameplay is exposed beneath `/games/{gameId}`. `SelectedGameRequestService` resolves the authenticated account, visible Game, operational Cycle and complete command context before invoking a focused view or command. The older unscoped routes resolve the fixed legacy Game first and delegate to the same handlers. All cookie-authenticated POST, PUT and DELETE routes use the shared antiforgery-token endpoint, header and validation filter.
 
 Player API contracts use camelCase property names and camelCase string enums; numeric enum values are rejected. Handled failures retain meaningful HTTP status and expose stable machine-readable codes alongside safe human-readable messages, with optional validation detail and trace correlation. Clients must not branch on message wording.
 
@@ -95,7 +104,7 @@ The resumable Day One guide is the primary in-dashboard training path and uses r
 
 ### `Cycles.Worker`
 
-Owns scheduled due-tick execution. It reads Cycle cadence, checks immediately on startup, polls on a configurable interval, and runs at most one due tick per check.
+Owns scheduled due-tick execution. It checks immediately on startup, polls on a configurable interval, requests at most one due scheduled Standard Cycle, and submits that exact Game/Cycle work item to the focused resolution store. Resolution rechecks the due timestamp and scope under Game-then-Cycle locks before applying a tick. Self-paced Cycles are not Worker work.
 
 Production use still needs health reporting, leader election or equivalent singleton ownership, multi-Cycle policy, graceful shutdown expectations, and deployment monitoring.
 
@@ -107,13 +116,13 @@ It is an administrative convenience, not the scheduled production host. Complete
 
 ### `Cycles.Infrastructure.SqlServer`
 
-Owns SQL Server connection handling, migrations, generic state persistence, focused account/Game projections, the one-Cycle command workspace, the focused tick workspace, targeted command/tick writes, and transaction-scoped application locks.
+Owns SQL Server connection handling, migrations, offline generic state persistence, focused account/Game projections, one-Cycle view and command workspaces, due-Cycle discovery, explicit Game/Cycle resolution, targeted command/tick writes, and transaction-scoped application locks.
 
 ## Tick Transaction Model
 
 An authoritative tick follows this logical sequence:
 
-1. acquire the Cycle lock;
+1. acquire the Game lock and then the Cycle lock;
 2. determine the next tick number;
 3. begin transactional work and record a running attempt;
 4. load the state required for the tick;
@@ -131,7 +140,7 @@ Failure rules:
 - reject another tick until an operator repairs and clears or retries the Cycle;
 - preserve failed attempts when a repaired tick later succeeds with the same tick number.
 
-The in-memory path uses a focused transactional working copy and rolls back appended facts on failure. The SQL path provides database transactionality and a per-Cycle `sp_getapplock` named `Cycles.Tick.{CycleID}`.
+The in-memory path uses a focused transactional working copy and rolls back appended facts on failure. The SQL resolution path provides database transactionality with a Game resolution lock followed by the per-Cycle `sp_getapplock` named `Cycles.Tick.{CycleID}`. Ordinary Cycle commands need only that Cycle lock.
 
 ## Persistence Position
 
@@ -141,14 +150,14 @@ SQL Server-specific features are not categorically forbidden. They may be used i
 
 Current SQL paths:
 
-- generic `Replace` and `Update` load the prototype `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock;
+- generic `Replace` and `Update` load the complete `GameState` and synchronise mapped rows under the broad `Cycles.GameState` lock for explicit offline CLI/import, seed, continuation, profiling and compatibility work; API and Worker do not depend on this interface, and Cycle completion/recovery use focused mutations instead;
 - focused account/Game queries issue bounded direct SQL projections; actor-context and Cycle-view queries revalidate the exact authority tuple and load one coherent, credential-redacted Cycle; `ICycleCommandStore` holds the Cycle lock and serialisable authority reads while persisting only allow-listed target-Cycle changes;
-- `RunTick` acquires a per-Cycle lock, loads only the active tick workspace, and persists targeted outcomes without loading unrelated retained history;
+- `IDueCycleQuery` uses the filtered `NextTickAt` index to select one scheduled Standard Cycle whose materialised configuration agrees with the Cycle scheduling mode; `ICycleResolutionStore` acquires Game then Cycle, rechecks scope/capability/due state and any explicit caller authority, loads one focused tick workspace and persists targeted outcomes without loading unrelated retained history;
 - plain SQL migrations under `database/migrations` are applied explicitly and recorded in `dbo.SchemaMigrations`;
-- migration 022 adds the legacy Game foundation, per-Game operational-Cycle uniqueness, single-successor lineage, append-only lifecycle audit, canonical hash/bounds checks, and materialised-configuration snapshot immutability without making the new Cycle references non-null or introducing a second-Game writer.
+- migrations 022 and 023 establish the legacy Game foundation and enforce non-null same-scope ownership; migration 024 hardens external identity matching; migration 025 adds immutable scheduling capability, coherent `NextTickAt` state and the due-Cycle index without introducing a second-Game writer.
 - external issuer/subject correlation and admin-role audit records are persisted by migration 013.
 
-The generic path remains a transitional bridge for existing API/admin mutations only. MG-03 must remove those online consumers rather than place new work on it; complete replacement/import remains a separately guarded offline maintenance concern.
+The generic path is not an online extension point. Complete replacement/import remains a separately guarded offline maintenance concern, and the empty API/Worker source allowance prevents it from being reacquired accidentally.
 
 ## Facts, Visibility, And Narrative
 

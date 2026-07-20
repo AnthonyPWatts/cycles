@@ -9,6 +9,7 @@ public sealed class RecoveryServiceTests
     {
         var state = TestState.CreateSingleEmpireState();
         var cycle = state.GetActiveCycle()!;
+        cycle.NextTickAt = TestState.Now.AddMinutes(-5);
         var tickLog = new TickLog
         {
             CycleId = cycle.CycleId,
@@ -31,6 +32,7 @@ public sealed class RecoveryServiceTests
         Assert.Contains("host stopped responding", tickLog.DiagnosticLog);
         Assert.Contains("operator-1", tickLog.DiagnosticLog);
         Assert.Equal(CycleStatus.RecoveryRequired, cycle.Status);
+        Assert.Null(cycle.NextTickAt);
         Assert.Equal(EventType.TickAbandoned, auditEvent.EventType);
         Assert.Equal(EventSeverity.High, auditEvent.Severity);
         Assert.Contains("confirmed the worker process", auditEvent.FactJson);

@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 
 namespace Cycles.Tests;
@@ -12,14 +13,15 @@ public sealed class ApiDashboardBootstrapTests
         var player = state.Players.Single(item => item.Username == "Tony");
         var empire = state.Empires.Single(item => item.PlayerId == player.PlayerId);
         var otherFleet = state.Fleets.First(item => item.EmpireId != Guid.Empty && item.EmpireId != empire.EmpireId);
-        var store = new CountingGameStateStore(state);
+        var game = new FocusedDashboardFixture(state);
 
         var context = DashboardBootstrapContextFactory.Load(
             otherFleet.FleetId,
             TestHttpContextFactory.CreateAuthenticated(player),
-            store);
+            game.GameId,
+            game.Requests);
 
-        Assert.Equal(1, store.LoadCount);
+        Assert.Equal(1, game.QueryCount);
         Assert.Equal(empire.EmpireId, context.Empire.EmpireId);
         Assert.All(context.Fleets, fleet => Assert.Equal(empire.EmpireId, fleet.EmpireId));
         Assert.DoesNotContain(context.Fleets, fleet => fleet.FleetId == otherFleet.FleetId);
@@ -44,14 +46,15 @@ public sealed class ApiDashboardBootstrapTests
         var player = state.Players.Single(item => item.Username == "Tony");
         var empire = state.Empires.Single(item => item.PlayerId == player.PlayerId);
         var selectedFleet = state.Fleets.Last(item => item.EmpireId == empire.EmpireId);
-        var store = new CountingGameStateStore(state);
+        var game = new FocusedDashboardFixture(state);
 
         var context = DashboardBootstrapContextFactory.Load(
             selectedFleet.FleetId,
             TestHttpContextFactory.CreateAuthenticated(player),
-            store);
+            game.GameId,
+            game.Requests);
 
-        Assert.Equal(1, store.LoadCount);
+        Assert.Equal(1, game.QueryCount);
         Assert.Equal(selectedFleet.FleetId, context.SelectedFleet?.FleetId);
     }
 
@@ -90,12 +93,13 @@ public sealed class ApiDashboardBootstrapTests
             DiplomaticRelationshipState.Alliance,
             tickNumber: 0,
             TestState.Now);
-        var store = new CountingGameStateStore(state);
+        var game = new FocusedDashboardFixture(state);
 
         var context = DashboardBootstrapContextFactory.Load(
             selectedFleetId: null,
             TestHttpContextFactory.CreateAuthenticated(player),
-            store);
+            game.GameId,
+            game.Requests);
 
         Assert.Contains(alliedFleet.CurrentSystemId, context.VisibleSystemIds);
         Assert.All(context.Fleets, fleet => Assert.Equal(empire.EmpireId, fleet.EmpireId));
@@ -126,10 +130,12 @@ public sealed class ApiDashboardBootstrapTests
 
         var foreignEvent = VisibleEmpireEvent(Guid.NewGuid(), empire.EmpireId, tickNumber: 99, index: 0);
         state.Events.Add(foreignEvent);
+        var game = new FocusedDashboardFixture(state);
         var context = DashboardBootstrapContextFactory.Load(
             selectedFleetId: null,
             TestHttpContextFactory.CreateAuthenticated(player),
-            new CountingGameStateStore(state));
+            game.GameId,
+            game.Requests);
 
         Assert.Equal(100, context.Events.Count);
         Assert.All(latestEventIds, eventId => Assert.Contains(context.Events, item => item.EventId == eventId));
@@ -152,11 +158,13 @@ public sealed class ApiDashboardBootstrapTests
                 return item.EventId;
             })
             .ToArray();
+        var game = new FocusedDashboardFixture(state);
 
         var context = DashboardBootstrapContextFactory.Load(
             selectedFleetId: null,
             TestHttpContextFactory.CreateAuthenticated(player),
-            new CountingGameStateStore(state));
+            game.GameId,
+            game.Requests);
 
         Assert.Equal(110, context.Events.Count);
         Assert.All(latestEventIds, eventId => Assert.Contains(context.Events, item => item.EventId == eventId));
@@ -180,23 +188,144 @@ public sealed class ApiDashboardBootstrapTests
             CreatedAt = TestState.Now.AddMinutes(index)
         };
 
-    private sealed class CountingGameStateStore(GameState state) : IGameStateStore
+    private sealed class FocusedDashboardFixture :
+        IPlayerAccountQuery,
+        IGameAccessQuery,
+        IGameCommandAccessQuery,
+        ICycleViewQuery,
+        ICycleCommandStore
     {
-        public string Description => "counting dashboard bootstrap store";
-        public int LoadCount { get; private set; }
+        private static readonly Guid SyntheticGameId = new("225e716e-08fa-43c9-8424-936563535f07");
+        private readonly GameState state;
+        private readonly Cycle cycle;
 
-        public GameState LoadOrCreate()
+        public FocusedDashboardFixture(GameState state)
         {
-            LoadCount++;
-            return state;
+            this.state = state;
+            cycle = state.GetActiveCycle()
+                ?? throw new InvalidOperationException("The dashboard API test state requires one active Cycle.");
+            GameId = cycle.GameId.GetValueOrDefault() is { } gameId && gameId != Guid.Empty
+                ? gameId
+                : SyntheticGameId;
+            Requests = new SelectedGameRequestService(this, this, this, this, this);
         }
 
-        public T Update<T>(Func<GameState, T> update) => update(state);
+        public Guid GameId { get; }
 
-        public TickResult RunTick(DateTimeOffset now) => throw new NotSupportedException();
+        public SelectedGameRequestService Requests { get; }
 
-        public TickResult? RunTickIfDue(DateTimeOffset now) => throw new NotSupportedException();
+        public int QueryCount { get; private set; }
 
-        public void Replace(GameState replacement) => state = replacement;
+        public PlayerAccountSnapshot? Get(Guid playerId)
+        {
+            var player = state.Players.SingleOrDefault(item => item.PlayerId == playerId);
+            return player is null
+                ? null
+                : new PlayerAccountSnapshot(
+                    player.PlayerId,
+                    player.Username,
+                    player.Kind,
+                    player.Role,
+                    player.Status,
+                    player.CreatedAt,
+                    player.LastLoginAt);
+        }
+
+        public GameAccessSnapshot? Get(Guid playerId, Guid gameId)
+        {
+            if (gameId != GameId || state.Players.All(item => item.PlayerId != playerId))
+            {
+                return null;
+            }
+
+            var participant = state.MatchParticipants.SingleOrDefault(item =>
+                item.CycleId == cycle.CycleId && item.PlayerId == playerId);
+            return new GameAccessSnapshot(
+                playerId,
+                GameId,
+                "Focused dashboard test Game",
+                GamePurpose.Standard,
+                GameLifecycleStatus.Active,
+                GameVisibility.Private,
+                cycle.CreatedByPlayerId,
+                participant?.MatchParticipantId,
+                participant is null ? null : GameEnrolmentStatus.Enrolled,
+                cycle.CycleId,
+                cycle.Status,
+                cycle.CurrentTickNumber,
+                cycle.TurnStage);
+        }
+
+        public GameCommandContext? Get(Guid playerId, GameCycleScope scope)
+        {
+            if (scope.GameId != GameId || scope.CycleId != cycle.CycleId)
+            {
+                return null;
+            }
+
+            var player = state.Players.SingleOrDefault(item => item.PlayerId == playerId);
+            var participant = state.MatchParticipants.SingleOrDefault(item =>
+                item.CycleId == cycle.CycleId && item.PlayerId == playerId);
+            var empire = participant is null
+                ? null
+                : state.Empires.SingleOrDefault(item =>
+                    item.CycleId == cycle.CycleId && item.EmpireId == participant.EmpireId);
+            if (player is null || participant is null || empire is null)
+            {
+                return null;
+            }
+
+            var permissions = GamePermission.Read;
+            if (cycle.CreatedByPlayerId == playerId)
+            {
+                permissions |= GamePermission.Organise;
+            }
+
+            if (player.Role == PlayerRole.Admin)
+            {
+                permissions |= GamePermission.Administer;
+            }
+
+            return new GameCommandContext(
+                new GameAccessContext(
+                    playerId,
+                    GameId,
+                    participant.MatchParticipantId,
+                    permissions),
+                cycle.CycleId,
+                participant.MatchParticipantId,
+                empire.EmpireId);
+        }
+
+        public ScopedQueryResult<T> Query<T>(
+            GameCommandContext context,
+            Func<GameState, T> projection)
+        {
+            QueryCount++;
+            return ContextMatches(context)
+                ? new ScopedQueryResult<T>.Success(projection(state))
+                : new ScopedQueryResult<T>.Unavailable();
+        }
+
+        public ScopedCommandResult<T> Execute<T>(
+            GameCommandContext context,
+            Func<GameState, T> command) =>
+            ContextMatches(context)
+                ? new ScopedCommandResult<T>.Success(command(state))
+                : new ScopedCommandResult<T>.Unavailable();
+
+        private bool ContextMatches(GameCommandContext context) =>
+            context.GameAccess.GameId == GameId
+            && context.CycleId == cycle.CycleId
+            && state.Players.Any(item => item.PlayerId == context.GameAccess.PlayerId)
+            && state.MatchParticipants.Any(item =>
+                item.MatchParticipantId == context.MatchParticipantId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == context.GameAccess.PlayerId
+                && item.EmpireId == context.EmpireId)
+            && state.Empires.Any(item =>
+                item.EmpireId == context.EmpireId
+                && item.CycleId == context.CycleId
+                && item.PlayerId == context.GameAccess.PlayerId);
     }
 }

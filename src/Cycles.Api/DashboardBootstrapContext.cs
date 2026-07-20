@@ -1,3 +1,4 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
 
@@ -19,13 +20,19 @@ internal static class DashboardBootstrapContextFactory
     public static DashboardBootstrapContext Load(
         Guid? selectedFleetId,
         HttpContext httpContext,
-        IGameStateStore store)
+        Guid gameId,
+        SelectedGameRequestService games) =>
+        games.Query(httpContext, gameId, (state, context) => Create(selectedFleetId, state, context));
+
+    private static DashboardBootstrapContext Create(
+        Guid? selectedFleetId,
+        GameState state,
+        GameCommandContext context)
     {
-        var state = store.LoadOrCreate();
-        var cycle = state.GetActiveCycle()
-            ?? throw new InvalidOperationException("No active cycle exists.");
-        var actor = DevelopmentAuth.RequireActor(httpContext, state);
-        var empireId = DevelopmentAuth.ResolveEmpireId(state, actor);
+        var cycle = state.Cycles.SingleOrDefault(item => item.CycleId == context.CycleId)
+            ?? throw new InvalidOperationException("The selected Cycle is unavailable.");
+        var actor = DevelopmentAuth.RequireActor(state, context);
+        var empireId = DevelopmentAuth.ResolveEmpireId(state, actor, context);
         var empire = state.Empires.Single(item => item.CycleId == cycle.CycleId && item.EmpireId == empireId);
         var visibleSystemIds = ApiVisibility.GetVisibleSystemIds(state, cycle, actor);
         var fleets = PlayerViewScope.SelectFleets(state, cycle, empireId);

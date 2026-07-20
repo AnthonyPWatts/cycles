@@ -52,7 +52,7 @@ public sealed class CurrentRuntimeGameScopeTests
             CurrentRuntimeGameScope.EnsureSupportedForOperationalImport(state));
 
         Assert.Contains("can currently import only", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Game-scoped API", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Game provisioning", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

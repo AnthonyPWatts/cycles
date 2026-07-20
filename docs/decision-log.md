@@ -2007,3 +2007,51 @@ Consequences:
 - Fresh unmapped invitations remain disabled until the Games home is implemented. This is a rollout constraint, not a reason to restore authentication-time Game provisioning.
 - Dashboard gameplay routes and the Worker still contain explicitly allow-listed whole-state calls; their genuine call allowance is now 21. Resource-scoped routing, antiforgery, due-Cycle selection, and Game/Cycle resolution remain prerequisites before a second durable Game.
 - Configured admin bootstrap remains an audited break-glass mechanism and must be removed after use so routine revocation is not reapplied at the next sign-in.
+
+## 2026-07-20: Complete The Online Selected-Game And Antiforgery Cutover
+
+Decision: route every current gameplay read and command through an explicit `/games/{gameId}` boundary backed by `GameAccessContext`, `GameCommandContext`, `ICycleViewQuery`, and `ICycleCommandStore`. Keep the old URLs temporarily as authenticated adapters pinned to the deterministic legacy Game; they call the same scoped handlers and are not a second authorisation path. Remove `IGameStateStore` from API and Worker composition so the executable online allowance is empty.
+
+Use one ASP.NET Core antiforgery policy for every cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE`. Issue a request token through `/auth/antiforgery`, send JSON mutations with `X-Cycles-Antiforgery`, accept the framework form field for navigation-based logout, rotate the token after trusted sign-in, and use `POST` rather than `GET` for logout. The static client owns one transport, scopes gameplay URLs to the selected Game, aborts the previous request generation on selection change, and rejects late responses from a stale Game.
+
+Status: implemented for all current API gameplay routes and the current dashboard transport. MG-03's online consumer migration and MG-04's current-route/resource/antiforgery prerequisite are complete. This does not implement the Games home, lobby/archive routes, a Game picker, Training provisioning, or a second durable Game.
+
+Reasoning:
+
+- A route identifier is context, not authority. Resolving the Player's enrolment and exact Cycle participant/empire tuple before a focused read or command prevents valid identifiers from being mixed across Games.
+- Missing and inaccessible Games need one non-disclosing response. A known selected Game without a playable current Cycle needs a typed state response rather than a global fallback.
+- Keeping compatibility URLs as thin legacy-Game adapters permits a staged client rollout without retaining whole-state persistence or duplicating policy.
+- Cookie authentication protects identity but not cross-site request submission. A shared server-side antiforgery filter and one client transport make omissions executable contract failures rather than review conventions.
+- A browser response from Game A can arrive after selection changes to Game B. Aborting and checking a monotonically increasing client generation prevents stale payloads from painting or mutating the selected workspace.
+
+Consequences:
+
+- Login and dashboard bootstrap identify the selected `GameId`; subsequent gameplay calls use `/games/{gameId}` and the selected-Game generation guard.
+- Unknown and withdrawn Game access is deliberately indistinguishable. Focused stores revalidate readable or commandable authority at use time, and guessed foreign Game, Cycle, fleet, system, empire, or order identifiers remain within the selected scope.
+- Every declared API mutation has exactly one antiforgery requirement. An invalid or expired token returns a safe `400` with `antiforgeryFailed`; the client obtains a fresh token but never silently replays the failed mutation.
+- The Development advance endpoint remains an explicitly pinned compatibility operation until Training receives its own policy-aware resolve route. Ordinary production players still cannot execute ticks.
+- The account shell, zero-Game state, lobby/intermission presentation, cross-Game urgency, and two-tab product journey remain MG-07 and later work.
+
+## 2026-07-20: Persist Cycle Scheduling And Resolve One Explicit Due Game
+
+Decision: store `CycleSchedulingMode` in the immutable Cycle configuration and its materialised Cycle, and store nullable `Cycle.NextTickAt`. A scheduled Active Cycle must have a next due time; self-paced, completed, and recovery-required Cycles must not. Migration 025 backfills existing Cycles as scheduled, derives due time from the latest successful completion or Cycle start, validates configuration/materialisation agreement, and adds the filtered due index. State-transfer format v7 carries the same contract and deterministically adapts v1-v6 input.
+
+Replace the Worker's unspecified-active-Cycle operation with `IDueCycleQuery.GetNextDue(now)` and `ICycleResolutionStore`. Due discovery returns at most one Standard scheduled Game/Cycle ordered by `NextTickAt`, then Cycle ID. Resolution acquires Game followed by Cycle, reloads the exact tuple and policy, compares the observed due timestamp, and returns typed `Completed`, `RecoveryRequired`, `NotDue`, `Stale`, `Unavailable`, or `Busy` outcomes. Explicit resolution uses the same authoritative tick workspace and supports a self-paced Training Cycle without adding it to the scheduled queue.
+
+Status: MG-05 batch one is implemented in Core, Application, SQL infrastructure, Worker, migration 025, transfer v7, and the protected manual advance boundary. No Worker host is added by this decision.
+
+Reasoning:
+
+- Deriving due work by globally loading simulation state cannot select among several Games safely or efficiently. A persisted due timestamp makes bounded indexed discovery possible.
+- Discovery is advisory. Comparing the candidate's Game, Cycle, scheduling policy, lifecycle, and exact due timestamp under transaction-owned locks prevents duplicate Workers from advancing one observation twice.
+- Resolution may eventually complete a Cycle and transition its containing Game. Game-then-Cycle ordering establishes that future-safe lock order now and avoids acquiring the Game after holding the Cycle.
+- Training pacing is player-controlled. Excluding self-paced Cycles from discovery while retaining explicit authoritative resolution avoids a simulation fork.
+- A failed tick must not remain scheduled. Clearing `NextTickAt` with recovery state makes retry an explicit repaired operation rather than a hidden scheduler loop.
+
+Consequences:
+
+- A successful scheduled resolution advances `NextTickAt` atomically from its completion time. A failure, abandonment, completion, or non-scheduled mode clears it; recovery clear deliberately makes a scheduled Cycle due again.
+- Duplicate resolvers serialise under Game/Cycle locks. The winner completes once and the follower observes a stale due timestamp.
+- The Worker's batch size is deliberately one. Fairness, backlog capacity, leadership, shutdown and health evidence for several scheduled Games remain MG-12/#132 work and require an approved host before production claims.
+- Migration 025 and v7 transfer are forward-write boundaries. Older transfers are adapted on read; older database writers must not be used after deployment.
+- This closes explicit Worker selection as a prerequisite. It does not create a Standard or Training Game, provision Twin Reaches, implement a tutorial journey, or authorise a paid Worker service.

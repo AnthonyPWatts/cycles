@@ -64,6 +64,10 @@ public static class CycleContinuityService
         newCycle.StartAt = startsAt;
         newCycle.EndAt = startsAt.Add(sourceCycle.EndAt - sourceCycle.StartAt);
         newCycle.TickLengthMinutes = sourceCycle.TickLengthMinutes;
+        newCycle.SchedulingMode = sourceCycle.SchedulingMode;
+        newCycle.NextTickAt = sourceCycle.SchedulingMode == CycleSchedulingMode.Scheduled
+            ? startsAt
+            : null;
         newCycle.CreatedByPlayerId = sourceCycle.CreatedByPlayerId;
         newCycle.CreatedAt = startsAt;
         newCycle.PreviousCycleId = sourceCycle.CycleId;
@@ -300,6 +304,7 @@ public static class CycleContinuityService
         configuration.ScheduledStartAt = newCycle.StartAt;
         configuration.ScheduledEndAt = newCycle.EndAt;
         configuration.TickLengthMinutes = newCycle.TickLengthMinutes;
+        configuration.SchedulingMode = newCycle.SchedulingMode;
     }
 
     private static int CreateContinuitySeed(Cycle sourceCycle)

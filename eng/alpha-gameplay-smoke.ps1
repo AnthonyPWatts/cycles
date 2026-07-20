@@ -36,19 +36,28 @@ function Get-Json {
     return $content | ConvertFrom-Json
 }
 
-function Post-Json {
+function Send-Json {
     param(
         [System.Net.Http.HttpClient] $Client,
         [string] $Path,
-        [hashtable] $Body
+        [hashtable] $Body,
+        [string] $RequestToken,
+        [string] $Method = "POST"
     )
 
     $json = $Body | ConvertTo-Json -Compress
-    $requestContent = [System.Net.Http.StringContent]::new($json, [System.Text.Encoding]::UTF8, "application/json")
-    $response = $Client.PostAsync($Path, $requestContent).GetAwaiter().GetResult()
+    $request = [System.Net.Http.HttpRequestMessage]::new(
+        [System.Net.Http.HttpMethod]::new($Method),
+        $Path)
+    $request.Headers.Add("X-Cycles-Antiforgery", $RequestToken)
+    $request.Content = [System.Net.Http.StringContent]::new(
+        $json,
+        [System.Text.Encoding]::UTF8,
+        "application/json")
+    $response = $Client.SendAsync($request).GetAwaiter().GetResult()
     $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
     if (-not $response.IsSuccessStatusCode) {
-        throw "POST $Path failed with HTTP $([int]$response.StatusCode): $content"
+        throw "$Method $Path failed with HTTP $([int]$response.StatusCode): $content"
     }
 
     return $content | ConvertFrom-Json
@@ -169,16 +178,23 @@ try {
     $trustedPlayers = @(Get-Json $playerClient "/auth/trusted-players")
     $tony = $trustedPlayers | Where-Object { $_.playerName -eq "Tony" } | Select-Object -First 1
     Assert-Condition ($null -ne $tony) "The trusted player selector did not expose Tony."
-    $login = Post-Json $playerClient "/auth/login" @{
+    $requestToken = (Get-Json $playerClient "/auth/antiforgery").requestToken
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace($requestToken)) "The API did not issue an antiforgery token before login."
+    $login = Send-Json $playerClient "/auth/login" @{
         playerId = $tony.playerId
-    }
+    } $requestToken
     Assert-Condition ($login.role -eq "player") "Expected Tony to receive the player role."
     Assert-Condition $login.canAdvanceTurn "Expected a Development player to receive the advance-turn capability."
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace($login.gameId)) "Trusted login did not identify the selected Game."
 
-    $cycleBefore = Get-Json $playerClient "/cycles/current"
-    $empireBefore = Get-Json $playerClient "/empire"
-    $fleetsBefore = @(Get-Json $playerClient "/fleets")
-    $galaxy = Get-Json $playerClient "/galaxy"
+    $requestToken = (Get-Json $playerClient "/auth/antiforgery").requestToken
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace($requestToken)) "The API did not rotate the antiforgery token after login."
+    $gamePath = "/games/$($login.gameId)"
+
+    $cycleBefore = Get-Json $playerClient "$gamePath/cycles/current"
+    $empireBefore = Get-Json $playerClient "$gamePath/empire"
+    $fleetsBefore = @(Get-Json $playerClient "$gamePath/fleets")
+    $galaxy = Get-Json $playerClient "$gamePath/galaxy"
     Assert-Condition (@($galaxy.sectors).Count -eq 8) "The canonical gameplay smoke galaxy did not contain 8 sectors."
     Assert-Condition (@($galaxy.systems).Count -eq 64) "The canonical gameplay smoke galaxy did not contain 64 systems."
     Assert-Condition (@($galaxy.links).Count -eq 91) "The canonical gameplay smoke galaxy did not contain 91 routes."
@@ -201,49 +217,49 @@ try {
     Assert-Condition ($null -ne $link) "The player's home system has no linked destination."
     $targetSystemId = if ($link.systemAId -eq $fleet.currentSystemId) { $link.systemBId } else { $link.systemAId }
 
-    $priorities = Post-Json $playerClient "/orders/priorities" @{
+    $priorities = Send-Json $playerClient "$gamePath/priorities" @{
         industryWeight = 0
         researchWeight = 0
         militaryWeight = 75
         expansionWeight = 25
-    }
+    } $requestToken "PUT"
     Assert-Condition ($priorities.industryWeight -eq 0) "The API did not keep the Development priority locked at zero."
     Assert-Condition ($priorities.researchWeight -eq 0) "The API did not keep the Innovation priority locked at zero."
     Assert-Condition ($priorities.militaryWeight -eq 75) "The API did not save the development player's Military priority."
     Assert-Condition ($priorities.expansionWeight -eq 25) "The API did not save the development player's Expansion priority."
 
-    $move = Post-Json $playerClient "/orders/fleet/move" @{
+    $move = Send-Json $playerClient "$gamePath/orders/move" @{
         fleetId = $fleet.fleetId
         targetSystemId = $targetSystemId
-    }
+    } $requestToken
     Assert-Condition ($move.status -eq "pending") "The move order was not pending after submission."
     Assert-Condition ($move.executeAfterTick -eq ($cycleBefore.currentTickNumber + 1)) "The move order targeted the wrong execution tick."
 
-    $pendingOrders = @(Get-Json $playerClient "/orders")
+    $pendingOrders = @(Get-Json $playerClient "$gamePath/orders")
     Assert-Condition ($pendingOrders.fleetOrderId -contains $move.fleetOrderId) "The pending order was not visible to its player."
 
-    $tick = Post-Json $playerClient "/admin/tick" @{}
+    $tick = Send-Json $playerClient "$gamePath/admin/tick" @{} $requestToken
     Assert-Condition ($tick.status -eq "completed") "The player's Development tick did not complete."
     Assert-Condition ($tick.tickNumber -eq ($cycleBefore.currentTickNumber + 1)) "The Development tick advanced to an unexpected number."
 
-    $ordersAfter = @(Get-Json $playerClient "/orders")
+    $ordersAfter = @(Get-Json $playerClient "$gamePath/orders")
     $processedMove = $ordersAfter | Where-Object { $_.fleetOrderId -eq $move.fleetOrderId } | Select-Object -First 1
     Assert-Condition ($processedMove.status -eq "processed") "The player's move order was not processed by the tick."
 
-    $fleetsAfter = @(Get-Json $playerClient "/fleets")
+    $fleetsAfter = @(Get-Json $playerClient "$gamePath/fleets")
     $fleetAfter = ($fleetsAfter | Where-Object { $_.fleet.fleetId -eq $fleet.fleetId } | Select-Object -First 1).fleet
     $reachedOrTravelling = $fleetAfter.currentSystemId -eq $targetSystemId `
         -or $fleetAfter.destinationSystemId -eq $targetSystemId
     Assert-Condition $reachedOrTravelling "The fleet neither reached nor began travelling to its ordered destination."
 
-    $empireAfter = Get-Json $playerClient "/empire"
+    $empireAfter = Get-Json $playerClient "$gamePath/empire"
     Assert-Condition ($empireAfter.priorities.industryWeight -eq 0) "The Development priority was not locked at zero after the tick."
     Assert-Condition ($empireAfter.priorities.researchWeight -eq 0) "The Innovation priority was not locked at zero after the tick."
     Assert-Condition ($empireAfter.priorities.militaryWeight -eq 75) "The saved Military priority was not visible after the tick."
     Assert-Condition ($empireAfter.priorities.expansionWeight -eq 25) "The saved Expansion priority was not visible after the tick."
     Assert-Condition ($empireAfter.resources.lastGeneratedIndustry -gt 0) "The tick did not generate visible industry for the player."
 
-    $events = @(Get-Json $playerClient "/events/recent?limit=50")
+    $events = @(Get-Json $playerClient "$gamePath/events/recent?limit=50")
     Assert-Condition ($events.eventType -contains "prioritiesChanged") "The priority-change event was not visible to the player."
     Assert-Condition ($events.eventType -contains "fleetMoved") "The fleet-movement event was not visible to the player."
 
