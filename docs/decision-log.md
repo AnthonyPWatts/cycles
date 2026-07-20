@@ -1958,3 +1958,27 @@ Consequences:
 - Combat, cloning, continuity, rollback, provisioning, seeding, generic SQL saves, and focused tick persistence preserve the new relation. Deletion order clears supersession references and removes child membership before parent orders, battles, fleets, enrolments, or Games.
 - Migration deployment requires gameplay writes to be quiesced; the existing deployment workflow stops the API before applying migrations. Once a durable v6 write occurs, rollback is a forward-repair operation rather than an old-writer compatibility promise.
 - This completes MG-02's persistence contract but does not authorise a second durable Game. Focused Player/Game/Cycle stores, scoped routes, explicit Worker selection, resource authorisation, and antiforgery remain hard prerequisites.
+
+## 2026-07-19: Introduce The First Focused Application And SQL Store Boundary
+
+Decision: add a small `Cycles.Application` project for provider-neutral account/Game projections, explicit Game/Cycle scope, and one-Cycle command execution. Implement those contracts directly in the SQL infrastructure without adapting the generic whole-state load/save bridge.
+
+Keep the command working set compatible with existing Core order services, but constrain its persistence surface. A command may add or update Fleet orders and strategic priorities, append Events, and normalise only an existing Fleet's owning-faction identifier. It may not delete rows, mutate another aggregate, cross a Cycle boundary, reuse an identifier already present in omitted history, or persist a partial global snapshot.
+
+Status: the contracts, SQL implementation, and two-Game integration suite are implemented. Online API and Worker consumers are not migrated, so MG-03 remains in progress and the second-Game hard gate remains closed.
+
+Reasoning:
+
+- Account catalogue and access projections do not belong inside the simulation `GameState` aggregate.
+- Existing Core order services are still useful when supplied one explicit Cycle; replacing them would duplicate proven gameplay validation.
+- The tick-focused loader deliberately omits retained history. New-identifier guards and insert-only Events prevent an upsert from rewriting a row the command never loaded.
+- The Cycle application lock coordinates commands with resolution, while an update/hold lock on the exact scope row prevents Game/Cycle drift during the legacy-writer transition.
+- Typed `Unavailable` and `Busy` outcomes let the later HTTP boundary hide inaccessible scope and represent contention without leaking SQL exceptions.
+
+Consequences:
+
+- `Cycles.Application` references only Core. API, Worker, CLI, tests, and SQL infrastructure may reference it, but provider code remains in infrastructure and HTTP policy remains in API.
+- Player projections exclude email, password hashes, external issuer/subject claims, and other credential material.
+- Per-player Game lists are bounded to 100 rows per page and use a stable enrolment-status-time/Game-ID keyset cursor.
+- Scoped command callbacks run inside one SQL transaction after the exact `(GameID, CycleID)` pair is locked and validated. Any callback, validation, collision, or persistence failure rolls back every change.
+- The new store is an implemented migration target, not permission to create a second durable Game. MG-03 must still move online whole-state consumers; MG-04 and MG-05 must still deliver actor contexts, route scope, antiforgery, and explicit Worker selection/resolution.

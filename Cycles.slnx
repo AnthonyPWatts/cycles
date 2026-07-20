@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Cycles.Application/Cycles.Application.csproj" />
     <Project Path="src/Cycles.Api/Cycles.Api.csproj" />
     <Project Path="src/Cycles.Cli/Cycles.Cli.csproj" />
     <Project Path="src/Cycles.Core/Cycles.Core.csproj" />

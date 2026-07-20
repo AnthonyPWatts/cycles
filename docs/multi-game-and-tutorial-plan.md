@@ -1,6 +1,6 @@
 # Multi-game and tutorial platform plan
 
-Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 and MG-02 are implemented, while the second-Game runtime, account shell, Training profile, and tutorial journey are not.
+Status: approved on 19 July 2026; prerequisite implementation is in progress. MG-01 and MG-02 are implemented, and MG-03 now has its first focused application/SQL store boundary. Online consumer migration, the second-Game runtime, account shell, Training profile, and tutorial journey are not implemented.
 
 Last reviewed: 19 July 2026
 

@@ -1,6 +1,6 @@
 # Multi-game and tutorial test plan
 
-Status: approved baseline; prerequisite implementation is in progress. MG-01 and MG-02 provide the legacy Game foundation, mandatory SQL evidence, same-scope relationship contract, and normalised battle membership. The account shell, second-Game runtime, Training profile, and tutorial journey are not implemented.
+Status: approved baseline; prerequisite implementation is in progress. MG-01 and MG-02 provide the legacy Game foundation, mandatory SQL evidence, same-scope relationship contract, and normalised battle membership. MG-03 now has focused account/Game projections and a one-Cycle SQL command-store isolation suite; online consumers, the account shell, second-Game runtime, Training profile, and tutorial journey are not implemented.
 
 Companion plan: [Multi-game and tutorial programme](multi-game-and-tutorial-plan.md).
 

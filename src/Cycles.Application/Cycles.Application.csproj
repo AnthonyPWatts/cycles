@@ -1,14 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="..\Cycles.Application\Cycles.Application.csproj" />
     <ProjectReference Include="..\Cycles.Core\Cycles.Core.csproj" />
-    <ProjectReference Include="..\Cycles.Infrastructure.SqlServer\Cycles.Infrastructure.SqlServer.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

@@ -1,10 +1,16 @@
+using Cycles.Application;
 using Cycles.Core;
 using Microsoft.Data.SqlClient;
 using System.Data;
 
 namespace Cycles.Infrastructure.SqlServer;
 
-public sealed class SqlServerGameStateStore : IGameStateStore
+public sealed partial class SqlServerGameStateStore :
+    IGameStateStore,
+    IPlayerAccountQuery,
+    IGameCatalogueQuery,
+    IGameAccessQuery,
+    ICycleCommandStore
 {
     private const string ApplicationLockName = "Cycles.GameState";
     private const string TickLockPrefix = "Cycles.Tick.";

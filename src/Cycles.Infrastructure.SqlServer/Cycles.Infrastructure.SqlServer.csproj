@@ -3,6 +3,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\database\migrations\*.sql" LogicalName="Cycles.Infrastructure.SqlServer.Migrations.%(Filename)%(Extension)" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <ProjectReference Include="..\Cycles.Application\Cycles.Application.csproj" />
     <ProjectReference Include="..\Cycles.Core\Cycles.Core.csproj" />
   </ItemGroup>
 
