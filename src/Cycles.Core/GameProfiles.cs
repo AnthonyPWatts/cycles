@@ -110,14 +110,18 @@ public static class GameProfileCatalogue
     public const string StandardProfileKey = "standard-galaxy-v1";
     public const string TwinReachesProfileKey = "tutorial-foundations-v1";
 
-    private const string StandardGamePolicyHash = "e6c2801c790406df5def2c66ec5514f86fd7610b8f98380b5b1ad8cccda837f3";
-    private const string TrainingGamePolicyHash = "a839601ccb697d03bcee2a8e80a9c1676a0eca5fc96f274650b2136767faeb5f";
-    private const string StandardMapHash = "b18d578b06c93325fd418c269f88fc9c2449156ff4ad91e3453be56fe95cf333";
-    private const string TwinReachesMapHash = "4455d1666a72f6bf477b2ad3fe708638517c4c89f1854f3fc66c25c356f82b3b";
-    private const string StandardScenarioHash = "358933ff2ac2ad0fcb14e8f85237cacea949f14bb1133c14b2cae4e9f9cb3ed3";
-    private const string TwinReachesScenarioHash = "6a01dee3caf0f76682da3d869e2ad8efe92559c465594dfe4d317f99eecf7f43";
-    private const string StandardCyclePolicyHash = "2d6ab2fd22654f211795599d6f7d84f7c16cb24f16f4190025f366b61db51ff9";
-    private const string TrainingCyclePolicyHash = "bc2e18915dd423e44647710236dc19a9d16192a2ff88c5d5cb13c63399162a56";
+    private const string StandardGamePolicyHash = "93cb682e8844114731fb2bd30fc301acfbca9d79dd5ccae6fb5220fcb184b8ec";
+    private const string TrainingGamePolicyHash = "36ccdf83e0d3b605170e6f8fafa07d81be26926382215121f96d0604c344750e";
+    private const string StandardMapHash = "a7f52078725a989c45ce2410185c9b723d9eea1c58eee06811b37896e0caf4eb";
+    private const string TwinReachesMapHash = "da38644c2359607f018dfb93f20e0c150fb2831bb127b7d716c047c5b3d0ace7";
+    private const string StandardScenarioHash = "8d52685af80644a9a24555431bbb7109ddf7973fd16d482724a9bf2ee346ad04";
+    private const string TwinReachesScenarioHash = "434cfb2d6f000aadee3c86f85aec33dd8cd44a59e9e4e5f0afe0fba3595e6440";
+    private const string StandardCyclePolicyHash = "d32f8aa2671ab3fb4f2df6d56175233ff70e1bfa4f10a2bd790b59a310226562";
+    private const string TrainingCyclePolicyHash = "50a1fb228654494e837ee466aad7767075cf67c850420f01f59886baad65a801";
+    private static readonly JsonSerializerOptions ProfileHashJsonOptions = new(GameStateJson.Options)
+    {
+        WriteIndented = false
+    };
 
     public static GameProfileDefinition Standard { get; } = CreateStandard();
     public static GameProfileDefinition TwinReaches { get; } = CreateTwinReaches();
@@ -534,7 +538,7 @@ public static class GameProfileCatalogue
     });
 
     private static string Hash(object value) => Convert.ToHexString(
-            SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value, GameStateJson.Options)))
+            SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value, ProfileHashJsonOptions)))
         .ToLowerInvariant();
 
     private static GameProfileDefinition CreateStandard()
