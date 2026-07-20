@@ -59,9 +59,9 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260720-touch-targets-1", html);
-        Assert.Contains("app.js?v=20260720-touch-targets-1", html);
-        Assert.Contains("aria-label=\"Guide\"", toolbar);
+        Assert.Contains("styles.css?v=20260720-training-only-1", html);
+        Assert.Contains("app.js?v=20260720-training-only-1", html);
+        Assert.Contains("aria-label=\"Core foundations\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
         Assert.DoesNotContain(">Guide</button>", toolbar);
@@ -373,7 +373,7 @@ public sealed class DashboardViewContractTests
         var script = ReadDashboardAsset("app.js");
 
         Assert.Contains("id=\"tutorialResetButton\"", html);
-        Assert.Contains(">Reset guide</button>", html);
+        Assert.Contains(">Start fresh</button>", html);
         Assert.Contains("tutorialResetButton.addEventListener(\"click\", resetTutorial)", script);
         Assert.Contains("function resetTutorial()", script);
         Assert.DoesNotContain("<button id=\"tutorialResetButton\"", html[..html.IndexOf("<main", StringComparison.Ordinal)]);
@@ -390,7 +390,9 @@ public sealed class DashboardViewContractTests
         Assert.Matches(
             new Regex(@"\.tutorial-actions\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0;", RegexOptions.Singleline),
             css);
-        Assert.Contains("grid-template-columns: repeat(3, minmax(0, 1fr));", css);
+        Assert.Matches(
+            new Regex(@"@media \(max-width: 560px\)[\s\S]*?\.tutorial-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);", RegexOptions.Singleline),
+            css);
     }
 
     [Fact]

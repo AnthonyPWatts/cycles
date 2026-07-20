@@ -2141,7 +2141,7 @@ Reasoning:
 
 Consequences:
 
-- Standard games retain the existing Day One guide. A selected Training game instead loads `Core foundations` from the server and hides the Development-only manual advance control.
+- Standard games retained the existing Day One guide at this point. The later 20 July Standard/Training presentation decision supersedes this consequence: a selected Training game alone loads `Core foundations`, while Standard retains only ordinary gameplay surfaces.
 - Recovery-required Training remains inspectable, cannot resolve again through the journey, and offers a fresh attempt without silently repairing or rolling back the failed Cycle.
 - Core completion is recorded once at account level while later replay attempts remain allowed.
 - Disabling the Training pilot offer does not delete committed Games, runs, acknowledgements or completion evidence.
@@ -2181,3 +2181,24 @@ Consequences:
 - Unknown and partial atlas profiles degrade to an accurate chart rather than a broken image or another profile's painting.
 - The non-visual Systems and routes list contains every returned system and link and shares selection with the SVG; it remains authoritative when artwork fails.
 - The Twin Reaches delivery set contains one overview plus Inner Reach and Outer Reach PNG masters and quality-90 WebPs. Cloudflare must deploy and verify those three WebPs before the Azure dashboard revision publishes their URLs.
+
+## 2026-07-20: Confine Guided Tutorial Presentation To Training
+
+Decision: make the server-backed Twin Reaches `Core foundations` journey the sole guided tutorial presentation. Remove the former Day One guide, guide toolbar button, client-local tutorial state and tutorial-specific advance gate from Standard Games now; do not retain those artefacts until the Training pilot gates pass.
+
+Keep the Standard Council Agenda and its empire-scoped `OpeningBriefingIssued` objectives. They are genuine opening gameplay: they hand the player to ordinary Move, Colonise and Attack controls, and their results come from the normal authoritative simulation. They must not create tutorial progress, acknowledgement state or a separate resolution gate.
+
+This supersedes the 14 July decision to use the live Day One guide as primary training and the 19 July transitional direction to keep it until the standalone tutorial passed its pilot gates. It does not remove the opening briefing contract or broaden Training beyond its approved Core foundations journey.
+
+Reasoning:
+
+- Training now has durable server-derived progress, explicit pacing, authoritative resolution and recovery/reset semantics. Maintaining a second client-local tutorial in Standard creates two competing teaching paths and state models.
+- A Standard Game should present the full game as gameplay. The Council Agenda remains useful because it surfaces real strategic opportunities without claiming to be a guided course.
+- Accessibility, first-outcome, unaided-completion and false-learning evidence still gate Training readiness, but they do not justify retaining obsolete tutorial controls in Standard.
+
+Consequences:
+
+- Standard has no tutorial button, tutorial drawer, local tutorial persistence, tutorial acknowledgement or tutorial-specific result gate.
+- Standard opening objectives and their typed briefing remain available to the Council Agenda and continue through normal command and tick contracts.
+- Training alone owns guided copy, lesson state, pause/skip/completion, fresh-attempt handling and journey-controlled self-paced resolution.
+- MG-10 accessibility and state-matrix work, followed by the five-novice pilot, evaluates Training rather than preserving a parallel Standard tutorial.

@@ -1,6 +1,6 @@
 # Gameplay Guide
 
-This is the player-facing guide for the pre-alpha development build as of 19 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
+This is the player-facing guide for the pre-alpha development build as of 20 July 2026. It is intended to grow into the Alpha Tester's Guide when the game is ready for alpha.
 
 Cycles is a tick-based strategy game. You submit intentions, then the server resolves them during the next tick. Your current aim is to project influence, gather resources, build ships, establish outposts, and create a history worth recording in the Chronicle.
 
@@ -8,14 +8,15 @@ The development build does not have a finished victory screen or a complete set 
 
 ## What you need
 
-For the curated local opening:
+For local play:
 
 - follow the [run instructions](../README.md#run-locally);
 - open `/app.html` on the local site;
 - select Tony or Will from the trusted player selector;
-- start from tick 0 of a freshly seeded state.
+- use **Start Training** or resume **Twin Reaches** from the Games home when you want the guided `Core foundations` journey;
+- select a Standard Game when you want the full game without tutorial controls.
 
-Reseed the local SQL database if the opening has already been played:
+Reseed the local SQL database if the Standard opening has already been played. This replaces the development seed; it does not reset a durable Training attempt:
 
 ```powershell
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
@@ -23,43 +24,32 @@ dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --conf
 
 Stop the API before replacing its database state, then start it again. The normal seed command creates the fixed `development-match-v2` opening in an 8-sector, 64-system galaxy. Tony, Will, and the game-AI Ariadne command three empires in distinct sectors; explicit non-canonical dimensions create a generic galaxy instead.
 
-For an organised hosted test, use the access code supplied by the organiser, then select Tony or Will. The trusted playground uses the same manual **Close command window and advance** flow as local Development; there is no scheduled shared turn in that environment. The selector cannot create players or select the game-AI participant. Use it only in a trusted environment.
+For an organised hosted test, use the access code supplied by the organiser, then select Tony or Will. The trusted playground exposes Training only to the configured pilot players. Standard Games use the same manual **Close command window and advance** flow as local Development; there is no scheduled shared turn in that environment. The selector cannot create players or select the game-AI participant. Use it only in a trusted environment.
 
-## Curated Day One
+## Core foundations Training
 
-The Day One guide opens automatically for the selected participant when the curated Cycle is at tick 0 with no submitted orders. It is a click-along walkthrough, not a slideshow: required steps unlock only after the real server action succeeds.
+Twin Reaches is the sole guided journey. It is a private, self-paced Training Game with one human participant, a compact ten-system map, and the same authoritative order and resolution rules as Standard Games. The journey opens with the selected Training Game and derives progress from server evidence; reading or acknowledging guidance cannot manufacture completion.
 
-![Command view with the Day One guide open](images/cycles-dashboard-command-guide.png)
+Core foundations takes four resolutions:
 
-*The Command view opens with the resumable Day One guide and the next-turn information kept together.*
+1. Locate Hearth and Home Guard, queue a Move to Firstlight, resolve the Training turn, and inspect the real order and movement outcome.
+2. Read the resource and forecast consequences, save the suggested priority allocation, queue Survey Wing to Colonise Greenwater, resolve, and inspect the real result.
+3. Inspect the outpost or the actual rejection reason, queue Vanguard to Attack the local Corsairs, resolve, and read the resulting battle evidence regardless of who won.
+4. Choose a legal command without a preselected target, resolve it normally, and inspect its authoritative result.
 
-Every player empire begins with three live opportunities:
+The journey exposes one current objective at a time and highlights the relevant gameplay control. **Close** minimises the drawer without changing journey state. **Pause** records a resumable pause, while **I know this** stops guidance but keeps the Training Game playable. Progress resumes from server state after logout, refresh, or return from another Game. If an irreversible choice makes a required lesson impossible, the journey explains the block and offers a fresh attempt; it never silently rewinds or repairs the world.
 
-- move the 30-ship home guard along an adjacent route;
-- establish an outpost using the 12-ship survey fleet and 100 Population;
-- attack the local 8-ship Free Captains fleet with the 18-ship vanguard.
+**Resolve training turn** advances the selected self-paced Training Game through the ordinary resolver. It is not an automatic-success button: commands can be rejected, combat can be lost, and every displayed result comes from authoritative game facts. After explicit skip or completion, the direct self-paced resolution control remains available without the journey gate.
 
-The guide takes you through this sequence:
+Core completion records a profile-level achievement but never gates access to Standard Games. The optional Frontier travel module, including the two-tick gateway route and Recall, remains deferred until the Core pilot evidence passes.
 
-1. Read the resource cards and what each stockpile pays for.
-2. Drag either the Military or Expansion slider. The other active slider rebalances automatically to keep the total at 100; select **Save priorities** to commit the new allocation.
-3. Select the highlighted local flashpoint on the map and inspect the vanguard.
-4. Read the visibility note: routes are always known, while exact remote facts require one of your active fleets—or an active fleet belonging to a current ally—in the system.
-5. In **Fleets**, select the home guard. The guide opens **Move** and identifies the intended adjacent destination; select **Queue move**.
-6. Select the survey fleet. The guide opens **Colonise**; select **Queue outpost**.
-7. Select the vanguard. The guide opens **Attack** with the local Free Captains faction; select **Queue attack**.
-8. Read the nine-phase turn contract, then check that the order queue contains the three player commitments alongside projected or already-committed automatic effects.
-9. Select **Close command window and advance**, review the current-game aggregate counts, and confirm the Development operator action.
-10. Read the real Move, Attack, and Colonise outcomes in phase-ordered **Events**, then inspect any selective **Chronicle** account of the battle.
-11. Read how the current tick fits into the operator-driven Cycle end, final ranking, and successor boundary.
+## Standard Games
 
-All three orders use the normal order API and resolve through the normal authoritative tick engine. The opening positions are curated; movement, resource generation, combat losses, admiral history, events, and Chronicle selection are simulation results. The neutral fleets are factions with ships and influence, but no empire economy, player participant, diplomacy, or resources.
+Standard Games present the full game without a tutorial button, journey drawer, client-local tutorial progress, or tutorial-specific result gate. The Command view's **Council Agenda** may still show authored opening objectives from the empire-scoped briefing: these are genuine strategic opportunities that hand off to the normal Move, Colonise, and Attack controls. They neither advance Training nor force a particular plan.
 
-The guide remembers progress for each player and seeded Cycle instance in that browser. Reseeding creates a fresh tutorial. **Pause** or Escape closes it without losing the current step. **Skip guide** dismisses it. **Guide**, **Resume guide**, or **Restart guide** in the dashboard toolbar opens it again.
+The Standard opening positions are curated, but movement, resource generation, combat losses, admiral history, Events, and Chronicle selection are simulation results. Neutral fleets are factions with ships and influence but no empire economy, player participant, diplomacy, or resources.
 
 **Close command window and advance** is a temporary Development capability for every authenticated player. Its confirmation closes the current game's shared command window and shows aggregate counts for your pending orders, all pending human orders in the game, and fleet intentions that will enter the sealed ledger. It does not reveal another empire's orders, grant admin visibility, or grant control of another empire. Ordinary players do not receive the capability in Production.
-
-If the curated briefing is unavailable, **Guide** presents a shorter generic version of the same loop: inspect, prioritise, move, advance, and review.
 
 ## Read the dashboard
 
@@ -70,7 +60,7 @@ The dashboard keeps four views available at all times. Browser back and forward 
 - **Fleets** uses the roster selection as the context for Move, Attack, and Colonise. **Fleet command** keeps those actions close to the selected fleet's detail; **Resolved orders** provides scoped outcome filters and loads 20 matches at a time.
 - **History** separates the narrative **Chronicle** from the factual **Events** record. Both tabs support search, filtering, and sorting.
 
-The guide moves to the relevant view as each step begins. You can also use Alt+1 through Alt+4 to switch views.
+The Training journey can move to the relevant view as each lesson begins. You can also use Alt+1 through Alt+4 to switch views.
 
 In **Galaxy**, the full chart shows all 8 sectors and their 11 inter-sector bridges. Select a sector, gateway, or search result to enter it; **Sector** reveals that sector's 8-system territorial graph and outbound bridge lanes, while **Local** retains the same chart and subdues systems outside the selected neighbourhood. Select a system to inspect its resource output, strategic value, historical significance, visible influence, colonial outposts, and immediate routes. Multi-bridge gateways are valuable hubs: losing one can change access to several regions, and their initial historical signal marks them as places likely to matter.
 
@@ -110,7 +100,7 @@ Select a fleet in **Fleets** to see its current system, destination, admiral, ad
 
 Before closure, read the forecast as planning evidence rather than a promise. Projected income uses current influence; projected Colonise reservations, Military spending, ship starts, and progression use the current orders and priorities. They can change before the server seals the turn. A queued ship delivery is an authoritative commitment because an earlier tick already spent its Industry, although later recovery or lifecycle intervention can still prevent publication.
 
-After **Close command window and advance**, the dashboard refreshes automatically. Use **Refresh** if another host advanced the Cycle or if you want to reload the current state, then check:
+After **Resolve Training turn** in Training, or **Close command window and advance** in a Development Standard Game, the dashboard refreshes automatically. Use **Refresh** if another host advanced the Cycle or if you want to reload the current state, then check:
 
 - the tick number beside the Cycle name;
 - your fleet's location or arrival tick;
@@ -119,7 +109,7 @@ After **Close command window and advance**, the dashboard refreshes automaticall
 - new Events in authoritative phase order;
 - any Chronicle entry created by a major battle.
 
-The Day One result step checks the three briefing orders themselves. It unlocks only after the submitted Move, Attack, and Colonise intentions each record a `Processed` or `Rejected` outcome after the guide's starting tick; advancing the tick alone does not satisfy it. The guide then names those real outcomes before asking you to trace their causes through Events.
+Training lesson completion checks the lesson's owned orders and authoritative facts in the selected Game and Cycle. Advancing a turn, acknowledging prose, or producing evidence in another Game cannot satisfy it. Rejected attempts remain visible as learning evidence and the journey names the real reason before offering the permitted retry or fresh-attempt route.
 
 You have now completed the main loop: inspect, decide, queue, resolve, and review.
 
@@ -289,6 +279,6 @@ Do not include passwords, connection strings, access tokens, or private server d
 
 ## What you have learned
 
-You can now log in, read the visible galaxy, tune the two active strategic levers, move a fleet, attack a local rival, establish an outpost, and trace each result through orders and events. Future versions of this guide can add diplomacy, richer doctrines, Cycle-end play, and guided strategy scenarios when those systems reach the dashboard.
+You can now log in, choose a Game, read the visible galaxy, tune the two active strategic levers, move a fleet, attack a local rival, establish an outpost, and trace each result through orders and events. Future Training modules can add diplomacy, richer doctrines, Cycle-end play, and guided strategy scenarios when those systems reach the dashboard.
 
 For a detailed account of implemented and planned behaviour, see [Project State](project-state.md).

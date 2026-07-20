@@ -418,7 +418,6 @@ const elements = {
     tutorialRequirement: document.querySelector("#tutorialRequirement"),
     tutorialPauseButton: document.querySelector("#tutorialPauseButton"),
     tutorialSkipButton: document.querySelector("#tutorialSkipButton"),
-    tutorialBackButton: document.querySelector("#tutorialBackButton"),
     tutorialNextButton: document.querySelector("#tutorialNextButton")
 };
 
@@ -445,7 +444,6 @@ elements.tutorialCloseButton.addEventListener("click", closeTutorialPanel);
 elements.tutorialResetButton.addEventListener("click", resetTutorial);
 elements.tutorialPauseButton.addEventListener("click", pauseTutorial);
 elements.tutorialSkipButton.addEventListener("click", skipTutorial);
-elements.tutorialBackButton.addEventListener("click", previousTutorialStep);
 elements.tutorialNextButton.addEventListener("click", nextTutorialStep);
 
 document.addEventListener("keydown", event => {
@@ -509,15 +507,6 @@ window.addEventListener("beforeunload", event => {
 elements.advanceTurnButton.addEventListener("click", async () => {
     if (isSelfPacedCycle()) {
         await resolveSelfPacedTurn();
-        return;
-    }
-
-    if (tutorial.active
-        && tutorial.briefing
-        && state.cycle?.currentTickNumber === 0
-        && !curatedObjectiveOrdersReady()) {
-        setTurnMessage("Complete the three Day 1 commitments before closing the command window.");
-        syncTutorialDisplay();
         return;
     }
 
@@ -892,7 +881,6 @@ elements.priorityForm.addEventListener("submit", async event => {
         await gameApi.putJson("/priorities", payload);
         await refresh();
         setPriorityMessage("Priorities saved for the next tick.");
-        completeTutorialAction("prioritiesSaved");
     } catch (error) {
         if (isGameRequestCancellation(error)) {
             return;
@@ -1253,11 +1241,12 @@ function showLogin(message) {
 
 function selectGame(gameId) {
     const selection = gameApi.selectGame(gameId);
+    state.gameId = selection.gameId;
     if (selection.changed) {
+        resetTutorialContext();
         clearGameScopedState();
     }
 
-    state.gameId = selection.gameId;
     return selection;
 }
 
@@ -1613,6 +1602,7 @@ function showGamesHome({ focusHeading = false } = {}) {
 }
 
 function hideTutorialForAccount() {
+    elements.tutorialButton.hidden = true;
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     clearTutorialTarget();
@@ -3185,48 +3175,25 @@ async function recallFleet(fleetId) {
 }
 
 function syncTutorialAfterRefresh() {
-    if (isTrainingGame() && state.tutorialJourney) {
+    const trainingJourneyAvailable = isTrainingGame() && Boolean(state.tutorialJourney);
+    elements.tutorialButton.hidden = !trainingJourneyAvailable;
+    if (trainingJourneyAvailable) {
         syncTrainingTutorialAfterRefresh();
         return;
     }
+    disableStandardTutorial();
+}
 
-    const storageKey = state.playerId && state.cycle
-        ? `cycles.tutorial.${tutorial.version}.${state.playerId}.${state.cycle.cycleId}.${state.cycle.createdAt}`
-        : null;
-
-    if (!storageKey) {
-        return;
-    }
-
-    if (tutorial.storageKey !== storageKey) {
-        clearTutorialTarget();
-        tutorial.storageKey = storageKey;
-        tutorial.briefing = state.openingBriefing;
-        tutorial.completedActions = new Set();
-        tutorial.initialTick = state.cycle.currentTickNumber;
-        tutorial.stepIndex = 0;
-        tutorial.status = "available";
-        tutorial.active = false;
-        tutorial.dismissed = false;
-
-        const saved = loadTutorialState(storageKey);
-        if (saved) {
-            tutorial.status = saved.status ?? "available";
-            tutorial.initialTick = Number.isInteger(saved.initialTick) ? saved.initialTick : state.cycle.currentTickNumber;
-            tutorial.completedActions = new Set(Array.isArray(saved.completedActions) ? saved.completedActions : []);
-            tutorial.briefing = saved.briefing ?? tutorial.briefing;
-            const savedIndex = tutorialSteps().findIndex(step => step.id === saved.stepId);
-            tutorial.stepIndex = savedIndex >= 0 ? savedIndex : 0;
-            tutorial.active = tutorial.status === "active";
-        } else if (tutorial.briefing && state.cycle.currentTickNumber === 0 && state.orders.length === 0) {
-            tutorial.status = "active";
-            tutorial.active = true;
-            tutorial.initialTick = state.cycle.currentTickNumber;
-            saveTutorialState();
-        }
-    }
-
-    syncTutorialDisplay();
+function disableStandardTutorial() {
+    clearTutorialTarget();
+    elements.tutorialPanel.hidden = true;
+    document.body.classList.remove("tutorial-active");
+    tutorial.active = false;
+    tutorial.status = "available";
+    tutorial.storageKey = null;
+    tutorial.dismissed = true;
+    tutorial.returnFocus = null;
+    syncTutorialPresentation();
 }
 
 function isTrainingGame() {
@@ -3290,7 +3257,6 @@ function renderTrainingTutorial() {
     elements.tutorialPauseButton.hidden = status !== "active";
     elements.tutorialSkipButton.textContent = "I know this";
     elements.tutorialSkipButton.hidden = status !== "active";
-    elements.tutorialBackButton.hidden = true;
 
     if (status === "recovery-required") {
         elements.tutorialTitle.textContent = "This attempt needs recovery";
@@ -3404,212 +3370,109 @@ async function advanceTrainingTutorial() {
 }
 
 async function startOrResumeTutorial() {
-    if (isTrainingGame() && state.tutorialJourney) {
-        tutorial.returnFocus = elements.tutorialButton;
-        if (normaliseTutorialStatus(state.tutorialJourney.journeyStatus) === "paused") {
-            try {
-                state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "active" });
-            } catch (error) {
-                if (!isGameRequestCancellation(error)) {
-                    setMessage(error.message);
-                }
-                return;
-            }
-        }
-        tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
-        tutorial.active = true;
-        tutorial.dismissed = false;
-        renderTrainingTutorial();
-        syncTutorialPresentation({ moveFocus: true });
-        syncCommandWindowControls();
-        return;
-    }
-
-    if (!tutorial.storageKey || !state.cycle) {
+    if (!isTrainingGame() || !state.tutorialJourney) {
         return;
     }
 
     tutorial.returnFocus = elements.tutorialButton;
-    tutorial.dismissed = false;
-    if (tutorial.status === "paused") {
-        tutorial.status = "active";
-        tutorial.active = true;
-    } else if (!tutorial.active) {
-        tutorial.status = "active";
-        tutorial.active = true;
-        tutorial.stepIndex = 0;
-        tutorial.initialTick = state.cycle.currentTickNumber;
-        tutorial.completedActions = new Set();
-        tutorial.briefing = state.openingBriefing ?? tutorial.briefing;
+    if (normaliseTutorialStatus(state.tutorialJourney.journeyStatus) === "paused") {
+        try {
+            state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "active" });
+        } catch (error) {
+            if (!isGameRequestCancellation(error)) {
+                setMessage(error.message);
+            }
+            return;
+        }
     }
-
-    saveTutorialState();
-    renderTutorial();
+    tutorial.status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
+    tutorial.active = true;
+    tutorial.dismissed = false;
+    renderTrainingTutorial();
     syncTutorialPresentation({ moveFocus: true });
+    syncCommandWindowControls();
 }
 
 async function resetTutorial() {
-    if (isTrainingGame() && state.tutorialJourney) {
-        const confirmed = window.confirm(
-            "Start a fresh Training game? This attempt will remain in your history and its world will not be rewound.");
-        if (!confirmed) {
-            return;
-        }
-
-        elements.tutorialResetButton.disabled = true;
-        try {
-            tutorial.freshRequestId ??= crypto.randomUUID();
-            const replacement = await gameApi.postJson(
-                "/tutorial/start-fresh",
-                { requestId: tutorial.freshRequestId });
-            tutorial.freshRequestId = null;
-            await loadGamesHome();
-            const game = gameById(replacement.gameId);
-            if (!game) {
-                throw new Error("The fresh Training game was created but is not yet available in the game ledger.");
-            }
-            window.location.hash = selectedGameHash(game, "command");
-        } catch (error) {
-            if (!isGameRequestCancellation(error)) {
-                setMessage(error.message);
-            }
-        } finally {
-            elements.tutorialResetButton.disabled = false;
-        }
+    if (!isTrainingGame() || !state.tutorialJourney) {
         return;
     }
 
-    if (!tutorial.storageKey || !state.cycle) {
+    const confirmed = window.confirm(
+        "Start a fresh Training game? This attempt will remain in your history and its world will not be rewound.");
+    if (!confirmed) {
         return;
     }
 
-    tutorial.status = "active";
-    tutorial.active = true;
-    tutorial.stepIndex = 0;
-    tutorial.initialTick = state.cycle.currentTickNumber;
-    tutorial.completedActions = new Set();
-    tutorial.briefing = state.openingBriefing ?? tutorial.briefing;
-    saveTutorialState();
-    renderTutorial();
+    elements.tutorialResetButton.disabled = true;
+    try {
+        tutorial.freshRequestId ??= crypto.randomUUID();
+        const replacement = await gameApi.postJson(
+            "/tutorial/start-fresh",
+            { requestId: tutorial.freshRequestId });
+        tutorial.freshRequestId = null;
+        await loadGamesHome();
+        const game = gameById(replacement.gameId);
+        if (!game) {
+            throw new Error("The fresh Training game was created but is not yet available in the game ledger.");
+        }
+        window.location.hash = selectedGameHash(game, "command");
+    } catch (error) {
+        if (!isGameRequestCancellation(error)) {
+            setMessage(error.message);
+        }
+    } finally {
+        elements.tutorialResetButton.disabled = false;
+    }
 }
 
 async function pauseTutorial() {
-    if (!tutorial.active) {
+    if (!tutorial.active || !isTrainingGame() || !state.tutorialJourney) {
         return;
     }
 
-    if (isTrainingGame() && state.tutorialJourney) {
-        try {
-            state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "paused" });
-            tutorial.status = "paused";
-            tutorial.active = false;
-            hideTutorial();
-            syncCommandWindowControls();
-        } catch (error) {
-            if (!isGameRequestCancellation(error)) {
-                setMessage(error.message);
-            }
+    try {
+        state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "paused" });
+        tutorial.status = "paused";
+        tutorial.active = false;
+        hideTutorial();
+        syncCommandWindowControls();
+    } catch (error) {
+        if (!isGameRequestCancellation(error)) {
+            setMessage(error.message);
         }
-        return;
     }
-
-    tutorial.status = "paused";
-    tutorial.active = false;
-    saveTutorialState();
-    hideTutorial();
 }
 
 async function skipTutorial() {
-    if (isTrainingGame() && state.tutorialJourney) {
-        const confirmed = window.confirm(
-            "Mark this Core foundations version as already known? The Training game remains playable and you can start a fresh attempt later.");
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "skipped" });
-            tutorial.status = "skipped";
-            tutorial.active = false;
-            hideTutorial();
-            syncCommandWindowControls();
-        } catch (error) {
-            if (!isGameRequestCancellation(error)) {
-                setMessage(error.message);
-            }
-        }
+    if (!isTrainingGame() || !state.tutorialJourney) {
         return;
     }
 
-    tutorial.status = "skipped";
-    tutorial.active = false;
-    saveTutorialState();
-    hideTutorial();
-}
-
-function completeTutorial() {
-    tutorial.status = "completed";
-    tutorial.active = false;
-    saveTutorialState();
-    hideTutorial();
-}
-
-function previousTutorialStep() {
-    if (!tutorial.active || tutorial.stepIndex === 0) {
+    const confirmed = window.confirm(
+        "Mark this Core foundations version as already known? The Training game remains playable and you can start a fresh attempt later.");
+    if (!confirmed) {
         return;
     }
 
-    tutorial.stepIndex--;
-    saveTutorialState();
-    renderTutorial();
+    try {
+        state.tutorialJourney = await gameApi.postJson("/tutorial/status", { status: "skipped" });
+        tutorial.status = "skipped";
+        tutorial.active = false;
+        hideTutorial();
+        syncCommandWindowControls();
+    } catch (error) {
+        if (!isGameRequestCancellation(error)) {
+            setMessage(error.message);
+        }
+    }
 }
 
 async function nextTutorialStep() {
-    if (isTrainingGame() && state.tutorialJourney) {
-        await advanceTrainingTutorial();
+    if (!isTrainingGame() || !state.tutorialJourney) {
         return;
     }
-
-    if (!tutorial.active) {
-        return;
-    }
-
-    const steps = tutorialSteps();
-    const step = steps[tutorial.stepIndex];
-    if (step.required && !step.isSatisfied()) {
-        return;
-    }
-
-    if (tutorial.stepIndex >= steps.length - 1) {
-        completeTutorial();
-        return;
-    }
-
-    tutorial.stepIndex++;
-    saveTutorialState();
-    renderTutorial();
-}
-
-function completeTutorialAction(action) {
-    if (!tutorial.storageKey) {
-        return;
-    }
-
-    tutorial.completedActions.add(action);
-    saveTutorialState();
-    syncTutorialDisplay();
-}
-
-function syncTutorialDisplay() {
-    updateTutorialButton();
-    if (tutorial.active && !tutorial.dismissed) {
-        renderTutorial();
-    } else {
-        elements.tutorialPanel.hidden = true;
-        document.body.classList.remove("tutorial-active");
-        clearTutorialTarget();
-        syncTutorialPresentation();
-    }
+    await advanceTrainingTutorial();
 }
 
 function renderTutorial() {
@@ -3647,7 +3510,6 @@ function renderTutorial() {
     elements.tutorialPauseButton.hidden = false;
     elements.tutorialSkipButton.textContent = "Skip guide";
     elements.tutorialSkipButton.hidden = false;
-    elements.tutorialBackButton.hidden = false;
     elements.tutorialNextButton.hidden = false;
     elements.tutorialProgress.textContent = `${tutorial.stepIndex + 1} of ${steps.length}`;
     elements.tutorialTitle.textContent = step.title;
@@ -3655,7 +3517,6 @@ function renderTutorial() {
     elements.tutorialRequirement.textContent = step.required
         ? satisfied ? "Done. Continue when you are ready." : step.requirement
         : "";
-    elements.tutorialBackButton.disabled = tutorial.stepIndex === 0;
     elements.tutorialNextButton.disabled = !satisfied;
     elements.tutorialNextButton.textContent = tutorial.stepIndex === 0
         ? "Start"
@@ -3780,26 +3641,21 @@ function containTutorialFocus(event) {
 
 function updateTutorialButton() {
     const open = tutorial.active && !tutorial.dismissed && !elements.tutorialPanel.hidden;
-    if (isTrainingGame() && state.tutorialJourney) {
-        const status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
-        const label = open
-            ? "Core foundations open"
-            : status === "paused" ? "Resume Core foundations"
-                : status === "completed" ? "Review completed Training"
-                    : status === "skipped" ? "Review skipped Training"
-                        : status === "recovery-required" ? "Review Training recovery"
-                            : "Open Core foundations";
-        elements.tutorialButton.setAttribute("aria-label", label);
-        elements.tutorialButton.title = label;
-        elements.tutorialButton.setAttribute("aria-expanded", String(open));
+    if (!isTrainingGame() || !state.tutorialJourney) {
+        elements.tutorialButton.hidden = true;
+        elements.tutorialButton.setAttribute("aria-expanded", "false");
         return;
     }
 
+    elements.tutorialButton.hidden = false;
+    const status = normaliseTutorialStatus(state.tutorialJourney.journeyStatus);
     const label = open
-        ? "Guide open"
-        : tutorial.status === "paused" ? "Resume guide"
-            : tutorial.status === "completed" || tutorial.status === "skipped" ? "Restart guide"
-                : "Guide";
+        ? "Core foundations open"
+        : status === "paused" ? "Resume Core foundations"
+            : status === "completed" ? "Review completed Training"
+                : status === "skipped" ? "Review skipped Training"
+                    : status === "recovery-required" ? "Review Training recovery"
+                        : "Open Core foundations";
     elements.tutorialButton.setAttribute("aria-label", label);
     elements.tutorialButton.title = label;
     elements.tutorialButton.setAttribute("aria-expanded", String(open));
@@ -3858,6 +3714,7 @@ function clearTutorialTarget() {
 
 function resetTutorialContext() {
     clearTutorialTarget();
+    elements.tutorialButton.hidden = true;
     elements.tutorialPanel.hidden = true;
     document.body.classList.remove("tutorial-active");
     tutorial.active = false;
@@ -5154,7 +5011,6 @@ function selectSystem(systemId, { focusMap = false, restoreMapFocus = false, res
     if (restoreTopologyFocus) {
         requestAnimationFrame(() => focusTopologySystem(systemId));
     }
-    syncTutorialDisplay();
 }
 
 function focusTopologySystem(systemId) {

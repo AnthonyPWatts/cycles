@@ -10,9 +10,7 @@ Explore the authored eight-sector galaxy, follow live routes, and inspect the st
 
 ![Cycles Galaxy workspace showing the eight-sector atlas and selected-system intelligence](docs/images/cycles-dashboard-map.png)
 
-Triage the next authoritative tick through the council agenda, frontier schematic, strategic watch, programme allocation, and resumable Day One guide.
-
-![Cycles Command workspace showing the council agenda, frontier schematic, and Day One guide](docs/images/cycles-dashboard-command-guide.png)
+Triage the next authoritative tick through the council agenda, frontier schematic, strategic watch, and programme allocation. The server-backed `Core foundations` journey appears only inside Twin Reaches Training; Standard Games have no tutorial controls.
 
 The current pre-alpha development build supports a complete gameplay loop locally and through a public project site with an access-restricted trusted-playground application:
 
@@ -97,7 +95,7 @@ dotnet run --project src/Cycles.Cli -- db migrate "sqlserver:$connectionString"
 dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" --confirm-replace
 ```
 
-With no size or seed arguments, this creates the deterministic `development-match-v2` opening used by the Day One guide: 8 named sectors, 64 systems, 91 routes, and three competing empires in distinct sectors. Tony and Will are persistent human development players; Ariadne is a game-AI player whose ordered planner attacks weaker visible forces, establishes affordable outposts, and moves towards high-value expansion systems. Each empire begins with three fleets and 60 ships, while six weaker Free Captain fleets remain positional neutral pressure. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
+With no size or seed arguments, this creates the deterministic `development-match-v2` Standard opening used by the Council Agenda: 8 named sectors, 64 systems, 91 routes, and three competing empires in distinct sectors. Tony and Will are persistent human development players; Ariadne is a game-AI player whose ordered planner attacks weaker visible forces, establishes affordable outposts, and moves towards high-value expansion systems. Each empire begins with three fleets and 60 ships, while six weaker Free Captain fleets remain positional neutral pressure. Supplying explicit values before `--confirm-replace`, for example `30 4 12345`, creates a generic deterministic galaxy instead. SQL seeding always requires the replacement confirmation.
 
 Run the API and dashboard:
 

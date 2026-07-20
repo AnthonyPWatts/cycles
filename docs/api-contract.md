@@ -205,7 +205,7 @@ Unhandled server failures do not become additional documented client codes and m
 
 Raw `FactJson` is internal flexible storage and is not part of ordinary player event, battle, or tick-result responses. History uses `displayText` and factual Chronicle summaries for normal presentation.
 
-The Day One guide consumes the purpose-built `GET /games/{gameId}/briefings/opening` response. Its shape contains only the stable scenario, focus-system, and objective identifiers required by the guide:
+The Standard Council Agenda consumes the purpose-built `GET /games/{gameId}/briefings/opening` response. Its shape contains only the stable scenario, focus-system, and objective identifiers required to present and hand off genuine opening opportunities. This is an ordinary selected-Game contract; it does not create tutorial progress, acknowledgement state, or a resolution gate:
 
 ```json
 {

@@ -24,7 +24,7 @@ The following direction is already accepted in the project documentation:
 - standard games use separate, larger map profiles;
 - a persistent `Player` may enrol in several game instances;
 - manual organisation and scheduled population should converge on one membership model;
-- the current Day One guide and `development-match-v2` remain in place until a true replacement exists.
+- `development-match-v2` remains the first Standard profile, while the server-backed Twin Reaches `Core foundations` journey is the sole guided tutorial presentation.
 
 At plan approval, the runtime still assumed one globally active `Cycle` in several important places:
 
@@ -501,7 +501,7 @@ The tutorial game and the journey UI are separate concerns:
 
 Use the player-facing terms `Training`, `Core foundations` and `Frontier travel`; reserve `TutorialRun` and `TutorialDefinition` for backend contracts.
 
-Use a minimisable journey drawer rather than inserting a fifth column into the gameplay layout. At 1200px and wider it may pin as a 360–400px right rail while open; from 768–1199px it overlays from the right; below 768px it uses the existing bottom-sheet pattern with a maximum height of 70dvh. Reuse the current admiral presenter, focus restoration and target-highlighting strengths.
+Use a minimisable journey drawer rather than inserting a fifth column into the gameplay layout. At 1200px and wider it may pin as a 360–400px right rail while open; from 768–1199px it overlays from the right; below 768px it uses the existing bottom-sheet pattern with a maximum height of 70dvh. Reuse the Training admiral presenter, focus restoration and target-highlighting strengths.
 
 The rail may contain:
 
@@ -900,7 +900,7 @@ Treat the work as outcome increments rather than completing five horizontal infr
 ### Increment 0 — evidence and contract lock
 
 - confirm the already accepted Game-to-Cycle premise;
-- observe the current Day One flow with at least five non-implementers and record time to first authoritative result, confusion and facilitator intervention;
+- capture baseline evidence from the former Day One flow with at least five non-implementers, recording time to first authoritative result, confusion and facilitator intervention;
 - approve the initial Game, CycleConfiguration, enrolment and actor-context contracts;
 - validate the Twin Reaches topology and the shortest core journey with a deterministic simulation;
 - record explicit successor reconfirmation and in-app-only first-release notification policy in the contracts.
@@ -932,7 +932,7 @@ Do not add public discovery, generic queues, player-created games, successor-Cyc
 - deliver the four-resolution Core foundations journey and conditional outcome cards;
 - add the optional three-resolution frontier travel module only after the core flow meets pilot gates;
 - make defeated, completed, stale and recovery states intentional;
-- retain the current Day One overlay until replacement evidence passes.
+- remove the former Standard Day One overlay now that the server-backed Core journey exists; pilot evidence gates Training readiness rather than preserving a parallel Standard tutorial.
 
 ### Increment 3 — curated standard-game runway
 
@@ -1132,7 +1132,7 @@ The product owner approved these two choices on 19 July 2026:
 |---|---|---|
 | Persistent Players need more than one Game | The current account, API and browser bind identity to one global active Cycle, making a second Game impossible without explicit context | Confirmed product direction and real architectural constraint |
 | `Game 1:N Cycle` | Existing continuity already creates successor Cycles and reuses Players; `Game == Cycle` would require a later lineage aggregate | Confirmed by the product owner |
-| Training should use real mechanics | The current guide's strongest seam is authoritative order/outcome evidence; scripted outcomes would teach the wrong system | Keep one resolver and vary only profiles, policy and presentation |
+| Training should use real mechanics | The former guide's strongest seam was authoritative order/outcome evidence; scripted outcomes would teach the wrong system | Keep one resolver and vary only profiles, policy and presentation |
 | One compulsory seven-resolution tutorial is appropriate | No novice evidence yet supports that cognitive load | Split into four-resolution Core foundations and an optional frontier module |
 | Public discovery and matchmaking are needed to validate Training | Training value can be tested with the existing Game and operator-curated cohorts | Defer public liquidity machinery; prove a curated runway first |
 | A Game owns one map/scenario profile | False once a Game contains successor Cycles that may have different worlds | Move immutable provenance to a locked per-Cycle configuration |
@@ -1403,7 +1403,7 @@ Operational decisions:
 
 - every structured log for scoped work carries GameID, CycleID when present, operation, result and correlation ID;
 - lifecycle audit records explain enrolment, lock, start, intermission, completion, termination and Training reset transitions;
-- day-one diagnostics list Games by lifecycle, due backlog, oldest due age, Cycle recovery state and profile provenance;
+- first-line diagnostics list Games by lifecycle, due backlog, oldest due age, Cycle recovery state and profile provenance;
 - runbooks cover failed backfill, stuck start, recovery isolation, duplicate-attempt reports and profile hash mismatch.
 
 Rollout sequence:
@@ -1488,7 +1488,7 @@ Existing patterns to reuse:
 - section kickers, archival headings, compact ledgers and status chips;
 - the four Roman-numeral workspace links and their focus/addressability behaviour;
 - explicit gold focus rings, reduced motion and heading focus on navigation;
-- the existing guide's admiral voice, highlighted targets, focus restoration and mobile bottom sheet.
+- the Training journey's admiral voice, highlighted targets, focus restoration and mobile bottom sheet.
 
 ### 26.2 Account and selected-game wireframes
 

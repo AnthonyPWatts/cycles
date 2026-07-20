@@ -100,7 +100,7 @@ The dashboard's next-test scale is the curated 8-sector, 64-system galaxy with t
 
 Desktop and laptop browsers are the primary dashboard command surface. Responsive layouts must preserve a readable narrow-screen core loop for authentication, status and History, priorities, fleet selection, and basic order submission and cancellation without page-level horizontal scrolling. Equal mobile optimisation, a touch-first interaction model, and native mobile clients remain deferred until usage evidence selects mobile as a primary surface.
 
-The resumable Day One guide is the primary in-dashboard training path and uses real controls and authoritative outcomes. It teaches priorities, visibility, order lifecycle, Events versus Chronicle, and the current tick/Cycle boundary using the current Command, Galaxy, Fleets, and History views. Keep contextual hints local and concise rather than creating a parallel help application.
+The server-backed Twin Reaches `Core foundations` journey is the sole guided in-dashboard training path. It uses real controls and authoritative outcomes across Command, Galaxy, Fleets, and History; its durable lesson state is scoped to the selected Player, Game, Cycle, and Training run. Standard Games expose no tutorial button, client-local tutorial progress, journey drawer, or tutorial-specific resolution gate. Their Council Agenda and empire-scoped opening objectives remain ordinary gameplay prompts. Keep contextual Training hints local and concise rather than creating a parallel help application.
 
 ### `Cycles.Worker`
 
