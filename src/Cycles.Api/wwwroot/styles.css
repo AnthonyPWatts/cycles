@@ -781,6 +781,46 @@ body.tutorial-modal::before {
     }
 }
 
+@media (min-width: 1200px) and (max-width: 1340px) {
+    body.tutorial-active .map-toolbar,
+    body.tutorial-active .map-stage {
+        min-width: 0;
+    }
+
+    body.tutorial-active .map-toolbar-primary {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+    }
+
+    body.tutorial-active .map-search {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    body.tutorial-active .map-ranges {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        justify-self: stretch;
+    }
+
+    body.tutorial-active .map-ranges button {
+        flex: 1 1 0;
+    }
+
+    body.tutorial-active .map-maximise {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    body.tutorial-active .map-maximise-label {
+        display: none;
+    }
+
+    body.tutorial-active .map-toolbar-context {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 @media (min-width: 768px) and (max-width: 1199px) {
     body.tutorial-active .tutorial-panel,
     body.tutorial-active .tutorial-panel.is-right {
