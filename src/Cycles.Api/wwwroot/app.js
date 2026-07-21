@@ -1575,7 +1575,8 @@ async function navigateFromLocation({ focusHeading = false } = {}) {
     }
 
     const selection = selectGame(route.gameId);
-    showSelectedGameShell(game);
+    const loading = selection.changed || !state.cycle;
+    showSelectedGameShell(game, { loading });
     activateView(route.view, { focusHeading });
     if (route.legacy) {
         window.history.replaceState(null, "", selectedGameHash(game, route.view));
@@ -1583,6 +1584,9 @@ async function navigateFromLocation({ focusHeading = false } = {}) {
     if (selection.changed || !state.cycle) {
         try {
             await refresh();
+            if (loading) {
+                setTurnMessage("");
+            }
         } catch (error) {
             if (!isGameRequestCancellation(error)) {
                 setTurnMessage("Game unavailable. Its details could not be loaded for this account.", { error: true });
@@ -1619,17 +1623,17 @@ function hideTutorialForAccount() {
     syncTutorialPresentation();
 }
 
-function showSelectedGameShell(item) {
+function showSelectedGameShell(item, { loading = false } = {}) {
     if (!item) {
         return;
     }
     elements.gamesHome.hidden = true;
     elements.selectedGameContext.hidden = false;
-    elements.viewNav.hidden = false;
-    elements.viewStack.hidden = false;
-    elements.turnProgressRibbon.hidden = isSelfPacedCycle() || isTrainingGame();
+    elements.viewNav.hidden = loading;
+    elements.viewStack.hidden = loading;
+    elements.turnProgressRibbon.hidden = loading || isSelfPacedCycle() || isTrainingGame();
     elements.turnMessage.hidden = false;
-    elements.appHeaderControls.hidden = false;
+    elements.appHeaderControls.hidden = loading;
     elements.selectedGameName.textContent = item.game.gameName;
     elements.selectedGameKind.textContent = `${formatStatus(item.game.purpose)} game`;
     elements.gameSelector.value = item.game.gameId;
@@ -1638,6 +1642,9 @@ function showSelectedGameShell(item) {
     }
     document.body.classList.remove("account-active");
     document.title = `${item.game.gameName} · ${formatStatus(state.activeView)} · Cycles`;
+    if (loading) {
+        setTurnMessage(`Loading ${item.game.gameName}…`);
+    }
 }
 
 function selectedGameHash(item, view) {
