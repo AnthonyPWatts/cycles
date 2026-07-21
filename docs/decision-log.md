@@ -2221,3 +2221,23 @@ Consequences:
 - The current `NeedsAttention`, active, waiting, and completed response groups and dashboard sections may be simplified or replaced, but timing and action policy must not drift into untested client-only rules.
 - Tutorial presentation and contracts should tolerate more than one available or active tutorial even though Twin Reaches is currently the only profile.
 - The zero-membership state, pagination honesty, selected-Game routes, game switching, authority checks, responsive layout, and accessible navigation remain required.
+
+## 2026-07-21: Retire The Frontier Schematic And Refocus Command
+
+Decision: remove the Frontier Schematic from Command and do not replace it with another mini-map, topology thumbnail, or local-frontier projection. The fixed authored Galaxy board is the sole spatial source of truth. Use the reclaimed Command space to make the Council Agenda and the current turn's outcomes, unresolved Player decisions, commitments or journeys, and next-resolution forecast easier to scan.
+
+Status: intended work tracked by [issue #159](https://github.com/AnthonyPWatts/cycles/issues/159); not yet implemented. This supersedes the Frontier Schematic portion of the 16 July Command redesign while retaining that decision's core split: Command owns cross-workspace triage, and specialist spatial inspection belongs in Galaxy.
+
+Reasoning:
+
+- The schematic expresses an earlier local-frontier navigation model, while the game now has one fixed, authored and data-driven board.
+- Its four-system heuristic and decorative diamond are not the real topology. Opening-objective residue can remain prominent after it stops being strategically useful, making the panel weaker and potentially misleading later in a Game.
+- Command has a durable job at every stage: show what changed, what needs a Player decision, what is already committed or in transit, and what is expected when the command window closes.
+- Reclaiming screen space does not require inventing a replacement feature. Existing authoritative agenda, event, order, journey, priority, and forecast data can support the stronger hierarchy.
+
+Consequences:
+
+- Galaxy remains the only spatial board; Command alerts may deep-link to relevant Galaxy or Fleets context without reconstructing topology.
+- The Council Agenda becomes the primary opening decision surface. The latest outcomes, current commitments, journeys, order calendar, and player-scoped next-resolution forecast should be visible early in the flow without duplicating the same fact across several summaries.
+- The complete phase-order explanation remains available and accessible but becomes visually secondary to the current turn's decisions and consequences.
+- A late-game Campaign Outlook is deferred. It should receive a separate product decision only after late-game objectives, standings, and visibility rules provide authoritative material for it.
