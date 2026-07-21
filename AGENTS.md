@@ -65,6 +65,7 @@ $env:CYCLES_SQL_INTEGRATION_CONNECTION_STRING = "Server=localhost,14333;Database
 - Do not mark planned systems as implemented until code and relevant verification exist.
 - Keep original design documents under `docs/source`; the Markdown docs are the working development layer.
 - GitHub issues own concrete actionable scope, acceptance criteria, ownership, live status, dependencies, and completion. `docs/backlog.md` owns priorities, sequencing, decision gates, conditional risks, and links; do not duplicate live ticket status there.
+- Treat local or ignored QA reports, outcome summaries, checkpoints, and tool-generated handoffs as temporary working artefacts rather than durable project records. Before finishing, migrate each unresolved actionable item to an existing or new GitHub issue, preserve durable decisions or implemented state in the appropriate repository documentation, and remove superseded local documents. Do not create a parallel local backlog; retain screenshots, logs, baselines, active specifications, and reusable design inputs only while they still serve a practical purpose.
 
 ## Future-System Discipline
 
