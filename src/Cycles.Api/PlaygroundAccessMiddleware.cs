@@ -133,7 +133,7 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <title>Cycles playground access</title>
               <style>
-                :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+                :root { color-scheme: dark; font-family: "Bahnschrift", "Avenir Next", "Century Gothic", "Trebuchet MS", "Segoe UI", sans-serif; }
                 body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #080d18; color: #edf4ff; }
                 main { width: min(28rem, calc(100% - 3rem)); padding: 2rem; border: 1px solid #2e4566; border-radius: 1rem; background: #101a2a; box-shadow: 0 1.5rem 4rem #0008; }
                 h1 { margin-top: 0; font-size: 1.6rem; }

@@ -1,5 +1,6 @@
 :root {
     color-scheme: dark;
+    --font-galactic: "Bahnschrift", "Avenir Next", "Century Gothic", "Trebuchet MS", "Segoe UI", sans-serif;
     --bg: #080b0d;
     --panel: #10171a;
     --panel-strong: #172126;
@@ -52,12 +53,13 @@ body {
     color: var(--text);
     display: flex;
     flex-direction: column;
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-galactic);
 }
 
 button,
 input,
-select {
+select,
+textarea {
     font: inherit;
 }
 
@@ -684,7 +686,7 @@ select {
     margin: 12px auto 0;
     padding: 0;
     color: var(--text);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: clamp(1.05rem, 1.4vw, 1.3rem);
     line-height: 1.2;
     letter-spacing: 0.035em;
@@ -964,7 +966,7 @@ body.tutorial-modal::before {
 
 .tutorial-admiral-identity strong {
     color: var(--text);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.2rem;
     line-height: 1.1;
 }
@@ -1130,7 +1132,7 @@ body.tutorial-modal::before {
 .ownership-stat strong {
     justify-self: end;
     color: #f4e3b7;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.84rem;
     font-variant-numeric: tabular-nums;
 }
@@ -1835,7 +1837,7 @@ dd {
 
 .fleet-item .fleet-transit-summary {
     color: var(--accent);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.67rem;
     letter-spacing: 0.02em;
 }
@@ -2192,7 +2194,7 @@ dd {
 
 .system-signature > span {
     color: var(--muted);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.74rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -2488,7 +2490,7 @@ dd {
 .topology-sector summary::before {
     color: var(--gold);
     content: "+";
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-weight: 900;
 }
 
@@ -2503,7 +2505,7 @@ dd {
 
 .topology-sector summary small {
     color: var(--muted);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
 }
 
 .topology-sector details[open] > summary {
@@ -2623,7 +2625,7 @@ dd {
 
 .topology-route small {
     color: var(--accent);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.66rem;
     text-align: right;
 }
@@ -3931,7 +3933,7 @@ body.account-active {
 .game-ledger-identity h3 {
     margin: 0;
     color: var(--system);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-weight: 500;
 }
 
@@ -3974,7 +3976,7 @@ body.account-active {
 
 .games-ledger-count {
     color: var(--muted);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.76rem;
 }
 
@@ -4016,7 +4018,7 @@ body.account-active {
 
 .game-list-priority {
     color: var(--gold);
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
 }
 
 .tutorial-game-offer {
@@ -4090,7 +4092,7 @@ body.account-active {
 
 .selected-game-copy strong {
     color: var(--system);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.08rem;
 }
 
@@ -4266,7 +4268,7 @@ select {
 .brand-link {
     gap: 13px;
     color: #f1e6ca;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.18rem;
     font-weight: 700;
     letter-spacing: 0.22em;
@@ -4337,7 +4339,7 @@ select {
 .toolbar-kicker,
 .instrument-label {
     color: #a9a38f;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.16em;
@@ -4346,7 +4348,7 @@ select {
 
 .command-identity strong {
     color: #e1c16f;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.02rem;
     letter-spacing: 0.05em;
 }
@@ -4365,7 +4367,7 @@ select {
 
 .cycle-name {
     color: #eee1bf;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.88rem;
     letter-spacing: 0.07em;
 }
@@ -4382,7 +4384,7 @@ select {
 .next-turn-instrument strong {
     overflow: hidden;
     color: #e3bd62;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.06em;
@@ -4475,7 +4477,7 @@ select {
     border-color: rgba(217, 179, 93, 0.74);
     background: linear-gradient(180deg, rgba(117, 76, 31, 0.72), rgba(69, 43, 22, 0.88));
     color: #f4d987;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -4521,7 +4523,7 @@ select {
 
 .turn-progress-summary span {
     color: #a9a38f;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.16em;
@@ -4530,7 +4532,7 @@ select {
 
 .turn-progress-summary strong {
     color: #e3bd62;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.88rem;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.08em;
@@ -4587,7 +4589,7 @@ select {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     color: #778084;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.52rem;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
@@ -4669,7 +4671,7 @@ select {
 .view-nav-chapter {
     align-self: center;
     color: rgba(228, 200, 130, 0.74);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.7rem;
     letter-spacing: 0.08em;
 }
@@ -4682,7 +4684,7 @@ select {
 
 .view-nav-label {
     color: #efe4c6;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -4775,7 +4777,7 @@ select {
 .view-card h3 {
     margin: 0;
     color: #dcb75e;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.86rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -4794,7 +4796,7 @@ select {
     border-radius: 2px;
     background: rgba(217, 179, 93, 0.035);
     color: #d5bd7a;
-    font-family: inherit;
+    font-family: var(--font-galactic);
     font-size: 0.68rem;
     letter-spacing: 0.04em;
 }
@@ -4860,7 +4862,7 @@ select {
 .agenda-index {
     align-self: center;
     color: currentColor;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.35rem;
     font-variant-numeric: tabular-nums;
 }
@@ -4874,7 +4876,7 @@ select {
     border: 1px solid currentColor;
     border-radius: 50%;
     color: currentColor;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.76rem;
     opacity: 0.9;
 }
@@ -4897,7 +4899,7 @@ select {
 
 .agenda-copy strong {
     color: #efe8d8;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.9rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -4960,7 +4962,7 @@ select {
 
 .command-stream-entry > span {
     color: #d9bc78;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.64rem;
     font-weight: 800;
     text-align: center;
@@ -5004,7 +5006,7 @@ select {
 
 .strategic-watch-list dt {
     color: #d3bd80;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.66rem;
 }
 
@@ -5188,7 +5190,7 @@ select {
 
 .calendar-turn > header strong {
     color: #aeb2aa;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.95rem;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.08em;
@@ -5249,7 +5251,7 @@ select {
     border: 1px solid rgba(217, 179, 93, 0.5);
     border-radius: 50%;
     color: #e0c67d;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.65rem;
 }
 
@@ -5642,7 +5644,7 @@ select {
     border: 1px solid rgba(217, 179, 93, 0.44);
     border-radius: 50%;
     color: #d9bd76;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.61rem;
     font-variant-numeric: tabular-nums;
 }
@@ -5781,13 +5783,13 @@ select {
 
 .event-phase-heading span {
     color: #8fb4f4;
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--font-galactic);
     font-size: 0.67rem;
 }
 
 .event-phase-heading strong {
     color: #d5bd7a;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 0.7rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -5831,7 +5833,7 @@ select {
 .advance-turn-dialog h2 {
     margin: 0;
     color: #e1c16f;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-galactic);
     font-size: 1.1rem;
     letter-spacing: 0.05em;
 }
