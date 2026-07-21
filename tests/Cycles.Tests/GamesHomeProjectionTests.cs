@@ -8,37 +8,40 @@ public sealed class GamesHomeProjectionTests
     private static readonly DateTimeOffset Now = new(2026, 7, 20, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Attention_is_server_ranked_limited_and_keeps_the_total()
+    public void Games_are_one_list_with_current_training_first_then_player_deadlines()
     {
-        var recovery = ActiveGame("Recovery", nextTickAt: null) with
-        {
-            OperationalCycleStatus = CycleStatus.RecoveryRequired
-        };
-        var deadline = ActiveGame("Deadline", Now.AddMinutes(15));
-        var started = ActiveGame("Started", nextTickAt: null) with
-        {
-            FirstStartedAt = Now.AddHours(-1)
-        };
+        var futureLater = ActiveGame("Future later", Now.AddMinutes(45));
         var training = ActiveGame("Training", nextTickAt: null, purpose: GamePurpose.Training);
+        var overdue = ActiveGame("Overdue", Now.AddMinutes(-5));
+        var futureSoon = ActiveGame("Future soon", Now.AddMinutes(10));
 
         var home = GamesHomeProjection.Create(
-            new GameCataloguePage([training, started, deadline, recovery], nextCursor: null),
-            Now);
+            new GameCataloguePage([futureLater, training, overdue, futureSoon], nextCursor: null));
 
-        Assert.Equal(4, home.TotalAttentionCount);
-        Assert.Equal(3, home.NeedsAttention.Count);
         Assert.Collection(
-            home.NeedsAttention,
-            item => AssertAttention(item, 1, GamesHomeAttentionReason.RecoveryRequired),
-            item => AssertAttention(item, 2, GamesHomeAttentionReason.CommandsCloseSoon),
-            item => AssertAttention(item, 3, GamesHomeAttentionReason.GameStarted));
-        Assert.Equal(4, home.ActiveGames.Single(item => item.Game.GameName == "Training").AttentionRank);
+            home.Games,
+            item => Assert.Equal("Training", item.Game.GameName),
+            item => Assert.Equal("Overdue", item.Game.GameName),
+            item => Assert.Equal("Future soon", item.Game.GameName),
+            item => Assert.Equal("Future later", item.Game.GameName));
+        Assert.Equal(home.Games.Count, home.Games.Select(item => item.Game.GameId).Distinct().Count());
     }
 
     [Fact]
-    public void Home_groups_games_and_derives_contextual_actions_without_client_policy()
+    public void Deadline_ties_and_no_deadline_states_have_deterministic_fallbacks()
     {
-        var active = ActiveGame("Active", Now.AddMinutes(30));
+        var deadlineZulu = ActiveGame("Zulu deadline", Now.AddMinutes(10));
+        var deadlineAlpha = ActiveGame("Alpha deadline", Now.AddMinutes(10));
+        var recovery = ActiveGame("Recovery", nextTickAt: null) with
+        {
+            OperationalCycleStatus = CycleStatus.RecoveryRequired,
+            TurnStage = null
+        };
+        var selfPaced = ActiveGame("Self-paced", nextTickAt: null);
+        var resolving = ActiveGame("Resolving", Now.AddMinutes(-30)) with
+        {
+            TurnStage = TurnResolutionStage.Resolving
+        };
         var waiting = Game("Waiting", GameLifecycleStatus.Forming, operationalCycleStatus: null);
         var complete = Game("Complete", GameLifecycleStatus.Completed, CycleStatus.Completed);
         var withdrawn = Game("Withdrawn", GameLifecycleStatus.Active, CycleStatus.Active) with
@@ -47,28 +50,46 @@ public sealed class GamesHomeProjectionTests
         };
 
         var home = GamesHomeProjection.Create(
-            new GameCataloguePage([complete, waiting, withdrawn, active], nextCursor: null),
-            Now);
+            new GameCataloguePage(
+                [withdrawn, complete, waiting, resolving, selfPaced, recovery, deadlineZulu, deadlineAlpha],
+                nextCursor: null));
 
-        Assert.Equal(GamesHomeAction.Continue, home.ActiveGames.Single(item => item.Game.GameName == "Active").Action);
-        Assert.Equal(GamesHomeAction.Review, home.ActiveGames.Single(item => item.Game.GameName == "Withdrawn").Action);
-        Assert.Equal(GamesHomeAction.EnterLobby, Assert.Single(home.WaitingGames).Action);
-        Assert.Equal(GamesHomeAction.Review, Assert.Single(home.CompletedGames).Action);
-        Assert.DoesNotContain(home.NeedsAttention, item => item.Game.GameName == "Withdrawn");
+        Assert.Equal(
+            ["Alpha deadline", "Zulu deadline", "Recovery", "Self-paced", "Resolving", "Waiting", "Complete", "Withdrawn"],
+            home.Games.Select(item => item.Game.GameName));
+        Assert.Equal(GamesHomeAction.Continue, home.Games.Single(item => item.Game.GameName == "Self-paced").Action);
+        Assert.Equal(GamesHomeAction.Observe, home.Games.Single(item => item.Game.GameName == "Recovery").Action);
+        Assert.Null(home.Games.Single(item => item.Game.GameName == "Resolving").CommandDeadline);
+        Assert.Equal(Now.AddMinutes(10), home.Games.Single(item => item.Game.GameName == "Alpha deadline").CommandDeadline);
+        Assert.Equal(GamesHomeAction.EnterLobby, home.Games.Single(item => item.Game.GameName == "Waiting").Action);
+        Assert.Equal(GamesHomeAction.Review, home.Games.Single(item => item.Game.GameName == "Complete").Action);
+        Assert.Equal(GamesHomeAction.Review, home.Games.Single(item => item.Game.GameName == "Withdrawn").Action);
+    }
+
+    [Fact]
+    public void Completed_training_is_a_retained_record_not_an_in_progress_tutorial()
+    {
+        var standard = ActiveGame("Standard", nextTickAt: null);
+        var completedTraining = Game(
+            "Completed Training",
+            GameLifecycleStatus.Completed,
+            CycleStatus.Completed,
+            GamePurpose.Training);
+
+        var home = GamesHomeProjection.Create(
+            new GameCataloguePage([completedTraining, standard], nextCursor: null));
+
+        Assert.Equal(["Standard", "Completed Training"], home.Games.Select(item => item.Game.GameName));
     }
 
     [Fact]
     public void Zero_memberships_is_an_intentional_empty_home()
     {
         var home = GamesHomeProjection.Create(
-            new GameCataloguePage([], nextCursor: null),
-            Now);
+            new GameCataloguePage([], nextCursor: null));
 
-        Assert.Empty(home.NeedsAttention);
-        Assert.Empty(home.ActiveGames);
-        Assert.Empty(home.WaitingGames);
-        Assert.Empty(home.CompletedGames);
-        Assert.Equal(0, home.TotalAttentionCount);
+        Assert.Empty(home.Games);
+        Assert.Empty(home.Tutorials);
         Assert.False(home.HasMore);
     }
 
@@ -102,13 +123,4 @@ public sealed class GamesHomeProjectionTests
             operationalCycleStatus is null ? null : 4,
             operationalCycleStatus == CycleStatus.Active ? TurnResolutionStage.CommandOpen : null,
             Now.AddDays(-10));
-
-    private static void AssertAttention(
-        GamesHomeItem item,
-        int rank,
-        GamesHomeAttentionReason reason)
-    {
-        Assert.Equal(rank, item.AttentionRank);
-        Assert.Equal(reason, item.AttentionReason);
-    }
 }

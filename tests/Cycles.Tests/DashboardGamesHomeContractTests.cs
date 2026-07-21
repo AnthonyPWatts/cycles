@@ -5,19 +5,22 @@ namespace Cycles.Tests;
 public sealed class DashboardGamesHomeContractTests
 {
     [Fact]
-    public void Account_shell_places_a_games_ledger_above_exactly_four_game_workspaces()
+    public void Account_shell_places_one_ordered_games_list_above_exactly_four_game_workspaces()
     {
         var html = ReadDashboardAsset("app.html");
         var css = ReadDashboardAsset("styles.css");
 
         Assert.Contains("id=\"gamesHome\"", html);
-        Assert.Contains("id=\"attentionGames\"", html);
+        Assert.Contains("id=\"gamesListSection\"", html);
+        Assert.Contains("id=\"gamesList\" class=\"games-ledger\" role=\"list\"", html);
+        Assert.Contains("id=\"gamesListCount\"", html);
         Assert.Contains("id=\"gamesEmptyState\"", html);
-        Assert.Contains("id=\"trainingOffer\"", html);
-        Assert.Contains("id=\"startTrainingButton\"", html);
-        Assert.Contains("id=\"activeGames\"", html);
-        Assert.Contains("id=\"waitingGames\"", html);
-        Assert.Contains("id=\"completedGames\"", html);
+        Assert.DoesNotContain("id=\"attentionGames\"", html);
+        Assert.DoesNotContain("id=\"activeGames\"", html);
+        Assert.DoesNotContain("id=\"waitingGames\"", html);
+        Assert.DoesNotContain("id=\"completedGames\"", html);
+        Assert.DoesNotContain("Needs attention", html);
+        Assert.DoesNotContain("Recently completed", html);
         Assert.Contains("id=\"allGamesLink\"", html);
         Assert.Contains("id=\"gameSelector\"", html);
         Assert.Equal(4, Regex.Matches(html, "data-view-link=").Count);
@@ -41,9 +44,13 @@ public sealed class DashboardGamesHomeContractTests
         Assert.True(catalogue > session);
         Assert.True(navigate > catalogue);
         Assert.Contains("const home = await getJson(\"/games\");", script);
-        Assert.Contains("elements.gamesEmptyState.hidden = total !== 0;", script);
-        Assert.Contains("elements.trainingOffer.hidden = !home.training;", script);
-        Assert.Contains("async function startTraining()", script);
+        Assert.Contains("state.games = home.games ?? [];", script);
+        Assert.Contains("elements.gamesEmptyState.hidden = gameTotal !== 0;", script);
+        Assert.Contains("...(home.tutorials ?? []).map(tutorialOfferRow)", script);
+        Assert.Contains("...state.games.map(gameLedgerRow)", script);
+        Assert.Contains("async function startTraining(offer, button)", script);
+        Assert.Contains("data-start-tutorial", script);
+        Assert.Contains("role=\"listitem\"", script);
         Assert.Contains("crypto.randomUUID()", script);
         Assert.Contains("await loadGamesHome();", script);
         Assert.Contains("hideTutorialForAccount();", script);
@@ -68,7 +75,7 @@ public sealed class DashboardGamesHomeContractTests
     }
 
     [Fact]
-    public void Games_endpoint_uses_authenticated_account_scope_and_server_ranking()
+    public void Games_endpoint_uses_authenticated_account_scope_and_server_ordering()
     {
         var program = ReadApiSource("Program.cs");
 
@@ -80,8 +87,9 @@ public sealed class DashboardGamesHomeContractTests
         Assert.Contains("DevelopmentAuth.RequireAccount(httpContext, accounts)", route);
         Assert.Contains("catalogue.ListForPlayer(", route);
         Assert.Contains("GameCataloguePage.MaximumPageSize", route);
-        Assert.Contains("GamesHomeProjection.Create(page, DateTimeOffset.UtcNow)", route);
+        Assert.Contains("GamesHomeProjection.Create(page)", route);
         Assert.Contains("features.TrainingGames.Includes(account.PlayerId)", route);
+        Assert.Contains("Tutorials =", route);
         Assert.Contains("app.MapPost(\"/training/{tutorialKey}/attempts\"", route);
         Assert.Contains(".RequireCyclesAntiforgery();", route);
     }

@@ -62,8 +62,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260721-training-map-reflow-1", html);
-        Assert.Contains("app.js?v=20260721-game-switch-loading-2", html);
+        Assert.Contains("styles.css?v=20260721-games-command-1", html);
+        Assert.Contains("app.js?v=20260721-games-command-1", html);
         Assert.Contains("aria-label=\"Core foundations\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -176,7 +176,7 @@ public sealed class DashboardViewContractTests
     }
 
     [Fact]
-    public void Command_view_shows_pending_orders_without_rendering_all_history()
+    public void Command_view_prioritises_decisions_forecast_and_commitments_without_a_parallel_map()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -191,13 +191,17 @@ public sealed class DashboardViewContractTests
         Assert.Contains("state.orders.filter(order => order.status !== \"pending\")", script);
         Assert.Contains("state.orderHistoryLimit += 20;", script);
         Assert.Contains("id=\"councilAgenda\"", html);
-        Assert.Contains("id=\"frontierSchematic\"", html);
+        Assert.Contains("id=\"turnForecastSummary\"", html);
         Assert.Contains("id=\"commandStream\"", html);
         Assert.Contains("id=\"strategicWatchSummary\"", html);
         Assert.Contains("Order Queue &amp; Turn Calendar", html);
         Assert.Contains("function renderCommandWorkspace", script);
         Assert.Contains("function commandAgendaItems", script);
-        Assert.Contains("function renderFrontierSchematic", script);
+        Assert.DoesNotContain("frontierSchematic", html);
+        Assert.DoesNotContain("frontierSchematic", script);
+        Assert.DoesNotContain("renderFrontierSchematic", script);
+        Assert.DoesNotContain("commandFrontierSystems", script);
+        Assert.DoesNotContain("schematic-", html);
         Assert.Contains("class=\"calendar-turn", script);
         Assert.Contains("data-cancel-order-id", script);
         Assert.Contains("function confirmOrderReplacement", script);
@@ -205,6 +209,17 @@ public sealed class DashboardViewContractTests
         Assert.Contains("replacesOrderId", script);
         Assert.Contains("Superseded", html);
         Assert.Contains("Replaced by ${escapeHtml(formatOrderIntent(replacement))}", script);
+
+        var overview = html.IndexOf("class=\"command-overview-grid\"", StringComparison.Ordinal);
+        var agenda = html.IndexOf("id=\"councilAgenda\"", overview, StringComparison.Ordinal);
+        var forecast = html.IndexOf("id=\"turnForecastSummary\"", agenda, StringComparison.Ordinal);
+        var intelligence = html.IndexOf("class=\"command-rail\"", forecast, StringComparison.Ordinal);
+        var queue = html.IndexOf("id=\"orderQueueSection\"", intelligence, StringComparison.Ordinal);
+        Assert.True(overview >= 0);
+        Assert.True(agenda > overview);
+        Assert.True(forecast > agenda);
+        Assert.True(intelligence > forecast);
+        Assert.True(queue > intelligence);
     }
 
     [Fact]

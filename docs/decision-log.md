@@ -2207,7 +2207,7 @@ Consequences:
 
 Decision: replace the Games home's separate attention and lifecycle sections with one non-duplicated list. Put available or in-progress tutorials first. Order the other Games that have a Player command deadline by ascending time remaining, with overdue Games before future deadlines; place Games without a current move deadline afterwards using a deterministic fallback while retaining their lifecycle and action context.
 
-Status: intended work tracked by [issue #158](https://github.com/AnthonyPWatts/cycles/issues/158); not yet implemented. This supersedes the 20 July decision's grouped and capped-attention presentation, but retains its authenticated bounded catalogue, server-owned ordering policy, contextual actions, URL-selected Game, and selected-Game safety boundaries.
+Status: implemented through [issue #158](https://github.com/AnthonyPWatts/cycles/issues/158). This supersedes the 20 July decision's grouped and capped-attention presentation, but retains its authenticated bounded catalogue, server-owned ordering policy, contextual actions, URL-selected Game, and selected-Game safety boundaries.
 
 Reasoning:
 
@@ -2226,7 +2226,7 @@ Consequences:
 
 Decision: remove the Frontier Schematic from Command and do not replace it with another mini-map, topology thumbnail, or local-frontier projection. The fixed authored Galaxy board is the sole spatial source of truth. Use the reclaimed Command space to make the Council Agenda and the current turn's outcomes, unresolved Player decisions, commitments or journeys, and next-resolution forecast easier to scan.
 
-Status: intended work tracked by [issue #159](https://github.com/AnthonyPWatts/cycles/issues/159); not yet implemented. This supersedes the Frontier Schematic portion of the 16 July Command redesign while retaining that decision's core split: Command owns cross-workspace triage, and specialist spatial inspection belongs in Galaxy.
+Status: implemented through [issue #159](https://github.com/AnthonyPWatts/cycles/issues/159). This supersedes the Frontier Schematic portion of the 16 July Command redesign while retaining that decision's core split: Command owns cross-workspace triage, and specialist spatial inspection belongs in Galaxy.
 
 Reasoning:
 

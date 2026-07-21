@@ -56,6 +56,8 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("id=\"turnStageBadge\"", html);
         Assert.Contains("id=\"turnPhaseOrder\"", html);
         Assert.Contains("aria-label=\"Authoritative turn processing order\"", html);
+        Assert.Contains("<details class=\"turn-phase-details\">", html);
+        Assert.Contains("<summary>Complete processing order</summary>", html);
         Assert.Contains("Submission time grants no initiative", html);
         Assert.Contains("Projections can change before closure; committed deliveries are authoritative.", html);
         Assert.Contains("id=\"turnForecastSummary\"", html);
@@ -78,6 +80,7 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("grid-template-columns: repeat(3, minmax(0, 1fr));", css);
         Assert.Contains(".turn-forecast-grid", css);
         Assert.Contains(".turn-forecast-item.is-commitment", css);
+        Assert.Contains(".turn-phase-details", css);
         Assert.Contains("@media (max-width: 560px)", css);
     }
 

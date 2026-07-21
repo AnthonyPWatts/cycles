@@ -3955,8 +3955,7 @@ body.account-active {
 }
 
 .games-ledger-section,
-.games-empty-state,
-.training-offer {
+.games-empty-state {
     margin-top: 28px;
     border: 1px solid rgba(217, 179, 93, 0.28);
     background: rgba(12, 18, 21, 0.86);
@@ -4004,7 +4003,7 @@ body.account-active {
 
 .game-ledger-identity p,
 .game-ledger-status,
-.game-attention-reason {
+.game-list-priority {
     font-size: 0.8rem;
 }
 
@@ -4015,9 +4014,26 @@ body.account-active {
     color: var(--muted);
 }
 
-.game-attention-reason {
+.game-list-priority {
     color: var(--gold);
     font-family: Consolas, "Courier New", monospace;
+}
+
+.tutorial-game-offer {
+    background: linear-gradient(135deg, rgba(95, 130, 201, 0.14), transparent 58%);
+}
+
+.tutorial-game-action {
+    display: grid;
+    gap: 5px;
+    min-width: 132px;
+}
+
+.tutorial-game-action p {
+    min-height: 16px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.72rem;
 }
 
 .game-row-action,
@@ -4051,52 +4067,6 @@ body.account-active {
 .games-empty-state {
     max-width: 720px;
     padding: clamp(24px, 4vw, 44px);
-}
-
-.training-offer {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 28px;
-    padding: clamp(22px, 3vw, 34px);
-    border-color: rgba(143, 180, 244, 0.42);
-    background:
-        linear-gradient(135deg, rgba(95, 130, 201, 0.14), transparent 58%),
-        rgba(12, 18, 21, 0.9);
-}
-
-.training-offer[hidden] {
-    display: none;
-}
-
-.training-offer h2 {
-    margin: 5px 0 10px;
-    color: var(--system);
-    font-family: Georgia, "Times New Roman", serif;
-    font-weight: 500;
-}
-
-.training-offer p {
-    margin: 0;
-    color: var(--muted);
-}
-
-.training-offer-action {
-    display: grid;
-    justify-items: stretch;
-    gap: 8px;
-    min-width: 172px;
-}
-
-.training-offer-action button {
-    min-height: 42px;
-    padding: 8px 18px;
-}
-
-.training-offer-action p {
-    min-height: 18px;
-    max-width: 240px;
-    font-size: 0.78rem;
 }
 
 .games-empty-state h2 {
@@ -4144,7 +4114,7 @@ body.account-active {
     }
 
     .game-ledger-status,
-    .game-attention-reason {
+    .game-list-priority {
         grid-column: 1;
     }
 
@@ -4162,7 +4132,6 @@ body.account-active {
     .games-home-heading,
     .games-ledger-heading,
     .game-ledger-row,
-    .training-offer,
     .selected-game-context {
         align-items: stretch;
         grid-template-columns: minmax(0, 1fr);
@@ -4179,7 +4148,7 @@ body.account-active {
     }
 
     .game-ledger-status,
-    .game-attention-reason,
+    .game-list-priority,
     .game-row-action {
         grid-column: 1;
         grid-row: auto;
@@ -4765,9 +4734,9 @@ select {
 
 .command-overview-grid {
     display: grid;
-    grid-template-columns: minmax(350px, 0.95fr) minmax(390px, 1.08fr) minmax(360px, 0.92fr);
+    grid-template-columns: minmax(440px, 1.14fr) minmax(390px, 1fr);
     gap: 12px;
-    align-items: stretch;
+    align-items: start;
 }
 
 .view-card {
@@ -4838,7 +4807,7 @@ select {
 }
 
 .council-agenda,
-.frontier-schematic {
+.turn-resolution-contract {
     min-height: 470px;
 }
 
@@ -4965,138 +4934,10 @@ select {
     text-decoration: none;
 }
 
-.frontier-schematic {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-}
-
-.frontier-stage {
-    position: relative;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    min-height: 390px;
-    overflow: hidden;
-    border: 1px solid rgba(143, 180, 244, 0.16);
-    background:
-        linear-gradient(rgba(143, 180, 244, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(143, 180, 244, 0.025) 1px, transparent 1px),
-        radial-gradient(circle at center, rgba(42, 76, 108, 0.12), transparent 56%),
-        rgba(4, 11, 16, 0.86);
-    background-size: 22px 22px, 22px 22px, auto, auto;
-}
-
-.frontier-stage svg {
-    box-sizing: border-box;
-    width: 100%;
-    height: 100%;
-    min-height: 340px;
-    padding: 10px 12px 0;
-}
-
-.schematic-grid path {
-    fill: none;
-    stroke: rgba(143, 180, 244, 0.06);
-    stroke-width: 1;
-}
-
-.schematic-route {
-    fill: none;
-    stroke: rgba(124, 166, 231, 0.58);
-    stroke-dasharray: 5 6;
-    stroke-width: 2;
-}
-
-.schematic-route.is-queued {
-    stroke: #91bc53;
-    stroke-width: 3;
-}
-
-.schematic-node {
-    cursor: pointer;
-    outline: none;
-}
-
-.schematic-node-orbit {
-    fill: rgba(13, 28, 38, 0.9);
-    stroke: #75a9e8;
-    stroke-width: 1.5;
-}
-
-.schematic-node-core {
-    fill: rgba(55, 125, 174, 0.32);
-    stroke: #8dd3ff;
-    stroke-width: 2;
-}
-
-.schematic-node-point {
-    fill: #dff7ff;
-    filter: drop-shadow(0 0 6px #73c8ff);
-}
-
-.schematic-node text {
-    fill: #e7e2d4;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 15px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-}
-
-.schematic-node.is-home .schematic-node-orbit,
-.schematic-node.is-queued .schematic-node-orbit {
-    stroke: #96b94f;
-}
-
-.schematic-node.is-home .schematic-node-core,
-.schematic-node.is-queued .schematic-node-core {
-    fill: rgba(113, 144, 50, 0.26);
-    stroke: #b8da66;
-}
-
-.schematic-node.is-threat .schematic-node-orbit,
-.schematic-node.is-threat .schematic-node-core {
-    stroke: #e26450;
-}
-
-.schematic-node.is-threat .schematic-node-core {
-    fill: rgba(146, 53, 42, 0.34);
-}
-
-.schematic-node:hover .schematic-node-orbit,
-.schematic-node:focus .schematic-node-orbit {
-    stroke-width: 3;
-    filter: drop-shadow(0 0 7px currentColor);
-}
-
-.schematic-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 8px 12px;
-    border-top: 1px solid rgba(143, 180, 244, 0.12);
-    color: #899391;
-    font-size: 0.6rem;
-}
-
-.schematic-legend span::before {
-    display: inline-block;
-    width: 14px;
-    height: 2px;
-    margin: 0 6px 2px 0;
-    background: currentColor;
-    content: "";
-}
-
-.legend-home,
-.legend-queued {
-    color: #a1c25b;
-}
-
-.legend-threat {
-    color: #e26450;
-}
-
 .command-rail {
     display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(280px, 0.68fr) minmax(0, 1.32fr);
     gap: 12px;
     min-width: 0;
 }
@@ -5472,7 +5313,7 @@ select {
     }
 
     .command-overview-grid {
-        grid-template-columns: minmax(330px, 0.95fr) minmax(360px, 1.05fr) minmax(330px, 0.9fr);
+        grid-template-columns: minmax(380px, 1.08fr) minmax(350px, 1fr);
     }
 
     .agenda-item {
@@ -5547,7 +5388,7 @@ select {
     }
 
     .council-agenda,
-    .frontier-schematic {
+    .turn-resolution-contract {
         min-height: 0;
     }
 }
@@ -5660,15 +5501,6 @@ select {
         justify-self: start;
     }
 
-    .frontier-stage svg {
-        min-height: 280px;
-    }
-
-    .schematic-node text {
-        font-size: 12px;
-        letter-spacing: 0.8px;
-    }
-
     .command-resources #resources,
     .strategic-watch .priority-channels {
         grid-template-columns: minmax(0, 1fr);
@@ -5763,6 +5595,25 @@ select {
     line-height: 1.45;
 }
 
+.turn-phase-details {
+    margin-top: 12px;
+    border-top: 1px solid rgba(217, 179, 93, 0.2);
+}
+
+.turn-phase-details summary {
+    padding: 10px 0 2px;
+    color: #d5bd7a;
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.turn-phase-details[open] summary {
+    margin-bottom: 9px;
+}
+
 .turn-phase-order {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5817,9 +5668,7 @@ select {
 }
 
 .turn-forecast {
-    margin-top: 12px;
-    padding-top: 11px;
-    border-top: 1px solid rgba(217, 179, 93, 0.2);
+    margin-top: 0;
 }
 
 .turn-forecast-heading {
@@ -5837,7 +5686,7 @@ select {
 
 .turn-forecast-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(170px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
 }
 
@@ -6023,9 +5872,6 @@ select {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .turn-forecast-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 760px) {
@@ -6041,9 +5887,6 @@ select {
         text-align: left;
     }
 
-    .turn-forecast-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 560px) {

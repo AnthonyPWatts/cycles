@@ -221,7 +221,7 @@ app.MapGet("/games", (
             account.PlayerId,
             cursor: null,
             pageSize: GameCataloguePage.MaximumPageSize);
-        var home = GamesHomeProjection.Create(page, DateTimeOffset.UtcNow);
+        var home = GamesHomeProjection.Create(page);
         var hasCurrentTraining = page.Items.Any(item =>
             item.Purpose == GamePurpose.Training
             && item.EnrolmentStatus == GameEnrolmentStatus.Enrolled
@@ -229,10 +229,13 @@ app.MapGet("/games", (
         return features.TrainingGames.Includes(account.PlayerId) && !hasCurrentTraining
             ? home with
             {
-                Training = new TrainingGameOffer(
-                    GameProfileCatalogue.TwinReachesProfileKey,
-                    GameProfileCatalogue.TwinReaches.DisplayName,
-                    EstimatedMinutes: 15)
+                Tutorials =
+                [
+                    new TrainingGameOffer(
+                        GameProfileCatalogue.TwinReachesProfileKey,
+                        GameProfileCatalogue.TwinReaches.DisplayName,
+                        EstimatedMinutes: 15)
+                ]
             }
             : home;
     }));

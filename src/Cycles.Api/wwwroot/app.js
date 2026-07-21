@@ -277,22 +277,9 @@ const elements = {
     gamesHomeSummary: document.querySelector("#gamesHomeSummary"),
     gamesHomeMessage: document.querySelector("#gamesHomeMessage"),
     gamesEmptyState: document.querySelector("#gamesEmptyState"),
-    trainingOffer: document.querySelector("#trainingOffer"),
-    trainingOfferCopy: document.querySelector("#trainingOfferCopy"),
-    startTrainingButton: document.querySelector("#startTrainingButton"),
-    trainingOfferMessage: document.querySelector("#trainingOfferMessage"),
-    attentionSection: document.querySelector("#attentionSection"),
-    attentionGames: document.querySelector("#attentionGames"),
-    attentionMore: document.querySelector("#attentionMore"),
-    activeGamesSection: document.querySelector("#activeGamesSection"),
-    activeGames: document.querySelector("#activeGames"),
-    activeGamesCount: document.querySelector("#activeGamesCount"),
-    waitingGamesSection: document.querySelector("#waitingGamesSection"),
-    waitingGames: document.querySelector("#waitingGames"),
-    waitingGamesCount: document.querySelector("#waitingGamesCount"),
-    completedGamesSection: document.querySelector("#completedGamesSection"),
-    completedGames: document.querySelector("#completedGames"),
-    completedGamesCount: document.querySelector("#completedGamesCount"),
+    gamesListSection: document.querySelector("#gamesListSection"),
+    gamesList: document.querySelector("#gamesList"),
+    gamesListCount: document.querySelector("#gamesListCount"),
     selectedGameContext: document.querySelector("#selectedGameContext"),
     allGamesLink: document.querySelector("#allGamesLink"),
     selectedGameKind: document.querySelector("#selectedGameKind"),
@@ -325,7 +312,6 @@ const elements = {
     turnPhaseOrder: document.querySelector("#turnPhaseOrder"),
     turnForecastSummary: document.querySelector("#turnForecastSummary"),
     councilAgenda: document.querySelector("#councilAgenda"),
-    frontierSchematic: document.querySelector("#frontierSchematic"),
     commandStream: document.querySelector("#commandStream"),
     strategicWatchSummary: document.querySelector("#strategicWatchSummary"),
     resources: document.querySelector("#resources"),
@@ -424,7 +410,17 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.signOutButton.addEventListener("click", signOut);
-elements.startTrainingButton.addEventListener("click", startTraining);
+elements.gamesList.addEventListener("click", async event => {
+    const button = event.target.closest("[data-start-tutorial]");
+    if (!button) {
+        return;
+    }
+
+    const offer = state.gamesHome?.tutorials?.find(item => item.tutorialKey === button.dataset.startTutorial);
+    if (offer) {
+        await startTraining(offer, button);
+    }
+});
 
 elements.gameSelector.addEventListener("change", () => {
     const gameId = elements.gameSelector.value;
@@ -1338,12 +1334,7 @@ async function refresh({ applySessionFromBootstrap = false } = {}) {
 async function loadGamesHome() {
     const home = await getJson("/games");
     state.gamesHome = home;
-    const groupedGames = [
-        ...(home.activeGames ?? []),
-        ...(home.waitingGames ?? []),
-        ...(home.completedGames ?? [])
-    ];
-    state.games = [...new Map(groupedGames.map(item => [item.game.gameId, item])).values()];
+    state.games = home.games ?? [];
     renderGamesHome();
     renderGameSelector();
 }
@@ -1354,57 +1345,33 @@ function renderGamesHome() {
         return;
     }
 
-    const total = state.games.length;
-    elements.gamesHomeSummary.textContent = total === 0
-        ? "No games enrolled"
-        : `${formatCount(total, "game")} in your archive`;
+    const gameTotal = state.games.length;
+    const tutorialTotal = home.tutorials?.length ?? 0;
+    const listTotal = gameTotal + tutorialTotal;
+    elements.gamesHomeSummary.textContent = gameTotal === 0
+        ? tutorialTotal === 0
+            ? "No games enrolled"
+            : `No games enrolled · ${formatCount(tutorialTotal, "tutorial")} available`
+        : `${formatCount(gameTotal, "game")} in your archive`;
     setLiveMessage(
         elements.gamesHomeMessage,
         home.hasMore
             ? "Showing the first 100 memberships. Older records remain safely paged."
             : "");
-    elements.gamesEmptyState.hidden = total !== 0;
-    elements.trainingOffer.hidden = !home.training;
-    if (home.training) {
-        elements.trainingOfferCopy.textContent =
-            `About ${formatNumber(home.training.estimatedMinutes)} minutes. ` +
-            "Your progress is a private game you can leave and resume, using the same mechanics as standard play.";
-    }
-    renderGamesHomeSection(
-        elements.attentionSection,
-        elements.attentionGames,
-        home.needsAttention ?? [],
-        { attention: true });
-    const hiddenAttention = Math.max(0, (home.totalAttentionCount ?? 0) - (home.needsAttention?.length ?? 0));
-    elements.attentionMore.textContent = hiddenAttention > 0
-        ? `${hiddenAttention} more ${hiddenAttention === 1 ? "needs" : "need"} attention`
-        : "";
-    renderGamesHomeSection(
-        elements.activeGamesSection,
-        elements.activeGames,
-        home.activeGames ?? []);
-    elements.activeGamesCount.textContent = formatCount(home.activeGames?.length ?? 0, "game");
-    renderGamesHomeSection(
-        elements.waitingGamesSection,
-        elements.waitingGames,
-        home.waitingGames ?? []);
-    elements.waitingGamesCount.textContent = formatCount(home.waitingGames?.length ?? 0, "game");
-    renderGamesHomeSection(
-        elements.completedGamesSection,
-        elements.completedGames,
-        home.completedGames ?? []);
-    elements.completedGamesCount.textContent = formatCount(home.completedGames?.length ?? 0, "game");
+    elements.gamesEmptyState.hidden = gameTotal !== 0;
+    elements.gamesListSection.hidden = listTotal === 0;
+    elements.gamesListCount.textContent = formatCount(listTotal, "entry", "entries");
+    elements.gamesList.innerHTML = [
+        ...(home.tutorials ?? []).map(tutorialOfferRow),
+        ...state.games.map(gameLedgerRow)
+    ].join("");
 }
 
-async function startTraining() {
-    const offer = state.gamesHome?.training;
-    if (!offer) {
-        return;
-    }
-
-    elements.startTrainingButton.disabled = true;
-    elements.startTrainingButton.textContent = "Preparing…";
-    setLiveMessage(elements.trainingOfferMessage, `Preparing ${offer.displayName}…`);
+async function startTraining(offer, button) {
+    const message = button.closest(".game-ledger-row")?.querySelector("[data-tutorial-message]");
+    button.disabled = true;
+    button.textContent = "Preparing…";
+    setLiveMessage(message, `Preparing ${offer.displayName}…`);
     try {
         const attempt = await postJson(
             `/training/${encodeURIComponent(offer.tutorialKey)}/attempts`,
@@ -1416,25 +1383,40 @@ async function startTraining() {
         }
 
         setLiveMessage(
-            elements.trainingOfferMessage,
+            message,
             attempt.created
                 ? `${offer.displayName} is ready.`
                 : `Resuming ${offer.displayName}.`);
         window.location.hash = selectedGameHash(game, "command");
     } catch (error) {
-        setLiveMessage(elements.trainingOfferMessage, error.message, { error: true });
+        setLiveMessage(message, error.message, { error: true });
     } finally {
-        elements.startTrainingButton.disabled = false;
-        elements.startTrainingButton.textContent = "Start Training";
+        button.disabled = false;
+        button.textContent = "Start Training";
     }
 }
 
-function renderGamesHomeSection(section, container, games, { attention = false } = {}) {
-    section.hidden = games.length === 0;
-    container.innerHTML = games.map(item => gameLedgerRow(item, { attention })).join("");
+function tutorialOfferRow(offer) {
+    return `
+        <article class="game-ledger-row tutorial-game-offer" role="listitem" data-tutorial-key="${escapeHtml(offer.tutorialKey)}">
+            <div class="game-ledger-identity">
+                <span class="section-kicker">Training</span>
+                <h3>${escapeHtml(offer.displayName)}</h3>
+                <p>About ${formatNumber(offer.estimatedMinutes)} minutes · private and resumable · ordinary game rules</p>
+            </div>
+            <div class="game-ledger-status">
+                <span class="status-chip status-forming">Available</span>
+                <span>Self-paced tutorial</span>
+            </div>
+            <span class="game-list-priority">Start here</span>
+            <div class="tutorial-game-action">
+                <button class="game-row-action" type="button" data-start-tutorial="${escapeHtml(offer.tutorialKey)}">Start Training</button>
+                <p data-tutorial-message role="status"></p>
+            </div>
+        </article>`;
 }
 
-function gameLedgerRow(item, { attention = false } = {}) {
+function gameLedgerRow(item) {
     const game = item.game;
     const playable = ["continue", "observe"].includes(item.action)
         && game.gameStatus === "active"
@@ -1448,19 +1430,20 @@ function gameLedgerRow(item, { attention = false } = {}) {
     const action = playable
         ? `<a class="game-row-action" href="${selectedGameHash(item, "command")}">${actionLabel}</a>`
         : `<span class="game-row-action is-unavailable" aria-disabled="true">${actionLabel}</span>`;
-    const timing = game.nextTickAt
-        ? new Date(game.nextTickAt) <= new Date()
-            ? `Commands await resolution since ${formatAccountDate(game.nextTickAt)}`
-            : `Commands open until ${formatAccountDate(game.nextTickAt)}`
+    const timing = item.commandDeadline
+        ? new Date(item.commandDeadline) <= new Date()
+            ? `Command window overdue since ${formatAccountDate(item.commandDeadline)}`
+            : `Make your next move by ${formatAccountDate(item.commandDeadline)}`
         : game.currentTickNumber === null
             ? formatStatus(game.gameStatus)
-            : `Cycle T${formatNumber(game.currentTickNumber)} · ${formatStatus(game.turnStage ?? game.operationalCycleStatus)}`;
-    const attentionReason = attention && item.attentionReason
-        ? `<span class="game-attention-reason">${escapeHtml(formatAttentionReason(item.attentionReason))}</span>`
-        : "";
+            : game.operationalCycleStatus === "recoveryRequired"
+                ? "Resolution recovery required"
+                : game.purpose === "training" && game.gameStatus === "active"
+                    ? `Self-paced Training · Cycle T${formatNumber(game.currentTickNumber)}`
+                    : `Cycle T${formatNumber(game.currentTickNumber)} · ${formatStatus(game.turnStage ?? game.operationalCycleStatus)}`;
 
     return `
-        <article class="game-ledger-row" data-game-id="${escapeHtml(game.gameId)}">
+        <article class="game-ledger-row" role="listitem" data-game-id="${escapeHtml(game.gameId)}">
             <div class="game-ledger-identity">
                 <span class="section-kicker">${escapeHtml(formatStatus(game.purpose))}</span>
                 <h3>${escapeHtml(game.gameName)}</h3>
@@ -1470,18 +1453,43 @@ function gameLedgerRow(item, { attention = false } = {}) {
                 <span class="status-chip status-${escapeHtml(String(game.gameStatus).toLowerCase())}">${escapeHtml(formatStatus(game.gameStatus))}</span>
                 <span>${escapeHtml(formatStatus(game.enrolmentStatus))}</span>
             </div>
-            ${attentionReason}
+            <span class="game-list-priority">${escapeHtml(gameListPriority(item))}</span>
             ${action}
         </article>`;
 }
 
-function formatAttentionReason(reason) {
+function gameListPriority(item) {
+    if (item.game.enrolmentStatus === "withdrawn") {
+        return "Withdrawn";
+    }
+    if (item.game.purpose === "training"
+        && item.game.enrolmentStatus === "enrolled"
+        && ["active", "intermission"].includes(item.game.gameStatus)) {
+        return "Tutorial";
+    }
+    if (item.commandDeadline) {
+        return new Date(item.commandDeadline) <= new Date() ? "Overdue" : "Timed";
+    }
+    if (item.game.operationalCycleStatus === "recoveryRequired") {
+        return "Recovery";
+    }
+    if (item.game.gameStatus === "active"
+        && item.game.operationalCycleStatus === "active"
+        && item.game.turnStage === "commandOpen") {
+        return "Self-paced";
+    }
     return {
-        recoveryRequired: "Resolution needs recovery",
-        commandsCloseSoon: "Command deadline",
-        gameStarted: "Game recently started",
-        trainingInProgress: "Training in progress"
-    }[reason] ?? formatStatus(reason);
+        closing: "Closing",
+        sealed: "Sealed",
+        resolving: "Resolving",
+        publishing: "Publishing",
+        forming: "Waiting",
+        starting: "Waiting",
+        intermission: "Waiting",
+        completed: "Record",
+        cancelled: "Record",
+        terminated: "Record"
+    }[item.game.turnStage ?? item.game.gameStatus] ?? formatStatus(item.game.operationalCycleStatus ?? item.game.gameStatus);
 }
 
 function formatAccountDate(value) {
@@ -1492,15 +1500,8 @@ function formatAccountDate(value) {
 }
 
 function renderGameSelector() {
-    const groups = [
-        ["Active", state.gamesHome?.activeGames ?? []],
-        ["Waiting", state.gamesHome?.waitingGames ?? []],
-        ["Completed", state.gamesHome?.completedGames ?? []]
-    ].filter(([, games]) => games.length > 0);
-    elements.gameSelector.innerHTML = groups.map(([label, games]) =>
-        `<optgroup label="${label}">${games.map(item =>
-            `<option value="${escapeHtml(item.game.gameId)}">${escapeHtml(item.game.gameName)}</option>`).join("")}</optgroup>`
-    ).join("");
+    elements.gameSelector.innerHTML = state.games.map(item =>
+        `<option value="${escapeHtml(item.game.gameId)}">${escapeHtml(item.game.gameName)}</option>`).join("");
     elements.gameSelector.hidden = state.games.length < 2;
     elements.gameSelector.closest("label").hidden = state.games.length < 2;
     if (state.gameId) {
@@ -2145,7 +2146,6 @@ function renderCommandWorkspace() {
         </article>
     `).join("");
 
-    renderFrontierSchematic();
     renderCommandStream();
     renderStrategicWatch();
 }
@@ -2304,104 +2304,6 @@ function commandFleetName(fleetId) {
 
 function commandSystemName(systemId) {
     return state.galaxy?.systems.find(system => system.systemId === systemId)?.systemName ?? null;
-}
-
-function renderFrontierSchematic() {
-    const systems = commandFrontierSystems();
-    if (systems.length === 0) {
-        elements.frontierSchematic.innerHTML = `<p class="command-empty">No frontier systems are available.</p>`;
-        return;
-    }
-
-    const positions = [
-        { x: 320, y: 72 },
-        { x: 118, y: 272 },
-        { x: 522, y: 272 },
-        { x: 320, y: 318 }
-    ];
-    const plotted = systems.map((system, index) => ({ ...system, ...positions[index] }));
-    const plottedById = new Map(plotted.map(system => [system.systemId, system]));
-    const routes = (state.galaxy?.links ?? [])
-        .filter(link => plottedById.has(link.systemAId) && plottedById.has(link.systemBId))
-        .map(link => {
-            const start = plottedById.get(link.systemAId);
-            const end = plottedById.get(link.systemBId);
-            return `<path class="schematic-route${commandRouteHasCommitment(link) ? " is-queued" : ""}" d="M ${start.x} ${start.y} L ${end.x} ${end.y}"></path>`;
-        }).join("");
-    const attackSystemId = state.openingBriefing?.objectives?.attack?.systemId;
-    const committedTargets = new Set([
-        ...state.orders.filter(order => order.status === "pending").map(order => order.targetSystemId),
-        ...transitCommitments().map(transit => transit.isReturning ? transit.originSystemId : transit.outwardDestinationSystemId)
-    ].filter(Boolean));
-    const nodes = plotted.map(system => {
-        const isHome = system.systemId === state.empire?.homeSystem.systemId;
-        const tone = isHome ? "home" : system.systemId === attackSystemId ? "threat" : committedTargets.has(system.systemId) ? "queued" : "frontier";
-        const labelY = system.y < 120 ? system.y - 34 : system.y + 48;
-        return `
-            <g class="schematic-node is-${tone}" data-focus-system="${system.systemId}" role="link" tabindex="0" aria-label="Open ${escapeHtml(system.systemName)} in Map">
-                <circle class="schematic-node-orbit" cx="${system.x}" cy="${system.y}" r="28"></circle>
-                <circle class="schematic-node-core" cx="${system.x}" cy="${system.y}" r="9"></circle>
-                <circle class="schematic-node-point" cx="${system.x}" cy="${system.y}" r="3"></circle>
-                <text x="${system.x}" y="${labelY}" text-anchor="middle">${escapeHtml(system.systemName)}</text>
-            </g>
-        `;
-    }).join("");
-
-    elements.frontierSchematic.innerHTML = `
-        <svg viewBox="0 0 640 380" preserveAspectRatio="xMidYMin meet" role="group" aria-label="Current command frontier">
-            <g class="schematic-grid" aria-hidden="true">
-                <path d="M 0 95 H 640 M 0 190 H 640 M 0 285 H 640"></path>
-                <path d="M 160 0 V 380 M 320 0 V 380 M 480 0 V 380"></path>
-            </g>
-            <g class="schematic-routes">${routes}</g>
-            <g class="schematic-nodes">${nodes}</g>
-        </svg>
-        <div class="schematic-legend" aria-hidden="true">
-            <span class="legend-home">Home</span>
-            <span class="legend-queued">Committed route</span>
-            <span class="legend-threat">Unresolved objective</span>
-        </div>
-    `;
-}
-
-function commandFrontierSystems() {
-    const systemIds = [];
-    const add = value => {
-        if (value && !systemIds.includes(value)) {
-            systemIds.push(value);
-        }
-    };
-    add(state.empire?.homeSystem.systemId);
-    add(state.openingBriefing?.objectives?.move?.targetSystemId);
-    add(state.openingBriefing?.objectives?.colonise?.systemId);
-    add(state.openingBriefing?.objectives?.attack?.systemId);
-    for (const order of state.orders.filter(order => order.status === "pending")) {
-        add(order.targetSystemId);
-    }
-    for (const transit of transitCommitments()) {
-        add(transit.outwardDestinationSystemId);
-    }
-    if (systemIds.length < 4 && state.empire?.homeSystem.systemId) {
-        for (const system of linkedSystems(state.empire.homeSystem.systemId)) {
-            add(system.systemId);
-        }
-    }
-
-    const systemsById = new Map((state.galaxy?.systems ?? []).map(system => [system.systemId, system]));
-    return systemIds.slice(0, 4).map(systemId => systemsById.get(systemId)).filter(Boolean);
-}
-
-function commandRouteHasCommitment(link) {
-    const hasPendingOrder = state.orders.some(order => order.status === "pending"
-        && order.targetSystemId
-        && (order.targetSystemId === link.systemAId || order.targetSystemId === link.systemBId));
-    const hasTransit = transitCommitments().some(transit => {
-        const fleet = state.fleets.find(item => item.fleet.fleetId === transit.fleetId)?.fleet;
-        return fleet
-            && ((fleet.currentSystemId === link.systemAId && transit.outwardDestinationSystemId === link.systemBId)
-                || (fleet.currentSystemId === link.systemBId && transit.outwardDestinationSystemId === link.systemAId));
-    });
-    return hasPendingOrder || hasTransit;
 }
 
 function renderCommandStream() {

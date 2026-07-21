@@ -1632,8 +1632,8 @@ Classifier: data-dense application UI.
 | Litmus check | Result | Evidence |
 |---|---:|---|
 | Product unmistakable in first screen | Yes | Cycles brand, command-archive vocabulary and Game/Cycle nouns |
-| One strong visual anchor | Yes | Needs attention ledger on account screens; primary workspace inside a Game |
-| Understandable by scanning headings | Yes | lifecycle groups and workspace names carry the hierarchy |
+| One strong visual anchor | Yes | tutorial-first, deadline-ordered ledger on account screens; primary workspace inside a Game |
+| Understandable by scanning headings | Yes | one account list and workspace names carry the hierarchy |
 | Each section has one job | Yes | account, lobby, workspace and journey are separate surfaces |
 | Cards are necessary | Yes, narrowly | only existing interaction/content containers; account home is a ledger |
 | Motion improves hierarchy | Yes | existing restrained transitions and reduced-motion support; no decorative motion required |
@@ -1647,7 +1647,7 @@ Rejected patterns: generic welcome hero, three-column feature grid, icon circles
 |---|---|---|
 | Account top bar | `.topbar`, `.brand-link`, session summary | account nav must not crowd selected-game instruments |
 | Game status | `.status-chip`, Cycle instrument language | always text plus colour |
-| Needs-attention and Game lists | command/history ledger and section-heading patterns | rows contain real links and separate action buttons |
+| Tutorial and Game list | command/history ledger and section-heading patterns | tutorials lead; Game rows contain real links and separate action buttons |
 | Lobby lifecycle | section kicker, archival heading, compact event lists | no faux-chat timeline |
 | Game selector | existing `select` treatment | native control first; labelled and grouped |
 | Journey drawer | current tutorial panel, target highlight and mobile sheet | modal semantics only when overlaying |
@@ -1664,7 +1664,7 @@ The current dashboard's utility controls below 44px are corrected when the share
 
 | Decision | Resolution | If it changes later |
 |---|---|---|
-| Account hierarchy | Needs attention ledger, then lifecycle groups | ranking contract and focus order must change together |
+| Account hierarchy | One list: tutorials first, then known command deadlines ascending, then deterministic untimed fallbacks | server ranking contract and focus order must change together |
 | Account navigation | top bar, no sidebar | preserve gameplay strip as a separate level |
 | Desktop account layout | single centred ledger, no detail pane | a future detail pane requires its own mobile and focus design |
 | Intermission home | lobby route with between-Cycles content | do not render an empty command workspace |
@@ -2038,7 +2038,7 @@ These labels remain the programme decomposition map rather than live ticket numb
 | MG-04 | 1 | **Implemented:** Player-only authentication, access/command contexts, every current player route scoped or legacy-pinned to the same handler, resource authorisation and antiforgery | MG-03 |
 | MG-05 | 1 | **Implemented:** transfer v7 and migration 025 scheduling; explicit due-ID selector and Game-then-Cycle resolution at batch size one | MG-01, MG-03 |
 | MG-06 | 1 | **Implemented:** minimal roster-aware factory, immutable Standard/Twin Reaches profiles, startup validators and SQL round trips | MG-01, MG-02 |
-| MG-07 | 1 | **Implemented:** minimal Games home, server-ranked attention, intentional zero-membership state, URL-authoritative selection and two-tab/account-level request isolation | MG-04 |
+| MG-07 | 1 | **Implemented:** minimal Games home, one server-ordered tutorial-first and deadline-ordered list, intentional zero-membership state, URL-authoritative selection and two-tab/account-level request isolation | MG-04 |
 | MG-08 | 1 | **Implemented:** private Training provisioning, ordinary first Move/resolve/return and flag rollout | MG-05, MG-06, MG-07 |
 | MG-09 | 2 | **Implemented:** server-derived Core journey, recovery, skip/pause/fresh-attempt semantics | MG-08 |
 | MG-10 | 2 | complete account shell, responsive/accessibility states and non-visual topology | MG-07, MG-09 |
@@ -2152,7 +2152,7 @@ The independent operator review scored the initial experience about 6/10 and ide
 | D05 | No platform-wide concurrent-Game cap initially | Auto-decided | pragmatic measurement: preserve the requested model and add limits only with overcommitment evidence |
 | D06 | Add an account Games shell above the four existing gameplay workspaces | Auto-decided | DRY and familiarity: introduce only the missing navigation level |
 | D07 | Keep the static HTML/CSS/JavaScript client in the initial programme | Auto-decided | smallest safe path: no framework rewrite is required for the known states |
-| D08 | Games home uses a server-ranked attention ledger with explicit reasons | Auto-decided | clarity: cross-Game urgency must be deterministic and testable |
+| D08 | Games home uses one server-ordered tutorial-first and Player-deadline-ordered list; this supersedes the earlier capped attention ledger | Product decision / #158 | clarity: cross-Game urgency remains deterministic and testable without duplicating a Game across presentation groups |
 | D09 | Ship one foundations map plus later scenario/profile variants | Auto-decided | completeness without dilution: one excellent learning world beats several weak compulsory maps |
 | D10 | Core Training is four resolutions; bridge/transit material is optional | Auto-decided | fast value: first authoritative payoff precedes advanced concepts |
 | D11 | Every tutorial milestone observes ordinary orders, facts and ticks | Auto-decided | no false learning: tutorial code cannot fork simulation truth |

@@ -27,7 +27,7 @@ Concept frames establish intended tone and scale. They are not screenshots, simu
 | Sequence | Source | Treatment |
 | --- | --- | --- |
 | Gateway transit | `promo/concept-gateway-transit.png` | Generated concept dramatisation with trailer typography and camera movement. |
-| Command | `docs/images/cycles-dashboard-command-guide.png` | Current local build captured at 1600×900 with the Day One guide over the council agenda and frontier schematic. |
+| Command | `docs/images/cycles-dashboard-command-guide.png` | Historical development capture retained as source footage; it predates the Training-only guide and removal of the Frontier Schematic, so it is not current-state UI evidence. |
 | Galaxy | `docs/images/cycles-dashboard-map.png` | Current local build showing the authored 8-sector, 64-system chart, live route overlay, and selected-system inspector. |
 | Sector | `../assets/galaxy/sector-aster-reach.png` | Current route-free Aster Reach atlas; the film identifies it as current-build authored art. |
 | Treaty Gate battle | `promo/concept-treaty-gate-battle.png` | Generated concept dramatisation. |

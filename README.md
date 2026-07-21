@@ -10,7 +10,7 @@ Explore the authored eight-sector galaxy, follow live routes, and inspect the st
 
 ![Cycles Galaxy workspace showing the eight-sector atlas and selected-system intelligence](docs/images/cycles-dashboard-map.png)
 
-Triage the next authoritative tick through the council agenda, frontier schematic, strategic watch, and programme allocation. The server-backed `Core foundations` journey appears only inside Twin Reaches Training; Standard Games have no tutorial controls.
+Triage the next authoritative tick through the council agenda, current outcomes, next-resolution forecast, commitments, strategic watch, and programme allocation. Galaxy remains the sole spatial board. The server-backed `Core foundations` journey appears only inside Twin Reaches Training; Standard Games have no tutorial controls.
 
 The current pre-alpha development build supports a complete gameplay loop locally and through a public project site with an access-restricted trusted-playground application:
 

@@ -8,7 +8,6 @@ public sealed class DashboardLiveRegionContractTests
     [
         "loginMessage",
         "gamesHomeMessage",
-        "trainingOfferMessage",
         "turnMessage",
         "priorityMessage",
         "orderMessage"
@@ -18,6 +17,7 @@ public sealed class DashboardLiveRegionContractTests
     public void Mixed_purpose_live_regions_start_with_polite_status_semantics()
     {
         var html = ReadDashboardAsset("app.html");
+        var script = ReadDashboardAsset("app.js");
 
         foreach (var id in MixedPurposeRegionIds)
         {
@@ -25,6 +25,8 @@ public sealed class DashboardLiveRegionContractTests
                 new Regex($"id=\"{id}\"[^>]*role=\"status\""),
                 html);
         }
+
+        Assert.Contains("data-tutorial-message role=\"status\"", script);
     }
 
     [Fact]
@@ -45,7 +47,7 @@ public sealed class DashboardLiveRegionContractTests
         Assert.True(textWrite > roleWrite);
         Assert.Contains("setLiveMessage(elements.loginMessage, message, { error });", script);
         Assert.Matches(new Regex(@"setLiveMessage\(\s*elements\.gamesHomeMessage,"), script);
-        Assert.Matches(new Regex(@"setLiveMessage\(\s*elements\.trainingOfferMessage,"), script);
+        Assert.Contains("setLiveMessage(message, `Preparing ${offer.displayName}…`);", script);
         Assert.Contains("setLiveMessage(elements.orderMessage, message, options);", script);
         Assert.Contains("setLiveMessage(elements.priorityMessage, message, options);", script);
         Assert.Contains("setLiveMessage(elements.turnMessage, message, options);", script);
@@ -62,7 +64,7 @@ public sealed class DashboardLiveRegionContractTests
         var script = ReadDashboardAsset("app.js");
 
         Assert.Contains("showLogin(error.message, { error: true });", script);
-        Assert.Contains("setLiveMessage(elements.trainingOfferMessage, error.message, { error: true });", script);
+        Assert.Contains("setLiveMessage(message, error.message, { error: true });", script);
         Assert.Contains("setPriorityMessage(\"Priorities must total 100.\", { error: true });", script);
         Assert.Contains("setTurnMessage(error.message, { error: true });", script);
         Assert.Contains("setMessage(error.message, { error: true });", script);
@@ -71,7 +73,7 @@ public sealed class DashboardLiveRegionContractTests
             script);
 
         Assert.Contains("setLiveMessage(elements.loginMessage, \"Signing in...\");", script);
-        Assert.Contains("setLiveMessage(elements.trainingOfferMessage, `Preparing ${offer.displayName}…`);", script);
+        Assert.Contains("setLiveMessage(message, `Preparing ${offer.displayName}…`);", script);
         Assert.Contains("setPriorityMessage(\"Priorities saved for the next tick.\");", script);
         Assert.Contains("setMessage(replacement.replacesOrderId ? \"Move order replaced.\" : \"Move order queued.\");", script);
         Assert.Contains("setTurnMessage(`Published T${result.tickNumber}", script);
