@@ -3,7 +3,7 @@ namespace Cycles.Tests;
 public sealed class DashboardCommandOverviewContractTests
 {
     [Fact]
-    public void Command_overview_keeps_resources_and_linked_priorities_visible_together()
+    public void Command_overview_keeps_resources_visible_and_opens_linked_priorities_in_a_sheet()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -12,6 +12,9 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("id=\"resourcesSection\" class=\"command-resources\"", html);
         Assert.Contains("id=\"homeSystemName\"", html);
         Assert.Contains("id=\"prioritySection\" class=\"priority-console\"", html);
+        Assert.Contains("id=\"prioritySheet\" class=\"priority-sheet\"", html);
+        Assert.Contains("id=\"priorityOpenButton\"", html);
+        Assert.Contains("id=\"priorityCloseButton\"", html);
         Assert.Contains("data-priority-key=\"industryWeight\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"0\" aria-describedby=\"priorityModelNote\" disabled", html);
         Assert.Contains("data-priority-key=\"researchWeight\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"0\" aria-describedby=\"priorityModelNote\" disabled", html);
         Assert.Contains("data-priority-key=\"militaryWeight\" type=\"range\"", html);
@@ -30,6 +33,9 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("id=\"advanceTurnDialog\" class=\"advance-turn-dialog\"", html);
         Assert.Contains("elements.advanceTurnDialog.returnValue = \"\";", script);
         Assert.DoesNotContain("id=\"adjustPrioritiesButton\"", html);
+        Assert.Contains("elements.priorityOpenButton.addEventListener(\"click\", () => openPrioritySheet());", script);
+        Assert.Contains("elements.prioritySheet.showModal();", script);
+        Assert.Contains("elements.prioritySheet.close();", script);
 
         Assert.Contains("elements.homeSystemName.textContent = empire.homeSystem.systemName;", script);
         Assert.DoesNotContain("resource-home", script);
@@ -41,6 +47,7 @@ public sealed class DashboardCommandOverviewContractTests
         Assert.Contains("elements.prioritySaveButton.disabled = !isDirty || total !== 100 || state.prioritySaving || !commandsAreOpen();", script);
         Assert.Contains("elements.priorityResetButton.disabled = !isDirty || state.prioritySaving;", script);
         Assert.Contains("if (lesson.key === \"T1\")", script);
+        Assert.Contains("openPrioritySheet({ focusControl: false });", script);
         Assert.Contains("element: elements.prioritySection", script);
         Assert.Contains("focusElement: document.querySelector(\"#militaryWeight\")", script);
     }

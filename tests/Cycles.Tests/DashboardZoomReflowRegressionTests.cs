@@ -9,14 +9,13 @@ public sealed class DashboardZoomReflowRegressionTests
         var compactNavigation = CssMediaBlockContaining(
             styles,
             "@media (max-width: 767px)",
-            ".view-nav-chapter,");
+            ".view-nav small,");
         var narrowNavigation = CssMediaBlockContaining(
             styles,
             "@media (max-width: 560px)",
             "padding: 8px 2px;");
 
         Assert.Contains("grid-template-columns: minmax(0, 1fr);", compactNavigation);
-        Assert.Contains(".view-nav-chapter,", compactNavigation);
         Assert.Contains(".view-nav small,", compactNavigation);
         Assert.Contains(".view-badge", compactNavigation);
         Assert.Contains("display: none;", compactNavigation);

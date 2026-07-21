@@ -4077,30 +4077,43 @@ body.account-active {
 
 .selected-game-context {
     display: grid;
-    grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 260px);
+    grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px);
     align-items: center;
-    gap: 18px;
-    padding: 10px clamp(12px, 2vw, 24px);
+    gap: 14px;
+    padding: 8px clamp(12px, 2vw, 24px);
     border-bottom: 1px solid rgba(217, 179, 93, 0.28);
     background: #0a1013;
+}
+
+.selected-game-leading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.selected-game-divider {
+    color: rgba(217, 179, 93, 0.42);
 }
 
 .selected-game-copy {
     display: grid;
     gap: 2px;
+    min-width: 0;
 }
 
 .selected-game-copy strong {
+    overflow: hidden;
     color: var(--system);
     font-family: var(--font-galactic);
     font-size: 1.08rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .game-selector-label {
-    display: grid;
-    grid-template-columns: auto minmax(120px, 1fr);
+    display: block;
     align-items: center;
-    gap: 9px;
     color: var(--muted);
     font-size: 0.74rem;
 }
@@ -4165,13 +4178,15 @@ body.account-active {
         gap: 10px;
     }
 
+    .selected-game-leading {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
     .all-games-link {
         justify-self: start;
     }
 
-    .game-selector-label {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4240,9 +4255,9 @@ select {
 .topbar {
     position: relative;
     z-index: 20;
-    min-height: 82px;
-    gap: 18px;
-    padding: 8px 18px;
+    min-height: 70px;
+    gap: 14px;
+    padding: 7px 18px;
     border-bottom-color: rgba(217, 179, 93, 0.42);
     background:
         linear-gradient(90deg, rgba(217, 179, 93, 0.06), transparent 30%, rgba(80, 115, 166, 0.08) 72%, transparent),
@@ -4313,7 +4328,7 @@ select {
 
 .app-header-controls {
     display: grid;
-    grid-template-columns: minmax(190px, 0.85fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+    grid-template-columns: minmax(170px, 0.8fr) minmax(150px, 0.7fr) minmax(220px, 1fr) auto;
     align-items: stretch;
     gap: 0;
 }
@@ -4324,10 +4339,11 @@ select {
     position: relative;
     display: grid;
     align-content: start;
+    justify-content: center;
     row-gap: 2px;
     min-width: 0;
-    min-height: 54px;
-    padding: 4px 18px;
+    min-height: 46px;
+    padding: 3px 16px;
     border-left: 1px solid rgba(217, 179, 93, 0.24);
 }
 
@@ -4349,7 +4365,7 @@ select {
 .command-identity strong {
     color: #e1c16f;
     font-family: var(--font-galactic);
-    font-size: 1.02rem;
+    font-size: 0.94rem;
     letter-spacing: 0.05em;
 }
 
@@ -4363,13 +4379,17 @@ select {
 .cycle-instrument p {
     gap: 8px;
     margin-top: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .cycle-name {
     color: #eee1bf;
     font-family: var(--font-galactic);
-    font-size: 0.88rem;
+    overflow: hidden;
+    font-size: 0.82rem;
     letter-spacing: 0.07em;
+    text-overflow: ellipsis;
 }
 
 .cycle-pill,
@@ -4378,7 +4398,8 @@ select {
 }
 
 .next-turn-instrument {
-    gap: 2px;
+    align-content: center;
+    gap: 5px;
 }
 
 .next-turn-instrument strong {
@@ -4393,18 +4414,29 @@ select {
 }
 
 .turn-track {
+    --turn-window-progress: 0%;
+
     position: relative;
     display: block;
     width: 100%;
-    height: 2px;
+    height: 3px;
     margin-top: 0;
-    background: linear-gradient(90deg, rgba(217, 179, 93, 0.7), rgba(143, 180, 244, 0.22));
+    background: rgba(143, 180, 244, 0.2);
+}
+
+.turn-track::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--turn-window-progress);
+    background: linear-gradient(90deg, rgba(143, 180, 244, 0.72), #e3bd62);
+    box-shadow: 0 0 9px rgba(227, 189, 98, 0.28);
+    content: "";
 }
 
 .turn-track i {
     position: absolute;
     top: 50%;
-    left: 26%;
+    left: var(--turn-window-progress);
     width: 7px;
     height: 7px;
     border: 1px solid #e3bd62;
@@ -4621,7 +4653,7 @@ select {
 }
 
 .view-nav a {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: 1fr;
     align-items: center;
     gap: 10px;
@@ -4668,14 +4700,6 @@ select {
     box-shadow: 0 -3px 14px rgba(226, 185, 79, 0.48);
 }
 
-.view-nav-chapter {
-    align-self: center;
-    color: rgba(228, 200, 130, 0.74);
-    font-family: var(--font-galactic);
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-}
-
 .view-nav-copy {
     display: grid;
     gap: 2px;
@@ -4698,7 +4722,7 @@ select {
 }
 
 .view-badge {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     align-self: center;
     min-width: 27px;
@@ -4810,7 +4834,7 @@ select {
 
 .council-agenda,
 .turn-resolution-contract {
-    min-height: 470px;
+    min-height: 380px;
 }
 
 .agenda-list {
@@ -4821,11 +4845,11 @@ select {
 .agenda-item {
     position: relative;
     display: grid;
-    grid-template-columns: 38px 42px minmax(0, 1.25fr) minmax(120px, 0.8fr);
-    grid-template-rows: 1fr auto;
-    gap: 7px 10px;
-    min-height: 124px;
-    padding: 12px;
+    grid-template-columns: 34px 38px minmax(0, 1.25fr) minmax(130px, 0.72fr) auto;
+    grid-template-rows: 1fr;
+    gap: 8px 10px;
+    min-height: 92px;
+    padding: 10px 12px;
     overflow: hidden;
     border: 1px solid rgba(217, 179, 93, 0.24);
     background: rgba(5, 12, 15, 0.74);
@@ -4863,15 +4887,15 @@ select {
     align-self: center;
     color: currentColor;
     font-family: var(--font-galactic);
-    font-size: 1.35rem;
+    font-size: 1.15rem;
     font-variant-numeric: tabular-nums;
 }
 
 .agenda-sigil {
     align-self: center;
     display: grid;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     place-items: center;
     border: 1px solid currentColor;
     border-radius: 50%;
@@ -4925,7 +4949,7 @@ select {
 }
 
 .agenda-item .agenda-action {
-    grid-column: 3 / -1;
+    grid-column: 5;
     justify-self: end;
     min-height: 30px;
     padding: 6px 9px;
@@ -4938,7 +4962,6 @@ select {
 
 .command-rail {
     display: grid;
-    grid-column: 1 / -1;
     grid-template-columns: minmax(280px, 0.68fr) minmax(0, 1.32fr);
     gap: 12px;
     min-width: 0;
@@ -5065,64 +5088,24 @@ select {
     font-size: 0.82rem;
 }
 
-.strategic-watch .priority-console {
-    display: grid;
-    gap: 6px;
+.programme-allocation-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-top: 10px;
     padding: 10px 0 0;
-    overflow: visible;
-    border: 0;
     border-top: 1px solid rgba(217, 179, 93, 0.24);
-    background: transparent;
 }
 
-.strategic-watch .priority-heading {
-    margin-bottom: 2px;
+.programme-allocation-summary h3 {
+    margin-top: 3px;
+    font-size: 0.68rem;
 }
 
-.strategic-watch .priority-form {
-    gap: 7px;
-}
-
-.strategic-watch .priority-model-note {
-    margin: 0;
-    padding: 7px 8px;
-    border-radius: 0;
-    font-size: 0.61rem;
-    line-height: 1.35;
-}
-
-.strategic-watch .priority-channels {
-    gap: 5px;
-}
-
-.strategic-watch .priority-channel {
-    grid-template-columns: minmax(105px, 0.8fr) minmax(90px, 1fr) 28px;
-    gap: 7px;
-    min-height: 32px;
-    padding: 3px 0;
-}
-
-.strategic-watch .priority-channel-name {
-    font-size: 0.62rem;
-}
-
-.strategic-watch .priority-effect-status,
-.strategic-watch .priority-saved-value {
-    font-size: 0.48rem;
-}
-
-.strategic-watch .priority-slider-shell {
-    min-height: 24px;
-}
-
-.strategic-watch .priority-actions {
-    gap: 5px;
-}
-
-.strategic-watch .priority-actions button {
-    min-height: 30px;
-    padding: 4px 8px;
+.programme-allocation-summary button {
+    min-height: 34px;
+    padding: 7px 11px;
     font-size: 0.62rem;
 }
 
@@ -5305,7 +5288,7 @@ select {
     }
 
     .app-header-controls {
-        grid-template-columns: minmax(170px, 0.8fr) minmax(190px, 1fr) minmax(160px, 0.8fr) auto;
+        grid-template-columns: minmax(145px, 0.8fr) minmax(150px, 0.7fr) minmax(180px, 1fr) auto;
     }
 
     .app-header-controls .command-identity,
@@ -5319,7 +5302,7 @@ select {
     }
 
     .agenda-item {
-        grid-template-columns: 34px 34px minmax(0, 1fr);
+        grid-template-columns: 34px 34px minmax(0, 1fr) auto;
     }
 
     .agenda-timing {
@@ -5327,16 +5310,16 @@ select {
     }
 
     .agenda-item .agenda-action {
-        grid-column: 3;
+        grid-column: 4;
     }
 }
 
 @media (max-width: 1180px) {
     .app-header-controls {
-        grid-template-columns: minmax(170px, 1fr) minmax(190px, 1fr) auto;
+        grid-template-columns: minmax(120px, 0.7fr) minmax(125px, 0.7fr) minmax(160px, 1fr) auto;
     }
 
-    .next-turn-instrument {
+    .command-home {
         display: none;
     }
 
@@ -5345,16 +5328,7 @@ select {
     }
 
     .command-rail {
-        grid-column: 1 / -1;
         grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
-    }
-
-    .strategic-watch .priority-channels {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .strategic-watch .priority-channel {
-        grid-template-columns: minmax(105px, 0.8fr) minmax(90px, 1fr) 28px;
     }
 }
 
@@ -5401,7 +5375,6 @@ select {
         padding-inline: 4px;
     }
 
-    .view-nav-chapter,
     .view-nav small,
     .view-badge {
         display: none;
@@ -5470,7 +5443,6 @@ select {
         padding: 8px 2px;
     }
 
-    .view-nav-chapter,
     .view-nav small,
     .view-badge {
         display: none;
@@ -5503,13 +5475,17 @@ select {
         justify-self: start;
     }
 
-    .command-resources #resources,
-    .strategic-watch .priority-channels {
-        grid-template-columns: minmax(0, 1fr);
+    .programme-allocation-summary {
+        align-items: stretch;
+        flex-direction: column;
     }
 
-    .strategic-watch .priority-channel {
-        grid-template-columns: minmax(100px, 0.8fr) minmax(80px, 1fr) 28px;
+    .programme-allocation-summary button {
+        width: 100%;
+    }
+
+    .command-resources #resources {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .command-queue-heading {
@@ -5806,6 +5782,71 @@ select {
     white-space: nowrap;
 }
 
+.priority-sheet {
+    width: min(720px, 100vw);
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0 0 0 auto;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-left: 1px solid rgba(217, 179, 93, 0.55);
+    border-radius: 0;
+    background: #091116;
+    color: var(--text);
+    box-shadow: -30px 0 100px rgba(0, 0, 0, 0.64);
+}
+
+.priority-sheet[open] {
+    display: grid;
+}
+
+.priority-sheet::backdrop {
+    background: rgba(2, 5, 7, 0.7);
+    backdrop-filter: blur(3px);
+}
+
+.priority-sheet .priority-console {
+    min-height: 100%;
+    padding: clamp(20px, 4vw, 36px);
+    overflow-y: auto;
+    border: 0;
+    border-radius: 0;
+    background:
+        linear-gradient(140deg, rgba(217, 179, 93, 0.08), transparent 42%),
+        linear-gradient(rgba(143, 209, 189, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(143, 209, 189, 0.025) 1px, transparent 1px),
+        rgba(9, 17, 22, 0.99);
+    background-size: auto, 20px 20px, 20px 20px, auto;
+}
+
+.priority-sheet .priority-heading {
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.priority-sheet .priority-form {
+    align-content: start;
+}
+
+.priority-sheet .priority-actions {
+    margin-top: 22px;
+}
+
+.priority-sheet .priority-heading h2 {
+    margin: 4px 0 0;
+    color: #e1c16f;
+    font-family: var(--font-galactic);
+    font-size: 1.12rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.priority-sheet-close {
+    min-height: 38px;
+}
+
 .advance-turn-dialog {
     width: min(620px, calc(100vw - 28px));
     padding: 0;
@@ -5902,6 +5943,14 @@ select {
     }
 
     .advance-turn-dialog-card {
+        padding: 17px;
+    }
+
+    .priority-sheet {
+        width: 100vw;
+    }
+
+    .priority-sheet .priority-console {
         padding: 17px;
     }
 

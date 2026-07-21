@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycles Command</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e4bc58' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2394b9f4'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260721-galactic-type-1">
+    <link rel="stylesheet" href="styles.css?v=20260721-command-focus-2">
 </head>
 <body>
     <header class="topbar">
@@ -17,18 +17,15 @@
         </div>
         <div id="appHeaderControls" class="app-header-controls" hidden>
             <div class="command-identity">
-                <span class="toolbar-kicker">Imperial command</span>
                 <strong id="empireName">Empire</strong>
                 <span class="command-home">Home <span id="homeSystemName">Unknown</span></span>
             </div>
-            <div class="cycle-instrument" aria-label="Current Cycle">
-                <span class="instrument-label">Current Cycle</span>
+            <div class="cycle-instrument" aria-label="Current cycle">
                 <p id="cycleStatus">Loading...</p>
             </div>
-            <div class="next-turn-instrument" aria-label="Next turn">
-                <span class="instrument-label">Next turn</span>
+            <div class="next-turn-instrument" aria-label="Next turn timing">
                 <strong id="nextTurnStatus">Loading...</strong>
-                <span id="nextTurnTrack" class="turn-track" aria-hidden="true"><i></i></span>
+                <span id="nextTurnTrack" class="turn-track" role="progressbar" aria-label="Command-window time elapsed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></span>
             </div>
             <div class="toolbar-actions">
                 <button id="tutorialButton" class="toolbar-icon-button" type="button" aria-label="Core foundations" aria-controls="tutorialPanel" title="Core foundations" hidden>
@@ -87,13 +84,16 @@
         </section>
 
         <div id="selectedGameContext" class="selected-game-context" hidden>
-            <a id="allGamesLink" class="all-games-link" href="#/games">All games</a>
-            <div class="selected-game-copy">
-                <span id="selectedGameKind" class="section-kicker">Standard game</span>
-                <strong id="selectedGameName">Selected game</strong>
+            <div class="selected-game-leading">
+                <a id="allGamesLink" class="all-games-link" href="#/games">Games</a>
+                <span class="selected-game-divider" aria-hidden="true">/</span>
+                <div class="selected-game-copy">
+                    <span id="selectedGameKind" class="section-kicker">Standard game</span>
+                    <strong id="selectedGameName">Selected game</strong>
+                </div>
             </div>
             <label class="game-selector-label" for="gameSelector">
-                <span>Switch game</span>
+                <span class="visually-hidden">Switch game</span>
                 <select id="gameSelector" aria-label="Switch selected game"></select>
             </label>
         </div>
@@ -102,7 +102,6 @@
 
         <nav id="viewNav" class="view-nav" aria-label="Command views" hidden>
             <a href="#command" data-view-link="command" aria-controls="commandView" aria-keyshortcuts="Alt+1">
-                <span class="view-nav-chapter" aria-hidden="true">I</span>
                 <span class="view-nav-copy">
                     <span class="view-nav-label">Command</span>
                     <span class="visually-hidden">Triage the Cycle</span>
@@ -110,7 +109,6 @@
                 <strong id="commandViewBadge" class="view-badge" aria-label="0 pending orders">0</strong>
             </a>
             <a href="#galaxy" data-view-link="galaxy" aria-controls="galaxyView" aria-keyshortcuts="Alt+2">
-                <span class="view-nav-chapter" aria-hidden="true">II</span>
                 <span class="view-nav-copy">
                     <span class="view-nav-label">Map</span>
                     <span class="visually-hidden">Read the frontier</span>
@@ -118,7 +116,6 @@
                 <strong id="galaxyViewBadge" class="view-badge" aria-label="0 of 0 systems controlled">0/0</strong>
             </a>
             <a href="#fleets" data-view-link="fleets" aria-controls="fleetsView" aria-keyshortcuts="Alt+3">
-                <span class="view-nav-chapter" aria-hidden="true">III</span>
                 <span class="view-nav-copy">
                     <span class="view-nav-label">Fleets</span>
                     <span class="visually-hidden">Commit intentions</span>
@@ -126,7 +123,6 @@
                 <strong id="fleetsViewBadge" class="view-badge" aria-label="0 active fleets">0</strong>
             </a>
             <a href="#history" data-view-link="history" aria-controls="historyView" aria-keyshortcuts="Alt+4">
-                <span class="view-nav-chapter" aria-hidden="true">IV</span>
                 <span class="view-nav-copy">
                     <span class="view-nav-label">History</span>
                     <span class="visually-hidden">Consult the record</span>
@@ -183,7 +179,26 @@
                             </details>
                         </section>
 
-                        <aside class="command-rail" aria-label="Command intelligence">
+                    </div>
+
+                    <section id="orderQueueSection" class="view-card command-queue">
+                        <div class="section-heading command-queue-heading">
+                            <div>
+                                <span class="section-kicker">Committed intentions</span>
+                                <div class="section-title-row">
+                                    <h2>Order Queue &amp; Turn Calendar</h2>
+                                    <span class="section-heading-count"><strong id="commandPendingCount">0</strong> pending</span>
+                                </div>
+                            </div>
+                            <div class="command-queue-actions">
+                                <a class="section-link" href="#fleets">Issue orders</a>
+                                <button id="commandAdvanceTurnButton" type="button" hidden>Close command window and advance</button>
+                            </div>
+                        </div>
+                        <div id="orders" class="turn-calendar"></div>
+                    </section>
+
+                    <aside class="command-rail" aria-label="Command intelligence">
                             <section class="view-card command-stream" aria-labelledby="commandStreamTitle">
                                 <div class="section-heading">
                                     <div>
@@ -208,91 +223,15 @@
                                     <dl id="resources"></dl>
                                 </section>
 
-                                <section id="prioritySection" class="priority-console" aria-labelledby="prioritySectionTitle">
-                                    <div class="section-heading priority-heading">
-                                        <div>
-                                            <span class="section-kicker">Next turn</span>
-                                            <h3 id="prioritySectionTitle">Programme allocation</h3>
-                                        </div>
+                                <div class="programme-allocation-summary">
+                                    <div>
+                                        <span class="section-kicker">Next turn</span>
+                                        <h3>Programme allocation</h3>
                                     </div>
-                                    <form id="priorityForm" class="priority-form">
-                                        <p id="priorityModelNote" class="priority-model-note">
-                                            Military and Expansion are active. Development and Innovation remain locked until their programmes exist.
-                                        </p>
-                                        <div class="priority-channels">
-                                            <label class="priority-channel" for="industryWeight">
-                                                <span class="priority-channel-name">
-                                                    <span>Development <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
-                                                    <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small>
-                                                </span>
-                                                <span class="priority-slider-shell">
-                                                    <span class="priority-saved-marker" aria-hidden="true"></span>
-                                                    <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
-                                                </span>
-                                                <output id="industryWeightValue" for="industryWeight">0</output>
-                                            </label>
-                                            <label class="priority-channel" for="researchWeight">
-                                                <span class="priority-channel-name">
-                                                    <span>Innovation <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
-                                                    <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small>
-                                                </span>
-                                                <span class="priority-slider-shell">
-                                                    <span class="priority-saved-marker" aria-hidden="true"></span>
-                                                    <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
-                                                </span>
-                                                <output id="researchWeightValue" for="researchWeight">0</output>
-                                            </label>
-                                            <label class="priority-channel" for="militaryWeight">
-                                                <span class="priority-channel-name">
-                                                    <span>Military <small class="priority-effect-status priority-effect-status--active">Active</small></span>
-                                                    <small id="militaryWeightSaved" class="priority-saved-value">Saved 0</small>
-                                                </span>
-                                                <span class="priority-slider-shell">
-                                                    <span class="priority-saved-marker" aria-hidden="true"></span>
-                                                    <input id="militaryWeight" data-priority-key="militaryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
-                                                </span>
-                                                <output id="militaryWeightValue" for="militaryWeight">0</output>
-                                            </label>
-                                            <label class="priority-channel" for="expansionWeight">
-                                                <span class="priority-channel-name">
-                                                    <span>Expansion <small class="priority-effect-status priority-effect-status--active">Active</small></span>
-                                                    <small id="expansionWeightSaved" class="priority-saved-value">Saved 0</small>
-                                                </span>
-                                                <span class="priority-slider-shell">
-                                                    <span class="priority-saved-marker" aria-hidden="true"></span>
-                                                    <input id="expansionWeight" data-priority-key="expansionWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
-                                                </span>
-                                                <output id="expansionWeightValue" for="expansionWeight">0</output>
-                                            </label>
-                                        </div>
-                                        <div class="priority-actions">
-                                            <span id="priorityDraftStatus" class="priority-save-status" role="status" aria-live="polite" hidden>Saved</span>
-                                            <button id="priorityResetButton" class="secondary-action" type="button">Reset</button>
-                                            <button id="prioritySaveButton" type="submit">Save priorities</button>
-                                        </div>
-                                        <p id="priorityMessage" class="message priority-message" role="status"></p>
-                                    </form>
-                                </section>
+                                    <button id="priorityOpenButton" type="button" aria-haspopup="dialog" aria-controls="prioritySheet" aria-expanded="false">Review allocation</button>
+                                </div>
                             </section>
                         </aside>
-                    </div>
-
-                    <section id="orderQueueSection" class="view-card command-queue">
-                        <div class="section-heading command-queue-heading">
-                            <div>
-                                <span class="section-kicker">Committed intentions</span>
-                                <div class="section-title-row">
-                                    <h2>Order Queue &amp; Turn Calendar</h2>
-                                    <span class="section-heading-count"><strong id="commandPendingCount">0</strong> pending</span>
-                                </div>
-                            </div>
-                            <div class="command-queue-actions">
-                                <a class="section-link" href="#fleets">Issue orders</a>
-                                <button id="commandAdvanceTurnButton" type="button" hidden>Close command window and advance</button>
-                            </div>
-                        </div>
-                        <div id="orders" class="turn-calendar"></div>
-                    </section>
                 </div>
             </section>
 
@@ -600,6 +539,75 @@
         </footer>
     </main>
 
+    <dialog id="prioritySheet" class="priority-sheet" aria-labelledby="prioritySectionTitle" aria-describedby="priorityModelNote">
+        <section id="prioritySection" class="priority-console" aria-labelledby="prioritySectionTitle">
+            <div class="section-heading priority-heading">
+                <div>
+                    <span class="section-kicker">Next turn</span>
+                    <h2 id="prioritySectionTitle">Programme allocation</h2>
+                </div>
+                <button id="priorityCloseButton" class="priority-sheet-close secondary-action" type="button">Close</button>
+            </div>
+            <form id="priorityForm" class="priority-form">
+                <p id="priorityModelNote" class="priority-model-note">
+                    Military and Expansion are active. Development and Innovation remain locked until their programmes exist.
+                </p>
+                <div class="priority-channels">
+                    <label class="priority-channel" for="industryWeight">
+                        <span class="priority-channel-name">
+                            <span>Development <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
+                            <small id="industryWeightSaved" class="priority-saved-value">Saved 0</small>
+                        </span>
+                        <span class="priority-slider-shell">
+                            <span class="priority-saved-marker" aria-hidden="true"></span>
+                            <input id="industryWeight" data-priority-key="industryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
+                        </span>
+                        <output id="industryWeightValue" for="industryWeight">0</output>
+                    </label>
+                    <label class="priority-channel" for="researchWeight">
+                        <span class="priority-channel-name">
+                            <span>Innovation <small class="priority-effect-status priority-effect-status--inactive">Locked</small></span>
+                            <small id="researchWeightSaved" class="priority-saved-value">Saved 0</small>
+                        </span>
+                        <span class="priority-slider-shell">
+                            <span class="priority-saved-marker" aria-hidden="true"></span>
+                            <input id="researchWeight" data-priority-key="researchWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote" disabled>
+                        </span>
+                        <output id="researchWeightValue" for="researchWeight">0</output>
+                    </label>
+                    <label class="priority-channel" for="militaryWeight">
+                        <span class="priority-channel-name">
+                            <span>Military <small class="priority-effect-status priority-effect-status--active">Active</small></span>
+                            <small id="militaryWeightSaved" class="priority-saved-value">Saved 0</small>
+                        </span>
+                        <span class="priority-slider-shell">
+                            <span class="priority-saved-marker" aria-hidden="true"></span>
+                            <input id="militaryWeight" data-priority-key="militaryWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
+                        </span>
+                        <output id="militaryWeightValue" for="militaryWeight">0</output>
+                    </label>
+                    <label class="priority-channel" for="expansionWeight">
+                        <span class="priority-channel-name">
+                            <span>Expansion <small class="priority-effect-status priority-effect-status--active">Active</small></span>
+                            <small id="expansionWeightSaved" class="priority-saved-value">Saved 0</small>
+                        </span>
+                        <span class="priority-slider-shell">
+                            <span class="priority-saved-marker" aria-hidden="true"></span>
+                            <input id="expansionWeight" data-priority-key="expansionWeight" type="range" min="0" max="100" step="1" value="0" aria-describedby="priorityModelNote">
+                        </span>
+                        <output id="expansionWeightValue" for="expansionWeight">0</output>
+                    </label>
+                </div>
+                <div class="priority-actions">
+                    <span id="priorityDraftStatus" class="priority-save-status" role="status" aria-live="polite" hidden>Saved</span>
+                    <button id="priorityResetButton" class="secondary-action" type="button">Reset</button>
+                    <button id="prioritySaveButton" type="submit">Save priorities</button>
+                </div>
+                <p id="priorityMessage" class="message priority-message" role="status"></p>
+            </form>
+        </section>
+    </dialog>
+
     <dialog id="advanceTurnDialog" class="advance-turn-dialog" aria-labelledby="advanceTurnDialogTitle" aria-describedby="advanceTurnDialogBody advanceTurnDialogCounts">
         <form method="dialog" class="advance-turn-dialog-card">
             <span class="section-kicker">Development operator action</span>
@@ -646,6 +654,6 @@
         </div>
     </aside>
 
-    <script src="app.js?v=20260721-games-command-1"></script>
+    <script src="app.js?v=20260721-command-focus-2"></script>
 </body>
 </html>

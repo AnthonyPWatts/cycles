@@ -13,8 +13,8 @@ public sealed class DashboardTrainingShowMeRegressionTests
 
         Assert.Contains("id=\"tutorialShowMeButton\"", html);
         Assert.Contains(">Show me</button>", html);
-        Assert.Contains("styles.css?v=20260721-galactic-type-1", html);
-        Assert.Contains("app.js?v=20260721-games-command-1", html);
+        Assert.Contains("styles.css?v=20260721-command-focus-2", html);
+        Assert.Contains("app.js?v=20260721-command-focus-2", html);
         Assert.Contains("tutorialShowMeButton: document.querySelector(\"#tutorialShowMeButton\")", script);
         Assert.Contains("elements.tutorialShowMeButton.addEventListener(\"click\", showTrainingTutorialTarget)", script);
         Assert.DoesNotContain("trainingTutorialTarget", renderer);
@@ -73,9 +73,12 @@ public sealed class DashboardTrainingShowMeRegressionTests
         Assert.DoesNotContain("selectFleet(", handler);
         Assert.DoesNotContain("selectCommandMoveTarget", handler);
         Assert.Contains("const narrow = window.innerWidth < 1200;", handler);
-        Assert.Contains("applyTutorialTarget(target.element, { describe: !narrow });", handler);
+        Assert.Contains("const sheetTarget = target.element === elements.prioritySection;", handler);
+        Assert.Contains("const describe = !narrow && !sheetTarget;", handler);
+        Assert.Contains("applyTutorialTarget(target.element, { describe });", handler);
+        Assert.Contains("if (narrow || sheetTarget)", handler);
         Assert.Contains("dismissTutorialForTarget();", handler);
-        Assert.Contains("focusTutorialTarget(target.focusElement ?? target.element, { describe: !narrow });", handler);
+        Assert.Contains("focusTutorialTarget(target.focusElement ?? target.element, { describe });", handler);
         Assert.DoesNotContain("clearTutorialTarget", narrowDismissal);
         Assert.DoesNotContain("tutorialButton).focus", narrowDismissal);
         Assert.Contains("setTutorialBackgroundInert(modal)", script);

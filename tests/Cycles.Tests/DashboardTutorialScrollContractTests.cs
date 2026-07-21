@@ -20,6 +20,6 @@ public sealed class DashboardTutorialScrollContractTests
         Assert.Contains("Math.min(bounds.height, 120)", script);
         Assert.Contains("elements.tutorialPanel.getBoundingClientRect().top", script);
         Assert.Contains("const target = trainingTutorialTarget(lesson);", script);
-        Assert.Contains("applyTutorialTarget(target.element, { describe: !narrow });", script);
+        Assert.Contains("applyTutorialTarget(target.element, { describe });", script);
     }
 }

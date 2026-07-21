@@ -261,6 +261,8 @@ const tutorial = {
 };
 
 let priorityActivityTimeout = null;
+let turnWindowProgressTimer = null;
+let prioritySheetReturnFocus = null;
 
 const elements = {
     loginForm: document.querySelector("#loginForm"),
@@ -318,6 +320,9 @@ const elements = {
     systemDetails: document.querySelector("#systemDetails"),
     systemsRoutesList: document.querySelector("#systemsRoutesList"),
     systemsRoutesSummary: document.querySelector("#systemsRoutesSummary"),
+    prioritySheet: document.querySelector("#prioritySheet"),
+    priorityOpenButton: document.querySelector("#priorityOpenButton"),
+    priorityCloseButton: document.querySelector("#priorityCloseButton"),
     prioritySection: document.querySelector("#prioritySection"),
     priorityForm: document.querySelector("#priorityForm"),
     priorityInputs: [...document.querySelectorAll("[data-priority-key]")],
@@ -578,8 +583,7 @@ async function resolveSelfPacedTurn() {
 elements.commandView.addEventListener("click", async event => {
     const prioritiesButton = event.target.closest("[data-focus-priorities]");
     if (prioritiesButton) {
-        elements.prioritySection.scrollIntoView({ behavior: "smooth", block: "center" });
-        requestAnimationFrame(() => document.querySelector("#militaryWeight")?.focus({ preventScroll: true }));
+        openPrioritySheet();
         return;
     }
 
@@ -821,6 +825,20 @@ elements.eventSeverity.addEventListener("change", () => {
 elements.eventSort.addEventListener("change", () => {
     state.eventSort = elements.eventSort.value;
     renderEvents(state.events);
+});
+
+elements.priorityOpenButton.addEventListener("click", () => openPrioritySheet());
+elements.priorityCloseButton.addEventListener("click", () => closePrioritySheet());
+elements.prioritySheet.addEventListener("click", event => {
+    if (event.target === elements.prioritySheet) {
+        closePrioritySheet();
+    }
+});
+elements.prioritySheet.addEventListener("close", () => {
+    elements.priorityOpenButton.setAttribute("aria-expanded", "false");
+    const returnFocus = prioritySheetReturnFocus;
+    prioritySheetReturnFocus = null;
+    returnFocus?.focus({ preventScroll: true });
 });
 
 elements.priorityForm.addEventListener("input", event => {
@@ -1251,6 +1269,8 @@ function clearSelectedGame() {
 }
 
 function clearGameScopedState() {
+    closePrioritySheet({ returnFocus: false });
+    stopTurnWindowClock();
     state.cycle = null;
     state.empire = null;
     state.galaxy = null;
@@ -1670,10 +1690,41 @@ function hasUnsavedPriorityDraft() {
         && priorityKeys.some(key => state.priorityDraft[key] !== parseWeight(state.empire.priorities[key]));
 }
 
+function openPrioritySheet({ focusControl = true } = {}) {
+    if (!elements.prioritySheet.open) {
+        const activeElement = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        prioritySheetReturnFocus = activeElement && !elements.tutorialPanel.contains(activeElement)
+            ? activeElement
+            : elements.priorityOpenButton;
+        elements.prioritySheet.showModal();
+        elements.priorityOpenButton.setAttribute("aria-expanded", "true");
+    }
+
+    if (focusControl) {
+        requestAnimationFrame(() => document.querySelector("#militaryWeight")?.focus({ preventScroll: true }));
+    }
+}
+
+function closePrioritySheet({ returnFocus = true } = {}) {
+    if (!elements.prioritySheet.open) {
+        return;
+    }
+
+    if (!returnFocus) {
+        prioritySheetReturnFocus = null;
+    }
+    elements.prioritySheet.close();
+}
+
 function activateView(viewId, { updateLocation = false, focusHeading = false } = {}) {
     const selectedView = viewIds.includes(viewId) ? viewId : "command";
     if (selectedView !== "galaxy" && state.mapMaximised) {
         setMapMaximised(false);
+    }
+    if (selectedView !== "command") {
+        closePrioritySheet({ returnFocus: false });
     }
     state.activeView = selectedView;
 
@@ -1771,22 +1822,87 @@ function syncTabSet(buttons, panels, dataKey, selected) {
 
 function renderCycle(cycle) {
     const stageLabel = state.turnResolution?.stageLabel ?? formatStatus(cycle.turnStage);
+    const compactStage = compactTurnStage(stageLabel);
     const selfPaced = isSelfPacedCycle(cycle);
+    const exceptionalStatus = String(cycle.status).toLowerCase() === "active"
+        ? ""
+        : statusChip(cycle.status);
     elements.cycleStatus.innerHTML = `
         <span class="cycle-name">${escapeHtml(cycle.name)}</span>
         <span class="cycle-pill">T${cycle.currentTickNumber}</span>
-        <span class="turn-stage-inline">${escapeHtml(stageLabel)}</span>
-        ${statusChip(cycle.status)}
+        ${exceptionalStatus}
     `;
-    elements.nextTurnStatus.textContent = selfPaced
-        ? `${stageLabel} · T${cycle.currentTickNumber + 1} · Self-paced`
-        : `${stageLabel} · T${cycle.currentTickNumber + 1} · ${formatNumber(cycle.tickLengthMinutes)}m cadence`;
-    elements.nextTurnTrack.hidden = selfPaced;
+    stopTurnWindowClock();
+    if (selfPaced) {
+        elements.nextTurnStatus.textContent = `${compactStage} · T${cycle.currentTickNumber + 1} · Self-paced`;
+        elements.nextTurnTrack.hidden = true;
+    } else {
+        const hasSchedule = renderScheduledTurnTiming(cycle, compactStage);
+        if (hasSchedule) {
+            turnWindowProgressTimer = window.setInterval(
+                () => renderScheduledTurnTiming(cycle, compactStage),
+                30_000);
+        }
+    }
     elements.turnProgressRibbon.hidden = selfPaced;
     document.body.classList.toggle("turn-ribbon-active", !selfPaced);
     if (!selfPaced) {
         renderTurnTimeline(cycle.currentTickNumber);
     }
+}
+
+function compactTurnStage(stageLabel) {
+    return String(stageLabel).replace(/^Command window open$/i, "Commands open");
+}
+
+function renderScheduledTurnTiming(cycle, stageLabel) {
+    const cadenceMinutes = Number(cycle.tickLengthMinutes);
+    const dueAt = Date.parse(cycle.nextTickAt);
+    const hasSchedule = Number.isFinite(cadenceMinutes)
+        && cadenceMinutes > 0
+        && Number.isFinite(dueAt);
+    const nextTickNumber = Number(cycle.currentTickNumber) + 1;
+
+    if (!hasSchedule) {
+        elements.nextTurnStatus.textContent = `${stageLabel} · T${nextTickNumber} · Scheduling paused`;
+        elements.nextTurnTrack.hidden = true;
+        return false;
+    }
+
+    const now = Date.now();
+    const cadenceMilliseconds = cadenceMinutes * 60_000;
+    const opensAt = dueAt - cadenceMilliseconds;
+    const elapsed = Math.max(0, Math.min(1, (now - opensAt) / cadenceMilliseconds));
+    const progress = elapsed * 100;
+    const remaining = dueAt - now;
+    const timingLabel = remaining > 0 ? formatTurnTimeRemaining(remaining) : "due now";
+
+    elements.nextTurnStatus.textContent = `${stageLabel} · T${nextTickNumber} · ${timingLabel}`;
+    elements.nextTurnTrack.hidden = false;
+    elements.nextTurnTrack.style.setProperty("--turn-window-progress", `${progress}%`);
+    elements.nextTurnTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
+    elements.nextTurnTrack.setAttribute(
+        "aria-valuetext",
+        `${Math.round(progress)}% of the command window elapsed; turn ${timingLabel}`);
+    return true;
+}
+
+function formatTurnTimeRemaining(milliseconds) {
+    const minutes = Math.max(1, Math.ceil(milliseconds / 60_000));
+    if (minutes < 60) {
+        return `${minutes}m left`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0
+        ? `${hours}h ${remainingMinutes}m left`
+        : `${hours}h left`;
+}
+
+function stopTurnWindowClock() {
+    window.clearInterval(turnWindowProgressTimer);
+    turnWindowProgressTimer = null;
 }
 
 function renderTurnResolution(turnResolution) {
@@ -3240,14 +3356,16 @@ function showTrainingTutorialTarget() {
     }
 
     const narrow = window.innerWidth < 1200;
+    const sheetTarget = target.element === elements.prioritySection;
+    const describe = !narrow && !sheetTarget;
     elements.tutorialPanel.classList.toggle(
         "is-right",
         !narrow && tutorialPanelShouldSitOnRight(target.element));
-    applyTutorialTarget(target.element, { describe: !narrow });
-    if (narrow) {
+    applyTutorialTarget(target.element, { describe });
+    if (narrow || sheetTarget) {
         dismissTutorialForTarget();
     }
-    focusTutorialTarget(target.focusElement ?? target.element, { describe: !narrow });
+    focusTutorialTarget(target.focusElement ?? target.element, { describe });
 }
 
 function trainingTutorialTarget(lesson) {
@@ -3267,6 +3385,7 @@ function trainingTutorialTarget(lesson) {
         }
 
         activateView("command", { updateLocation: true });
+        openPrioritySheet({ focusControl: false });
         return {
             element: elements.prioritySection,
             focusElement: document.querySelector("#militaryWeight")

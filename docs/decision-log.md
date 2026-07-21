@@ -2241,3 +2241,23 @@ Consequences:
 - The Council Agenda becomes the primary opening decision surface. The latest outcomes, current commitments, journeys, order calendar, and player-scoped next-resolution forecast should be visible early in the flow without duplicating the same fact across several summaries.
 - The complete phase-order explanation remains available and accessible but becomes visually secondary to the current turn's decisions and consequences.
 - A late-game Campaign Outlook is deferred. It should receive a separate product decision only after late-game objectives, standings, and visibility rules provide authoritative material for it.
+
+## 2026-07-21: Compact The Command Shell Around Decisions And Commitments
+
+Decision: make the selected Game's normal scan order Council Agenda, next-resolution consequences, and Order Queue & Turn Calendar. Keep Command Stream, Strategic Watch and reserves as secondary context below that commitment surface. Open Programme allocation in a right-side modal sheet, preserving the same linked 100-point draft, saved-position markers, locked channels, explicit reset and explicit save.
+
+Remove redundant top-shell labels and navigation numerals rather than centring tab labels against their right-side badges. Keep Game navigation together in the selected-Game row. For scheduled Cycles, derive the top command-window track and time-remaining label from the authoritative `NextTickAt` and cadence; self-paced Cycles continue to omit the track.
+
+Reasoning:
+
+- Agenda rows and the calendar carry decisions and durable commitments. They should consume the early vertical space before descriptive intelligence.
+- Programme allocation is an occasional edit with substantial control chrome. Keeping it permanently expanded makes ordinary Command review longer without adding information beyond Strategic Watch's saved programme summary.
+- Tab badges create real weight on the right. Left-aligned labels remain stable when counts change, while Roman numerals add no navigation meaning.
+- A progress marker should communicate scheduled time elapsed. A fixed decorative position is misleading, especially when the command window is close to closure.
+
+Consequences:
+
+- The calendar's content and horizontal turn model remain unchanged; only its position in the Command flow changes.
+- Training's T1 **Show me** action opens and targets the allocation sheet instead of scrolling to an inline form.
+- The compact header retains Empire, current Cycle, next-turn timing, refresh/resolve actions and session controls without wrapping away the scheduled-turn signal at laptop widths.
+- No API, simulation, visibility or authority boundary changes.

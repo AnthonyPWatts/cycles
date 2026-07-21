@@ -43,7 +43,7 @@ public sealed class DashboardViewContractTests
 
         Assert.Contains("class=\"brand-orbit\"", html);
         Assert.Contains("id=\"nextTurnStatus\"", html);
-        Assert.Equal(4, Regex.Matches(html, "class=\"view-nav-chapter\"").Count);
+        Assert.DoesNotContain("class=\"view-nav-chapter\"", html);
         Assert.Contains("Triage the Cycle", html);
         Assert.Contains("Read the frontier", html);
         Assert.Contains("Commit intentions", html);
@@ -62,8 +62,8 @@ public sealed class DashboardViewContractTests
         var toolbar = html[toolbarStart..toolbarEnd];
 
         Assert.Equal(3, Regex.Matches(toolbar, "class=\"toolbar-icon-button\"").Count);
-        Assert.Contains("styles.css?v=20260721-galactic-type-1", html);
-        Assert.Contains("app.js?v=20260721-games-command-1", html);
+        Assert.Contains("styles.css?v=20260721-command-focus-2", html);
+        Assert.Contains("app.js?v=20260721-command-focus-2", html);
         Assert.Contains("aria-label=\"Core foundations\"", toolbar);
         Assert.Contains("aria-label=\"Close command window and advance\"", toolbar);
         Assert.Contains("aria-label=\"Refresh\"", toolbar);
@@ -213,13 +213,13 @@ public sealed class DashboardViewContractTests
         var overview = html.IndexOf("class=\"command-overview-grid\"", StringComparison.Ordinal);
         var agenda = html.IndexOf("id=\"councilAgenda\"", overview, StringComparison.Ordinal);
         var forecast = html.IndexOf("id=\"turnForecastSummary\"", agenda, StringComparison.Ordinal);
-        var intelligence = html.IndexOf("class=\"command-rail\"", forecast, StringComparison.Ordinal);
-        var queue = html.IndexOf("id=\"orderQueueSection\"", intelligence, StringComparison.Ordinal);
+        var queue = html.IndexOf("id=\"orderQueueSection\"", forecast, StringComparison.Ordinal);
+        var intelligence = html.IndexOf("class=\"command-rail\"", queue, StringComparison.Ordinal);
         Assert.True(overview >= 0);
         Assert.True(agenda > overview);
         Assert.True(forecast > agenda);
-        Assert.True(intelligence > forecast);
-        Assert.True(queue > intelligence);
+        Assert.True(queue > forecast);
+        Assert.True(intelligence > queue);
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class DashboardViewContractTests
         Assert.Contains("function trainingTutorialTarget(lesson)", script);
         Assert.Contains("elements.tutorialShowMeButton.addEventListener(\"click\", showTrainingTutorialTarget)", script);
         Assert.Contains("const target = trainingTutorialTarget(lesson);", script);
-        Assert.Contains("applyTutorialTarget(target.element, { describe: !narrow });", script);
+        Assert.Contains("applyTutorialTarget(target.element, { describe });", script);
         Assert.Matches(
             new Regex(@"\.tutorial-actions\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0;", RegexOptions.Singleline),
             css);

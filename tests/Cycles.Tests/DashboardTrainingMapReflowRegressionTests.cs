@@ -27,7 +27,7 @@ public sealed class DashboardTrainingMapReflowRegressionTests
         Assert.Contains("body.tutorial-active .map-maximise-label", compactTrainingMap);
         Assert.Contains("display: none;", compactTrainingMap);
         Assert.Contains("body.tutorial-active .map-toolbar-context", compactTrainingMap);
-        Assert.Contains("styles.css?v=20260721-galactic-type-1", markup);
+        Assert.Contains("styles.css?v=20260721-command-focus-2", markup);
     }
 
     private static string CssMediaBlockContaining(string styles, string mediaQuery, string needle)
