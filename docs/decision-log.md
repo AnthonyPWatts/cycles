@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -2202,3 +2202,22 @@ Consequences:
 - Standard opening objectives and their typed briefing remain available to the Council Agenda and continue through normal command and tick contracts.
 - Training alone owns guided copy, lesson state, pause/skip/completion, fresh-attempt handling and journey-controlled self-paced resolution.
 - MG-10 accessibility and state-matrix work, followed by the five-novice pilot, evaluates Training rather than preserving a parallel Standard tutorial.
+
+## 2026-07-21: Intend One Tutorial-First, Deadline-Ordered Games List
+
+Decision: replace the Games home's separate attention and lifecycle sections with one non-duplicated list. Put available or in-progress tutorials first. Order the other Games that have a Player command deadline by ascending time remaining, with overdue Games before future deadlines; place Games without a current move deadline afterwards using a deterministic fallback while retaining their lifecycle and action context.
+
+Status: intended work tracked by [issue #158](https://github.com/AnthonyPWatts/cycles/issues/158); not yet implemented. This supersedes the 20 July decision's grouped and capped-attention presentation, but retains its authenticated bounded catalogue, server-owned ordering policy, contextual actions, URL-selected Game, and selected-Game safety boundaries.
+
+Reasoning:
+
+- A single list gives the Player one answer to what needs play next instead of repeating a Game in both attention and lifecycle sections.
+- Tutorials are deliberately prominent regardless of whether their self-paced Cycle has a scheduled deadline.
+- Time remaining until the next move closes is the clearest ordering signal for ordinary scheduled Games.
+- Explicit fallback ordering keeps self-paced, waiting, completed, withdrawn, and recovery records discoverable without pretending each has a comparable deadline.
+
+Consequences:
+
+- The current `NeedsAttention`, active, waiting, and completed response groups and dashboard sections may be simplified or replaced, but timing and action policy must not drift into untested client-only rules.
+- Tutorial presentation and contracts should tolerate more than one available or active tutorial even though Twin Reaches is currently the only profile.
+- The zero-membership state, pagination honesty, selected-Game routes, game switching, authority checks, responsive layout, and accessible navigation remain required.

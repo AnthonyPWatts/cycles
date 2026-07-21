@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -30,6 +30,7 @@ The dashboard shell currently exposes the four implemented Command, Galaxy, Flee
 | Tick diagnosis and inspected abandonment | [#120](https://github.com/AnthonyPWatts/cycles/issues/120), [#121](https://github.com/AnthonyPWatts/cycles/issues/121) | Diagnosis remains read-only; abandonment requires an explicit operator and reason before normal recovery. |
 | External identity, local admin authority, and private dashboard | [#122](https://github.com/AnthonyPWatts/cycles/issues/122), [#123](https://github.com/AnthonyPWatts/cycles/issues/123), [#124](https://github.com/AnthonyPWatts/cycles/issues/124) | OIDC proves identity; Cycles owns admission, empire, and admin authority. |
 | Player API and Training teaching contracts | [#127](https://github.com/AnthonyPWatts/cycles/issues/127), [#128](https://github.com/AnthonyPWatts/cycles/issues/128), [#129](https://github.com/AnthonyPWatts/cycles/issues/129) | Keep player responses typed, wire conventions explicit, and Training guidance tied to real controls and outcomes. Standard opening objectives remain ordinary gameplay rather than tutorial state. |
+| Games-home prioritisation | [#158](https://github.com/AnthonyPWatts/cycles/issues/158) | Replace the duplicated attention/lifecycle sections with one list: tutorial entries first, then timed Games from least player move time remaining to most, followed by deterministic no-deadline fallbacks. |
 | Guided play and balance evidence | [#131](https://github.com/AnthonyPWatts/cycles/issues/131) | Evidence precedes named constant or rule changes. |
 | Production Worker operation | [#132](https://github.com/AnthonyPWatts/cycles/issues/132) | Builds on the completed managed-SQL deployment and mandatory runtime-host configuration. |
 | Deterministic turn ledger and resolution | [#137](https://github.com/AnthonyPWatts/cycles/issues/137) | Implements command closure, first-pass Hold planners, durable sealing, phase order, and command/tick locking; richer AI and unresolved multi-faction combat remain separate. |
@@ -71,6 +72,8 @@ Q058, Q081-Q084, and Q092 establish the boundary: successor Cycles reset partici
 ### Tutorial And Match Enrolment
 
 The approved [multi-game and tutorial programme](multi-game-and-tutorial-plan.md) defines a player-visible Game as a lineage of one or more Cycles. A persistent Player may enrol in several Games, while each Cycle retains separate participant and empire authority. Players reconfirm during Intermission before a successor Cycle. The first release uses in-app cross-Game urgency and defers email or push.
+
+[Issue #158](https://github.com/AnthonyPWatts/cycles/issues/158) records the intended Games-home simplification: show one non-duplicated list, keep available or active tutorials at its head, then order timed Games by how little time the Player has left to make the next move. Games without a current move deadline follow under a deterministic fallback without changing their authority or lifecycle semantics.
 
 [Twin Reaches](multi-game-and-tutorial-plan.md#82-recommended-tutorial-foundations-v1-twin-reaches) is the first Training profile. Its four-resolution Core journey uses ordinary commands and authoritative outcomes. The current canonical galaxy becomes the first standard profile, and operators create the first standard Games without AI seat fill. The [companion test plan](multi-game-and-tutorial-test-plan.md) owns the executable safety and pilot evidence.
 
