@@ -2361,3 +2361,22 @@ Consequences:
 - Anthony's operator identity uses strong multifactor authentication and retained account-recovery options.
 - Before cutover, the project documents and verifies a break-glass path for a lost player mapping or OAuth client credential. The single-operator continuity risk is otherwise accepted for the initial private Playground.
 - Any later need for Will or another Player to perform an additional operation receives a separately named, least-privilege capability decision rather than implicit `PowerUser` access.
+
+## 2026-07-22: Promote The Google OAuth App From Testing To In Production At Cutover
+
+Decision: configure one dedicated Cycles Google Cloud project and external OAuth application in Testing status during setup, with Anthony and Will as its only test users. Before the hosted OIDC cutover, complete the required domain, privacy and branding readiness and change the application to In production. Request only the `openid email` scopes.
+
+Reasoning:
+
+- Testing status constrains the setup flow to the two intended users while authentication, first-login binding and proxy callbacks are being verified.
+- Testing authorisations expire after seven days and present a test warning, so indefinite Testing status would create avoidable recurring login friction.
+- In production removes that test-user lifecycle without weakening Cycles-owned admission: an authenticated but uninvited Google identity remains denied.
+- Identity-only scopes provide the stable subject and verified email needed by the accepted design without granting access to other Google data.
+
+Consequences:
+
+- Setup evidence covers both named test users before the publishing-status change and repeats the complete login and denial boundary after it.
+- Publishing the Google application does not publish the dashboard or permit Player creation. The public landing page remains the only anonymous product surface beyond health and required authentication routes.
+- The canonical domain is verified, and a concise public privacy notice describes the Google identity data Cycles accesses, stores and does not share.
+- Cycles does not request offline access, retain Google access or refresh tokens, enable Google Identity Platform, or call paid Google APIs for this sign-in flow.
+- A Google Cloud billing account is not required for the accepted identity-only design; any future paid API or broader scope requires a separate decision.
