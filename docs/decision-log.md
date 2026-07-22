@@ -2279,3 +2279,22 @@ Consequences:
 - Reversing the prior winner while holding Players, seed and historical inputs constant produces the same Player-to-empire assignment, starting state and galaxy echoes.
 - Successor empire and fleet names remain the fresh generated names; `Legacy` and `Remnant` suffixes are removed.
 - Rankings, selected major events and system historical signals remain durable source facts. Richer physical echoes, historical route naming and long-run accumulation remain separately gated.
+
+## 2026-07-22: Use Direct Google OIDC For Initial Hosted Player Sign-In
+
+Decision: use Google directly as the initial hosted OpenID Connect provider. Do not add Facebook authentication or an identity broker for the first cutover. Continue mapping each admitted Google identity's exact issuer and subject to an existing Cycles Player; authentication does not grant admission or create gameplay state.
+
+Reasoning:
+
+- Google provides a standard OIDC boundary that fits the existing provider-configurable authentication implementation.
+- One direct provider keeps the initial operational surface to one application registration, one client credential and one callback flow.
+- Supporting Facebook directly would add a separate authentication scheme, while using a broker solely to offer multiple social providers would add tenant, user-flow and account-linking administration before it is needed.
+- Cycles must continue owning Player admission and authority rather than trusting mutable email addresses, display names or provider-side group membership.
+
+Consequences:
+
+- Every initially admitted Player must have a Google account and provide the stable identity needed for an explicit existing-Player mapping before hosted access is enabled.
+- Unknown Google identities are denied and must not automatically create a Player.
+- The Google application registration, hosted callback URI and client credential must be configured outside source control before cutover.
+- The application boundary remains provider-configurable so a broker or another OIDC provider can be considered later if the player population requires it.
+- Removing the shared playground access code and retaining playground-only manual turn advancement remain separate deployment decisions.
