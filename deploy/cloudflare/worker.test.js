@@ -7,6 +7,7 @@ test("public shell and media GET requests are edge assets", () => {
   for (const path of [
     "/",
     "/index.html",
+    "/privacy",
     "/privacy.html",
     "/site.css?v=20260716-1",
     "/media/cycles-promo.mp4",

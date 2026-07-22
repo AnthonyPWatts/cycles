@@ -1,5 +1,5 @@
 const origin = "https://cycles-play-b366b760.azurewebsites.net";
-const edgeShellPaths = new Set(["/", "/index.html", "/privacy.html", "/site.css"]);
+const edgeShellPaths = new Set(["/", "/index.html", "/privacy", "/privacy.html", "/site.css"]);
 const edgeMediaPath = /^\/(?:assets|media)\/.*\.(?:avif|gif|jpe?g|mp4|png|svg|webm|webp)$/i;
 const legacyPromoPath = "/media/cycles-promo-30s.mp4";
 const canonicalPromoPath = "/media/cycles-promo.mp4";
