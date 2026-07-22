@@ -7,6 +7,76 @@ namespace Cycles.Infrastructure.SqlServer;
 
 public sealed partial class SqlServerGameStateStore
 {
+    public WorkerScheduleStatus GetWorkerScheduleStatus(
+        DateTimeOffset now,
+        TimeSpan runningAttemptSuspicionThreshold)
+    {
+        if (runningAttemptSuspicionThreshold <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(runningAttemptSuspicionThreshold),
+                "The running-attempt suspicion threshold must be positive.");
+        }
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+        using var command = CreateCommand(connection, transaction, """
+            SELECT
+                COUNT_BIG(CASE
+                    WHEN game.Status = N'Active'
+                     AND game.Purpose = N'Standard'
+                     AND cycle.Status = N'Active'
+                     AND cycle.SchedulingMode = N'Scheduled'
+                     AND configuration.Status = N'Materialized'
+                     AND configuration.SchedulingMode = cycle.SchedulingMode
+                     AND cycle.NextTickAt IS NOT NULL
+                    THEN 1 END) AS ActiveScheduledCycleCount,
+                COUNT_BIG(CASE
+                    WHEN game.Status = N'Active'
+                     AND game.Purpose = N'Standard'
+                     AND cycle.Status = N'RecoveryRequired'
+                     AND cycle.SchedulingMode = N'Scheduled'
+                    THEN 1 END) AS RecoveryBlockedCycleCount,
+                MIN(CASE
+                    WHEN game.Status = N'Active'
+                     AND game.Purpose = N'Standard'
+                     AND cycle.Status = N'Active'
+                     AND cycle.SchedulingMode = N'Scheduled'
+                     AND configuration.Status = N'Materialized'
+                     AND configuration.SchedulingMode = cycle.SchedulingMode
+                    THEN cycle.NextTickAt END) AS EarliestNextTickAt,
+                (
+                    SELECT COUNT_BIG(*)
+                    FROM dbo.TickLogs AS tickLog
+                    WHERE tickLog.Status = N'Running'
+                      AND tickLog.StartedAt <= @SuspiciousBefore
+                ) AS SuspiciousRunningAttemptCount
+            FROM dbo.Games AS game
+            INNER JOIN dbo.Cycles AS cycle ON cycle.GameID = game.GameID
+            INNER JOIN dbo.CycleConfigurations AS configuration
+                ON configuration.CycleConfigurationID = cycle.CycleConfigurationID
+               AND configuration.GameID = game.GameID;
+            """);
+        AddDateTimeOffset(command, "@SuspiciousBefore", now - runningAttemptSuspicionThreshold);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            throw new InvalidOperationException("The Worker schedule-status query returned no row.");
+        }
+
+        var result = new WorkerScheduleStatus(
+            checked((int)reader.GetInt64(reader.GetOrdinal("ActiveScheduledCycleCount"))),
+            checked((int)reader.GetInt64(reader.GetOrdinal("RecoveryBlockedCycleCount"))),
+            checked((int)reader.GetInt64(reader.GetOrdinal("SuspiciousRunningAttemptCount"))),
+            reader.IsDBNull(reader.GetOrdinal("EarliestNextTickAt"))
+                ? null
+                : GetDateTimeOffset(reader, "EarliestNextTickAt"));
+        reader.Close();
+        transaction.Commit();
+        return result;
+    }
+
     public DueCycleWorkItem? GetNextDue(DateTimeOffset now)
     {
         using var connection = OpenConnection();

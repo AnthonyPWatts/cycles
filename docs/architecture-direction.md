@@ -106,7 +106,7 @@ The server-backed Twin Reaches `Core foundations` journey is the sole guided in-
 
 Owns scheduled due-tick execution. It checks immediately on startup, polls on a configurable interval, requests at most one due scheduled Standard Cycle, and submits that exact Game/Cycle work item to the focused resolution store. Resolution rechecks the due timestamp and scope under Game-then-Cycle locks before applying a tick. Self-paced Cycles are not Worker work.
 
-Production use still needs health reporting, leader election or equivalent singleton ownership, multi-Cycle policy, graceful shutdown expectations, and deployment monitoring.
+The Worker now exposes non-sensitive liveness/readiness reporting, uses the SQL Game-then-Cycle lock as its duplicate-safe multi-instance execution boundary, follows explicit batch-one earliest-deadline ordering across scheduled Standard Games, and waits for active synchronous resolution during graceful shutdown up to the host timeout. A production host, measured several-Game capacity/fairness, and deployed alert wiring remain future operational evidence.
 
 ### `Cycles.Cli`
 
@@ -172,7 +172,7 @@ Players see the full galaxy topology but exact local presence, fleets, events, l
 No production deployment path is complete. The cost-capped trusted playground hosts the Development build behind restricted access, stores authoritative state in managed Azure SQL, and relies on manual Development turns. Its managed-SQL cutover, seven-day point-in-time retention, isolated restore proof, and mandatory SQL host configuration are complete. It remains an invited-test exception rather than the production or private-alpha architecture. Before an untrusted online test, complete the remaining operational gates:
 
 - a configured external provider/proxy path using the implemented OIDC, invited-player, dashboard, and audited-admin boundaries;
-- Worker health, leadership, and multi-Cycle behaviour;
+- an approved Worker host plus measured several-Game capacity, fairness, probe and alert evidence;
 - secrets, logging, monitoring, and incident diagnostics;
 - deployed recovery administration and a tested incident process around Azure SQL restore.
 

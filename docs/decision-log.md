@@ -1,6 +1,6 @@
 # Decision Log
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 
 This file records decisions that shape implementation. Entries are chronological and describe the decision at the time it was made; later entries may fulfil, extend, or supersede earlier ones. Add an explicit status when reading an old entry as current guidance would be misleading.
 
@@ -2418,3 +2418,16 @@ Consequences:
 - `database_action=none` never retrieves the SQL connection string or stops the API. Migration, topology upgrade and reseed are separate explicit operator choices.
 - The preflight reads Azure Monitor without waking SQL and fails closed before maintenance. Because `BillOverUsage` is permanent for this database, overriding the guard may incur charges and must not become routine.
 - Deployment, migration, hosted smoke, browser and OIDC checks are clustered into one release window. Broad tests continue locally and in CI.
+
+## 2026-07-22: Make Worker Readiness Operational And Keep Scheduling Batch-One
+
+Decision: expose separate non-sensitive Worker liveness and readiness endpoints. Readiness requires a recent successful SQL schedule check, no recovery-required scheduled Cycle, no suspicious persisted running attempt, and no poll or earliest-deadline staleness. Keep deterministic earliest-deadline, batch-one scheduling across Standard Games. Use the existing Game-then-Cycle SQL locks and due-time revalidation as the duplicate-safe multi-instance execution boundary rather than adding a separate leader lease.
+
+Graceful shutdown prevents another poll and waits for an active synchronous SQL resolution up to the host shutdown timeout. It does not inject cancellation into an authoritative tick transaction. Structured logs cover due checks, outcomes, durations, due age, suspicious attempts, and recovery hand-off without exposing credentials or complete state.
+
+Consequences:
+
+- `/health/live` proves only that the Worker process serves HTTP; `/health/ready` distinguishes database, scheduling/recovery, and freshness failures without returning Game or player state.
+- Several scheduled Games are valid, but processing remains one earliest-due item per poll. Measured fairness/capacity changes require later evidence.
+- Multiple instances can safely compete for failover; SQL decides the winner and followers observe busy or stale work.
+- The initial shared topology may use one instance with private probes. No paid Worker host is authorised for the cost-capped playground, and production probe/alert wiring remains deployment evidence rather than a code claim.

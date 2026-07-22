@@ -1,6 +1,6 @@
 # Operations
 
-Last updated: 2026-07-20
+Last updated: 2026-07-22
 
 This runbook covers local SQL development, external identity configuration, admin recovery, versioned state transfer, tick diagnostics, failed-tick recovery, and guarded profiling. It does not by itself establish production readiness.
 
@@ -60,9 +60,40 @@ Configuration keys:
 
 - `Cycles:Worker:Enabled`;
 - `Cycles:Worker:PollIntervalSeconds`;
+- `Cycles:Worker:RunningAttemptSuspicionMinutes`;
+- `Cycles:Worker:HealthStaleAfterSeconds`;
+- `Cycles:Worker:TickFreshnessToleranceSeconds`;
 - `ConnectionStrings:Cycles`.
 
+The Worker listens on `http://127.0.0.1:5087` by default. Override `Urls` or `ASPNETCORE_URLS` for its deployment network. It exposes two unauthenticated, non-game-state endpoints:
+
+- `GET /health/live` returns `200` while the process can serve HTTP. It deliberately does not test SQL or scheduling.
+- `GET /health/ready` returns `200` only after a successful SQL schedule check while polling is enabled and current. It returns `503` while starting or stopping, when SQL is unreachable, when polling or the earliest tick is stale, or when a scheduled Cycle needs recovery or has a suspicious persisted running attempt.
+
+The readiness body reports only `database`, `scheduling`, `tickFreshness`, and the last successful poll time. It contains no Game, Cycle, player, order, connection, or diagnostic detail. Use the operator diagnostics below for investigation rather than widening the public health response.
+
 Before resolution, the store rechecks the Game, Cycle, materialised configuration, scheduling mode, and captured deadline under the Game and Cycle locks. Stale, early, unavailable, and busy work does not run. A completed tick sets `NextTickAt` to its completion time plus `TickLengthMinutes`. A failed tick moves the Cycle to `RecoveryRequired` and clears the deadline.
+
+Batch-one earliest-deadline ordering is the current several-Game scheduling policy. More than one scheduled Standard Game is valid; the next poll handles the next due item. Capacity and fairness beyond this deterministic batch-one policy require measured evidence rather than an implicit catch-up loop. A Game cannot have two operational Cycles because SQL enforces its operational slot. Multiple Worker processes may compete safely: the Game-then-Cycle SQL lock and due-time revalidation allow one resolver to commit while followers observe busy or stale work.
+
+On graceful shutdown, cancellation prevents a new poll from starting. A synchronous SQL resolution already in progress is not abandoned mid-transaction; the host waits for it up to the configured host shutdown timeout. If the hosting platform kills the process after that timeout, SQL transaction rollback and the persisted-running diagnostic boundary apply. Inspect the attempt before recovery or abandonment.
+
+### Worker Monitoring And Response
+
+For a future shared Worker deployment, place the liveness and readiness probes on the private service endpoint; do not route the Worker through the player-facing application or Cloudflare asset path. One instance is sufficient for the initial topology, while a second instance is safe for failover because SQL owns duplicate-execution exclusion. No dedicated Worker host is authorised for the cost-capped playground.
+
+Alert and response boundaries:
+
+| Signal | Alert condition | First response |
+| --- | --- | --- |
+| Liveness | Probe cannot reach `/health/live` | Check process/container state and recent startup logs. |
+| Database | Readiness reports `unreachable` for two poll intervals | Check SQL availability and network/configuration without printing the connection string. |
+| Poll freshness | Readiness reports `stalePoll` | Check process saturation, blocked shutdown, and due-query errors. |
+| Tick freshness | Readiness reports `overdueTick` | Inspect due-check, busy/stale, and resolution-duration logs; do not manually tick until ownership is clear. |
+| Recovery | Readiness reports `recoveryRequired` | Run `diagnostics` and `recovery details`, repair the cause, then use the explicit recovery operation. |
+| Persisted attempt | Readiness reports `suspiciousRunningAttempt` | Confirm the former owner is gone before using inspected abandonment. |
+
+Structured Worker logs include the poll duration, active scheduled/recovery/suspicious counts, earliest deadline, typed resolution outcome, tick duration, due age, and recovery hand-off. Game and Cycle identifiers appear only in resolution logs needed for operator correlation; credentials and exported state do not.
 
 `SelfPaced` Cycles never enter due discovery. An authorised caller must use `ICycleResolutionStore.ResolveExplicit` with a complete Game command context and the applicable administrator policy. `POST /games/{gameId}/admin/tick` uses that boundary for the selected Game; the temporary `POST /admin/tick` route is only its fixed legacy-Game adapter. The store acquires the Game and Cycle locks, then locks and revalidates the live Game, Cycle, player, enrolment, participant, empire and administrator authority in that order. Those authority rows remain locked until resolution commits or rolls back, so a concurrent revocation cannot race an authorised tick. No Training provisioning route exists yet.
 

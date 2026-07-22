@@ -14,6 +14,7 @@ public sealed partial class SqlServerGameStateStore :
     ICycleViewQuery,
     ICycleCommandStore,
     IDueCycleQuery,
+    IWorkerScheduleStatusQuery,
     ICycleResolutionStore,
     ILegacyRuntimeScopeQuery,
     IPlayerAccountCommandStore,

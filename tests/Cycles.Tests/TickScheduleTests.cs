@@ -55,8 +55,10 @@ public sealed class TickScheduleTests
         var worker = new TickWorker(
             store,
             store,
+            store,
             Options.Create(new TickWorkerOptions()),
             TimeProvider.System,
+            new WorkerHealthState(),
             NullLogger<TickWorker>.Instance);
 
         var ran = worker.RunIfDue(TestState.Now);
@@ -74,8 +76,10 @@ public sealed class TickScheduleTests
         var worker = new TickWorker(
             store,
             store,
+            store,
             Options.Create(new TickWorkerOptions()),
             TimeProvider.System,
+            new WorkerHealthState(),
             NullLogger<TickWorker>.Instance);
 
         var ran = worker.RunIfDue(state.GetActiveCycle()!.StartAt.AddTicks(-1));
@@ -94,8 +98,10 @@ public sealed class TickScheduleTests
         var worker = new TickWorker(
             store,
             store,
+            store,
             Options.Create(new TickWorkerOptions()),
             TimeProvider.System,
+            new WorkerHealthState(),
             NullLogger<TickWorker>.Instance);
 
         var ran = worker.RunIfDue(TestState.Now.AddDays(1));
@@ -104,7 +110,10 @@ public sealed class TickScheduleTests
         Assert.Equal(0, store.ResolveCalls);
     }
 
-    private sealed class InMemoryCycleScheduler(GameState state) : IDueCycleQuery, ICycleResolutionStore
+    private sealed class InMemoryCycleScheduler(GameState state) :
+        IDueCycleQuery,
+        IWorkerScheduleStatusQuery,
+        ICycleResolutionStore
     {
         private readonly Guid gameId = Guid.NewGuid();
 
@@ -122,6 +131,20 @@ public sealed class TickScheduleTests
             return new DueCycleWorkItem(
                 new GameCycleScope(gameId, cycle.CycleId),
                 nextTickAt);
+        }
+
+        public WorkerScheduleStatus GetWorkerScheduleStatus(
+            DateTimeOffset now,
+            TimeSpan runningAttemptSuspicionThreshold)
+        {
+            var cycle = state.GetActiveCycle();
+            return new WorkerScheduleStatus(
+                cycle is { Status: CycleStatus.Active, SchedulingMode: CycleSchedulingMode.Scheduled } ? 1 : 0,
+                cycle is { Status: CycleStatus.RecoveryRequired, SchedulingMode: CycleSchedulingMode.Scheduled } ? 1 : 0,
+                0,
+                cycle is { Status: CycleStatus.Active, SchedulingMode: CycleSchedulingMode.Scheduled }
+                    ? cycle.NextTickAt ?? cycle.StartAt
+                    : null);
         }
 
         public CycleResolutionResult ResolveIfDue(

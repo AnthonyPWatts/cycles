@@ -21,6 +21,49 @@ public interface IDueCycleQuery
     DueCycleWorkItem? GetNextDue(DateTimeOffset now);
 }
 
+public sealed record WorkerScheduleStatus
+{
+    public WorkerScheduleStatus(
+        int activeScheduledCycleCount,
+        int recoveryBlockedCycleCount,
+        int suspiciousRunningAttemptCount,
+        DateTimeOffset? earliestNextTickAt)
+    {
+        if (activeScheduledCycleCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(activeScheduledCycleCount));
+        }
+        if (recoveryBlockedCycleCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(recoveryBlockedCycleCount));
+        }
+        if (suspiciousRunningAttemptCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(suspiciousRunningAttemptCount));
+        }
+
+        ActiveScheduledCycleCount = activeScheduledCycleCount;
+        RecoveryBlockedCycleCount = recoveryBlockedCycleCount;
+        SuspiciousRunningAttemptCount = suspiciousRunningAttemptCount;
+        EarliestNextTickAt = earliestNextTickAt;
+    }
+
+    public int ActiveScheduledCycleCount { get; init; }
+
+    public int RecoveryBlockedCycleCount { get; init; }
+
+    public int SuspiciousRunningAttemptCount { get; init; }
+
+    public DateTimeOffset? EarliestNextTickAt { get; init; }
+}
+
+public interface IWorkerScheduleStatusQuery
+{
+    WorkerScheduleStatus GetWorkerScheduleStatus(
+        DateTimeOffset now,
+        TimeSpan runningAttemptSuspicionThreshold);
+}
+
 public interface ICycleResolutionStore
 {
     CycleResolutionResult ResolveIfDue(

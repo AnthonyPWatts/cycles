@@ -14,6 +14,52 @@ public sealed class SqlServerCycleSchedulingIntegrationTests
     private static readonly DateTimeOffset Now = new(2026, 7, 20, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public void Worker_schedule_status_reports_only_standard_scheduled_health_signals()
+    {
+        var connectionString = ConnectionString();
+        if (connectionString is null)
+        {
+            return;
+        }
+
+        var active = CreateState(
+            "health-active",
+            GamePurpose.Standard,
+            CycleSchedulingMode.Scheduled,
+            CycleStatus.Active,
+            Now.AddMinutes(10));
+        var recovery = CreateState(
+            "health-recovery",
+            GamePurpose.Standard,
+            CycleSchedulingMode.Scheduled,
+            CycleStatus.RecoveryRequired,
+            nextTickAt: null);
+        var training = CreateState(
+            "health-training",
+            GamePurpose.Training,
+            CycleSchedulingMode.SelfPaced,
+            CycleStatus.Active,
+            nextTickAt: null);
+        var suspiciousCycle = Assert.Single(active.Cycles);
+        active.TickLogs.Add(new TickLog
+        {
+            CycleId = suspiciousCycle.CycleId,
+            TickNumber = 1,
+            StartedAt = Now.AddMinutes(-6),
+            Status = TickLogStatus.Running
+        });
+        var store = new SqlServerGameStateStore(connectionString, () => new GameState());
+        store.Replace(Combine(active, recovery, training));
+
+        var status = store.GetWorkerScheduleStatus(Now, TimeSpan.FromMinutes(5));
+
+        Assert.Equal(1, status.ActiveScheduledCycleCount);
+        Assert.Equal(1, status.RecoveryBlockedCycleCount);
+        Assert.Equal(1, status.SuspiciousRunningAttemptCount);
+        Assert.Equal(Now.AddMinutes(10), status.EarliestNextTickAt);
+    }
+
+    [Fact]
     public void Due_query_is_deterministic_and_excludes_training_self_paced_and_recovery_cycles()
     {
         var connectionString = ConnectionString();
