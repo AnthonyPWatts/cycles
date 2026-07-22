@@ -2321,7 +2321,7 @@ Consequences:
 
 ## 2026-07-22: Run The Hosted Playground In Explicit OIDC Mode On Its Canonical Domain
 
-Decision: run the hosted interactive application under the non-Development `Playground` environment with explicit OIDC authentication. Remove the deployed shared access-code perimeter, use `cycles.anthonypwatts.co.uk` as the sole canonical interactive hostname, and retain manual Standard-Game advancement for admitted participating Players through a separate Playground-only permission. Keep the trusted Tony/Will selector as a local Development convenience.
+Decision: run the hosted interactive application under the non-Development `Playground` environment with explicit OIDC authentication. Remove the deployed shared access-code perimeter, use `cycles.anthonypwatts.co.uk` as the sole canonical interactive hostname, and retain manual Standard-Game advancement for authenticated Cycles administrators only. Keep the trusted Tony/Will selector as a local Development convenience.
 
 Status: accepted for implementation; the current hosted deployment has not yet been cut over.
 
@@ -2329,15 +2329,35 @@ Reasoning:
 
 - A hosted Development environment leaves development-only identity and authority exceptions coupled to deployment, while a named non-Development environment makes the intended security boundary explicit.
 - The shared access code does not identify a person and would create a redundant cookie gate around Google's cross-site callback and local sign-out flow.
-- The Playground has no scheduled Worker, so removing the selector must not also remove the existing ability for participating Players to advance a Standard Game.
+- The Playground has no scheduled Worker, so its sole operator needs a bounded way to advance a Standard Game without extending that game-wide action to ordinary Players.
 - The existing Cloudflare custom domain is the stable public application boundary and should be the only hostname used to construct or register interactive authentication callbacks.
 
 Consequences:
 
 - Hosted configuration uses `ASPNETCORE_ENVIRONMENT=Playground` and an explicit `Cycles:Authentication:Mode=Oidc`; authentication mode is no longer inferred from the trusted-selector flag.
 - The deployed trusted-selector and shared access-code settings are removed. The public landing page and non-sensitive health endpoint remain public; the dashboard and game APIs require an admitted identity.
-- A separate `Cycles:Playground:AllowPlayerStandardTick` setting may allow an admitted participant to close and resolve their current Standard Game. The server rejects this exception outside `Playground`; ordinary Production scheduling remains Worker-owned.
-- Manual advancement retains antiforgery, participation, mutation-authority and authoritative Game/Cycle-lock checks. It grants neither admin visibility nor cross-empire command authority and continues warning that resolution advances the whole Game.
+- No hosted player-level Standard-tick exception is enabled. The Playground UI and endpoint may allow an authenticated Cycles administrator to close and resolve a Standard Game; ordinary Production scheduling remains Worker-owned.
+- Manual advancement retains antiforgery, administrator authority and authoritative Game/Cycle-lock checks and continues warning that resolution advances the whole Game. Ordinary Players receive no admin visibility, cross-empire command authority or Standard-Game advancement permission.
 - Google registers `https://cycles.anthonypwatts.co.uk/signin-oidc` as the hosted redirect URI. Interactive requests on the direct Azure hostname redirect to the canonical domain or are refused; origin health checks may continue using the Azure hostname.
 - Forwarded scheme and host are honoured only from the verified immediate proxy path, and login, first binding, session expiry and sign-out are tested through Cloudflare.
 - Local Development continues exposing the fixed Tony/Will selector and does not require Google credentials.
+
+## 2026-07-22: Keep Initial Hosted Operational Authority With Anthony
+
+Decision: make Anthony the sole initial infrastructure operator and Cycles administrator. Admit Will as an ordinary Player only: he may use the complete normal Player experience and advance his own self-paced Training, but receives no infrastructure, deployment, secret, database, identity-management, cross-empire, administrator or Standard-Game advancement authority. Do not introduce a broad `PowerUser` role.
+
+Reasoning:
+
+- OAuth-project, deployment, recovery and game-wide operational actions can materially affect every Player and require a narrower trust boundary than ordinary gameplay.
+- A vague intermediate role would bundle unrelated capabilities and make later authority difficult to reason about or audit.
+- Training advancement is scoped to the Player's self-paced Game, while manually advancing Standard closes and resolves a shared Game for every participant.
+- One named operator is sufficient for the initial private Playground if the corresponding account-recovery and break-glass dependency is explicit.
+
+Consequences:
+
+- Anthony alone controls the Google OAuth application, GitHub deployment environment, Azure configuration, Cloudflare routing, database recovery and operator tooling. Will is an OAuth end user, not a Google Cloud project member.
+- Anthony's stable Google identity receives the initial Cycles admin bootstrap. Will's stable Google identity maps only to his existing non-admin Player.
+- Identity invitation, replacement and administrative role changes remain explicit audited operator actions; credentials and secrets are never shared.
+- Anthony's operator identity uses strong multifactor authentication and retained account-recovery options.
+- Before cutover, the project documents and verifies a break-glass path for a lost player mapping or OAuth client credential. The single-operator continuity risk is otherwise accepted for the initial private Playground.
+- Any later need for Will or another Player to perform an additional operation receives a separately named, least-privilege capability decision rather than implicit `PowerUser` access.
