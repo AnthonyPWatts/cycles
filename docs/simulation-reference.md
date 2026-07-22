@@ -118,7 +118,7 @@ Rank active empires by:
 
 Display percentages to two decimal places but compare unrounded values. Pending orders at cutoff have no effect unless a completed tick already applied them.
 
-`cycle end` persists one winner and all standings in `CycleRankings`, records the cutoff tick/time, preserves the top 10% of battles by losses with a minimum of one, and records historical system signals. `cycle next` consumes those facts to carry participating players into new empires and preserve selected famous-system names, significance, and strategic character. It does not carry participant fleets, resources, ownership, rank benefits, or other player/empire power. Richer accepted galaxy echoes remain future work.
+`cycle end` persists one winner and all standings in `CycleRankings`, records the cutoff tick/time, preserves the top 10% of battles by losses with a minimum of one, and records historical system signals. `cycle next` uses the ranked empire set to carry participating players into freshly generated empires, but Player identity rather than prior rank determines assignment. It preserves selected famous-system names, significance, and strategic character without carrying prior empire names, fleets, resources, priorities, outposts, doctrines, admiral reputation, ownership, rank benefits, or other player/empire power. Richer accepted galaxy echoes remain future work.
 
 ## Balance Diagnostic
 

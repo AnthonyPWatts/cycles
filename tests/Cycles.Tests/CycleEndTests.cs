@@ -234,8 +234,12 @@ public sealed class CycleEndTests
         Assert.Equal(2, result.SuccessorEmpires.Count);
         Assert.NotEmpty(nextSectors);
         Assert.All(nextSystems, system => Assert.Contains(nextSectors, sector => sector.SectorId == system.SectorId));
-        Assert.Contains(nextEmpires, empire => empire.PlayerId == firstEmpire.PlayerId && empire.EmpireName == "First Legacy");
-        Assert.Contains(nextEmpires, empire => empire.PlayerId == secondEmpire.PlayerId && empire.EmpireName == "Second Remnant");
+        Assert.Equal(
+            ["Aurelian Compact", "Khepri Mandate"],
+            nextEmpires.Select(empire => empire.EmpireName).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(
+            new[] { firstEmpire.PlayerId, secondEmpire.PlayerId }.Order().ToArray(),
+            nextEmpires.Select(empire => empire.PlayerId).Order().ToArray());
         Assert.Equal(sourceSystem.SystemId, preservedSystem.SourceSystemId);
         Assert.Equal("Contest", preservedSystem.SystemName);
         Assert.Contains(nextSystems, system => system.SystemId == preservedSystem.NewSystemId
@@ -244,6 +248,94 @@ public sealed class CycleEndTests
         Assert.Contains("sourceCycleId", seedEvent.FactJson, StringComparison.Ordinal);
         Assert.Contains("preservedSystems", seedEvent.FactJson, StringComparison.Ordinal);
         Assert.Contains("successorEmpires", seedEvent.FactJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateNextCycleResetsParticipantPowerIndependentlyOfPriorRank()
+    {
+        var completedState = TestState.CreateTwoEmpireContest(attackerShips: 80, defenderShips: 20);
+        var sourceCycle = completedState.GetActiveCycle()
+            ?? throw new InvalidOperationException("Test state must contain an active Cycle.");
+        var sourceSystem = completedState.Systems.Single();
+        var firstEmpire = completedState.Empires.Single(empire => empire.EmpireName == "First");
+        var secondEmpire = completedState.Empires.Single(empire => empire.EmpireName == "Second");
+        var firstResources = completedState.EmpireResources.Single(resource => resource.EmpireId == firstEmpire.EmpireId);
+        firstResources.Industry = 900;
+        firstResources.Research = 800;
+        firstResources.Population = 700;
+        firstResources.LastGeneratedIndustry = 60;
+        firstResources.LastSpentPopulation = 50;
+        var firstPriorities = completedState.EmpirePriorities.Single(priority => priority.EmpireId == firstEmpire.EmpireId);
+        firstPriorities.MilitaryWeight = 90;
+        firstPriorities.ExpansionWeight = 10;
+        completedState.EmpireDoctrineUnlocks.Add(new EmpireDoctrineUnlock
+        {
+            CycleId = sourceCycle.CycleId,
+            EmpireId = firstEmpire.EmpireId,
+            DoctrineKey = "survey-projection",
+            UnlockedTickNumber = 3,
+            UnlockedAt = TestState.Now
+        });
+        completedState.ColonialOutposts.Add(new ColonialOutpost
+        {
+            CycleId = sourceCycle.CycleId,
+            EmpireId = firstEmpire.EmpireId,
+            SystemId = sourceSystem.SystemId,
+            EstablishedTick = 4,
+            CreatedAt = TestState.Now
+        });
+        var sourceAdmiral = new Admiral
+        {
+            CycleId = sourceCycle.CycleId,
+            EmpireId = firstEmpire.EmpireId,
+            AdmiralName = "Prior Victor",
+            ReputationScore = 75,
+            CreatedAt = TestState.Now,
+            UpdatedAt = TestState.Now
+        };
+        completedState.Admirals.Add(sourceAdmiral);
+        completedState.Fleets.Single(fleet => fleet.EmpireId == firstEmpire.EmpireId).AdmiralId = sourceAdmiral.AdmiralId;
+        completedState.BattleRecords.Add(CreateBattle(
+            sourceCycle.CycleId,
+            sourceSystem.SystemId,
+            firstEmpire.EmpireId,
+            secondEmpire.EmpireId,
+            attackerLosses: 12,
+            defenderLosses: 8));
+        CycleEndService.CompleteCycle(completedState, sourceCycle.CycleId, TestState.Now);
+
+        var firstWinnerState = completedState.DeepClone();
+        var secondWinnerState = completedState.DeepClone();
+        foreach (var ranking in secondWinnerState.CycleRankings.Where(item => item.CycleId == sourceCycle.CycleId))
+        {
+            ranking.IsWinner = ranking.EmpireId == secondEmpire.EmpireId;
+            ranking.Rank = ranking.IsWinner ? 1 : 2;
+        }
+
+        var firstWinnerResult = CycleContinuityService.GenerateNextCycle(
+            firstWinnerState,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 2468);
+        var secondWinnerResult = CycleContinuityService.GenerateNextCycle(
+            secondWinnerState,
+            sourceCycle.CycleId,
+            TestState.Now.AddDays(1),
+            seed: 2468);
+
+        Assert.Equal(
+            firstWinnerResult.PreservedSystems.Select(SystemEcho).ToArray(),
+            secondWinnerResult.PreservedSystems.Select(SystemEcho).ToArray());
+
+        foreach (var playerId in new[] { firstEmpire.PlayerId, secondEmpire.PlayerId })
+        {
+            var firstSuccessor = AssertSuccessorReset(firstWinnerState, firstWinnerResult.CycleId, playerId);
+            var secondSuccessor = AssertSuccessorReset(secondWinnerState, secondWinnerResult.CycleId, playerId);
+            Assert.Equal(firstSuccessor.EmpireName, secondSuccessor.EmpireName);
+            Assert.Equal(
+                firstWinnerState.Systems.Single(system => system.SystemId == firstSuccessor.HomeSystemId).SystemName,
+                secondWinnerState.Systems.Single(system => system.SystemId == secondSuccessor.HomeSystemId).SystemName);
+        }
     }
 
     [Fact]
@@ -476,6 +568,54 @@ public sealed class CycleEndTests
 
     private static string Snapshot(GameState state) =>
         JsonSerializer.Serialize(state, GameStateJson.Options);
+
+    private static Empire AssertSuccessorReset(GameState state, Guid cycleId, Guid playerId)
+    {
+        var empire = state.Empires.Single(item => item.CycleId == cycleId && item.PlayerId == playerId);
+        Assert.DoesNotContain("Legacy", empire.EmpireName, StringComparison.Ordinal);
+        Assert.DoesNotContain("Remnant", empire.EmpireName, StringComparison.Ordinal);
+
+        var resources = state.EmpireResources.Single(item => item.EmpireId == empire.EmpireId);
+        Assert.Equal(100, resources.Industry);
+        Assert.Equal(100, resources.Research);
+        Assert.Equal(100, resources.Population);
+        Assert.Equal(0, resources.LastGeneratedIndustry);
+        Assert.Equal(0, resources.LastGeneratedResearch);
+        Assert.Equal(0, resources.LastGeneratedPopulation);
+        Assert.Equal(0, resources.LastSpentIndustry);
+        Assert.Equal(0, resources.LastSpentResearch);
+        Assert.Equal(0, resources.LastSpentPopulation);
+
+        var priorities = state.EmpirePriorities.Single(item => item.EmpireId == empire.EmpireId);
+        Assert.Equal(0, priorities.IndustryWeight);
+        Assert.Equal(0, priorities.ResearchWeight);
+        Assert.Equal(StrategicPriorityPolicy.DefaultMilitaryWeight, priorities.MilitaryWeight);
+        Assert.Equal(StrategicPriorityPolicy.DefaultExpansionWeight, priorities.ExpansionWeight);
+        Assert.DoesNotContain(state.EmpireDoctrineUnlocks, item => item.CycleId == cycleId && item.EmpireId == empire.EmpireId);
+        Assert.DoesNotContain(state.ColonialOutposts, item => item.CycleId == cycleId && item.EmpireId == empire.EmpireId);
+
+        var fleet = Assert.Single(state.Fleets, item => item.CycleId == cycleId && item.EmpireId == empire.EmpireId);
+        Assert.Equal(60, fleet.ShipCount);
+        Assert.Null(fleet.DestinationSystemId);
+        Assert.Null(fleet.DepartureTickNumber);
+        Assert.Null(fleet.ArrivalTickNumber);
+        var admiral = Assert.Single(state.Admirals, item => item.CycleId == cycleId && item.EmpireId == empire.EmpireId);
+        Assert.Equal(0, admiral.ReputationScore);
+        Assert.Equal(admiral.AdmiralId, fleet.AdmiralId);
+        Assert.Equal(MatchParticipantStatus.Active, state.MatchParticipants.Single(item =>
+            item.CycleId == cycleId && item.PlayerId == playerId && item.EmpireId == empire.EmpireId).Status);
+        return empire;
+    }
+
+    private static (string Name, int HistoricalSignificance, int StrategicValue, Guid SourceSystemId, Guid? SourceSignalId, int? SourceMajorEventRank) SystemEcho(
+        PreservedSystemContinuity system) =>
+        (
+            system.SystemName,
+            system.HistoricalSignificance,
+            system.StrategicValue,
+            system.SourceSystemId,
+            system.SourceSignalId,
+            system.SourceMajorEventRank);
 
     private static void AssertStatusChangedEvent(
         GameLifecycleEvent gameEvent,

@@ -474,7 +474,7 @@ Reasoning:
 Consequences:
 
 - A successor Cycle can only be generated after the source Cycle is completed and no other Cycle is active.
-- Players from the ranked source empires are attached to successor empires in final-rank order, while empire advantages do not mechanically carry over.
+- Players from the ranked source empires were initially attached to successor empires in final-rank order. The 19 July fairness decision and 22 July implementation below supersede that ordering because even positional assignment and naming must be rank-neutral.
 - A small selected set of historical systems keeps names, historical significance, and a strategic-value echo in the generated galaxy.
 - Richer reset policy, inter-Cycle summaries, and AI-written continuity remain follow-on work.
 
@@ -2261,3 +2261,21 @@ Consequences:
 - Training's T1 **Show me** action opens and targets the allocation sheet instead of scrolling to an inline form.
 - The compact header retains Empire, current Cycle, next-turn timing, refresh/resolve actions and session controls without wrapping away the scheduled-turn signal at laptop widths.
 - No API, simulation, visibility or authority boundary changes.
+
+## 2026-07-22: Make Successor Assignment Rank-Neutral
+
+Decision: use completed-Cycle rankings only to identify the authoritative participating empire set. Assign those persistent Players to freshly generated successor empires in stable Player-identity order, without using prior rank, winner status or prior empire name. Retain deterministic selected-system name, historical-significance and strategic-value echoes as shared successor-galaxy state.
+
+Status: implemented through [issue #156](https://github.com/AnthonyPWatts/cycles/issues/156).
+
+Reasoning:
+
+- The previous final-rank ordering and winner-specific `Legacy` versus `Remnant` names conferred recognition and could couple a Player to a different generated starting position solely because of the previous result.
+- Persistent Player participation is distinct from empire continuity. A returning Player can receive a new empire without inheriting the old empire's identity, stockpiles, forces, programme state, outposts, doctrines, admiral reputation or rank.
+- Historical systems are world facts available under the same ordinary rules to every successor participant, so their deterministic selection does not require a participant-specific carry-over.
+
+Consequences:
+
+- Reversing the prior winner while holding Players, seed and historical inputs constant produces the same Player-to-empire assignment, starting state and galaxy echoes.
+- Successor empire and fleet names remain the fresh generated names; `Legacy` and `Remnant` suffixes are removed.
+- Rankings, selected major events and system historical signals remain durable source facts. Richer physical echoes, historical route naming and long-run accumulation remain separately gated.

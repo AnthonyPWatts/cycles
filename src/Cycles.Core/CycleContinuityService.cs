@@ -49,7 +49,7 @@ public static class CycleContinuityService
             .Where(system => system.CycleId == completedCycleId)
             .OrderBy(system => system.SystemName)
             .ToArray();
-        var sourceEmpires = GetRankedSourceEmpires(state, completedCycleId);
+        var sourceEmpires = GetSourceEmpires(state, completedCycleId);
         if (sourceSystems.Length == 0 || sourceEmpires.Length == 0)
         {
             throw new InvalidOperationException("Completed Cycle must have systems and ranked empires before continuity can be generated.");
@@ -82,24 +82,26 @@ public static class CycleContinuityService
         return new CycleContinuityResult(newCycle.CycleId, sourceCycle.CycleId, seedValue, preservedSystems, successorEmpires);
     }
 
-    private static Empire[] GetRankedSourceEmpires(GameState state, Guid cycleId)
+    private static Empire[] GetSourceEmpires(GameState state, Guid cycleId)
     {
         var rankedEmpireIds = state.CycleRankings
             .Where(ranking => ranking.CycleId == cycleId)
-            .OrderBy(ranking => ranking.Rank)
             .Select(ranking => ranking.EmpireId)
-            .ToArray();
+            .ToHashSet();
 
-        if (rankedEmpireIds.Length > 0)
+        if (rankedEmpireIds.Count > 0)
         {
-            return rankedEmpireIds
-                .Select(empireId => state.Empires.Single(empire => empire.EmpireId == empireId))
+            return state.Empires
+                .Where(empire => empire.CycleId == cycleId && rankedEmpireIds.Contains(empire.EmpireId))
+                .OrderBy(empire => empire.PlayerId)
+                .ThenBy(empire => empire.EmpireId)
                 .ToArray();
         }
 
         return state.Empires
             .Where(empire => empire.CycleId == cycleId && empire.Status == EmpireStatus.Active)
-            .OrderBy(empire => empire.EmpireName)
+            .OrderBy(empire => empire.PlayerId)
+            .ThenBy(empire => empire.EmpireId)
             .ToArray();
     }
 
@@ -116,9 +118,6 @@ public static class CycleContinuityService
             var newEmpire = newEmpires[index];
             var generatedPlayerId = newEmpire.PlayerId;
             newEmpire.PlayerId = sourceEmpire.PlayerId;
-            newEmpire.EmpireName = CreateSuccessorEmpireName(sourceEmpire, index);
-            var faction = generated.GetEmpireFaction(newEmpire.EmpireId);
-            faction.FactionName = newEmpire.EmpireName;
             var participant = generated.MatchParticipants.Single(item =>
                 item.CycleId == newCycleId && item.PlayerId == generatedPlayerId);
             participant.PlayerId = sourceEmpire.PlayerId;
@@ -315,13 +314,6 @@ public static class CycleContinuityService
 
     private static string CreateNextCycleName(Cycle sourceCycle, int completedCycleCount) =>
         $"Cycle {completedCycleCount + 1}: After {sourceCycle.Name}";
-
-    private static string CreateSuccessorEmpireName(Empire sourceEmpire, int rankIndex)
-    {
-        var suffix = rankIndex == 0 ? "Legacy" : "Remnant";
-        var name = $"{sourceEmpire.EmpireName} {suffix}";
-        return name.Length <= 120 ? name : name[..120];
-    }
 
     private sealed record HistoricalSystemCandidate(
         GalaxySystem System,
