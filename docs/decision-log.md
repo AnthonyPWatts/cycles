@@ -2323,7 +2323,7 @@ Consequences:
 
 Decision: run the hosted interactive application under the non-Development `Playground` environment with explicit OIDC authentication. Remove the deployed shared access-code perimeter, use `cycles.anthonypwatts.co.uk` as the sole canonical interactive hostname, and retain manual Standard-Game advancement for authenticated Cycles administrators only. Keep the trusted Tony/Will selector as a local Development convenience.
 
-Status: implemented behind the current Development selector; the hosted deployment remains uncut-over until the deployed SQL lock ends and the external credentials and invitation emails are supplied.
+Status: implemented behind the current Development selector. The database is available for binding; the hosted deployment remains uncut-over until the external credentials and invitation emails are supplied.
 
 Reasoning:
 
@@ -2380,3 +2380,23 @@ Consequences:
 - The canonical domain is verified, and a concise public privacy notice describes the Google identity data Cycles accesses, stores and does not share.
 - Cycles does not request offline access, retain Google access or refresh tokens, enable Google Identity Platform, or call paid Google APIs for this sign-in flow.
 - A Google Cloud billing account is not required for the accepted identity-only design; any future paid API or broader scope requires a separate decision.
+
+## 2026-07-22: Permit Azure SQL Free-Offer Overage Within The Existing Serverless Envelope
+
+Decision: change the existing `CyclesDb` free-limit exhaustion behaviour from `AutoPause` to `BillOverUsage` so development and the OIDC cutover need not wait for the next monthly allowance. Retain the free offer, General Purpose serverless compute, 2-vCore maximum, 0.5-vCore minimum, 32 GB maximum, 60-minute idle auto-pause and local backup storage. Add a database-scoped read-only management lock after the change.
+
+This supersedes the 14 July decision to use free-limit exhaustion as a hard monthly cost boundary. Microsoft does not permit this database to return to `AutoPause` exhaustion behaviour after paid overage is enabled.
+
+Reasoning:
+
+- Waiting for the monthly reset would unnecessarily serialise identity work and subsequent development against an exhausted compute allowance.
+- The existing free allowance still applies each month; billing covers only usage beyond it.
+- Keeping the current serverless envelope and idle auto-pause bounds the rate and duration of compute use more directly than moving tier or increasing capacity.
+- A read-only management lock makes resizing, tier changes and other control-plane configuration deliberate without blocking normal SQL data access.
+
+Consequences:
+
+- `CyclesDb` resumed online on 22 July 2026 with `useFreeLimit=true` and `freeLimitExhaustionBehavior=BillOverUsage`.
+- Paid overage is now possible and has no enforceable low-value currency cap. Azure Cost Management budget creation was attempted at the Cycles resource-group scope but rejected because the current login lacks budget-write authority; a future budget would notify rather than stop spend.
+- The existing policy continues denying unapproved Container Apps, container registry and observability resources. The F1 App Service plan and SQL database each have an explicit read-only management lock.
+- Routine deployments, migrations and application data access do not require removing the SQL lock. Any future compute, storage, backup or tier change requires an explicit lock removal and separate cost review.

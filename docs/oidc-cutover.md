@@ -1,6 +1,6 @@
 # Google OIDC Cutover
 
-This runbook moves the hosted Cycles playground from the shared trusted-player selector to per-person Google OIDC identity. The application implementation is designed to land safely while deployed SQL is locked through 31 July 2026; the hosted identity switch and first-login database writes happen only after that lock ends.
+This runbook moves the hosted Cycles playground from the shared trusted-player selector to per-person Google OIDC identity. The application implementation landed dark while deployed SQL was unavailable; paid free-offer overage was enabled on 22 July 2026, so the hosted identity switch and first-login database writes may now proceed.
 
 ## Implemented Boundary
 
@@ -14,9 +14,9 @@ This runbook moves the hosted Cycles playground from the shared trusted-player s
 - Standard-Game manual advancement is administrator-only in OIDC mode. Player-controlled self-paced Training resolution is unchanged.
 - The landing and privacy pages remain public. Anonymous dashboard access starts the Google challenge; an expired browser session returns to that challenge rather than exposing the Development selector.
 
-No schema migration is required. The deployed schema already contains the external issuer/subject columns, their binary comparison constraints and the admin audit table. The first intentional deployed database changes are the two first-login bindings after the lock.
+No schema migration is required. The deployed schema already contains the external issuer/subject columns, their binary comparison constraints and the admin audit table. The first intentional deployed database changes are the two first-login bindings at cutover.
 
-## State During The SQL Lock
+## State Before Cutover
 
 Keep these GitHub playground variables absent or at their safe defaults:
 
@@ -25,9 +25,9 @@ PLAYGROUND_HOST_ENVIRONMENT=Development
 PLAYGROUND_AUTHENTICATION_MODE=DevelopmentSelector
 ```
 
-The deployment workflow defaults to those values, and automatic deployments do not run database maintenance. Do not configure invitations, remove the shared access code, switch the host environment, or perform a hosted Google login before 1 August 2026.
+The deployment workflow defaults to those values, and automatic deployments do not run database maintenance. Keep them until the Google client, invitation emails, Cloudflare/Azure proxy secret and rollback evidence are ready for one coordinated cutover.
 
-Code and public edge assets may deploy during the lock. In this state the OIDC services, routes and canonical-origin middleware are not activated, and the existing trusted selector remains the hosted path.
+In this state the OIDC services, routes and canonical-origin middleware are not activated, and the existing trusted selector remains the hosted path.
 
 ## Inputs Required For Cutover
 
@@ -53,9 +53,9 @@ The existing Player targets are:
 4. Request only `openid` and `email`; do not request offline access or other Google APIs.
 5. Add Anthony and Will as the only test users and retain the client ID and secret in the Azure App Service configuration.
 
-## Cutover Sequence After The Lock
+## Cutover Sequence
 
-1. Confirm the SQL lock has ended, record the current deployment revision and confirm an Azure SQL point-in-time restore point is available. Do not reseed or run an unrelated galaxy upgrade.
+1. Confirm `CyclesDb` is online, record the current deployment revision and confirm an Azure SQL point-in-time restore point is available. The database's read-only Azure management lock does not block SQL data access and should remain in place. Do not reseed or run an unrelated galaxy upgrade.
 2. Deploy the current public Cloudflare assets, including `/privacy.html`, then set the Worker secret with `npx wrangler secret put ORIGIN_AUTH_TOKEN`. A configured Worker overwrites any client-supplied origin-token header.
 3. Add the following Azure App Service settings without printing their values:
 
