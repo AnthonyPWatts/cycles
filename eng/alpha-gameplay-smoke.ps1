@@ -96,6 +96,7 @@ $apiAssembly = Join-Path $repoRoot "src/Cycles.Api/bin/$Configuration/net10.0/Cy
 $apiProcess = $null
 $playerClient = $null
 $previousSqlConnectionString = $env:CYCLES_SQL_CONNECTION_STRING
+$previousAuthenticationMode = $env:Cycles__Authentication__Mode
 
 try {
     $storeSpecifier = "sqlserver:$ConnectionString"
@@ -131,6 +132,7 @@ try {
         "--urls", $baseAddress.AbsoluteUri.TrimEnd('/')
     )
     $env:CYCLES_SQL_CONNECTION_STRING = $ConnectionString
+    $env:Cycles__Authentication__Mode = "DevelopmentSelector"
     $startProcessParameters = @{
         FilePath = "dotnet"
         ArgumentList = $apiArguments
@@ -278,6 +280,7 @@ catch {
 }
 finally {
     $env:CYCLES_SQL_CONNECTION_STRING = $previousSqlConnectionString
+    $env:Cycles__Authentication__Mode = $previousAuthenticationMode
     if ($null -ne $playerClient) {
         $playerClient.Dispose()
     }
