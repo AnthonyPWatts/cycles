@@ -4,6 +4,8 @@ using System.Text;
 internal static class CanonicalOidcOriginHeaders
 {
     public const string ProxySecret = "X-Cycles-Proxy-Secret";
+    public const string CanonicalHost = "X-Cycles-Canonical-Host";
+    public const string CanonicalProto = "X-Cycles-Canonical-Proto";
 }
 
 internal sealed class CanonicalOidcOriginMiddleware(
@@ -33,10 +35,10 @@ internal sealed class CanonicalOidcOriginMiddleware(
                 return;
             }
 
-            var forwardedHost = SingleHeaderValue(context, "X-Forwarded-Host");
-            var forwardedProto = SingleHeaderValue(context, "X-Forwarded-Proto");
-            if (!string.Equals(forwardedHost, canonicalHost.Value, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(forwardedProto, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            var suppliedCanonicalHost = SingleHeaderValue(context, CanonicalOidcOriginHeaders.CanonicalHost);
+            var suppliedCanonicalProto = SingleHeaderValue(context, CanonicalOidcOriginHeaders.CanonicalProto);
+            if (!string.Equals(suppliedCanonicalHost, canonicalHost.Value, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(suppliedCanonicalProto, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             {
                 await Refuse(context, StatusCodes.Status400BadRequest, "The canonical proxy headers are invalid.");
                 return;
@@ -45,6 +47,8 @@ internal sealed class CanonicalOidcOriginMiddleware(
             context.Request.Host = canonicalHost;
             context.Request.Scheme = Uri.UriSchemeHttps;
             context.Request.Headers.Remove(CanonicalOidcOriginHeaders.ProxySecret);
+            context.Request.Headers.Remove(CanonicalOidcOriginHeaders.CanonicalHost);
+            context.Request.Headers.Remove(CanonicalOidcOriginHeaders.CanonicalProto);
             context.Request.Headers.Remove("X-Forwarded-Host");
             context.Request.Headers.Remove("X-Forwarded-Proto");
             await next(context);
@@ -52,7 +56,7 @@ internal sealed class CanonicalOidcOriginMiddleware(
         }
 
         if (string.Equals(
-                SingleHeaderValue(context, "X-Forwarded-Host"),
+                SingleHeaderValue(context, CanonicalOidcOriginHeaders.CanonicalHost),
                 canonicalHost.Value,
                 StringComparison.OrdinalIgnoreCase))
         {

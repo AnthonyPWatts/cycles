@@ -75,7 +75,12 @@ test("protected requests preserve the Azure proxy and custom-domain redirect rew
   let originRequest;
   const response = await handleRequest(
     new Request("https://cycles.example/app.html", {
-      headers: { cookie: "session=value", "x-cycles-proxy-secret": "spoofed" }
+      headers: {
+        cookie: "session=value",
+        "x-cycles-proxy-secret": "spoofed",
+        "x-cycles-canonical-host": "attacker.example",
+        "x-cycles-canonical-proto": "http"
+      }
     }),
     {
       ASSETS: { fetch: () => assert.fail("Protected requests must not use the asset binding.") },
@@ -94,6 +99,8 @@ test("protected requests preserve the Azure proxy and custom-domain redirect rew
   assert.equal(originRequest.headers.get("x-forwarded-host"), "cycles.example");
   assert.equal(originRequest.headers.get("x-forwarded-proto"), "https");
   assert.equal(originRequest.headers.get("x-cycles-proxy-secret"), "configured-origin-token");
+  assert.equal(originRequest.headers.get("x-cycles-canonical-host"), "cycles.example");
+  assert.equal(originRequest.headers.get("x-cycles-canonical-proto"), "https");
   assert.equal(originRequest.headers.get("cookie"), "session=value");
   assert.equal(response.headers.get("location"), "https://cycles.example/playground-access");
 });

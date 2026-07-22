@@ -45,6 +45,8 @@ export async function handleRequest(request, env, fetchOrigin = fetch) {
   }
   headers.set("x-forwarded-host", incomingUrl.host);
   headers.set("x-forwarded-proto", "https");
+  headers.set("x-cycles-canonical-host", incomingUrl.host);
+  headers.set("x-cycles-canonical-proto", "https");
 
   const originRequest = new Request(originUrl, {
     method: request.method,

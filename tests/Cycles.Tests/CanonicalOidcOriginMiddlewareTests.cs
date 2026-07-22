@@ -18,15 +18,20 @@ public sealed class CanonicalOidcOriginMiddlewareTests
                 Assert.Equal(CanonicalHost, context.Request.Host.Value);
                 Assert.Equal("https", context.Request.Scheme);
                 Assert.False(context.Request.Headers.ContainsKey(CanonicalOidcOriginHeaders.ProxySecret));
+                Assert.False(context.Request.Headers.ContainsKey(CanonicalOidcOriginHeaders.CanonicalHost));
+                Assert.False(context.Request.Headers.ContainsKey(CanonicalOidcOriginHeaders.CanonicalProto));
                 Assert.False(context.Request.Headers.ContainsKey("X-Forwarded-Host"));
+                Assert.False(context.Request.Headers.ContainsKey("X-Forwarded-Proto"));
                 return Task.CompletedTask;
             },
             CanonicalHost,
             ProxySecret);
         var context = CreateContext("GET", "/app.html");
         context.Request.Headers[CanonicalOidcOriginHeaders.ProxySecret] = ProxySecret;
-        context.Request.Headers["X-Forwarded-Host"] = CanonicalHost;
-        context.Request.Headers["X-Forwarded-Proto"] = "https";
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalHost] = CanonicalHost;
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalProto] = "https";
+        context.Request.Headers["X-Forwarded-Host"] = "cycles-play.azurewebsites.net, cycles.example.test";
+        context.Request.Headers["X-Forwarded-Proto"] = "http";
 
         await middleware.InvokeAsync(context);
 
@@ -49,12 +54,30 @@ public sealed class CanonicalOidcOriginMiddlewareTests
         {
             context.Request.Headers[CanonicalOidcOriginHeaders.ProxySecret] = suppliedSecret;
         }
-        context.Request.Headers["X-Forwarded-Host"] = CanonicalHost;
-        context.Request.Headers["X-Forwarded-Proto"] = "https";
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalHost] = CanonicalHost;
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalProto] = "https";
 
         await middleware.InvokeAsync(context);
 
         Assert.Equal(expectedStatus, context.Response.StatusCode);
+        Assert.Equal("no-store", context.Response.Headers.CacheControl);
+    }
+
+    [Fact]
+    public async Task Authenticated_proxy_request_with_the_wrong_canonical_context_is_refused()
+    {
+        var middleware = new CanonicalOidcOriginMiddleware(
+            _ => throw new InvalidOperationException("The refused request must not continue."),
+            CanonicalHost,
+            ProxySecret);
+        var context = CreateContext("GET", "/app.html");
+        context.Request.Headers[CanonicalOidcOriginHeaders.ProxySecret] = ProxySecret;
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalHost] = "attacker.example";
+        context.Request.Headers[CanonicalOidcOriginHeaders.CanonicalProto] = "http";
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
         Assert.Equal("no-store", context.Response.Headers.CacheControl);
     }
 
