@@ -33,7 +33,7 @@ public sealed partial class SqlServerGameStateStore
                 transaction,
                 BuildExternalIdentityLockName(command.Issuer, command.Subject));
 
-            if (command.Bootstrap is not null)
+            if (command.Binding?.Bootstrap is not null)
             {
                 AcquireSqlApplicationLock(connection, transaction, AccountAdminRoleLockName);
             }
@@ -56,48 +56,56 @@ public sealed partial class SqlServerGameStateStore
             return new AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable();
         }
 
-        var created = existing is null;
-        var playerId = existing?.PlayerId ?? Guid.NewGuid();
+        var bound = false;
         Guid? bootstrapAuditRecordId = null;
 
-        if (created)
+        if (existing is null)
         {
-            var username = ResolveNewExternalUsername(
+            if (command.Binding is null)
+            {
+                transaction.Commit();
+                return new AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable();
+            }
+
+            var target = ReadExternalBindingTargetForUpdate(
                 connection,
                 transaction,
-                command.PreferredUsername,
-                command.Subject);
-            var role = command.Bootstrap is null ? PlayerRole.Player : PlayerRole.Admin;
+                command.Binding.PlayerId);
+            if (target is null
+                || target.Account.Kind != PlayerKind.Human
+                || target.Account.Status != PlayerStatus.Active
+                || target.ExternalIssuer.Length != 0
+                || target.ExternalSubject.Length != 0)
+            {
+                transaction.Commit();
+                return new AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable();
+            }
 
-            InsertExternalPlayer(
+            BindExternalPlayer(
                 connection,
                 transaction,
-                playerId,
-                username,
-                command.Email ?? "",
-                command.Issuer,
-                command.Subject,
-                role,
-                command.SignedInAt);
+                command);
+            bound = true;
 
-            if (command.Bootstrap is not null)
+            if (command.Binding.Bootstrap is not null)
             {
                 bootstrapAuditRecordId = InsertBootstrapAudit(
                     connection,
                     transaction,
-                    playerId,
-                    command.Bootstrap.Source,
+                    command.Binding.PlayerId,
+                    command.Binding.Bootstrap.Source,
                     command.SignedInAt);
             }
         }
         else
         {
-            var applyBootstrap = command.Bootstrap is not null
+            var applyBootstrap = command.Binding?.PlayerId == existing.PlayerId
+                && command.Binding.Bootstrap is not null
                 && existing!.Role != PlayerRole.Admin;
             UpdateExternalPlayerLogin(
                 connection,
                 transaction,
-                playerId,
+                existing.PlayerId,
                 command.SignedInAt,
                 applyBootstrap);
 
@@ -106,19 +114,20 @@ public sealed partial class SqlServerGameStateStore
                 bootstrapAuditRecordId = InsertBootstrapAudit(
                     connection,
                     transaction,
-                    playerId,
-                    command.Bootstrap!.Source,
+                    existing.PlayerId,
+                    command.Binding!.Bootstrap!.Source,
                     command.SignedInAt);
             }
         }
 
+        var playerId = existing?.PlayerId ?? command.Binding!.PlayerId;
         var account = ReadAccountById(connection, transaction, playerId)
             ?? throw new InvalidOperationException(
                 "The external player disappeared during the account transaction.");
 
         transaction.Commit();
         return new AccountCommandResult<ExternalPlayerSignInSnapshot>.Success(
-            new ExternalPlayerSignInSnapshot(account, created, bootstrapAuditRecordId));
+            new ExternalPlayerSignInSnapshot(account, bound, bootstrapAuditRecordId));
     }
 
     public AccountCommandResult<PlayerAccountSnapshot> RecordLogin(
@@ -328,6 +337,37 @@ public sealed partial class SqlServerGameStateStore
         return accounts.SingleOrDefault();
     }
 
+    private static ExternalBindingTarget? ReadExternalBindingTargetForUpdate(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Guid playerId)
+    {
+        var targets = ReadRows(
+            connection,
+            transaction,
+            """
+            SELECT
+                PlayerID,
+                Username,
+                PlayerKind,
+                Role,
+                Status,
+                CreatedAt,
+                LastLoginAt,
+                ExternalIssuer,
+                ExternalSubject
+            FROM dbo.Players WITH (UPDLOCK, HOLDLOCK)
+            WHERE PlayerID = @PlayerID;
+            """,
+            sqlCommand => AddGuid(sqlCommand, "@PlayerID", playerId),
+            reader => new ExternalBindingTarget(
+                ReadPlayerAccountSnapshot(reader),
+                GetString(reader, "ExternalIssuer"),
+                GetString(reader, "ExternalSubject")));
+
+        return targets.SingleOrDefault();
+    }
+
     private static PlayerAccountSnapshot ReadPlayerAccountSnapshot(SqlDataReader reader) =>
         new(
             GetGuid(reader, "PlayerID"),
@@ -338,92 +378,38 @@ public sealed partial class SqlServerGameStateStore
             GetDateTimeOffset(reader, "CreatedAt"),
             GetNullableDateTimeOffset(reader, "LastLoginAt"));
 
-    private static string ResolveNewExternalUsername(
+    private static void BindExternalPlayer(
         SqlConnection connection,
         SqlTransaction transaction,
-        string? preferredUsername,
-        string subject)
-    {
-        var candidate = preferredUsername
-            ?? $"external-{subject[..Math.Min(subject.Length, 12)]}";
-        candidate = candidate[..Math.Min(candidate.Length, 80)];
-        if (!UsernameExists(connection, transaction, candidate))
-        {
-            return candidate;
-        }
-
-        var suffix = $"-{subject[^Math.Min(subject.Length, 8)..]}";
-        var prefixLength = Math.Max(1, 80 - suffix.Length);
-        return $"{candidate[..Math.Min(candidate.Length, prefixLength)]}{suffix}";
-    }
-
-    private static bool UsernameExists(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        string username)
-    {
-        using var command = CreateCommand(
-            connection,
-            transaction,
-            "SELECT TOP (1) 1 FROM dbo.Players WHERE Username = @Username;");
-        AddString(command, "@Username", username, 80);
-        return command.ExecuteScalar() is not null;
-    }
-
-    private static void InsertExternalPlayer(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        Guid playerId,
-        string username,
-        string email,
-        string issuer,
-        string subject,
-        PlayerRole role,
-        DateTimeOffset signedInAt) =>
+        ExternalPlayerSignInCommand command) =>
         Execute(
             connection,
             transaction,
             """
-            INSERT INTO dbo.Players
-            (
-                PlayerID,
-                Username,
-                Email,
-                PasswordHash,
-                ExternalIssuer,
-                ExternalSubject,
-                PlayerKind,
-                Role,
-                CreatedAt,
-                LastLoginAt,
-                Status
-            )
-            VALUES
-            (
-                @PlayerID,
-                @Username,
-                @Email,
-                N'',
-                @ExternalIssuer,
-                @ExternalSubject,
-                @PlayerKind,
-                @Role,
-                @SignedInAt,
-                @SignedInAt,
-                @Status
-            );
+            UPDATE dbo.Players
+            SET
+                Email = @Email,
+                ExternalIssuer = @ExternalIssuer,
+                ExternalSubject = @ExternalSubject,
+                Role = CASE WHEN @ApplyBootstrap = 1 THEN @AdminRole ELSE Role END,
+                LastLoginAt = @SignedInAt
+            WHERE PlayerID = @PlayerID
+              AND PlayerKind = @HumanPlayerKind
+              AND Status = @ActivePlayerStatus
+              AND ExternalIssuer = N''
+              AND ExternalSubject = N'';
             """,
             sqlCommand =>
             {
-                AddGuid(sqlCommand, "@PlayerID", playerId);
-                AddString(sqlCommand, "@Username", username, 80);
-                AddString(sqlCommand, "@Email", email, 256);
-                AddString(sqlCommand, "@ExternalIssuer", issuer, 256);
-                AddString(sqlCommand, "@ExternalSubject", subject, 256);
-                AddString(sqlCommand, "@PlayerKind", PlayerKind.Human.ToString(), 32);
-                AddString(sqlCommand, "@Role", role.ToString(), 32);
-                AddDateTimeOffset(sqlCommand, "@SignedInAt", signedInAt);
-                AddString(sqlCommand, "@Status", PlayerStatus.Active.ToString(), 32);
+                AddGuid(sqlCommand, "@PlayerID", command.Binding!.PlayerId);
+                AddString(sqlCommand, "@Email", command.Binding.VerifiedEmail, 256);
+                AddString(sqlCommand, "@ExternalIssuer", command.Issuer, 256);
+                AddString(sqlCommand, "@ExternalSubject", command.Subject, 256);
+                AddBool(sqlCommand, "@ApplyBootstrap", command.Binding.Bootstrap is not null);
+                AddString(sqlCommand, "@AdminRole", PlayerRole.Admin.ToString(), 32);
+                AddString(sqlCommand, "@HumanPlayerKind", PlayerKind.Human.ToString(), 32);
+                AddDateTimeOffset(sqlCommand, "@SignedInAt", command.SignedInAt);
+                AddString(sqlCommand, "@ActivePlayerStatus", PlayerStatus.Active.ToString(), 32);
             });
 
     private static void UpdateExternalPlayerLogin(
@@ -501,4 +487,9 @@ public sealed partial class SqlServerGameStateStore
             });
         return auditRecordId;
     }
+
+    private sealed record ExternalBindingTarget(
+        PlayerAccountSnapshot Account,
+        string ExternalIssuer,
+        string ExternalSubject);
 }

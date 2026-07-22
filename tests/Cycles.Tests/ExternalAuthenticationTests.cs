@@ -7,21 +7,23 @@ namespace Cycles.Tests;
 
 public sealed class ExternalAuthenticationTests
 {
+    private const string ProxySecret = "test-proxy-secret-that-is-at-least-32-characters";
+
     [Fact]
     public void Invited_identity_is_admitted_through_the_player_only_account_boundary()
     {
         var expected = Account("one");
         var accounts = new RecordingAccountStore(command =>
             new AccountCommandResult<ExternalPlayerSignInSnapshot>.Success(
-                new ExternalPlayerSignInSnapshot(expected, Created: true, BootstrapAuditRecordId: null)));
-        var options = Options(invited: "https://identity.example|subject-2");
+                new ExternalPlayerSignInSnapshot(expected, Bound: true, BootstrapAuditRecordId: null)));
+        var options = Options(expected.PlayerId, "two@example.test");
 
         var player = ExternalIdentityAdmission.SignIn(
             accounts,
             "https://identity.example",
             "subject-2",
-            "one",
             "two@example.test",
+            emailVerified: true,
             options,
             TestState.Now);
 
@@ -29,28 +31,30 @@ public sealed class ExternalAuthenticationTests
         var command = Assert.IsType<ExternalPlayerSignInCommand>(accounts.ExternalCommand);
         Assert.Equal("https://identity.example", command.Issuer);
         Assert.Equal("subject-2", command.Subject);
-        Assert.Equal("one", command.PreferredUsername);
-        Assert.Equal("two@example.test", command.Email);
-        Assert.Null(command.Bootstrap);
+        Assert.Equal(expected.PlayerId, command.Binding!.PlayerId);
+        Assert.Equal("two@example.test", command.Binding.VerifiedEmail);
+        Assert.Null(command.Binding.Bootstrap);
         Assert.Equal(TestState.Now, command.SignedInAt);
     }
 
     [Fact]
-    public void Uninvited_identity_is_rejected_without_calling_the_account_store()
+    public void Uninvited_identity_reaches_the_store_without_a_binding_so_existing_identities_can_sign_in()
     {
-        var accounts = new RecordingAccountStore(_ => throw new InvalidOperationException("Must not be called."));
+        var accounts = new RecordingAccountStore(_ =>
+            new AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable());
 
         var exception = Assert.Throws<ApiForbiddenException>(() => ExternalIdentityAdmission.SignIn(
             accounts,
             "https://identity.example",
             "not-invited",
-            "outsider",
-            null,
-            Options(invited: "https://identity.example|subject-2"),
+            "two@example.test",
+            emailVerified: false,
+            Options(Guid.NewGuid(), "two@example.test"),
             TestState.Now));
 
-        Assert.Contains("not been invited", exception.Message, StringComparison.Ordinal);
-        Assert.Null(accounts.ExternalCommand);
+        Assert.Contains("not available", exception.Message, StringComparison.Ordinal);
+        Assert.NotNull(accounts.ExternalCommand);
+        Assert.Null(accounts.ExternalCommand.Binding);
     }
 
     [Fact]
@@ -61,21 +65,21 @@ public sealed class ExternalAuthenticationTests
             new AccountCommandResult<ExternalPlayerSignInSnapshot>.Success(
                 new ExternalPlayerSignInSnapshot(
                     expected,
-                    Created: true,
+                    Bound: true,
                     BootstrapAuditRecordId: Guid.NewGuid())));
-        var options = Options(bootstrap: "https://identity.example|admin-subject");
+        var options = Options(expected.PlayerId, "administrator@example.test", bootstrapAdmin: true);
 
         var player = ExternalIdentityAdmission.SignIn(
             accounts,
             "https://identity.example",
             "admin-subject",
-            "administrator",
-            null,
+            "administrator@example.test",
+            emailVerified: true,
             options,
             TestState.Now);
 
         Assert.Equal(PlayerRole.Admin, player.Role);
-        Assert.Equal("configuration:test-revision", accounts.ExternalCommand?.Bootstrap?.Source);
+        Assert.Equal("configuration:test-revision", accounts.ExternalCommand?.Binding?.Bootstrap?.Source);
     }
 
     [Fact]
@@ -85,22 +89,22 @@ public sealed class ExternalAuthenticationTests
             new AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable());
         var busy = new RecordingAccountStore(_ =>
             new AccountCommandResult<ExternalPlayerSignInSnapshot>.Busy());
-        var options = Options(invited: "https://identity.example|subject-2");
+        var options = Options(Guid.NewGuid(), "two@example.test");
 
         Assert.Throws<ApiForbiddenException>(() => ExternalIdentityAdmission.SignIn(
             unavailable,
             "https://identity.example",
             "subject-2",
-            null,
-            null,
+            "two@example.test",
+            emailVerified: true,
             options,
             TestState.Now));
         Assert.Throws<ApiStateConflictException>(() => ExternalIdentityAdmission.SignIn(
             busy,
             "https://identity.example",
             "subject-2",
-            null,
-            null,
+            "two@example.test",
+            emailVerified: true,
             options,
             TestState.Now));
     }
@@ -124,7 +128,7 @@ public sealed class ExternalAuthenticationTests
     }
 
     [Fact]
-    public void Non_development_configuration_requires_provider_credentials_and_exact_identity_keys()
+    public void Oidc_configuration_requires_provider_credentials_and_valid_invitations()
     {
         var missingCredentials = new ExternalAuthenticationOptions();
         Assert.Throws<InvalidOperationException>(missingCredentials.Validate);
@@ -134,30 +138,41 @@ public sealed class ExternalAuthenticationTests
             Authority = "https://identity.example",
             ClientId = "cycles",
             ClientSecret = "configured-outside-source",
-            InvitedIdentities = ["email@example.test"]
+            CanonicalHost = "cycles.example.test",
+            ProxySecret = ProxySecret,
+            Invitations = [new ExternalAuthenticationInvitation { Email = "email@example.test" }]
         };
         var exception = Assert.Throws<InvalidOperationException>(malformedIdentity.Validate);
-        Assert.Contains("issuer|subject", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("PlayerId", exception.Message, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData(" |subject")]
-    [InlineData("issuer| ")]
-    [InlineData("\t|subject")]
-    [InlineData("issuer|\t")]
-    public void Configured_identity_rejects_parts_that_are_empty_after_operator_whitespace_is_trimmed(
-        string configuredIdentity)
+    [Fact]
+    public void Invitation_configuration_rejects_duplicate_emails_case_insensitively()
     {
         var options = new ExternalAuthenticationOptions
         {
             Authority = "https://identity.example",
             ClientId = "cycles",
             ClientSecret = "configured-outside-source",
-            InvitedIdentities = [configuredIdentity]
+            CanonicalHost = "cycles.example.test",
+            ProxySecret = ProxySecret,
+            Invitations =
+            [
+                new ExternalAuthenticationInvitation
+                {
+                    PlayerId = Guid.NewGuid(),
+                    Email = "person@example.test"
+                },
+                new ExternalAuthenticationInvitation
+                {
+                    PlayerId = Guid.NewGuid(),
+                    Email = "PERSON@example.test"
+                }
+            ]
         };
 
         var exception = Assert.Throws<InvalidOperationException>(options.Validate);
-        Assert.Contains("issuer|subject", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("duplicate email", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -174,6 +189,12 @@ public sealed class ExternalAuthenticationTests
         Assert.Equal(
             ExternalAuthenticationFailureCodes.TemporarilyBusy,
             ExternalAuthenticationFailureCodes.ResolveRemoteFailure(context));
+
+        ExternalAuthenticationFailureCodes.MarkNotAdmitted(context);
+
+        Assert.Equal(
+            ExternalAuthenticationFailureCodes.NotAdmitted,
+            ExternalAuthenticationFailureCodes.ResolveRemoteFailure(context));
     }
 
     private static PlayerAccountSnapshot Account(
@@ -188,10 +209,22 @@ public sealed class ExternalAuthenticationTests
             TestState.Now,
             TestState.Now);
 
-    private static ExternalAuthenticationOptions Options(string? invited = null, string? bootstrap = null) => new()
+    private static ExternalAuthenticationOptions Options(
+        Guid playerId,
+        string email,
+        bool bootstrapAdmin = false) => new()
     {
-        InvitedIdentities = invited is null ? [] : [invited],
-        AdminBootstrapIdentities = bootstrap is null ? [] : [bootstrap],
+        Invitations =
+        [
+            new ExternalAuthenticationInvitation
+            {
+                PlayerId = playerId,
+                Email = email,
+                BootstrapAdmin = bootstrapAdmin
+            }
+        ],
+        CanonicalHost = "cycles.example.test",
+        ProxySecret = ProxySecret,
         DeploymentRevision = "test-revision"
     };
 

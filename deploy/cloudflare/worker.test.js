@@ -7,6 +7,7 @@ test("public shell and media GET requests are edge assets", () => {
   for (const path of [
     "/",
     "/index.html",
+    "/privacy.html",
     "/site.css?v=20260716-1",
     "/media/cycles-promo.mp4",
     "/media/navigation-backgrounds/command.webp",
@@ -73,8 +74,13 @@ test("duration-based promo GET and HEAD requests redirect permanently to the can
 test("protected requests preserve the Azure proxy and custom-domain redirect rewrite", async () => {
   let originRequest;
   const response = await handleRequest(
-    new Request("https://cycles.example/app.html", { headers: { cookie: "session=value" } }),
-    { ASSETS: { fetch: () => assert.fail("Protected requests must not use the asset binding.") } },
+    new Request("https://cycles.example/app.html", {
+      headers: { cookie: "session=value", "x-cycles-proxy-secret": "spoofed" }
+    }),
+    {
+      ASSETS: { fetch: () => assert.fail("Protected requests must not use the asset binding.") },
+      ORIGIN_AUTH_TOKEN: "configured-origin-token"
+    },
     async request => {
       originRequest = request;
       return new Response(null, {
@@ -87,6 +93,7 @@ test("protected requests preserve the Azure proxy and custom-domain redirect rew
   assert.equal(new URL(originRequest.url).hostname, "cycles-play-b366b760.azurewebsites.net");
   assert.equal(originRequest.headers.get("x-forwarded-host"), "cycles.example");
   assert.equal(originRequest.headers.get("x-forwarded-proto"), "https");
+  assert.equal(originRequest.headers.get("x-cycles-proxy-secret"), "configured-origin-token");
   assert.equal(originRequest.headers.get("cookie"), "session=value");
   assert.equal(response.headers.get("location"), "https://cycles.example/playground-access");
 });

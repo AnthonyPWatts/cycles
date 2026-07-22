@@ -1,4 +1,5 @@
 const state = {
+    authenticationMode: null,
     playerId: null,
     username: null,
     role: null,
@@ -46,10 +47,12 @@ const antiforgeryEndpoint = "/auth/antiforgery";
 const antiforgeryHeaderName = "X-Cycles-Antiforgery";
 const antiforgeryFormFieldName = "__RequestVerificationToken";
 const antiforgeryErrorCode = "antiforgeryFailed";
+const authenticationRequiredErrorCode = "authenticationRequired";
 const gameIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 let antiforgeryRequestToken = null;
 let antiforgeryTokenPromise = null;
 let antiforgeryReady = false;
+let externalSignInStarted = false;
 let acceptedLocationHash = window.location.hash;
 const gameApi = createGameApi();
 const cycleTurnLimit = 150;
@@ -1115,6 +1118,8 @@ elements.orderHistory.addEventListener("click", event => {
 
 async function boot() {
     try {
+        const authentication = await getJson("/auth/config");
+        state.authenticationMode = authentication.mode;
         await requireAntiforgeryToken();
         const session = await getJson("/auth/session");
         applyAccountSession(session);
@@ -1122,15 +1127,33 @@ async function boot() {
         await navigateFromLocation();
         acceptedLocationHash = window.location.hash;
     } catch (error) {
+        if (state.authenticationMode === "oidc" && error.code === authenticationRequiredErrorCode) {
+            startExternalSignIn();
+            return;
+        }
+
         if (!antiforgeryReady) {
             showLogin("Secure session setup failed. Refresh the page to try again.", { error: true });
             return;
         }
 
-        await loadTrustedPlayers();
-        showLogin("Choose a player to continue.");
-        elements.username.focus();
+        if (state.authenticationMode === "developmentSelector") {
+            await loadTrustedPlayers();
+            showLogin("Choose a player to continue.");
+            elements.username.focus();
+        } else {
+            showLogin(error.message, { error: true });
+        }
     }
+}
+
+function startExternalSignIn() {
+    if (externalSignInStarted) {
+        return;
+    }
+
+    externalSignInStarted = true;
+    window.location.replace("/auth/external/login");
 }
 
 async function loadTrustedPlayers() {
@@ -5227,6 +5250,10 @@ async function requestJsonCore(url, { method = "GET", body, signal } = {}) {
     try {
         return await readResponse(response);
     } catch (error) {
+        if (error.code === authenticationRequiredErrorCode && state.authenticationMode === "oidc") {
+            startExternalSignIn();
+        }
+
         if (stateChanging && error.code === antiforgeryErrorCode) {
             clearAntiforgeryToken();
             try {

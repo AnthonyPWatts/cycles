@@ -69,6 +69,38 @@ public sealed class ApiAuthenticationBoundaryTests
         Assert.Contains("StatusCodes.Status409Conflict", program, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Google_oidc_keeps_tokens_out_of_the_cookie_and_requests_only_identity_scopes()
+    {
+        var authentication = ReadApiSource("ExternalAuthentication.cs");
+
+        Assert.Contains("oidc.ResponseType = OpenIdConnectResponseType.Code;", authentication, StringComparison.Ordinal);
+        Assert.Contains("oidc.UsePkce = true;", authentication, StringComparison.Ordinal);
+        Assert.Contains("oidc.SaveTokens = false;", authentication, StringComparison.Ordinal);
+        Assert.Contains("oidc.Scope.Clear();", authentication, StringComparison.Ordinal);
+        Assert.Contains("oidc.Scope.Add(\"openid\");", authentication, StringComparison.Ordinal);
+        Assert.Contains("oidc.Scope.Add(\"email\");", authentication, StringComparison.Ordinal);
+        Assert.DoesNotContain("oidc.Scope.Add(\"profile\")", authentication, StringComparison.Ordinal);
+        Assert.DoesNotContain("offline_access", authentication, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hosted_logout_clears_only_the_local_cookie_because_google_has_no_end_session_endpoint()
+    {
+        var program = ReadApiSource("Program.cs");
+        var oidcBranch = program.IndexOf("app.MapGet(\"/auth/external/login\"", StringComparison.Ordinal);
+        var logoutStart = program.IndexOf("app.MapPost(\"/auth/logout\"", oidcBranch, StringComparison.Ordinal);
+        var errorStart = program.IndexOf("app.MapGet(\"/auth/error\"", logoutStart, StringComparison.Ordinal);
+
+        Assert.True(oidcBranch >= 0);
+        Assert.True(logoutStart > oidcBranch);
+        Assert.True(errorStart > logoutStart);
+        var logout = program[logoutStart..errorStart];
+
+        Assert.Contains("CyclesAuthenticationSchemes.Cookie", logout, StringComparison.Ordinal);
+        Assert.DoesNotContain("CyclesAuthenticationSchemes.OpenIdConnect", logout, StringComparison.Ordinal);
+    }
+
     private static string ReadApiSource(string path) =>
         File.ReadAllText(Path.Combine(
             AppContext.BaseDirectory,

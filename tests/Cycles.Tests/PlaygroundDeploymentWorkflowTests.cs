@@ -45,7 +45,15 @@ public sealed class PlaygroundDeploymentWorkflowTests
         Assert.Contains("echo \"::add-mask::$connection_string\"", workflow, StringComparison.Ordinal);
         Assert.Contains("for attempt in 1 2 3", workflow, StringComparison.Ordinal);
         Assert.Contains("sleep $((attempt * 15))", workflow, StringComparison.Ordinal);
-        Assert.Contains("Cycles__TrustedPlayerSelection__Enabled=true", workflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "ASPNETCORE_ENVIRONMENT=${{ vars.PLAYGROUND_HOST_ENVIRONMENT || 'Development' }}",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Cycles__Authentication__Mode=${{ vars.PLAYGROUND_AUTHENTICATION_MODE || 'DevelopmentSelector' }}",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("Cycles__TrustedPlayerSelection__Enabled", workflow, StringComparison.Ordinal);
         Assert.Contains("- name: Start API\n        if: always()", workflow.ReplaceLineEndings("\n"), StringComparison.Ordinal);
         Assert.Contains("--output none", workflow, StringComparison.Ordinal);
     }

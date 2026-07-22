@@ -1,6 +1,7 @@
 using Cycles.Application;
 using Cycles.Core;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 namespace Cycles.Tests;
 
@@ -90,6 +91,57 @@ public sealed class TrustedPlayerSelectionTests
             isDevelopment: true,
             environmentAccessCode: null,
             configuredAccessCode: null));
+    }
+
+    [Theory]
+    [InlineData("DevelopmentSelector", true)]
+    [InlineData("Oidc", false)]
+    public void Authentication_mode_is_explicit(
+        string configuredMode,
+        bool isDevelopment)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cycles:Authentication:Mode"] = configuredMode
+            })
+            .Build();
+
+        Assert.Equal(
+            configuredMode,
+            CyclesAuthenticationModeConfiguration.Resolve(configuration, isDevelopment).ToString());
+    }
+
+    [Fact]
+    public void Development_selector_is_rejected_outside_development()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cycles:Authentication:Mode"] = "DevelopmentSelector"
+            })
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            CyclesAuthenticationModeConfiguration.Resolve(configuration, isDevelopment: false));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("0")]
+    [InlineData("trusted")]
+    public void Authentication_mode_rejects_missing_or_implicit_values(string? configuredMode)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cycles:Authentication:Mode"] = configuredMode
+            })
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            CyclesAuthenticationModeConfiguration.Resolve(configuration, isDevelopment: true));
     }
 
     [Fact]

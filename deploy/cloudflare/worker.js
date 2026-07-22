@@ -1,5 +1,5 @@
 const origin = "https://cycles-play-b366b760.azurewebsites.net";
-const edgeShellPaths = new Set(["/", "/index.html", "/site.css"]);
+const edgeShellPaths = new Set(["/", "/index.html", "/privacy.html", "/site.css"]);
 const edgeMediaPath = /^\/(?:assets|media)\/.*\.(?:avif|gif|jpe?g|mp4|png|svg|webm|webp)$/i;
 const legacyPromoPath = "/media/cycles-promo-30s.mp4";
 const canonicalPromoPath = "/media/cycles-promo.mp4";
@@ -39,6 +39,10 @@ export async function handleRequest(request, env, fetchOrigin = fetch) {
   const incomingUrl = new URL(request.url);
   const originUrl = new URL(incomingUrl.pathname + incomingUrl.search, origin);
   const headers = new Headers(request.headers);
+  headers.delete("x-cycles-proxy-secret");
+  if (env.ORIGIN_AUTH_TOKEN) {
+    headers.set("x-cycles-proxy-secret", env.ORIGIN_AUTH_TOKEN);
+  }
   headers.set("x-forwarded-host", incomingUrl.host);
   headers.set("x-forwarded-proto", "https");
 

@@ -107,6 +107,7 @@ internal sealed class PlaygroundAccessMiddleware(RequestDelegate next, string ac
 
     internal static bool IsPublicStaticAsset(PathString path) =>
         path.Equals("/site.css", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/privacy.html", StringComparison.OrdinalIgnoreCase)
         || EdgeAssetRedirectMiddleware.IsEdgeAssetPath(path);
 
     private static bool IsPublicPath(PathString path) =>

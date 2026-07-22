@@ -40,7 +40,7 @@ dotnet run --project src/Cycles.Cli -- seed "sqlserver:$connectionString" 24 4 7
 
 The curated `development-match-v2` seed is fixed so participant assignments, distinct-sector homes, neutral fleets, tutorial objective identifiers, and first-turn outcomes are reproducible. It creates Tony and Will as selectable human players, Ariadne as a game-AI player, three empires with three fleets and 60 ships apiece, and six weaker neutral Free Captain fleets. Development API and Worker hosts leave a configured empty store empty; they do not provision the curated scenario implicitly. Provision local state deliberately with the CLI seed command above or the ordered Docker migration-and-seed bootstrap; provision shared environments through their guarded operator workflow.
 
-`Cycles:TrustedPlayerSelection:Enabled` controls the fixed Development selector. It is enabled by `appsettings.Development.json`, disabled by default elsewhere, and must be enabled deliberately for an access-restricted hosted playground. A non-Development process with the selector enabled refuses to start unless `CYCLES_PLAYGROUND_ACCESS_CODE` or `Cycles:PlaygroundAccessCode` is present. It selects only existing active human accounts that participate in the match, stores the selected identity in a protected cookie, and is not an account-registration or production-identity mechanism. Defeated and completed participants can sign in to inspect the match but cannot mutate it.
+`Cycles:Authentication:Mode=DevelopmentSelector` controls the fixed Development selector and is rejected outside the Development environment. `appsettings.Development.json` selects it for local use; the hosted workflow temporarily uses the same explicit mode while the July SQL lock is active. It selects only existing active human accounts that participate in the match, stores the selected identity in a protected cookie, and is not an account-registration or hosted OIDC mechanism. Defeated and completed participants can sign in to inspect the match but cannot mutate it. `Cycles:Authentication:Mode=Oidc` is the only accepted non-Development interactive mode.
 
 ## Scheduled And Manual Ticks
 
@@ -169,10 +169,9 @@ A complete export contains stable external identity identifiers, admin audit rec
 
 ## External Identity And Admin Operation
 
-Development retains the local username login. Every non-Development API host requires external OIDC configuration and fails startup if provider credentials are absent. Use a separate confidential provider registration per environment with the authorisation-code flow, PKCE, and these callbacks:
+Authentication mode is explicit. `DevelopmentSelector` is accepted only in the Development environment. Every host using `Oidc` requires external configuration and fails startup if credentials, canonical host, or origin-proxy secret are absent. The hosted playground uses direct Google OIDC with the authorisation-code flow, PKCE, and these callbacks:
 
 - sign-in: `/signin-oidc`;
-- sign-out: `/signout-callback-oidc`;
 - post-authentication dashboard: `/app.html`.
 
 Configure secrets through the deployment platform or environment, never source control. Hierarchical environment-variable examples are:
@@ -181,21 +180,27 @@ Configure secrets through the deployment platform or environment, never source c
 Cycles__Authentication__Authority
 Cycles__Authentication__ClientId
 Cycles__Authentication__ClientSecret
-Cycles__Authentication__InvitedIdentities__0=https://issuer.example|stable-subject
-Cycles__Authentication__AdminBootstrapIdentities__0=https://issuer.example|stable-admin-subject
+Cycles__Authentication__CanonicalHost=cycles.anthonypwatts.co.uk
+Cycles__Authentication__ProxySecret=<same-high-entropy-value-as-the-Cloudflare-origin-secret>
+Cycles__Authentication__Invitations__0__PlayerId=<existing-player-id>
+Cycles__Authentication__Invitations__0__Email=<exact-google-email>
+Cycles__Authentication__Invitations__0__BootstrapAdmin=false
 Cycles__Authentication__DeploymentRevision=deployment-identifier
-Cycles__Authentication__KnownProxies__0=10.0.0.10
 ```
 
-Only exact case-sensitive issuer-and-subject pairs admit or bootstrap a player. Leading or trailing whitespace is unsupported; operator configuration may contain surrounding layout whitespace, but the parsed issuer and subject must both remain non-empty. Migration `024_enforce_external_identity_binary_collation` fails before schema changes if an existing issuer or subject starts or ends with U+0020. Investigate and correct those rows from authoritative provider evidence rather than trimming an ambiguous identity blindly. Email, display name, invitation state, provider groups, and provider role claims do not grant Cycles authority. Known proxy addresses are explicit so forwarded host/protocol values are not trusted from arbitrary clients.
+On first login only, Google's `email_verified=true` claim and an edge-trimmed, case-insensitive exact email match select one configured existing Player ID. The target must be an active, unbound human Player. The account store atomically writes Google's issuer, subject, verified email and login time; it never inserts a Player. If the invitation requests the initial admin bootstrap, the role and high-severity audit row commit in that same transaction. Unknown identities and conflicts are refused without mutation.
 
-An admitted identity creates or updates only its active Human Player account. Authentication does not create a Game enrolment, participant, empire, or admiral. `/auth/session` is account-level. Canonical gameplay requests use `/games/{gameId}` and resolve the Game's current Cycle, participant, and empire before access. The unscoped bootstrap, focused reads, order routes, priorities route, and `/admin/tick` remain pinned adapters for the fixed legacy Game. They call the same scoped handlers and cannot select another Game.
+After binding, only the stored case-sensitive issuer/subject pair authenticates the Player. The invitation can and should be removed; email, display name, provider groups, and provider role claims do not grant ongoing identity or authority. Migration `024_enforce_external_identity_binary_collation` guards the stable identity key. Investigate an edge-whitespace or replacement case from authoritative provider evidence rather than normalising or silently rebinding it.
 
-The browser obtains `gameId` from trusted login or the first pinned bootstrap, then sends selected-Game requests. This client foundation has no Games home or player selection between Games. Training provisioning and a second Game also remain absent. Until the Games home is deployed, do not add a fresh unmapped identity to `InvitedIdentities`; keep invitation rollout to identities that already map to an enrolled legacy Player. A transient account-lock conflict returns a safe retryable `stateConflict` response rather than being flattened into a bad-identity failure.
+Cloudflare overwrites `X-Cycles-Proxy-Secret` with its protected `ORIGIN_AUTH_TOKEN` before proxying dynamic requests. The API compares that credential before accepting the exact canonical forwarded host and HTTPS scheme, then removes the proxy headers. A safe direct-Azure request redirects to the canonical domain, a direct mutation is refused, and `/health` remains available for Azure checks. Do not reuse the Google client secret as the origin secret.
 
-All application mutations use ASP.NET Core antiforgery validation. The browser first calls `GET /auth/antiforgery`, retains the returned `requestToken` in memory, and sends it as `X-Cycles-Antiforgery` with JSON `POST`, `PUT`, `PATCH`, and `DELETE` requests. The matching cookie is HttpOnly. Missing or mismatched tokens return `400 antiforgeryFailed` before the handler runs. Trusted login rotates the token. Sign-out uses a tokenised `POST /auth/logout`; no GET logout operation exists. The OIDC branch follows the provider sign-out redirect after the protected POST.
+Authentication does not create a Game enrolment, participant, empire, admiral, or any other gameplay state. `/auth/session` is account-level. Canonical gameplay requests use `/games/{gameId}` and resolve the Game's current Cycle, participant, enrolment and empire before access. A transient account-lock conflict returns a safe retryable `stateConflict`; a non-admitted identity returns a safe forbidden response.
 
-The first configured admin bootstrap writes a high-severity audit record with target, reason, source revision, and timestamp. After verifying that initial access and audit record, remove the bootstrap identity from configuration so later routine revocation is not undone by a subsequent sign-in. Routine changes require an authenticated local admin and non-empty reason:
+The complete hosted setup, SQL-lock staging, first-login checks, rollback and Google Testing-to-In-production sequence are in the [Google OIDC cutover runbook](oidc-cutover.md).
+
+All application mutations use ASP.NET Core antiforgery validation. The browser first calls `GET /auth/antiforgery`, retains the returned `requestToken` in memory, and sends it as `X-Cycles-Antiforgery` with JSON `POST`, `PUT`, `PATCH`, and `DELETE` requests. The matching cookie is HttpOnly. Missing or mismatched tokens return `400 antiforgeryFailed` before the handler runs. Trusted login rotates the token. Sign-out uses a tokenised `POST /auth/logout`; no GET logout operation exists. Google exposes no OIDC end-session endpoint, so the OIDC branch clears only the Cycles cookie and returns home. It does not sign the person out of Google; the next Cycles login requests Google's account chooser.
+
+The first configured admin bootstrap writes a high-severity audit record with target, reason, source revision, and timestamp. After verifying initial access and the audit record, remove the invitation so later routine revocation is not undone by a subsequent sign-in. Routine changes require an authenticated local admin and non-empty reason:
 
 ```http
 POST /admin/players/{playerId}/roles/admin
@@ -213,12 +218,12 @@ Emergency recovery is infrastructure operation, not a permanent hidden superuser
 
 1. restrict or quiesce the affected environment and preserve database recovery options;
 2. identify the existing player by the provider's exact issuer and subject, not email or display name;
-3. add that identity temporarily to the secure `AdminBootstrapIdentities` configuration with a new `DeploymentRevision`;
+3. if the identity mapping is still valid, add a temporary invitation for that same Player ID and verified Google email with `BootstrapAdmin=true` and a new `DeploymentRevision`;
 4. restart and complete one provider sign-in, which reapplies the local role and appends the bootstrap audit record;
-5. verify local admin access and the audit record, then remove the temporary bootstrap entry and redeploy;
+5. verify local admin access and the audit record, then remove the temporary invitation and redeploy;
 6. investigate the lockout or compromise and retain the operator/deployment evidence outside application secrets.
 
-Do not edit provider role claims, enable Development login, or create a shared emergency player account. If database integrity or identity correlation is uncertain, restore/investigate rather than improvising a silent role update.
+This path repairs a lost local admin role; it cannot replace a lost or corrupted issuer/subject mapping through email. For a mapping incident, use the temporary configuration rollback in the [Google OIDC cutover runbook](oidc-cutover.md), preserve provider evidence and recovery options, and perform no silent identity edit. Do not edit provider role claims or create a shared emergency player account. If database integrity or identity correlation is uncertain, restore and investigate in isolation.
 
 ## Guarded SQL State Profile
 

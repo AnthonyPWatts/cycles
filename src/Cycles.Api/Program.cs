@@ -4,16 +4,16 @@ using Cycles.Infrastructure.SqlServer;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 GameProfileCatalogue.EnsureValid();
 var multiGameFeatures = MultiGameFeatureOptions.Read(builder.Configuration);
-var trustedPlayerSelectionEnabled = builder.Configuration.GetValue<bool?>("Cycles:TrustedPlayerSelection:Enabled")
-    ?? builder.Environment.IsDevelopment();
+var authenticationMode = CyclesAuthenticationModeConfiguration.Resolve(
+    builder.Configuration,
+    builder.Environment.IsDevelopment());
+var developmentSelectorEnabled = authenticationMode == CyclesAuthenticationMode.DevelopmentSelector;
 var configuredSqlConnectionString = builder.Configuration.GetConnectionString("Cycles")
     ?? builder.Configuration["Cycles:SqlConnectionString"]
     ?? Environment.GetEnvironmentVariable("CYCLES_SQL_CONNECTION_STRING");
@@ -50,22 +50,9 @@ builder.Services.AddDataProtection();
 builder.Services.AddCyclesApiAntiforgery(builder.Environment);
 
 ExternalAuthenticationOptions? externalAuthentication = null;
-if (!builder.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
+if (authenticationMode == CyclesAuthenticationMode.Oidc)
 {
     externalAuthentication = builder.Services.AddExternalCyclesAuthentication(builder.Configuration);
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        foreach (var configuredProxy in externalAuthentication.KnownProxies)
-        {
-            if (!IPAddress.TryParse(configuredProxy, out var proxy))
-            {
-                throw new InvalidOperationException($"Cycles:Authentication:KnownProxies contains invalid IP address '{configuredProxy}'.");
-            }
-
-            options.KnownProxies.Add(proxy);
-        }
-    });
 }
 
 var app = builder.Build();
@@ -78,27 +65,27 @@ app.Logger.LogInformation(
     multiGameFeatures.ManualGameEnrolment.PilotPlayerIds.Count,
     multiGameFeatures.MultiCycleBatchEnabled);
 var playgroundAccessCode = TrustedPlayerSelectionConfiguration.ResolvePlaygroundAccessCode(
-    trustedPlayerSelectionEnabled,
+    developmentSelectorEnabled,
     app.Environment.IsDevelopment(),
     Environment.GetEnvironmentVariable("CYCLES_PLAYGROUND_ACCESS_CODE"),
     builder.Configuration["Cycles:PlaygroundAccessCode"]);
 
-if (!app.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
+if (externalAuthentication is not null)
 {
-    app.UseForwardedHeaders();
+    app.UseCanonicalOidcOrigin(externalAuthentication);
 }
 
 app.UseResponseCompression();
 app.UseEdgeAssetRedirect(builder.Configuration["Cycles:EdgeAssetOrigin"]);
 app.UsePlaygroundAccess(playgroundAccessCode);
 app.UseMiddleware<ApiErrorMiddleware>();
-if (!app.Environment.IsDevelopment() && !trustedPlayerSelectionEnabled)
+if (authenticationMode == CyclesAuthenticationMode.Oidc)
 {
     app.UseAuthentication();
     app.UseAuthorization();
 }
 
-app.UsePrivateDashboard(app.Environment.IsDevelopment() || trustedPlayerSelectionEnabled);
+app.UsePrivateDashboard(developmentSelectorEnabled);
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -120,10 +107,14 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/auth/config", () => Results.Ok(new
+{
+    mode = developmentSelectorEnabled ? "developmentSelector" : "oidc"
+}));
 app.MapGet(ApiAntiforgery.EndpointPath, (HttpContext httpContext, IAntiforgery antiforgery) =>
     Results.Ok(ApiAntiforgery.IssueToken(httpContext, antiforgery)));
 
-if (trustedPlayerSelectionEnabled)
+if (developmentSelectorEnabled)
 {
     app.MapGet("/auth/trusted-players", (
         ILegacyRuntimeScopeQuery legacyScope,
@@ -168,22 +159,27 @@ else
         ApiAntiforgery.ExpireTokenCookie(httpContext);
         return Results.SignOut(
             new AuthenticationProperties { RedirectUri = "/" },
-            [CyclesAuthenticationSchemes.Cookie, CyclesAuthenticationSchemes.OpenIdConnect]);
+            [CyclesAuthenticationSchemes.Cookie]);
     }).RequireCyclesAntiforgery();
 
     app.MapGet("/auth/error", (string? code) =>
     {
         var accessDenied = code is ExternalAuthenticationFailureCodes.AccessDenied;
+        var notAdmitted = code is ExternalAuthenticationFailureCodes.NotAdmitted;
         var temporarilyBusy = code is ExternalAuthenticationFailureCodes.TemporarilyBusy;
         return Results.Json(
             new ErrorResponse(
                 accessDenied
                     ? ApiErrorCodes.Forbidden
+                    : notAdmitted
+                        ? ApiErrorCodes.Forbidden
                     : temporarilyBusy
                         ? ApiErrorCodes.StateConflict
                         : ApiErrorCodes.AuthenticationRequired,
                 accessDenied
                     ? "The identity provider denied access."
+                    : notAdmitted
+                        ? "This Google account is not invited to Cycles."
                     : temporarilyBusy
                         ? "Player account sign-in is temporarily busy. Try again."
                         : "External authentication could not be completed.",
@@ -191,6 +187,8 @@ else
                 TraceId: null),
             statusCode: accessDenied
                 ? StatusCodes.Status403Forbidden
+                : notAdmitted
+                    ? StatusCodes.Status403Forbidden
                 : temporarilyBusy
                     ? StatusCodes.Status409Conflict
                     : StatusCodes.Status401Unauthorized);
@@ -264,7 +262,7 @@ selectedGameRoutes.MapGet("/dashboard/bootstrap", (
     Guid? selectedFleetId,
     HttpContext httpContext,
     SelectedGameRequestService games) =>
-    GetDashboardBootstrap(gameId, selectedFleetId, httpContext, games, trustedPlayerSelectionEnabled));
+    GetDashboardBootstrap(gameId, selectedFleetId, httpContext, games, developmentSelectorEnabled));
 selectedGameRoutes.MapGet("/cycles/current", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
     GetCurrentCycle(gameId, httpContext, games));
 selectedGameRoutes.MapGet("/ticks/last-summary", (Guid gameId, HttpContext httpContext, SelectedGameRequestService games) =>
@@ -365,7 +363,7 @@ selectedGameRoutes.MapPost("/admin/tick", (
         gameId,
         games,
         resolutions,
-        trustedPlayerSelectionEnabled))
+        developmentSelectorEnabled))
     .RequireCyclesAntiforgery();
 
 app.MapGet("/dashboard/bootstrap", (
@@ -378,7 +376,7 @@ app.MapGet("/dashboard/bootstrap", (
         selectedFleetId,
         httpContext,
         games,
-        trustedPlayerSelectionEnabled));
+        developmentSelectorEnabled));
 app.MapGet("/cycles/current", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
     GetCurrentCycle(GetLegacyGameId(httpContext, games, legacyScope), httpContext, games));
 app.MapGet("/ticks/last-summary", (HttpContext httpContext, SelectedGameRequestService games, ILegacyRuntimeScopeQuery legacyScope) =>
@@ -424,7 +422,7 @@ app.MapPost("/admin/tick", (
         GetLegacyGameId(httpContext, games, legacyScope),
         games,
         resolutions,
-        trustedPlayerSelectionEnabled))
+        developmentSelectorEnabled))
     .RequireCyclesAntiforgery();
 
 app.MapPost("/admin/players/{targetPlayerId:guid}/roles/admin", (

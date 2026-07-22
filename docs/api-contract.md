@@ -94,7 +94,11 @@ SQL stores Cycle scheduling as operational state. The current player `CycleRespo
 
 ## Trusted Development Selection
 
-When `Cycles:TrustedPlayerSelection:Enabled` is enabled, `GET /auth/trusted-players` returns active human accounts participating in the fixed legacy Game's operational Cycle. `POST /auth/login` accepts only a listed `playerId`; arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them. Outside the Development environment the API fails at startup unless the playground access code is configured, and the selector issues a protected, secure HttpOnly cookie. The selector serves an access-restricted Development host and does not replace external identity or create accounts.
+`GET /auth/config` is public and returns only the active browser mode: `developmentSelector` or `oidc`. `DevelopmentSelector` is accepted only in the Development environment. In that mode, `GET /auth/trusted-players` returns active human accounts participating in the fixed legacy Game's operational Cycle, and `POST /auth/login` accepts only a listed `playerId`. Arbitrary usernames, game-AI players, inactive accounts, missing participants, and forged session identifiers are rejected. Defeated or completed participants remain available for read-only inspection, but every mutation boundary rejects them.
+
+In `Oidc` mode, anonymous `GET /app.html` starts the Google challenge through `GET /auth/external/login`. A successful first login binds only an existing active, unbound human Player selected by one configured Player-ID/verified-email invitation; it does not insert an account or gameplay state. Later logins use only the stored exact issuer/subject pair and work after the invitation is removed. Unknown, unverified and conflicting identities return `403 Forbidden` without mutation. An expired browser session returns to external login rather than loading the Development selector.
+
+Hosted OIDC requests use the exact canonical HTTPS host accepted from the authenticated Cloudflare-to-Azure proxy boundary. Safe direct-origin requests redirect to that host, direct-origin mutations are refused, and `/health` remains public on the Azure origin.
 
 ## Cookie Mutation And Antiforgery Contract
 
@@ -102,7 +106,7 @@ Trusted and OIDC sessions use cookie authentication, so the browser obtains a re
 
 JSON `POST`, `PUT`, `PATCH`, and `DELETE` requests send the token in `X-Cycles-Antiforgery`. The logout form sends the same token as `__RequestVerificationToken`. The API validates the cookie and request-token pair before it invokes login, selected-Game, legacy-adapter, tick, or admin mutation handlers. A missing, expired, or mismatched pair returns `400 Bad Request` with `code: "antiforgeryFailed"`; the client fetches a fresh token but does not replay the rejected mutation.
 
-Trusted login rotates the antiforgery cookie before the dashboard enables commands for the selected player. Logout is `POST /auth/logout`; the trusted branch clears the local session and the OIDC branch starts provider sign-out. Both branches expire the antiforgery cookie. No `GET /auth/logout` mutation exists.
+Trusted login rotates the antiforgery cookie before the dashboard enables commands for the selected player. Logout is `POST /auth/logout`; both branches clear the local Cycles session and expire the antiforgery cookie. Google has no OIDC end-session endpoint, so Cycles does not attempt to sign the person out of Google; the next external login requests Google's account chooser. No `GET /auth/logout` mutation exists.
 
 ## Dashboard Bootstrap Contract
 

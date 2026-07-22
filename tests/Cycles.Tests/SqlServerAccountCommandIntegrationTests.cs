@@ -15,7 +15,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
         new(2026, 7, 20, 9, 30, 0, TimeSpan.Zero);
 
     [Fact]
-    public void External_sign_in_creates_only_a_redacted_human_account()
+    public void Verified_invitation_binds_an_existing_human_account_without_creating_a_player()
     {
         var connectionString = SqlIntegrationGuard.GetConnectionString();
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -27,24 +27,24 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var issuer = $"https://identity-{marker}.example";
         var subject = $"subject-{marker}";
         var secretEmail = $"private-{marker}@example.test";
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
         var gameplayBefore = ReadGameplayFingerprint(connectionString);
         var store = CreateStore(connectionString);
 
         var result = store.SignInExternal(new ExternalPlayerSignInCommand(
             issuer,
             subject,
-            $"  player-{marker}  ",
-            $"  {secretEmail}  ",
-            bootstrap: null,
+            new ExternalPlayerBinding(target.PlayerId, $"  {secretEmail}  ", bootstrap: null),
             SignInAt));
 
         var success = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(result);
-        Assert.True(success.Value.Created);
+        Assert.True(success.Value.Bound);
         Assert.Null(success.Value.BootstrapAuditRecordId);
+        Assert.Equal(target.PlayerId, success.Value.Player.PlayerId);
         Assert.Equal(PlayerKind.Human, success.Value.Player.Kind);
         Assert.Equal(PlayerRole.Player, success.Value.Player.Role);
         Assert.Equal(PlayerStatus.Active, success.Value.Player.Status);
-        Assert.Equal(SignInAt, success.Value.Player.CreatedAt);
+        Assert.Equal(SignInAt.AddDays(-10), success.Value.Player.CreatedAt);
         Assert.Equal(SignInAt, success.Value.Player.LastLoginAt);
         var json = JsonSerializer.Serialize(success.Value);
         Assert.DoesNotContain(secretEmail, json, StringComparison.Ordinal);
@@ -52,7 +52,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
         Assert.DoesNotContain(subject, json, StringComparison.Ordinal);
 
         var stored = ReadPlayer(connectionString, success.Value.Player.PlayerId);
-        Assert.Equal($"player-{marker}", stored.Username);
+        Assert.Equal(target.Username, stored.Username);
         Assert.Equal(secretEmail, stored.Email);
         Assert.Equal("", stored.PasswordHash);
         Assert.Equal(issuer, stored.ExternalIssuer);
@@ -61,6 +61,48 @@ public sealed class SqlServerAccountCommandIntegrationTests
         Assert.Equal(PlayerRole.Player.ToString(), stored.Role);
         Assert.Equal(PlayerStatus.Active.ToString(), stored.Status);
         Assert.Equal(gameplayBefore, ReadGameplayFingerprint(connectionString));
+    }
+
+    [Fact]
+    public void Uninvited_identity_and_already_bound_target_are_rejected_without_creating_players()
+    {
+        var connectionString = SqlIntegrationGuard.GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var store = CreateStore(connectionString);
+        var alreadyBound = InsertMappedPlayer(
+            connectionString,
+            PlayerKind.Human,
+            PlayerStatus.Active,
+            PlayerRole.Player,
+            SignInAt);
+        var playerCountBefore = Scalar<int>(connectionString, "SELECT COUNT(*) FROM dbo.Players;");
+
+        var uninvited = store.SignInExternal(new ExternalPlayerSignInCommand(
+            "https://uninvited.example",
+            Guid.NewGuid().ToString("N"),
+            binding: null,
+            SignInAt.AddHours(1)));
+        var conflictingBinding = store.SignInExternal(new ExternalPlayerSignInCommand(
+            "https://different.example",
+            Guid.NewGuid().ToString("N"),
+            new ExternalPlayerBinding(
+                alreadyBound.PlayerId,
+                "different@example.test",
+                bootstrap: null),
+            SignInAt.AddHours(1)));
+
+        Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable>(uninvited);
+        Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable>(conflictingBinding);
+        Assert.Equal(playerCountBefore, Scalar<int>(connectionString, "SELECT COUNT(*) FROM dbo.Players;"));
+        var stored = ReadPlayer(connectionString, alreadyBound.PlayerId);
+        Assert.Equal(alreadyBound.Issuer, stored.ExternalIssuer);
+        Assert.Equal(alreadyBound.Subject, stored.ExternalSubject);
+        Assert.Equal(PlayerRole.Player.ToString(), stored.Role);
+        Assert.Equal(SignInAt, stored.LastLoginAt);
     }
 
     [Fact]
@@ -76,41 +118,36 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var issuer = $"https://repeat-{marker}.example";
         var subject = $"repeat-{marker}";
         var store = CreateStore(connectionString);
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
         var first = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(
             store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "original-name",
-                "original@example.test",
-                bootstrap: null,
+                new ExternalPlayerBinding(target.PlayerId, "original@example.test", bootstrap: null),
                 SignInAt)));
 
         var older = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(
             store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "renamed-claim",
-                "changed@example.test",
-                bootstrap: null,
+                binding: null,
                 SignInAt.AddHours(-1))));
         var newer = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(
             store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "another-name",
-                "another@example.test",
-                bootstrap: null,
+                binding: null,
                 SignInAt.AddHours(1))));
 
-        Assert.True(first.Value.Created);
-        Assert.False(older.Value.Created);
-        Assert.False(newer.Value.Created);
+        Assert.True(first.Value.Bound);
+        Assert.False(older.Value.Bound);
+        Assert.False(newer.Value.Bound);
         Assert.Equal(first.Value.Player.PlayerId, older.Value.Player.PlayerId);
         Assert.Equal(first.Value.Player.PlayerId, newer.Value.Player.PlayerId);
         Assert.Equal(SignInAt, older.Value.Player.LastLoginAt);
         Assert.Equal(SignInAt.AddHours(1), newer.Value.Player.LastLoginAt);
         var stored = ReadPlayer(connectionString, first.Value.Player.PlayerId);
-        Assert.Equal("original-name", stored.Username);
+        Assert.Equal(target.Username, stored.Username);
         Assert.Equal("original@example.test", stored.Email);
         Assert.Equal(
             1,
@@ -152,16 +189,18 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var aiResult = store.SignInExternal(new ExternalPlayerSignInCommand(
             aiIdentity.Issuer,
             aiIdentity.Subject,
-            "ignored",
-            null,
-            new ConfiguredAdminBootstrap("configuration:must-not-apply"),
+            new ExternalPlayerBinding(
+                aiIdentity.PlayerId,
+                "ai@example.test",
+                new ConfiguredAdminBootstrap("configuration:must-not-apply")),
             SignInAt));
         var suspendedResult = store.SignInExternal(new ExternalPlayerSignInCommand(
             suspendedIdentity.Issuer,
             suspendedIdentity.Subject,
-            "ignored",
-            null,
-            new ConfiguredAdminBootstrap("configuration:must-not-apply"),
+            new ExternalPlayerBinding(
+                suspendedIdentity.PlayerId,
+                "suspended@example.test",
+                new ConfiguredAdminBootstrap("configuration:must-not-apply")),
             SignInAt));
 
         Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Unavailable>(aiResult);
@@ -193,22 +232,20 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var subject = $"bootstrap-{marker}";
         var bootstrap = new ConfiguredAdminBootstrap("configuration:test-revision");
         var store = CreateStore(connectionString);
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
+        var binding = new ExternalPlayerBinding(target.PlayerId, "administrator@example.test", bootstrap);
 
         var first = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(
             store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "bootstrap-player",
-                null,
-                bootstrap,
+                binding,
                 SignInAt)));
         var second = Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(
             store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "ignored",
-                null,
-                bootstrap,
+                binding,
                 SignInAt.AddMinutes(5))));
 
         Assert.Equal(PlayerRole.Admin, first.Value.Player.Role);
@@ -245,12 +282,14 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var marker = Guid.NewGuid().ToString("N");
         var issuer = $"https://concurrent-{marker}.example";
         var subject = $"concurrent-{marker}";
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
         var command = new ExternalPlayerSignInCommand(
             issuer,
             subject,
-            "concurrent-player",
-            null,
-            new ConfiguredAdminBootstrap("configuration:concurrent-test"),
+            new ExternalPlayerBinding(
+                target.PlayerId,
+                "concurrent@example.test",
+                new ConfiguredAdminBootstrap("configuration:concurrent-test")),
             SignInAt);
 
         var tasks = Enumerable.Range(0, 2)
@@ -261,8 +300,8 @@ public sealed class SqlServerAccountCommandIntegrationTests
             .Select(task => Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Success>(task.Result))
             .ToArray();
 
-        Assert.Single(successes, item => item.Value.Created);
-        Assert.Single(successes, item => !item.Value.Created);
+        Assert.Single(successes, item => item.Value.Bound);
+        Assert.Single(successes, item => !item.Value.Bound);
         Assert.Single(successes, item => item.Value.BootstrapAuditRecordId.HasValue);
         Assert.Equal(successes[0].Value.Player.PlayerId, successes[1].Value.Player.PlayerId);
         Assert.Equal(
@@ -291,6 +330,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var marker = Guid.NewGuid().ToString("N");
         var issuer = $"https://busy-{marker}.example";
         var subject = $"busy-{marker}";
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
         using var connection = new SqlConnection(connectionString);
         connection.Open();
         using var transaction = connection.BeginTransaction();
@@ -315,9 +355,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var result = CreateStore(connectionString).SignInExternal(new ExternalPlayerSignInCommand(
             issuer,
             subject,
-            "busy-player",
-            null,
-            bootstrap: null,
+            new ExternalPlayerBinding(target.PlayerId, "busy@example.test", bootstrap: null),
             SignInAt));
 
         Assert.IsType<AccountCommandResult<ExternalPlayerSignInSnapshot>.Busy>(result);
@@ -377,9 +415,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
             new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "global-busy-player",
-                null,
-                bootstrap: null,
+                binding: null,
                 SignInAt.AddHours(1))));
         var recordLoginTask = Task.Run(() => CreateStore(connectionString).RecordLogin(
             new RecordPlayerLoginCommand(existing.PlayerId, SignInAt.AddHours(1))));
@@ -435,6 +471,7 @@ public sealed class SqlServerAccountCommandIntegrationTests
         var marker = Guid.NewGuid().ToString("N");
         var issuer = $"https://rollback-{marker}.example";
         var subject = $"rollback-{marker}";
+        var target = InsertUnboundPlayer(connectionString, PlayerKind.Human, PlayerStatus.Active, PlayerRole.Player);
         try
         {
             var store = CreateStore(connectionString);
@@ -442,23 +479,24 @@ public sealed class SqlServerAccountCommandIntegrationTests
             Assert.Throws<SqlException>(() => store.SignInExternal(new ExternalPlayerSignInCommand(
                 issuer,
                 subject,
-                "rollback-player",
-                null,
-                new ConfiguredAdminBootstrap(source),
+                new ExternalPlayerBinding(
+                    target.PlayerId,
+                    "rollback@example.test",
+                    new ConfiguredAdminBootstrap(source)),
                 SignInAt)));
 
             Assert.Equal(
-                0,
+                1,
                 Scalar<int>(
                     connectionString,
                     """
                     SELECT COUNT(*)
                     FROM dbo.Players
-                    WHERE ExternalIssuer COLLATE Latin1_General_100_BIN2 = @Issuer COLLATE Latin1_General_100_BIN2
-                      AND ExternalSubject COLLATE Latin1_General_100_BIN2 = @Subject COLLATE Latin1_General_100_BIN2;
+                    WHERE PlayerID = @PlayerID
+                      AND ExternalIssuer = N''
+                      AND ExternalSubject = N'';
                     """,
-                    ("@Issuer", issuer),
-                    ("@Subject", subject)));
+                    ("@PlayerID", target.PlayerId)));
         }
         finally
         {
@@ -579,6 +617,33 @@ public sealed class SqlServerAccountCommandIntegrationTests
     private static SqlServerGameStateStore CreateStore(string connectionString) =>
         new(connectionString, () => new GameState());
 
+    private static UnboundPlayer InsertUnboundPlayer(
+        string connectionString,
+        PlayerKind kind,
+        PlayerStatus status,
+        PlayerRole role)
+    {
+        var playerId = Guid.NewGuid();
+        var username = $"invited-{playerId:N}";
+        Execute(
+            connectionString,
+            """
+            INSERT INTO dbo.Players
+                (PlayerID, Username, Email, PasswordHash, ExternalIssuer, ExternalSubject,
+                 PlayerKind, Role, CreatedAt, LastLoginAt, Status)
+            VALUES
+                (@PlayerID, @Username, N'', N'', N'', N'',
+                 @PlayerKind, @Role, @CreatedAt, NULL, @Status);
+            """,
+            ("@PlayerID", playerId),
+            ("@Username", username),
+            ("@PlayerKind", kind.ToString()),
+            ("@Role", role.ToString()),
+            ("@CreatedAt", SignInAt.AddDays(-10)),
+            ("@Status", status.ToString()));
+        return new UnboundPlayer(playerId, username);
+    }
+
     private static MappedIdentity InsertMappedPlayer(
         string connectionString,
         PlayerKind kind,
@@ -698,6 +763,8 @@ public sealed class SqlServerAccountCommandIntegrationTests
     }
 
     private sealed record MappedIdentity(Guid PlayerId, string Issuer, string Subject);
+
+    private sealed record UnboundPlayer(Guid PlayerId, string Username);
 
     private sealed record StoredPlayer(
         string Username,

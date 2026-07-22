@@ -22,6 +22,20 @@ public sealed class LandingPageContractTests
         Assert.DoesNotContain("Silent Loom", html);
     }
 
+    [Fact]
+    public void Public_privacy_page_explains_the_oidc_identity_link()
+    {
+        var landing = ReadLandingAsset("index.html");
+        var privacy = ReadLandingAsset("privacy.html");
+
+        Assert.Contains("href=\"/privacy.html\"", landing, StringComparison.Ordinal);
+        Assert.Contains("verified email", privacy, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("issuer and subject", privacy, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not receive your Google password", privacy, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Cloudflare", privacy, StringComparison.Ordinal);
+        Assert.Contains("Microsoft Azure", privacy, StringComparison.Ordinal);
+    }
+
     private static string ReadLandingAsset(string fileName) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Landing", fileName));
 }

@@ -111,8 +111,9 @@ jobs:
           --resource-group rg-cycles-playground-uks
           --name "${{ vars.AZURE_WEBAPP_NAME }}"
           --settings
+          ASPNETCORE_ENVIRONMENT=${{ vars.PLAYGROUND_HOST_ENVIRONMENT || 'Development' }}
           Cycles__EdgeAssetOrigin=https://cycles.anthonypwatts.co.uk
-          Cycles__TrustedPlayerSelection__Enabled=true
+          Cycles__Authentication__Mode=${{ vars.PLAYGROUND_AUTHENTICATION_MODE || 'DevelopmentSelector' }}
           Cycles__Features__GamesAccountShell__Enabled=true
           Cycles__Features__TrainingGames__Enabled=true
           Cycles__Features__TrainingGames__PilotPlayerIds__0=2bbf6b63-b50f-4fe3-bc11-913c2b74aa01

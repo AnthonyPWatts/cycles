@@ -583,6 +583,53 @@ a:focus-visible {
     color: var(--muted);
 }
 
+.site-footer a,
+.privacy-content a {
+    color: inherit;
+}
+
+.site-footer a:hover,
+.privacy-content a:hover {
+    color: var(--text);
+}
+
+.privacy-page {
+    min-height: 100vh;
+    background: #080b09;
+}
+
+.privacy-content {
+    width: min(760px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: clamp(80px, 12vw, 140px) 0 clamp(72px, 10vw, 120px);
+}
+
+.privacy-content h1 {
+    margin: 0;
+    font-size: clamp(3rem, 10vw, 6.5rem);
+}
+
+.privacy-content section {
+    padding-top: 34px;
+    border-top: 1px solid var(--line);
+    margin-top: 34px;
+}
+
+.privacy-content h2 {
+    margin: 0 0 12px;
+}
+
+.privacy-content p {
+    max-width: 68ch;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+.privacy-updated {
+    margin: 8px 0 42px;
+}
+
 @media (max-width: 900px) {
     .site-hero {
         min-height: calc(100svh - 172px);

@@ -39,6 +39,9 @@
     <None Include="..\..\src\Cycles.Api\wwwroot\index.html"
           Link="Fixtures\Landing\index.html"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\privacy.html"
+          Link="Fixtures\Landing\privacy.html"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\Cycles.Api\wwwroot\site.css"
           Link="Fixtures\Landing\site.css"
           CopyToOutputDirectory="PreserveNewest" />

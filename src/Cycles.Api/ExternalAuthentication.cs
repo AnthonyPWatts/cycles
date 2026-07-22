@@ -20,12 +20,16 @@ public static class ExternalAuthenticationFailureCodes
 {
     public const string AccessDenied = "accessDenied";
     public const string ExternalAuthenticationFailed = "externalAuthenticationFailed";
+    public const string NotAdmitted = "notAdmitted";
     public const string TemporarilyBusy = "temporarilyBusy";
 
     private const string FailureCodeItemKey = "Cycles.ExternalAuthentication.FailureCode";
 
     public static void MarkTemporarilyBusy(HttpContext httpContext) =>
         httpContext.Items[FailureCodeItemKey] = TemporarilyBusy;
+
+    public static void MarkNotAdmitted(HttpContext httpContext) =>
+        httpContext.Items[FailureCodeItemKey] = NotAdmitted;
 
     public static string ResolveRemoteFailure(HttpContext httpContext) =>
         httpContext.Items.TryGetValue(FailureCodeItemKey, out var value)
@@ -36,15 +40,14 @@ public static class ExternalAuthenticationFailureCodes
 
 public sealed class ExternalAuthenticationOptions
 {
-    public string Authority { get; set; } = "";
+    public string Authority { get; set; } = "https://accounts.google.com";
     public string ClientId { get; set; } = "";
     public string ClientSecret { get; set; } = "";
     public string CallbackPath { get; set; } = "/signin-oidc";
-    public string SignedOutCallbackPath { get; set; } = "/signout-callback-oidc";
-    public string[] InvitedIdentities { get; set; } = [];
-    public string[] AdminBootstrapIdentities { get; set; } = [];
+    public string CanonicalHost { get; set; } = "";
+    public string ProxySecret { get; set; } = "";
+    public ExternalAuthenticationInvitation[] Invitations { get; set; } = [];
     public string DeploymentRevision { get; set; } = "unspecified";
-    public string[] KnownProxies { get; set; } = [];
 
     public void Validate()
     {
@@ -55,41 +58,67 @@ public sealed class ExternalAuthenticationOptions
             throw new InvalidOperationException("Non-Development hosts require Cycles:Authentication Authority, ClientId and ClientSecret configuration.");
         }
 
-        foreach (var identity in InvitedIdentities.Concat(AdminBootstrapIdentities))
+        foreach (var invitation in Invitations)
         {
-            _ = ConfiguredExternalIdentity.Parse(identity);
+            invitation.Validate();
+        }
+
+        if (!Uri.TryCreate($"https://{CanonicalHost}", UriKind.Absolute, out var canonicalUri)
+            || !string.Equals(canonicalUri.Authority, CanonicalHost, StringComparison.OrdinalIgnoreCase)
+            || canonicalUri.AbsolutePath != "/"
+            || !string.IsNullOrEmpty(canonicalUri.Query)
+            || !string.IsNullOrEmpty(canonicalUri.Fragment))
+        {
+            throw new InvalidOperationException(
+                "Cycles:Authentication:CanonicalHost must be a hostname without a scheme or path.");
+        }
+
+        if (ProxySecret.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "Cycles:Authentication:ProxySecret must contain at least 32 characters.");
+        }
+
+        if (Invitations.GroupBy(item => item.PlayerId).Any(group => group.Count() > 1))
+        {
+            throw new InvalidOperationException("Cycles:Authentication:Invitations contains a duplicate PlayerId.");
+        }
+
+        if (Invitations
+            .GroupBy(item => item.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Any(group => group.Count() > 1))
+        {
+            throw new InvalidOperationException("Cycles:Authentication:Invitations contains a duplicate email address.");
         }
     }
 }
 
-public readonly record struct ConfiguredExternalIdentity(string Issuer, string Subject)
+public sealed class ExternalAuthenticationInvitation
 {
-    public static ConfiguredExternalIdentity Parse(string value)
+    public Guid PlayerId { get; set; }
+
+    public string Email { get; set; } = "";
+
+    public bool BootstrapAdmin { get; set; }
+
+    public void Validate()
     {
-        var separator = value.IndexOf('|');
-        if (separator <= 0 || separator == value.Length - 1)
+        if (PlayerId == Guid.Empty)
         {
-            throw new InvalidOperationException("Configured external identities must use the exact 'issuer|subject' format.");
+            throw new InvalidOperationException(
+                "Each Cycles:Authentication:Invitations entry requires a PlayerId.");
         }
 
-        var issuer = value[..separator].Trim();
-        var subject = value[(separator + 1)..].Trim();
-        if (issuer.Length == 0 || subject.Length == 0)
+        var email = Email.Trim();
+        if (email.Length == 0 || email.Length > 256)
         {
-            throw new InvalidOperationException("Configured external identities must use the exact 'issuer|subject' format.");
+            throw new InvalidOperationException(
+                "Each Cycles:Authentication:Invitations entry requires an email address of 256 characters or fewer.");
         }
-
-        if (issuer.Length > 256 || subject.Length > 256)
-        {
-            throw new InvalidOperationException("Configured external identity issuer and subject values must each be 256 characters or fewer.");
-        }
-
-        return new ConfiguredExternalIdentity(issuer, subject);
     }
 
-    public bool Matches(string issuer, string subject) =>
-        string.Equals(Issuer, issuer, StringComparison.Ordinal)
-        && string.Equals(Subject, subject, StringComparison.Ordinal);
+    public bool MatchesVerifiedEmail(string email) =>
+        string.Equals(Email.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase);
 }
 
 public static class ExternalIdentityAdmission
@@ -98,8 +127,8 @@ public static class ExternalIdentityAdmission
         IPlayerAccountCommandStore accounts,
         string issuer,
         string subject,
-        string? preferredUsername,
         string? email,
+        bool emailVerified,
         ExternalAuthenticationOptions options,
         DateTimeOffset now)
     {
@@ -113,26 +142,21 @@ public static class ExternalIdentityAdmission
             throw new ApiForbiddenException("The identity provider supplied an issuer or subject longer than the supported identity key.");
         }
 
-        var invited = options.InvitedIdentities
-            .Select(ConfiguredExternalIdentity.Parse)
-            .Any(identity => identity.Matches(issuer, subject));
-        var bootstrapped = options.AdminBootstrapIdentities
-            .Select(ConfiguredExternalIdentity.Parse)
-            .Any(identity => identity.Matches(issuer, subject));
-        if (!invited && !bootstrapped)
-        {
-            throw new ApiForbiddenException("This external identity has not been invited to Cycles.");
-        }
-
-        var bootstrap = bootstrapped
-            ? new ConfiguredAdminBootstrap($"configuration:{options.DeploymentRevision}")
+        var invitation = emailVerified && !string.IsNullOrWhiteSpace(email)
+            ? options.Invitations.SingleOrDefault(item => item.MatchesVerifiedEmail(email))
             : null;
+        var binding = invitation is null
+            ? null
+            : new ExternalPlayerBinding(
+                invitation.PlayerId,
+                email!,
+                invitation.BootstrapAdmin
+                    ? new ConfiguredAdminBootstrap($"configuration:{options.DeploymentRevision}")
+                    : null);
         var result = accounts.SignInExternal(new ExternalPlayerSignInCommand(
             issuer,
             subject,
-            preferredUsername,
-            email,
-            bootstrap,
+            binding,
             now));
         return result switch
         {
@@ -183,11 +207,14 @@ public static class ExternalAuthenticationExtensions
                 oidc.ClientId = cyclesOptions.ClientId;
                 oidc.ClientSecret = cyclesOptions.ClientSecret;
                 oidc.CallbackPath = cyclesOptions.CallbackPath;
-                oidc.SignedOutCallbackPath = cyclesOptions.SignedOutCallbackPath;
                 oidc.ResponseType = OpenIdConnectResponseType.Code;
+                oidc.Prompt = "select_account";
                 oidc.UsePkce = true;
                 oidc.SaveTokens = false;
                 oidc.MapInboundClaims = false;
+                oidc.Scope.Clear();
+                oidc.Scope.Add("openid");
+                oidc.Scope.Add("email");
                 oidc.TokenValidationParameters.NameClaimType = "name";
                 oidc.Events = new OpenIdConnectEvents
                 {
@@ -208,9 +235,11 @@ public static class ExternalAuthenticationExtensions
                                 accounts,
                                 issuer,
                                 subject,
-                                context.Principal?.FindFirstValue("preferred_username")
-                                    ?? context.Principal?.Identity?.Name,
                                 context.Principal?.FindFirstValue("email"),
+                                string.Equals(
+                                    context.Principal?.FindFirstValue("email_verified"),
+                                    bool.TrueString,
+                                    StringComparison.OrdinalIgnoreCase),
                                 cyclesOptions,
                                 DateTimeOffset.UtcNow);
                             ((ClaimsIdentity)context.Principal!.Identity!).AddClaim(
@@ -219,6 +248,11 @@ public static class ExternalAuthenticationExtensions
                         catch (ApiStateConflictException exception)
                         {
                             ExternalAuthenticationFailureCodes.MarkTemporarilyBusy(context.HttpContext);
+                            context.Fail(exception.Message);
+                        }
+                        catch (ApiForbiddenException exception)
+                        {
+                            ExternalAuthenticationFailureCodes.MarkNotAdmitted(context.HttpContext);
                             context.Fail(exception.Message);
                         }
                         catch (Exception exception) when (ApiErrorResponses.IsHandled(exception))

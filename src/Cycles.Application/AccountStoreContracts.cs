@@ -21,16 +21,12 @@ public sealed record ExternalPlayerSignInCommand
     public ExternalPlayerSignInCommand(
         string issuer,
         string subject,
-        string? preferredUsername,
-        string? email,
-        ConfiguredAdminBootstrap? bootstrap,
+        ExternalPlayerBinding? binding,
         DateTimeOffset signedInAt)
     {
         Issuer = ValidateIdentityPart(issuer, nameof(issuer));
         Subject = ValidateIdentityPart(subject, nameof(subject));
-        PreferredUsername = NormaliseOptional(preferredUsername, 80);
-        Email = NormaliseOptional(email, 256);
-        Bootstrap = bootstrap;
+        Binding = binding;
         SignedInAt = signedInAt;
     }
 
@@ -38,11 +34,7 @@ public sealed record ExternalPlayerSignInCommand
 
     public string Subject { get; }
 
-    public string? PreferredUsername { get; }
-
-    public string? Email { get; }
-
-    public ConfiguredAdminBootstrap? Bootstrap { get; }
+    public ExternalPlayerBinding? Binding { get; }
 
     public DateTimeOffset SignedInAt { get; }
 
@@ -76,16 +68,38 @@ public sealed record ExternalPlayerSignInCommand
         return value;
     }
 
-    private static string? NormaliseOptional(string? value, int maximumLength)
+}
+
+public sealed record ExternalPlayerBinding
+{
+    public ExternalPlayerBinding(
+        Guid playerId,
+        string verifiedEmail,
+        ConfiguredAdminBootstrap? bootstrap)
     {
-        var normalised = value?.Trim();
-        if (string.IsNullOrEmpty(normalised))
+        if (playerId == Guid.Empty)
         {
-            return null;
+            throw new ArgumentException("Player identifier cannot be empty.", nameof(playerId));
         }
 
-        return normalised[..Math.Min(normalised.Length, maximumLength)];
+        var normalisedEmail = verifiedEmail?.Trim();
+        if (string.IsNullOrEmpty(normalisedEmail) || normalisedEmail.Length > 256)
+        {
+            throw new ArgumentException(
+                "A verified email address of 256 characters or fewer is required.",
+                nameof(verifiedEmail));
+        }
+
+        PlayerId = playerId;
+        VerifiedEmail = normalisedEmail;
+        Bootstrap = bootstrap;
     }
+
+    public Guid PlayerId { get; }
+
+    public string VerifiedEmail { get; }
+
+    public ConfiguredAdminBootstrap? Bootstrap { get; }
 }
 
 public sealed record ConfiguredAdminBootstrap
@@ -136,7 +150,7 @@ public sealed record RecordPlayerLoginCommand
 
 public sealed record ExternalPlayerSignInSnapshot(
     PlayerAccountSnapshot Player,
-    bool Created,
+    bool Bound,
     Guid? BootstrapAuditRecordId);
 
 public sealed record TrustedPlayerSelectionSnapshot(

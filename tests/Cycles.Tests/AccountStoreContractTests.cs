@@ -6,24 +6,24 @@ namespace Cycles.Tests;
 public sealed class AccountStoreContractTests
 {
     [Fact]
-    public void External_identity_case_and_internal_whitespace_remain_exact_while_display_claims_are_normalised()
+    public void External_identity_case_and_internal_whitespace_remain_exact_while_binding_email_is_normalised()
     {
-        var preferredUsername = $"  {new string('u', 90)}  ";
-        var email = $"  {new string('e', 270)}  ";
+        var playerId = Guid.NewGuid();
 
         var command = new ExternalPlayerSignInCommand(
             "https://Identity Provider.example/Issuer",
             "Subject With Internal Spaces",
-            preferredUsername,
-            email,
-            new ConfiguredAdminBootstrap("  configuration:test  "),
+            new ExternalPlayerBinding(
+                playerId,
+                "  invited@example.test  ",
+                new ConfiguredAdminBootstrap("  configuration:test  ")),
             DateTimeOffset.UnixEpoch);
 
         Assert.Equal("https://Identity Provider.example/Issuer", command.Issuer);
         Assert.Equal("Subject With Internal Spaces", command.Subject);
-        Assert.Equal(new string('u', 80), command.PreferredUsername);
-        Assert.Equal(new string('e', 256), command.Email);
-        Assert.Equal("configuration:test", command.Bootstrap!.Source);
+        Assert.Equal(playerId, command.Binding!.PlayerId);
+        Assert.Equal("invited@example.test", command.Binding.VerifiedEmail);
+        Assert.Equal("configuration:test", command.Binding.Bootstrap!.Source);
     }
 
     [Theory]
@@ -36,9 +36,7 @@ public sealed class AccountStoreContractTests
         var exception = Assert.Throws<ArgumentException>(() => new ExternalPlayerSignInCommand(
             issuer,
             "subject",
-            preferredUsername: null,
-            email: null,
-            bootstrap: null,
+            binding: null,
             DateTimeOffset.UnixEpoch));
 
         Assert.Equal("issuer", exception.ParamName);
@@ -54,9 +52,7 @@ public sealed class AccountStoreContractTests
         var exception = Assert.Throws<ArgumentException>(() => new ExternalPlayerSignInCommand(
             "issuer",
             subject,
-            preferredUsername: null,
-            email: null,
-            bootstrap: null,
+            binding: null,
             DateTimeOffset.UnixEpoch));
 
         Assert.Equal("subject", exception.ParamName);

@@ -1,6 +1,6 @@
 # Trusted Playground Deployment
 
-The hosted playground is a deliberately constrained development environment for invited play-testing. It is not the production hosting, authentication, Worker, monitoring, or backup design.
+The hosted playground is a deliberately constrained environment for invited play-testing. As of 22 July 2026 it still runs the shared Development selector while deployed SQL is locked through 31 July. The Google OIDC implementation is staged dark and the accepted cutover to the non-Development `Playground` environment is documented in the [Google OIDC cutover runbook](oidc-cutover.md).
 
 ## Runtime Shape
 
@@ -11,7 +11,7 @@ The hosted playground is a deliberately constrained development environment for 
 - The application uses `ASPNETCORE_ENVIRONMENT=Development`, but the API does not implicitly seed an empty database. Initial Development state is provisioned deliberately through the guarded CLI/deployment reseed path; normal deployments preserve and upgrade the existing SQL state.
 - GitHub Actions deploys a successful `main` build through workload identity federation. No long-lived Azure credential is stored in GitHub.
 - A Cloudflare Worker on the Free plan fronts `https://cycles.anthonypwatts.co.uk`. Its static-assets binding serves the public landing shell plus image and video files directly from Cloudflare; all other routes continue through the Worker to the App Service origin. It uses no R2, KV, paid observability, or paid Worker features.
-- The landing page, its stylesheet, promotional media, atlas art, and interface artwork are public. The shared application-level access code still protects dashboard HTML, JavaScript, CSS, authentication routes, and game APIs. `/health` remains unauthenticated for deployment verification.
+- The landing page, privacy page, their stylesheet, promotional media, atlas art, and interface artwork are public. Until OIDC cutover, the shared application-level access code protects dashboard HTML, JavaScript, CSS, authentication routes, and game APIs. `/health` remains unauthenticated for deployment verification.
 - Azure publish output excludes `wwwroot/assets` and `wwwroot/media`, so no video file is uploaded with the website package. Cloudflare uploads the public film from the repository's edge asset source and serves it directly from the custom domain. The repository defines `https://cycles.anthonypwatts.co.uk/media/cycles-promo.mp4` plus `https://cycles.anthonypwatts.co.uk/media/cycles-promo-poster.jpg` as the canonical public contract; consumers omit manual version queries and rely on Cloudflare revalidation and content-derived ETags. Once the coordinated edge revision is deployed, the former duration-based film path redirects permanently to the canonical URL. The deployed API redirects a direct-origin image or video request to the edge domain through `Cycles__EdgeAssetOrigin`; a media request incorrectly proxied from that domain fails with `502` rather than redirecting in a loop. The film is an 11.54 MiB web derivative of the retained 34.26 MiB production master and does not preload before a visitor chooses to play it.
 
 App Service F1 enforces CPU, memory, and bandwidth quotas. If a CPU or bandwidth quota is exhausted, Azure stops the app until the quota resets rather than moving it to a paid compute tier. Azure SQL is separately configured to stop at its free monthly allowance rather than bill for overage. This single-process playground does not deploy `Cycles.Worker`.
@@ -75,9 +75,16 @@ Required GitHub environment variables on the `playground` environment:
 - `AZURE_SUBSCRIPTION_ID`;
 - `AZURE_WEBAPP_NAME`.
 
+Authentication rollout uses two additional repository/environment variables. Leave them absent for the safe Development-selector defaults during the SQL lock; set them to `Playground` and `Oidc` together at cutover:
+
+- `PLAYGROUND_HOST_ENVIRONMENT`;
+- `PLAYGROUND_AUTHENTICATION_MODE`.
+
 `AZURE_WEBAPP_DEPLOY_ENABLED` is a repository variable, set to `true` only while the access-restricted playground is intended to be online. It cannot be environment-scoped because GitHub evaluates the job-level deployment condition before attaching the `playground` environment and its variables.
 
-The workflow publishes `src/Cycles.Api` and restores the operator CLI, signs in to Azure through OpenID Connect, then stops the app while it applies pending migrations and prepares the canonical galaxy. It configures the edge-asset origin and explicitly enables the Tony/Will trusted selector on this access-restricted Development host. Normal automatic deployments use the guarded topology upgrade; a manually dispatched deployment must explicitly select `reseed` before the authoritative seed command replaces the disposable Development state. Migration connection attempts are retried with a short back-off because the serverless database may need to wake from auto-pause. It deploys the published output, attempts to restart the app even when maintenance or deployment fails, and verifies `/health` after a successful path.
+The workflow publishes `src/Cycles.Api`, restores the operator CLI and signs in to Azure through OpenID Connect. Automatic deployments do not stop the application, retrieve the SQL connection string, run migrations, reseed, or upgrade the galaxy. A manual dispatch must explicitly enable `database_maintenance` before any of those operations; `reseed` is rejected unless that guard is enabled. This keeps ordinary deployments safe during the July SQL lock and makes later database maintenance deliberate.
+
+The workflow configures the edge-asset origin plus the host environment and authentication mode from `PLAYGROUND_HOST_ENVIRONMENT` and `PLAYGROUND_AUTHENTICATION_MODE`. Their safe fallbacks are `Development` and `DevelopmentSelector`. After the lock, the OIDC cutover changes them together to `Playground` and `Oidc`; Google credentials, invitations and the origin secret remain protected Azure settings rather than workflow text. The deployment attempts to restart the app even when explicit maintenance or deployment fails and verifies direct-origin `/health` after a successful path.
 
 The 15 July 2026 deployment upgraded the preserved tick-3 opening in place: migration `015_add_galaxy_sectors` was applied, 16 sectors and 256 systems were added, 36 superseded routes were replaced, and the deployed API then reported 16 sectors, 280 systems, 296 routes, 32 gateways, sector sizes from 12 to 24, exactly two inter-sector routes per sector, and at most one bridge per gateway. Both the direct Azure health endpoint and the custom-domain health endpoint returned `200` after deployment.
 
@@ -87,7 +94,7 @@ Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-acce
 
 The Cloudflare edge is defined under `deploy/cloudflare`. `wrangler.toml` binds the repository's web-root sources as static assets, while `worker.js` exposes only the public landing shell and image/video extensions. Unknown files, Markdown production notes, dashboard code, authentication and API requests default to the Azure proxy. The binding is the deployment source for the film; it does not change the Azure publish exclusion.
 
-Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare token in GitHub:
+Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare deployment token in GitHub. The long-lived `ORIGIN_AUTH_TOKEN` Worker secret is a different high-entropy value used only to authenticate Cloudflare to Azure in OIDC mode:
 
 ```powershell
 npx wrangler deploy
@@ -106,6 +113,8 @@ The stable promo contract was subsequently deployed as Cloudflare Worker version
 Anonymous visitors may read the public landing page, play its Cloudflare-served film, and view static artwork. Following **Enter the Build** opens `/app.html`, which requires the shared code before any dashboard HTML, JavaScript, CSS, authentication route, or game API is served. A successful code exchange redirects directly to `/app.html`. The **trusted playground** label applies to this gated application surface, not to the open landing page.
 
 This shared-code gate is a trusted-playground exception, not production identity. Cloudflare Zero Trust was considered but not activated because its checkout required a payment card and offered authorisation for usage over the free allowance. The hard-spend requirement takes precedence over per-email sign-in for this environment.
+
+After the SQL lock, direct Google OIDC replaces both this shared access code and the hosted selector. Anthony and Will then authenticate separately and bind to their existing Players; the public landing, privacy and health boundaries remain unchanged. See the [Google OIDC cutover runbook](oidc-cutover.md).
 
 ## Cost Guardrails
 

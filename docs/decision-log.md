@@ -2323,7 +2323,7 @@ Consequences:
 
 Decision: run the hosted interactive application under the non-Development `Playground` environment with explicit OIDC authentication. Remove the deployed shared access-code perimeter, use `cycles.anthonypwatts.co.uk` as the sole canonical interactive hostname, and retain manual Standard-Game advancement for authenticated Cycles administrators only. Keep the trusted Tony/Will selector as a local Development convenience.
 
-Status: accepted for implementation; the current hosted deployment has not yet been cut over.
+Status: implemented behind the current Development selector; the hosted deployment remains uncut-over until the deployed SQL lock ends and the external credentials and invitation emails are supplied.
 
 Reasoning:
 

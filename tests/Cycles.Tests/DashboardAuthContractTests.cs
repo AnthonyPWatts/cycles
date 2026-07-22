@@ -27,7 +27,7 @@ public sealed class DashboardAuthContractTests
     }
 
     [Fact]
-    public void Missing_session_prompts_for_login_instead_of_logging_in_automatically()
+    public void Missing_session_uses_the_configured_authentication_mode()
     {
         var script = ReadDashboardAsset("app.js");
         var bootStart = script.IndexOf("async function boot()", StringComparison.Ordinal);
@@ -37,6 +37,11 @@ public sealed class DashboardAuthContractTests
         Assert.True(loginStart > bootStart);
 
         var bootFunction = script[bootStart..loginStart];
+        Assert.Contains("const authentication = await getJson(\"/auth/config\");", bootFunction);
+        Assert.Contains("state.authenticationMode = authentication.mode;", bootFunction);
+        Assert.Contains("state.authenticationMode === \"developmentSelector\"", bootFunction);
+        Assert.Contains("state.authenticationMode === \"oidc\"", bootFunction);
+        Assert.Contains("startExternalSignIn();", bootFunction);
         Assert.Contains("showLogin(\"Choose a player to continue.\");", bootFunction);
         Assert.Contains("await loadTrustedPlayers();", bootFunction);
         Assert.Contains("const session = await getJson(\"/auth/session\");", bootFunction);
@@ -44,6 +49,23 @@ public sealed class DashboardAuthContractTests
         Assert.Contains("await loadGamesHome();", bootFunction);
         Assert.Contains("await navigateFromLocation();", bootFunction);
         Assert.DoesNotContain("await login(", bootFunction);
+    }
+
+    [Fact]
+    public void Expired_oidc_session_redirects_instead_of_exposing_the_player_selector()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var requestStart = script.IndexOf("async function requestJsonCore", StringComparison.Ordinal);
+        var requestEnd = script.IndexOf("async function readResponse", requestStart, StringComparison.Ordinal);
+
+        Assert.True(requestStart >= 0);
+        Assert.True(requestEnd > requestStart);
+        var request = script[requestStart..requestEnd];
+
+        Assert.Contains("error.code === authenticationRequiredErrorCode", request, StringComparison.Ordinal);
+        Assert.Contains("state.authenticationMode === \"oidc\"", request, StringComparison.Ordinal);
+        Assert.Contains("startExternalSignIn();", request, StringComparison.Ordinal);
+        Assert.Contains("window.location.replace(\"/auth/external/login\");", script, StringComparison.Ordinal);
     }
 
     [Fact]

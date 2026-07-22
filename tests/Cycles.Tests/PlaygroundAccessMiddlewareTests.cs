@@ -10,6 +10,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [Theory]
     [InlineData("/")]
     [InlineData("/index.html")]
+    [InlineData("/privacy.html")]
     [InlineData("/site.css")]
     [InlineData("/media/cycles-promo.mp4")]
     [InlineData("/media/cycles-promo-30s.mp4")]
