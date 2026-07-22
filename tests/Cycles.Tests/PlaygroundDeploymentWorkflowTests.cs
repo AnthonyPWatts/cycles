@@ -49,4 +49,30 @@ public sealed class PlaygroundDeploymentWorkflowTests
         Assert.Contains("- name: Start API\n        if: always()", workflow.ReplaceLineEndings("\n"), StringComparison.Ordinal);
         Assert.Contains("--output none", workflow, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Automatic_deployment_does_not_touch_the_deployed_database()
+    {
+        var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"))
+            .ReplaceLineEndings("\n");
+
+        Assert.Contains("database_maintenance:", workflow, StringComparison.Ordinal);
+        Assert.Contains("default: false", workflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "- name: Stop API for database maintenance\n        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "- name: Migrate and prepare galaxy\n        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "if: github.event_name == 'workflow_dispatch' && inputs.reseed && !inputs.database_maintenance",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Reseeding requires database_maintenance to be enabled explicitly.",
+            workflow,
+            StringComparison.Ordinal);
+    }
 }

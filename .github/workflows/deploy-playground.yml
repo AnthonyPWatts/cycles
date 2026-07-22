@@ -3,6 +3,11 @@ name: Deploy playground
 on:
   workflow_dispatch:
     inputs:
+      database_maintenance:
+        description: Allow this deployment to migrate or otherwise update the deployed SQL database
+        required: true
+        default: false
+        type: boolean
       reseed:
         description: Replace the disposable Development state with the canonical opening
         required: true
@@ -86,7 +91,15 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Reject reseed without database maintenance
+        if: github.event_name == 'workflow_dispatch' && inputs.reseed && !inputs.database_maintenance
+        shell: bash
+        run: |
+          echo "::error::Reseeding requires database_maintenance to be enabled explicitly."
+          exit 1
+
       - name: Stop API for database maintenance
+        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance
         run: >-
           az webapp stop
           --resource-group rg-cycles-playground-uks
@@ -106,6 +119,7 @@ jobs:
           --output none
 
       - name: Migrate and prepare galaxy
+        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance
         shell: bash
         run: |
           connection_string="$(az webapp config connection-string list \
