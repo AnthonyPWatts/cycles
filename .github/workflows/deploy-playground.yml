@@ -3,21 +3,21 @@ name: Deploy playground
 on:
   workflow_dispatch:
     inputs:
-      database_maintenance:
-        description: Allow this deployment to migrate or otherwise update the deployed SQL database
+      database_action:
+        description: Production SQL action to run before publishing the API
+        required: true
+        default: none
+        type: choice
+        options:
+          - none
+          - migrate
+          - migrate-and-upgrade
+          - reseed
+      override_sql_budget:
+        description: Allow the SQL action when the free-allowance guard fails; paid usage may result
         required: true
         default: false
         type: boolean
-      reseed:
-        description: Replace the disposable Development state with the canonical opening
-        required: true
-        default: false
-        type: boolean
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
 
 permissions:
   contents: read
@@ -25,35 +25,24 @@ permissions:
 
 concurrency:
   group: playground-deployment
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy trusted playground
     if: >-
       vars.AZURE_WEBAPP_DEPLOY_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main'))
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: playground
+    env:
+      SQL_FREE_MONTHLY_VCORE_SECONDS: "100000"
+      SQL_ENGINEERING_BUDGET_VCORE_SECONDS: "75000"
+      SQL_PLAY_RESERVE_VCORE_SECONDS: "25000"
 
     steps:
-      - name: Resolve revision
-        id: revision
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Check out repository
         uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.revision.outputs.sha }}
 
       - name: Verify required edge assets
         shell: bash
@@ -79,6 +68,7 @@ jobs:
         run: dotnet restore src/Cycles.Api/Cycles.Api.csproj --configfile NuGet.Config
 
       - name: Restore operator CLI
+        if: inputs.database_action != 'none'
         run: dotnet restore src/Cycles.Cli/Cycles.Cli.csproj --configfile NuGet.Config
 
       - name: Publish API
@@ -91,15 +81,76 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Reject reseed without database maintenance
-        if: github.event_name == 'workflow_dispatch' && inputs.reseed && !inputs.database_maintenance
+      - name: Check SQL allowance budget
+        if: inputs.database_action != 'none'
         shell: bash
         run: |
-          echo "::error::Reseeding requires database_maintenance to be enabled explicitly."
-          exit 1
+          database_id="$(az sql db show \
+            --resource-group rg-cycles-playground-uks \
+            --server cycles-sql-b366b760 \
+            --name CyclesDb \
+            --query id \
+            --output tsv)"
+          exhaustion_behavior="$(az sql db show \
+            --ids "$database_id" \
+            --query freeLimitExhaustionBehavior \
+            --output tsv)"
+          month_start="$(date -u +%Y-%m-01T00:00:00Z)"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          remaining="$(az monitor metrics list \
+            --resource "$database_id" \
+            --metric free_amount_remaining \
+            --start-time "$month_start" \
+            --end-time "$now" \
+            --interval PT1H \
+            --aggregation Minimum \
+            --query "value[0].timeseries[0].data[?minimum != null].minimum | [-1]" \
+            --output tsv)"
+
+          if ! [[ "$remaining" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            echo "::error::Azure did not return the current SQL free-allowance balance."
+            exit 1
+          fi
+
+          remaining_seconds="$(printf '%.0f' "$remaining")"
+          consumed_seconds=$((SQL_FREE_MONTHLY_VCORE_SECONDS - remaining_seconds))
+          if [ "$consumed_seconds" -lt 0 ]; then
+            consumed_seconds=0
+          fi
+          day_of_month=$((10#$(date -u +%d)))
+          days_in_month=$((10#$(date -u -d "$(date -u +%Y-%m-01) +1 month -1 day" +%d)))
+          paced_limit=$((SQL_ENGINEERING_BUDGET_VCORE_SECONDS * day_of_month / days_in_month))
+          budget_failure=false
+
+          if [ "$remaining_seconds" -lt "$SQL_PLAY_RESERVE_VCORE_SECONDS" ]; then
+            echo "::error::SQL free allowance has ${remaining_seconds} vCore-seconds remaining; the play reserve is ${SQL_PLAY_RESERVE_VCORE_SECONDS}."
+            budget_failure=true
+          fi
+          if [ "$consumed_seconds" -gt "$paced_limit" ]; then
+            echo "::error::SQL free allowance consumption is ${consumed_seconds} vCore-seconds; the day-${day_of_month} engineering pace is ${paced_limit}."
+            budget_failure=true
+          fi
+
+          {
+            echo "### Azure SQL allowance preflight"
+            echo ""
+            echo "- Exhaustion behaviour: ${exhaustion_behavior}"
+            echo "- Free amount remaining: ${remaining_seconds} vCore-seconds"
+            echo "- Free amount consumed: ${consumed_seconds} vCore-seconds"
+            echo "- Engineering pace through day ${day_of_month}: ${paced_limit} vCore-seconds"
+            echo "- Play reserve: ${SQL_PLAY_RESERVE_VCORE_SECONDS} vCore-seconds"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$budget_failure" = "true" ]; then
+            if [ "${{ inputs.override_sql_budget }}" != "true" ]; then
+              echo "::error::SQL maintenance is blocked. Re-dispatch with override_sql_budget only after accepting the paid-usage risk."
+              exit 1
+            fi
+            echo "::warning::SQL allowance guard overridden for this dispatch; ${exhaustion_behavior} can incur paid usage."
+          fi
 
       - name: Stop API for database maintenance
-        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance
+        if: inputs.database_action != 'none'
         run: >-
           az webapp stop
           --resource-group rg-cycles-playground-uks
@@ -119,8 +170,8 @@ jobs:
           Cycles__Features__TrainingGames__PilotPlayerIds__0=2bbf6b63-b50f-4fe3-bc11-913c2b74aa01
           --output none
 
-      - name: Migrate and prepare galaxy
-        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance
+      - name: Run explicit database maintenance
+        if: inputs.database_action != 'none'
         shell: bash
         run: |
           connection_string="$(az webapp config connection-string list \
@@ -144,15 +195,24 @@ jobs:
             echo "Database migration connection attempt $attempt failed; waiting for serverless SQL to wake."
             sleep $((attempt * 15))
           done
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.reseed }}" = "true" ]; then
-            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
-              seed "sqlserver:$connection_string" --confirm-replace
-            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
-              show "sqlserver:$connection_string"
-          else
-            dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
-              galaxy upgrade "sqlserver:$connection_string" --confirm-upgrade
-          fi
+          case "${{ inputs.database_action }}" in
+            migrate)
+              ;;
+            migrate-and-upgrade)
+              dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+                galaxy upgrade "sqlserver:$connection_string" --confirm-upgrade
+              ;;
+            reseed)
+              dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+                seed "sqlserver:$connection_string" --confirm-replace
+              dotnet run --no-restore --project src/Cycles.Cli --configuration Release -- \
+                show "sqlserver:$connection_string"
+              ;;
+            *)
+              echo "::error::Unsupported database action '${{ inputs.database_action }}'."
+              exit 1
+              ;;
+          esac
 
       - name: Deploy API
         uses: azure/webapps-deploy@v3

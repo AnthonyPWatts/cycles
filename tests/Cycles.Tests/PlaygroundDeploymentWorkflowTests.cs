@@ -20,7 +20,7 @@ public sealed class PlaygroundDeploymentWorkflowTests
     }
 
     [Fact]
-    public void Deployment_can_deliberately_reseed_disposable_state_before_publishing_the_new_api()
+    public void Deployment_can_deliberately_choose_sql_maintenance_before_publishing_the_new_api()
     {
         var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"));
         var stopIndex = workflow.IndexOf("Stop API for database maintenance", StringComparison.Ordinal);
@@ -38,9 +38,12 @@ public sealed class PlaygroundDeploymentWorkflowTests
         Assert.True(migrationIndex < upgradeIndex);
         Assert.True(seedIndex < deployIndex);
         Assert.True(upgradeIndex < deployIndex);
-        Assert.Contains("reseed:", workflow, StringComparison.Ordinal);
-        Assert.Contains("github.event_name", workflow, StringComparison.Ordinal);
-        Assert.Contains("inputs.reseed", workflow, StringComparison.Ordinal);
+        Assert.Contains("database_action:", workflow, StringComparison.Ordinal);
+        Assert.Contains("- none", workflow, StringComparison.Ordinal);
+        Assert.Contains("- migrate", workflow, StringComparison.Ordinal);
+        Assert.Contains("- migrate-and-upgrade", workflow, StringComparison.Ordinal);
+        Assert.Contains("- reseed", workflow, StringComparison.Ordinal);
+        Assert.Contains("case \"${{ inputs.database_action }}\" in", workflow, StringComparison.Ordinal);
         Assert.Contains("show \"sqlserver:$connection_string\"", workflow, StringComparison.Ordinal);
         Assert.Contains("echo \"::add-mask::$connection_string\"", workflow, StringComparison.Ordinal);
         Assert.Contains("for attempt in 1 2 3", workflow, StringComparison.Ordinal);
@@ -59,28 +62,45 @@ public sealed class PlaygroundDeploymentWorkflowTests
     }
 
     [Fact]
-    public void Automatic_deployment_does_not_touch_the_deployed_database()
+    public void Deployment_is_manual_and_no_database_action_does_not_touch_sql()
     {
         var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"))
             .ReplaceLineEndings("\n");
 
-        Assert.Contains("database_maintenance:", workflow, StringComparison.Ordinal);
-        Assert.Contains("default: false", workflow, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("workflow_run:", workflow, StringComparison.Ordinal);
+        Assert.Contains("database_action:", workflow, StringComparison.Ordinal);
+        Assert.Contains("default: none", workflow, StringComparison.Ordinal);
         Assert.Contains(
-            "- name: Stop API for database maintenance\n        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance",
+            "- name: Stop API for database maintenance\n        if: inputs.database_action != 'none'",
             workflow,
             StringComparison.Ordinal);
         Assert.Contains(
-            "- name: Migrate and prepare galaxy\n        if: github.event_name == 'workflow_dispatch' && inputs.database_maintenance",
+            "- name: Run explicit database maintenance\n        if: inputs.database_action != 'none'",
             workflow,
             StringComparison.Ordinal);
-        Assert.Contains(
-            "if: github.event_name == 'workflow_dispatch' && inputs.reseed && !inputs.database_maintenance",
-            workflow,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "Reseeding requires database_maintenance to be enabled explicitly.",
-            workflow,
-            StringComparison.Ordinal);
+        Assert.Contains("Restore operator CLI\n        if: inputs.database_action != 'none'", workflow, StringComparison.Ordinal);
+        Assert.Contains("cancel-in-progress: false", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Resolve revision", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sql_maintenance_fails_closed_against_the_monthly_allowance_budget()
+    {
+        var workflow = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "deploy-playground.yml"))
+            .ReplaceLineEndings("\n");
+
+        var budgetIndex = workflow.IndexOf("Check SQL allowance budget", StringComparison.Ordinal);
+        var connectionStringIndex = workflow.IndexOf("az webapp config connection-string list", StringComparison.Ordinal);
+
+        Assert.True(budgetIndex >= 0);
+        Assert.True(budgetIndex < connectionStringIndex);
+        Assert.Contains("SQL_ENGINEERING_BUDGET_VCORE_SECONDS: \"75000\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("SQL_PLAY_RESERVE_VCORE_SECONDS: \"25000\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("free_amount_remaining", workflow, StringComparison.Ordinal);
+        Assert.Contains("inputs.override_sql_budget", workflow, StringComparison.Ordinal);
+        Assert.Contains("Azure did not return the current SQL free-allowance balance.", workflow, StringComparison.Ordinal);
+        Assert.Contains("SQL maintenance is blocked.", workflow, StringComparison.Ordinal);
+        Assert.Contains("can incur paid usage", workflow, StringComparison.Ordinal);
     }
 }

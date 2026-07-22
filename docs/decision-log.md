@@ -2400,3 +2400,21 @@ Consequences:
 - Paid overage is now possible and has no enforceable low-value currency cap. Azure Cost Management budget creation was attempted at the Cycles resource-group scope but rejected because the current login lacks budget-write authority; a future budget would notify rather than stop spend.
 - The existing policy continues denying unapproved Container Apps, container registry and observability resources. The F1 App Service plan and SQL database each have an explicit read-only management lock.
 - Routine deployments, migrations and application data access do not require removing the SQL lock. Any future compute, storage, backup or tier change requires an explicit lock removal and separate cost review.
+
+## 2026-07-22: Batch Playground Releases And Reserve SQL Allowance For Play
+
+Decision: stop deploying after every successful `main` CI run. Keep CI on every push, but publish only a manually dispatched, verified `main` revision in a deliberate release window. Require each dispatch to choose no SQL action, migrate, migrate plus the legacy topology upgrade, or destructive reseed. Before any SQL action, enforce a calendar-paced 75,000-vCore-second monthly engineering budget and preserve 25,000 of the 100,000 free seconds for invited play; exceptional paid use requires a one-dispatch acknowledgement.
+
+Reasoning:
+
+- From 14 to 21 July, 80 successful deployments contributed to 73 SQL resume cycles. Approximately 74% of billed compute occurred during deployment and subsequent idle-pause windows.
+- Billed compute stayed near the SKU's memory-derived online floor, so elapsed wake time dominated query CPU. Reducing deployment and remote-test wake frequency addresses the measured cause directly.
+- CI SQL integration and gameplay smoke already use a disposable local service database. They do not need production SQL to prove persistence behaviour.
+- A fixed reserve keeps the hosted game usable for invited Players, while calendar pacing surfaces an unsustainable development rate before the monthly allowance disappears.
+
+Consequences:
+
+- A pushed commit may be repository-ready and queued for the next release; it no longer implies an immediate playground deployment.
+- `database_action=none` never retrieves the SQL connection string or stops the API. Migration, topology upgrade and reseed are separate explicit operator choices.
+- The preflight reads Azure Monitor without waking SQL and fails closed before maintenance. Because `BillOverUsage` is permanent for this database, overriding the guard may incur charges and must not become routine.
+- Deployment, migration, hosted smoke, browser and OIDC checks are clustered into one release window. Broad tests continue locally and in CI.
