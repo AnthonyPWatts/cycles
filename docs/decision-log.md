@@ -2293,8 +2293,28 @@ Reasoning:
 
 Consequences:
 
-- Every initially admitted Player must have a Google account and provide the stable identity needed for an explicit existing-Player mapping before hosted access is enabled.
+- Every initially admitted Player must have a Google account and an approved first-login invitation mapped to their existing Cycles Player.
 - Unknown Google identities are denied and must not automatically create a Player.
 - The Google application registration, hosted callback URI and client credential must be configured outside source control before cutover.
 - The application boundary remains provider-configurable so a broker or another OIDC provider can be considered later if the player population requires it.
 - Removing the shared playground access code and retaining playground-only manual turn advancement remain separate deployment decisions.
+
+## 2026-07-22: Bind An Existing Player Through A One-Time Verified Google Email Invitation
+
+Decision: bootstrap each initial Google identity through a configured invitation that maps an existing Cycles Player ID to an expected Google email address. On that Player's first successful Google login, require Google's verified-email claim and atomically bind the validated issuer and subject to the still-unbound Player. Use only issuer and subject for every subsequent login.
+
+Reasoning:
+
+- A Google subject is the durable identity key but is not available to Cycles until the person first signs in.
+- A verified email gives invited Players a simple first-login experience without asking them to extract or transmit an opaque provider subject.
+- Limiting email matching to one-time bootstrap avoids treating a mutable email address as permanent identity or authority.
+- Binding the existing Player preserves established Player, empire and gameplay state instead of creating a duplicate account.
+
+Consequences:
+
+- Invitation mappings and Google credentials remain protected deployment configuration and are not committed to source control or written to routine logs.
+- First-login matching requires an edge-trimmed, case-insensitive exact email match with no dot, plus-alias or domain rewriting, and requires Google's `email_verified` claim.
+- Binding succeeds only when the target is an active, unbound human Player and neither the issuer/subject nor invitation email conflicts with another mapping.
+- The first-login binding is atomic and replay-safe. Unknown identities, mismatches and conflicts are denied without creating or mutating a Player.
+- Once bound, a Player cannot be rebound through login. Identity replacement is an explicit audited operator action.
+- Invitation mappings should be removed from deployment configuration after the intended Players are bound; leaving one configured cannot override an existing binding.
