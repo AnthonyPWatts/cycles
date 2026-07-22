@@ -9,6 +9,7 @@ preview_urls = false
 directory = "../../src/Cycles.Api/wwwroot"
 binding = "ASSETS"
 run_worker_first = true
+html_handling = "drop-trailing-slash"
 
 [[routes]]
 pattern = "cycles.anthonypwatts.co.uk"
