@@ -87,6 +87,28 @@ public sealed class DashboardAuthContractTests
     }
 
     [Fact]
+    public void Selected_game_bootstrap_applies_game_scoped_session_authority()
+    {
+        var script = ReadDashboardAsset("app.js");
+        var navigationStart = script.IndexOf(
+            "async function navigateFromLocation(",
+            StringComparison.Ordinal);
+        var navigationEnd = script.IndexOf(
+            "function showGamesHome(",
+            navigationStart,
+            StringComparison.Ordinal);
+
+        Assert.True(navigationStart >= 0);
+        Assert.True(navigationEnd > navigationStart);
+
+        var navigation = script[navigationStart..navigationEnd];
+        Assert.Contains(
+            "await refresh({ applySessionFromBootstrap: true });",
+            navigation,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Sign_out_expires_the_development_session_cookie()
     {
         var context = new DefaultHttpContext();

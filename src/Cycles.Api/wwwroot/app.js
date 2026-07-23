@@ -1627,7 +1627,7 @@ async function navigateFromLocation({ focusHeading = false } = {}) {
     }
     if (selection.changed || !state.cycle) {
         try {
-            await refresh();
+            await refresh({ applySessionFromBootstrap: true });
             if (loading) {
                 setTurnMessage("");
             }
