@@ -27,6 +27,11 @@ public sealed partial class SqlServerGameStateStore :
     private const string GameResolutionLockPrefix = "Cycles.Game.";
     private const string TickLockPrefix = "Cycles.Tick.";
     private const int ApplicationLockTimeoutMilliseconds = 5000;
+    private const int ConnectionAttemptCount = 3;
+    private static readonly TimeSpan ConnectionRetryDelay = TimeSpan.FromSeconds(5);
+
+    internal static IReadOnlyList<int> TransientConnectionErrorNumbers { get; } =
+        [-2, 40613];
 
     private readonly string _connectionString;
     private readonly Func<GameState> _seedFactory;
@@ -204,10 +209,31 @@ public sealed partial class SqlServerGameStateStore :
 
     private SqlConnection OpenConnection()
     {
-        var connection = new SqlConnection(_connectionString);
-        connection.Open();
-        return connection;
+        var connection = CreateConnection(_connectionString);
+        try
+        {
+            connection.Open();
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
+
+    internal static SqlConnection CreateConnection(string connectionString) =>
+        new(connectionString)
+        {
+            RetryLogicProvider = SqlConfigurableRetryFactory.CreateFixedRetryProvider(
+                new SqlRetryLogicOption
+                {
+                    NumberOfTries = ConnectionAttemptCount,
+                    DeltaTime = ConnectionRetryDelay,
+                    MaxTimeInterval = ConnectionRetryDelay.Add(TimeSpan.FromSeconds(1)),
+                    TransientErrors = TransientConnectionErrorNumbers
+                })
+        };
 
     private static void AcquireApplicationLock(SqlConnection connection, SqlTransaction transaction) =>
         AcquireSqlApplicationLock(connection, transaction, ApplicationLockName);
