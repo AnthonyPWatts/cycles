@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --test worker.test.js"
+    "build": "node build-public-assets.js",
+    "test": "node --test worker.test.js public-assets.test.js"
   }
 }

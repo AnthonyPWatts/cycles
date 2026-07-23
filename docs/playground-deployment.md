@@ -101,13 +101,19 @@ Later on 15 July, manual workflow run `29446689039` used the explicit `reseed` i
 
 Set `AZURE_WEBAPP_DEPLOY_ENABLED=false` and stop the web app while the edge-access restriction is absent or under maintenance. Manual dispatches then skip deployment rather than restarting a public Development-auth origin.
 
-The Cloudflare edge is defined under `deploy/cloudflare`. `wrangler.toml` binds the repository's web-root sources as static assets, while `worker.js` exposes only the public landing shell and image/video extensions. Unknown files, Markdown production notes, dashboard code, authentication and API requests default to the Azure proxy. The binding is the deployment source for the film; it does not change the Azure publish exclusion.
+The Cloudflare edge is defined under `deploy/cloudflare`. Before development or deployment, Wrangler runs `build-public-assets.js` and recreates the ignored `.public-assets` staging directory from a narrow source allowlist. The bundle contains only `index.html`, `privacy.html`, `site.css`, the canonical film and poster, and approved artwork directories and extensions. It cannot contain dashboard HTML, JavaScript or CSS, the admiral catalogue, Markdown production notes, or another repository file merely because that file exists under `wwwroot`.
+
+Wrangler points its static-assets binding only at that generated bundle and uses asset-first routing. A matching public file is therefore served without invoking the Worker. Files absent from the bundle, authentication and API requests fall through to `worker.js` and the Azure proxy. The Worker retains its public-path fallback so a missing approved edge asset fails at Cloudflare instead of consuming Azure bandwidth. The generated bundle remains a deployment staging artefact and must not be edited or committed.
 
 Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare deployment token in GitHub. The long-lived `ORIGIN_AUTH_TOKEN` Worker secret is a different high-entropy value used only to authenticate Cloudflare to Azure in OIDC mode:
 
 ```powershell
+npm test
+npx wrangler deploy --dry-run
 npx wrangler deploy
 ```
+
+The custom Wrangler build runs for both dry runs and deployments. To add a public asset, place it in an existing approved source directory and extension, or make the smallest explicit addition to `publicFiles` or `publicDirectoryRules` in `build-public-assets.js`; extend `public-assets.test.js` with an expected public path and a representative forbidden neighbour. Do not broaden a rule to the whole `assets`, `media`, or `wwwroot` tree.
 
 Deploy Cloudflare before publishing an API revision that changes or removes edge assets, and before publishing an external consumer of a new canonical asset URL. Verify the canonical film and poster paths before updating the consumer. The Azure package deliberately has no media fallback, so this ordering prevents a missing-asset window while retaining the hard bandwidth boundary.
 

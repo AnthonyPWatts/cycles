@@ -2431,3 +2431,22 @@ Consequences:
 - Several scheduled Games are valid, but processing remains one earliest-due item per poll. Measured fairness/capacity changes require later evidence.
 - Multiple instances can safely compete for failover; SQL decides the winner and followers observe busy or stale work.
 - The initial shared topology may use one instance with private probes. No paid Worker host is authorised for the cost-capped playground, and production probe/alert wiring remains deployment evidence rather than a code claim.
+
+## 2026-07-23: Generate A Public-Only Cloudflare Asset Bundle
+
+Decision: generate an ignored Cloudflare staging directory from a narrow, code-reviewed allowlist and point Wrangler only at that directory. Use Cloudflare's asset-first default for files present in the bundle, while preserving the Worker and Azure proxy for every absent or dynamic path.
+
+Reasoning:
+
+- Pointing asset-first routing at the complete ASP.NET `wwwroot` would make protected dashboard HTML, JavaScript and CSS directly public before the Worker could enforce the existing access boundary.
+- The public surface is small and stable: the landing/privacy shell, canonical film and poster, admiral portraits, galaxy artwork, icons and authored background imagery.
+- An explicit generated boundary makes public exposure inspectable and testable without duplicating more than 80 MiB of generated binary assets in Git.
+- Static assets matching the generated bundle can use Cloudflare's free asset path without paying for a Worker invocation.
+
+Consequences:
+
+- Wrangler's custom build recreates `.public-assets` before development, dry-run and deployment operations. The directory is ignored and never edited by hand.
+- New asset classes require an explicit file or directory/extension rule plus public and forbidden-path tests; broad `wwwroot`, `assets`, or `media` rules are not accepted.
+- CI verifies the generated set, representative public files, representative protected neighbours and the asset-first Wrangler configuration.
+- A missing approved edge asset stays at Cloudflare rather than falling through to Azure. Authentication, APIs, health, dashboard code and unknown files continue through the Worker proxy.
+- The live edge keeps its prior routing until the next deliberate Cloudflare release verifies public paths, protected paths, redirects, cache headers and Worker-request behaviour.
