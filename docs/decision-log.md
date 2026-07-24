@@ -2452,3 +2452,32 @@ Consequences:
 - CI verifies the generated set, representative public files, representative protected neighbours and the asset-first Wrangler configuration.
 - A missing approved edge asset stays at Cloudflare rather than falling through to Azure. Authentication, APIs, health, dashboard code and unknown files continue through the Worker proxy.
 - The live edge keeps its prior routing until the next deliberate Cloudflare release verifies public paths, protected paths, redirects, cache headers and Worker-request behaviour.
+
+## 2026-07-24: Accept Existing Defaults As The First-Viable-Game Boundary
+
+Decision: accept the current reversible defaults for Q028, Q055, Q059, Q063-Q064, Q069-Q070, Q077, Q080, Q088, Q095-Q096, and Q102. Preserve these contracts while Cycles establishes whether the core game is viable:
+
+- Players always retain their own-empire Events without receiving unrelated remote enemy Events.
+- Construction joins the home fleet; rally points wait for scale or play evidence.
+- The current deterministic, ship-count-proportional combat model is sufficient for the next playable test. A selected hostile faction is honoured; otherwise the largest local hostile faction is chosen with a stable tie-break.
+- Fleets without another intention receive a durable implicit Hold at closure. Hold has no separate Player control or mechanical bonus.
+- Player intentions activate on the next tick. Multi-tick travel is a continuing journey after Move processing, not delayed command activation.
+- Orders remain durable Cycle history with rejection and supersession detail, while ordinary Player queries stay bounded and filterable.
+- An admiral dies when its commanded fleet is destroyed. Fleet panels remain limited to name, reputation, and status.
+- Successor identities are fresh, deterministic, and rank-neutral, without first-version Player identity selection.
+- Narrative failure or delay leaves the factual summary and deterministic fallback visible to Players; provider details remain admin-only, and deterministic templates remain the fallback after live generation exists.
+- Chronicle importance thresholds remain global and code/config-owned until another record type or evidence justifies a narrower policy.
+
+Reasoning:
+
+- Q005 authorises named, test-covered engineering defaults, while Q006 prioritises mechanically complete gameplay before polish.
+- These behaviours already form coherent, documented simulation, visibility, history, or presentation contracts. Leaving them as nominal PO blockers overstates uncertainty without improving the first playable product.
+- The accepted answers are intentionally bounded to the first viable game. They do not claim mature balance, full admiral management, configurable narrative policy, or final large-map logistics.
+- Guided play and balance issue #131 supplies the evidence boundary for later combat, order-feedback, colonisation, priority, or phase-comprehension changes.
+
+Consequences:
+
+- Issues #16, #43, #47, #51, #52, #57, #58, #65, #68, #76, #83, #84, and #90 may close as answered defaults without implementation work.
+- Q078 remains open because starting-admiral provisioning does not settle future recruitment for a general fleet-creation loop.
+- Q091 remains open because indefinite historical-significance accumulation needs an explicit cap, decay, or compounding rule.
+- A later change to one of these defaults requires concrete evidence and a bounded issue; acceptance does not authorise speculative implementation in adjacent systems.
