@@ -9,6 +9,7 @@ public sealed class DashboardOfficeModeContractTests
         var script = ReadDashboardAsset("app.js");
 
         Assert.Contains("office-mode.css?v=20260724-1", html);
+        Assert.Contains("app.js?v=20260724-office-mode-1", html);
         Assert.Contains(
             "id=\"officeModeButton\"",
             html,
