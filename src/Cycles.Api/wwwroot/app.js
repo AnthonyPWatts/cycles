@@ -3922,16 +3922,21 @@ function isAdministratorSession() {
     return String(state.role ?? "").toLowerCase() === "admin";
 }
 
+function canUseOfficeMode() {
+    return Boolean(state.playerId)
+        && (isAdministratorSession() || state.authenticationMode === "developmentSelector");
+}
+
 function syncOfficeModeAvailability() {
-    const isAdministrator = isAdministratorSession();
-    elements.officeModeButton.hidden = !isAdministrator;
+    const isAvailable = canUseOfficeMode();
+    elements.officeModeButton.hidden = !isAvailable;
     applyOfficeMode(
-        isAdministrator && readStoredValue(officeModeStorageKey) === "true",
+        isAvailable && readStoredValue(officeModeStorageKey) === "true",
         { persist: false });
 }
 
 function toggleOfficeMode() {
-    if (!isAdministratorSession()) {
+    if (!canUseOfficeMode()) {
         return;
     }
 
@@ -3939,7 +3944,7 @@ function toggleOfficeMode() {
 }
 
 function applyOfficeMode(enabled, { persist = true } = {}) {
-    const active = Boolean(enabled && isAdministratorSession());
+    const active = Boolean(enabled && canUseOfficeMode());
     state.officeMode = active;
     document.body.classList.toggle("office-mode", active);
     elements.officeModeButton.setAttribute("aria-pressed", String(active));
@@ -3947,7 +3952,7 @@ function applyOfficeMode(enabled, { persist = true } = {}) {
         ? "Office mode is on. Restore the Cycles presentation."
         : "Show the plain administrative presentation.";
 
-    if (persist && isAdministratorSession()) {
+    if (persist && canUseOfficeMode()) {
         writeStoredValue(officeModeStorageKey, String(active));
     }
 }

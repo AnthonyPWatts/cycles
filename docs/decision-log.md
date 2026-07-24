@@ -2484,17 +2484,18 @@ Consequences:
 
 ## 2026-07-24: Keep Office Mode As A Shared-Markup Presentation Skin
 
-Decision: give administrators a locally persisted **Office mode** toggle that restyles the existing dashboard as a conventional light administrative interface. Keep the normal and Office presentations on the same HTML, client state, API calls, interaction handlers, responsive layout, and accessibility semantics.
+Decision: give hosted administrators and signed-in Development-selector players a locally persisted **Office mode** toggle that restyles the existing dashboard as a conventional light administrative interface. Keep the normal and Office presentations on the same HTML, client state, API calls, interaction handlers, responsive layout, and accessibility semantics.
 
 Reasoning:
 
 - The demonstration is useful only if removing the game presentation reveals the same information hierarchy and controls underneath.
 - A second dashboard would duplicate behaviour, drift from the playable interface, and weaken that demonstration.
-- The authenticated session already exposes the local administrator role, while the preference itself has no server-side or gameplay significance.
+- The hosted authenticated session exposes the local administrator role, while the deterministic local selector intentionally signs Tony and Will in as ordinary Players.
+- A Development-only presentation exception keeps the demonstration locally testable without changing either Player's role, visibility or game authority.
 
 Consequences:
 
-- Ordinary Players do not see the toggle, and signed-out or non-administrator states always remove the Office mode body class.
-- The preference is stored only in the browser and restored when an administrator signs in again.
+- Hosted ordinary Players do not see the toggle; signed-out states always remove the Office mode body class.
+- The preference is stored only in the browser and restored when an eligible administrator or Development-selector player signs in again.
 - Manually applying the CSS class grants no authority; Office mode is not a security boundary.
 - Decorative artwork, glow and texture are suppressed by a separately scoped stylesheet without changing the normal Cycles presentation.

@@ -3,7 +3,7 @@ namespace Cycles.Tests;
 public sealed class DashboardOfficeModeContractTests
 {
     [Fact]
-    public void Office_mode_is_an_admin_only_persisted_presentation_toggle()
+    public void Office_mode_is_a_persisted_admin_and_local_development_presentation_toggle()
     {
         var html = ReadDashboardAsset("app.html");
         var script = ReadDashboardAsset("app.js");
@@ -31,7 +31,15 @@ public sealed class DashboardOfficeModeContractTests
             script,
             StringComparison.Ordinal);
         Assert.Contains(
-            "elements.officeModeButton.hidden = !isAdministrator;",
+            "return Boolean(state.playerId)",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "state.authenticationMode === \"developmentSelector\"",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "elements.officeModeButton.hidden = !isAvailable;",
             script,
             StringComparison.Ordinal);
         Assert.Contains(
