@@ -2323,7 +2323,7 @@ Consequences:
 
 Decision: run the hosted interactive application under the non-Development `Playground` environment with explicit OIDC authentication. Remove the deployed shared access-code perimeter, use `cycles.anthonypwatts.co.uk` as the sole canonical interactive hostname, and retain manual Standard-Game advancement for authenticated Cycles administrators only. Keep the trusted Tony/Will selector as a local Development convenience.
 
-Status: implemented behind the current Development selector. The database is available for binding; the hosted deployment remains uncut-over until the external credentials and invitation emails are supplied.
+Status: fulfilled on 2026-07-24. The hosted Playground runs explicit OIDC on the canonical domain, the shared access-code and hosted selector paths are absent, Anthony and Will are bound to their existing Players, and the temporary invitations are removed. Issue #162 retains the final post-removal Player replay/authority and non-admitted-account denial evidence.
 
 Reasoning:
 
@@ -2365,6 +2365,8 @@ Consequences:
 ## 2026-07-22: Promote The Google OAuth App From Testing To In Production At Cutover
 
 Decision: configure one dedicated Cycles Google Cloud project and external OAuth application in Testing status during setup, with Anthony and Will as its only test users. Before the hosted OIDC cutover, complete the required domain, privacy and branding readiness and change the application to In production. Request only the `openid email` scopes.
+
+Status: fulfilled on 2026-07-24. Google Auth Platform reports the external Cycles application In production after both intended first-login bindings and invitation removal; the live request remains code plus PKCE with only `openid email`.
 
 Reasoning:
 
