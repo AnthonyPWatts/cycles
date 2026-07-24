@@ -90,20 +90,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context =>
-    {
-        if (!PlaygroundAccessMiddleware.IsPublicStaticAsset(context.Context.Request.Path))
-        {
-            return;
-        }
-
-        var isVersioned = context.Context.Request.Query.ContainsKey("v");
-        context.Context.Response.Headers.CacheControl = isVersioned
-            ? "public, max-age=86400, immutable"
-            : "public, max-age=3600";
-        context.Context.Response.Headers["Cloudflare-CDN-Cache-Control"] = isVersioned
-            ? "public, max-age=604800, immutable"
-            : "public, max-age=86400";
-    }
+        StaticAssetCachePolicy.Apply(context.Context, context.File.Name)
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));

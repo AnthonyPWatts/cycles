@@ -105,6 +105,8 @@ The Cloudflare edge is defined under `deploy/cloudflare`. Before development or 
 
 Wrangler points its static-assets binding only at that generated bundle and uses asset-first routing. A matching public file is therefore served without invoking the Worker. Files absent from the bundle, authentication and API requests fall through to `worker.js` and the Azure proxy. The Worker retains its public-path fallback so a missing approved edge asset fails at Cloudflare instead of consuming Azure bandwidth. The generated bundle remains a deployment staging artefact and must not be edited or committed.
 
+During the rapid-development phase, Azure-served textual web assets (`.html`, `.js`, `.css`, and `.json`) always require browser revalidation and explicitly opt out of Cloudflare storage, even when their URL has a `v` query. This prevents a changed dashboard shell from remaining stale behind Cloudflare's default static-extension cache when a version query is missed. Approved binary artwork and media retain the existing bounded or versioned immutable policy; Cloudflare's asset binding continues to supply content-derived validators for the public shell and edge bundle.
+
 Cloudflare deployment remains separate from the normal application deployment because it requires a short-lived Cloudflare token. Create a token with only `Workers Scripts: Write` and `Workers Routes: Write`, deploy from `deploy/cloudflare`, and delete the token immediately afterwards. Do not store a Cloudflare deployment token in GitHub. The long-lived `ORIGIN_AUTH_TOKEN` Worker secret is a different high-entropy value used only to authenticate Cloudflare to Azure in OIDC mode:
 
 ```powershell

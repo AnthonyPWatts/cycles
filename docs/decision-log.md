@@ -2499,3 +2499,19 @@ Consequences:
 - The preference is stored only in the browser and restored when an eligible administrator or Development-selector player signs in again.
 - Manually applying the CSS class grants no authority; Office mode is not a security boundary.
 - Decorative artwork, glow and texture are suppressed by a separately scoped stylesheet without changing the normal Cycles presentation.
+
+## 2026-07-24: Revalidate The Rapid-Development Web Shell
+
+Decision: require every Azure-served `.html`, `.js`, `.css`, and `.json` static response to revalidate in the browser and opt out of Cloudflare storage during rapid playground development. Retain the existing bounded and versioned immutable policies for binary artwork and media.
+
+Reasoning:
+
+- Cloudflare applies a four-hour default cache to proxied JavaScript and CSS when Azure supplies no explicit directive.
+- A changed dashboard script can therefore remain stale after a successful deployment if its existing version query is not also changed.
+- Revalidation preserves browser validators without making release correctness depend on manual cache-key maintenance.
+
+Consequences:
+
+- Dashboard code, markup, styles and static JSON reach Azure on revalidation and cannot remain stale in Cloudflare's shared cache.
+- Version queries remain useful release identifiers but are no longer the only freshness boundary for the rapidly changing shell.
+- Approved binary assets continue to use the existing cache policy and Cloudflare asset bundle.
