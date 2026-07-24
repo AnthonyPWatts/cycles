@@ -1,6 +1,6 @@
 # Backlog
 
-Last updated: 2026-07-22
+Last updated: 2026-07-24
 
 GitHub issues are authoritative for concrete actionable work: scope, acceptance criteria, ownership, status, dependencies, and completion. This document is the curated roadmap, sequencing summary, decision-gate overview, and issue index. It deliberately does not mirror issue checkboxes or live status.
 
@@ -9,9 +9,9 @@ Completed behaviour and verification belong in [Project State](project-state.md)
 ## Current Sequence
 
 1. Complete the staged Google OIDC cutover in [#162](https://github.com/AnthonyPWatts/cycles/issues/162). The database is available for the first-login bindings, and the code path, existing-Player binding transaction, canonical proxy boundary, privacy page and runbook are implemented dark; provider credentials, exact Anthony/Will emails, hosted first-login evidence and invitation removal remain operational work. Batch the cutover and its deployed evidence into one manual release window; July database maintenance requires an explicit SQL-budget override because the free allowance is exhausted.
-2. Complete the genuine keyboard-only and screen-reader Training journey in [#160](https://github.com/AnthonyPWatts/cycles/issues/160), then run the five-novice pilot in [#161](https://github.com/AnthonyPWatts/cycles/issues/161). These are human evidence tasks rather than controller or implementation substitutes.
-3. Gather guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before further tuning combat, colonisation, priority, turn-processing, or order-feedback rules. The evidence must test whether players understand the fixed phase order as well as whether its outcomes are balanced. The accepted one-intention-per-fleet replacement, command-closure Colonise reservation, and processing-order contracts define the current baseline.
-4. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
+2. Establish working-game viability by gathering guided play and balance evidence through [#131](https://github.com/AnthonyPWatts/cycles/issues/131) before further tuning combat, colonisation, priority, turn-processing, or order-feedback rules. The evidence must test whether players understand the fixed phase order as well as whether its outcomes are balanced. The accepted one-intention-per-fleet replacement, command-closure Colonise reservation, and processing-order contracts define the current baseline.
+3. Complete the threat model and security evidence in [#133](https://github.com/AnthonyPWatts/cycles/issues/133) before any untrusted online test.
+4. After the game has demonstrated viability, complete the genuine keyboard-only and screen-reader Training journey in [#160](https://github.com/AnthonyPWatts/cycles/issues/160), then run the five-novice pilot in [#161](https://github.com/AnthonyPWatts/cycles/issues/161). These remain required human evidence tasks rather than controller or implementation substitutes, but they do not take precedence over proving the core game.
 5. Continue dashboard data and asset-request efficiency through [#141-#145](https://github.com/AnthonyPWatts/cycles/issues/141). The consolidated bootstrap now uses the focused one-Cycle SQL view; actor-safe validators, topology splitting and abuse guardrails remain. [#144](https://github.com/AnthonyPWatts/cycles/issues/144) now generates a narrow public-only Cloudflare bundle and selects asset-first routing in source; its deployed routing and request evidence remains for the next intentional Cloudflare release. Current production pressure is low, so this sequence remains P2 anticipatory hardening unless measurements worsen.
 
 This sequence does not authorise speculative gameplay expansion. The active product-decision queue remains indexed by [issue #119](https://github.com/AnthonyPWatts/cycles/issues/119).
