@@ -48,6 +48,7 @@ public sealed class EdgeAssetRedirectMiddlewareTests
     [InlineData("GET", "/app.html")]
     [InlineData("GET", "/app.js")]
     [InlineData("GET", "/styles.css")]
+    [InlineData("GET", "/office-mode.css")]
     [InlineData("GET", "/media/PROMO-PRODUCTION.md")]
     [InlineData("POST", "/media/cycles-promo.mp4")]
     public async Task NonEdgeRequest_ContinuesThroughTheApplicationPipeline(string method, string path)

@@ -1,0 +1,1036 @@
+/*
+ * Office mode is deliberately a presentation-only skin. Every selector is
+ * scoped to the body class so the normal Cycles interface remains untouched.
+ */
+
+body.office-mode {
+    color-scheme: light;
+    --font-galactic: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --bg: #f3f4f6;
+    --panel: #ffffff;
+    --panel-strong: #f8f9fa;
+    --panel-glass: #ffffff;
+    --surface: #f3f4f6;
+    --line: #adb5bd;
+    --line-soft: #dee2e6;
+    --text: #212529;
+    --muted: #6c757d;
+    --accent: #0d6efd;
+    --accent-strong: #0a58ca;
+    --gold: #6f42c1;
+    --danger: #dc3545;
+    --system: #212529;
+    --shadow: rgba(33, 37, 41, 0.12);
+    background: #f3f4f6;
+    color: #212529;
+}
+
+body.office-mode button,
+body.office-mode input,
+body.office-mode select,
+body.office-mode textarea {
+    border-color: #adb5bd;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #212529;
+    box-shadow: none;
+}
+
+body.office-mode button {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+body.office-mode button:hover {
+    border-color: #0a58ca;
+    background: #0b5ed7;
+    color: #ffffff;
+    transform: none;
+}
+
+body.office-mode button:focus-visible,
+body.office-mode input:focus-visible,
+body.office-mode select:focus-visible,
+body.office-mode textarea:focus-visible,
+body.office-mode a:focus-visible {
+    outline: 3px solid rgba(13, 110, 253, 0.35);
+    outline-offset: 2px;
+}
+
+body.office-mode button:disabled {
+    border-color: #adb5bd;
+    background: #e9ecef;
+    color: #6c757d;
+}
+
+body.office-mode input,
+body.office-mode select,
+body.office-mode textarea {
+    border-color: #ced4da;
+    background: #ffffff;
+}
+
+body.office-mode input::placeholder,
+body.office-mode textarea::placeholder {
+    color: #6c757d;
+}
+
+body.office-mode .topbar {
+    min-height: 64px;
+    border-bottom: 0;
+    background: #512bd4;
+    box-shadow: 0 2px 5px rgba(33, 37, 41, 0.24);
+    backdrop-filter: none;
+}
+
+body.office-mode .brand-link,
+body.office-mode .topbar p,
+body.office-mode .session-summary,
+body.office-mode .session-summary strong,
+body.office-mode .command-identity strong,
+body.office-mode .command-home,
+body.office-mode .cycle-instrument p,
+body.office-mode .cycle-name,
+body.office-mode .next-turn-instrument strong {
+    color: #ffffff;
+}
+
+body.office-mode .brand-link::before,
+body.office-mode .brand-orbit {
+    border-color: #ffffff;
+    box-shadow: none;
+}
+
+body.office-mode .command-home,
+body.office-mode .cycle-instrument p,
+body.office-mode .next-turn-instrument span {
+    opacity: 0.82;
+}
+
+body.office-mode .cycle-pill {
+    border-color: rgba(255, 255, 255, 0.52);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+
+body.office-mode .turn-track {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+body.office-mode .turn-track::before {
+    background: #ffffff;
+    box-shadow: none;
+}
+
+body.office-mode .turn-track i {
+    border-color: #ffffff;
+    background: #512bd4;
+    box-shadow: none;
+}
+
+body.office-mode .app-header-controls .toolbar-actions,
+body.office-mode .session-summary {
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+body.office-mode .toolbar-actions button,
+body.office-mode .session-summary button {
+    border-color: rgba(255, 255, 255, 0.72);
+    background: transparent;
+    color: #ffffff;
+}
+
+body.office-mode .toolbar-actions button:hover,
+body.office-mode .session-summary button:hover {
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+body.office-mode .session-summary .office-mode-toggle[aria-pressed="true"] {
+    border-color: #ffc107;
+    background: #ffc107;
+    color: #212529;
+}
+
+body.office-mode .app-shell,
+body.office-mode.account-active .app-shell {
+    background: #f3f4f6;
+}
+
+body.office-mode .selected-game-context {
+    border-bottom-color: #dee2e6;
+    background: #ffffff;
+}
+
+body.office-mode .selected-game-divider,
+body.office-mode .selected-game-copy strong {
+    color: #212529;
+}
+
+body.office-mode .all-games-link,
+body.office-mode .game-row-action,
+body.office-mode .section-link,
+body.office-mode .agenda-action,
+body.office-mode .inline-action,
+body.office-mode .map-focus-action,
+body.office-mode .route-jump,
+body.office-mode .fleet-jump {
+    border: 1px solid #0d6efd;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #0d6efd;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .all-games-link:hover,
+body.office-mode .game-row-action:hover,
+body.office-mode .section-link:hover,
+body.office-mode .agenda-action:hover,
+body.office-mode .inline-action:hover,
+body.office-mode .map-focus-action:hover,
+body.office-mode .route-jump:hover,
+body.office-mode .fleet-jump:hover {
+    border-color: #0a58ca;
+    background: #e7f1ff;
+    color: #0a58ca;
+}
+
+body.office-mode .view-nav {
+    min-height: 58px;
+    border-bottom: 1px solid #dee2e6;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(33, 37, 41, 0.08);
+}
+
+body.office-mode .view-nav a {
+    min-height: 58px;
+    border-right-color: #dee2e6;
+    background: #ffffff;
+    color: #495057;
+}
+
+body.office-mode .view-nav a::before,
+body.office-mode .view-nav a::after {
+    display: none;
+}
+
+body.office-mode .view-nav a:hover,
+body.office-mode .view-nav a[aria-current="page"] {
+    background: #f8f9fa;
+    color: #0d6efd;
+}
+
+body.office-mode .view-nav a[aria-current="page"] {
+    box-shadow: inset 0 -3px #0d6efd;
+}
+
+body.office-mode .view-nav-label {
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .view-nav small {
+    color: #6c757d;
+}
+
+body.office-mode .view-badge,
+body.office-mode .view-nav a[aria-current="page"] .view-badge {
+    border-color: #adb5bd;
+    border-radius: 10rem;
+    background: #e9ecef;
+    color: #495057;
+}
+
+body.office-mode .turn-message {
+    border-color: #b6d4fe;
+    background: #cfe2ff;
+    color: #084298;
+}
+
+body.office-mode .app-view,
+body.office-mode .command-view {
+    background: #f3f4f6;
+}
+
+body.office-mode .workspace-title,
+body.office-mode .workspace-title--map {
+    color: #212529;
+    font-family: inherit;
+}
+
+body.office-mode .section-kicker,
+body.office-mode .toolbar-kicker,
+body.office-mode .instrument-label {
+    color: #6c757d;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .view-card,
+body.office-mode .games-ledger-section,
+body.office-mode .games-empty-state,
+body.office-mode .fleet-roster,
+body.office-mode .fleet-command-panel,
+body.office-mode .fleet-inspector,
+body.office-mode .order-history,
+body.office-mode .history-workspace > section,
+body.office-mode .detail-list,
+body.office-mode .detail-block,
+body.office-mode .system-inspector,
+body.office-mode .priority-console {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(33, 37, 41, 0.08);
+}
+
+body.office-mode .view-card h2,
+body.office-mode .view-card h3,
+body.office-mode .games-home-heading h1,
+body.office-mode .games-ledger-heading h2,
+body.office-mode .games-empty-state h2,
+body.office-mode .game-ledger-identity h3,
+body.office-mode .system-inspector > .section-heading h2,
+body.office-mode .order-form-title {
+    color: #212529;
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .section-heading-count,
+body.office-mode .section-heading-count strong,
+body.office-mode .section-note,
+body.office-mode .game-list-priority {
+    color: #6c757d;
+    font-family: inherit;
+}
+
+body.office-mode .games-home-heading {
+    border-bottom-color: #dee2e6;
+}
+
+body.office-mode .games-ledger-heading,
+body.office-mode .game-ledger-row {
+    border-color: #dee2e6;
+}
+
+body.office-mode .game-ledger-row,
+body.office-mode .tutorial-game-offer {
+    background: #ffffff;
+}
+
+body.office-mode .game-ledger-row:hover {
+    background: #f8f9fa;
+}
+
+body.office-mode .agenda-item,
+body.office-mode .command-stream-entry,
+body.office-mode .strategic-watch-list > div,
+body.office-mode .commitment-row,
+body.office-mode .phase-sequence li {
+    border-color: #dee2e6;
+    background: #ffffff;
+}
+
+body.office-mode .agenda-item::before {
+    width: 4px;
+    opacity: 1;
+}
+
+body.office-mode .agenda-index,
+body.office-mode .agenda-sigil,
+body.office-mode .agenda-copy small,
+body.office-mode .agenda-timing small {
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .agenda-sigil {
+    border-radius: 0.25rem;
+}
+
+body.office-mode .agenda-copy strong,
+body.office-mode .agenda-copy span,
+body.office-mode .agenda-timing span,
+body.office-mode .command-stream-entry p,
+body.office-mode .strategic-watch-list dd,
+body.office-mode .strategic-watch-list dt {
+    color: #212529;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .agenda-tone-urgent {
+    color: #dc3545;
+}
+
+body.office-mode .agenda-tone-queued {
+    color: #0d6efd;
+}
+
+body.office-mode .agenda-tone-programme,
+body.office-mode .agenda-tone-watch,
+body.office-mode .agenda-tone-resolved {
+    color: #198754;
+}
+
+body.office-mode .resource-card,
+body.office-mode .command-resources .resource-card {
+    border-color: #dee2e6;
+    border-radius: 0.25rem;
+    background: #f8f9fa;
+}
+
+body.office-mode .resource-card::before,
+body.office-mode .resource-card::after {
+    display: none;
+}
+
+body.office-mode .resource-card dt,
+body.office-mode .resource-card dd,
+body.office-mode .resource-card strong,
+body.office-mode .resource-delta {
+    color: #212529;
+    font-family: inherit;
+}
+
+body.office-mode .resource-meter {
+    border-color: #ced4da;
+    background: #e9ecef;
+}
+
+body.office-mode .resource-meter i,
+body.office-mode .fleet-transit-track i {
+    background: #0d6efd;
+}
+
+body.office-mode .programme-allocation-summary,
+body.office-mode .command-resources,
+body.office-mode .strategic-watch-list > div,
+body.office-mode .command-stream-entry {
+    border-color: #dee2e6;
+}
+
+body.office-mode .turn-stage-badge.stage-commandopen {
+    border-color: #badbcc;
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+body.office-mode .turn-stage-description,
+body.office-mode .turn-forecast-heading > span {
+    color: #6c757d;
+}
+
+body.office-mode .turn-forecast-item,
+body.office-mode .turn-forecast-item.is-commitment,
+body.office-mode .turn-forecast-item.has-warning {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .turn-forecast-item.is-commitment {
+    border-left: 4px solid #6f42c1;
+}
+
+body.office-mode .turn-forecast-item.has-warning {
+    border-left: 4px solid #dc3545;
+}
+
+body.office-mode .turn-forecast-item small,
+body.office-mode .turn-forecast-item.is-commitment small {
+    color: #6c757d;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .turn-forecast-item strong,
+body.office-mode .turn-forecast-item span {
+    color: #212529;
+}
+
+body.office-mode .turn-phase-details {
+    border-color: #dee2e6;
+}
+
+body.office-mode .turn-phase-details summary {
+    color: #0d6efd;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .turn-phase-order li {
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .turn-phase-order li > span {
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+body.office-mode .turn-phase-order strong,
+body.office-mode .turn-phase-order p {
+    color: #212529;
+}
+
+body.office-mode .priority-console,
+body.office-mode .order-form,
+body.office-mode .filter-toolbar,
+body.office-mode .fleet-action-panel,
+body.office-mode .system-overview,
+body.office-mode .empty-state {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+    background-image: none;
+}
+
+body.office-mode .priority-model-note {
+    border-left-color: #0d6efd;
+    background: #e7f1ff;
+    color: #495057;
+}
+
+body.office-mode .priority-slider-shell::before {
+    border-color: #ced4da;
+    background-image:
+        repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), #ffffff calc(10% - 1px) 10%),
+        linear-gradient(90deg, #0d6efd, #6f42c1 68%, #dc3545),
+        linear-gradient(90deg, #e9ecef, #e9ecef);
+    box-shadow: inset 0 1px 2px rgba(33, 37, 41, 0.12);
+}
+
+body.office-mode .priority-slider-shell::after {
+    display: none;
+}
+
+body.office-mode .priority-saved-marker {
+    border-color: #212529;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+body.office-mode .priority-slider-shell input[type="range"]::-webkit-slider-thumb,
+body.office-mode .priority-slider-shell input[type="range"]::-moz-range-thumb {
+    border-color: #ffffff;
+    background: #0d6efd;
+    box-shadow: 0 0 0 1px #0a58ca;
+}
+
+body.office-mode .subview-tabs,
+body.office-mode .action-tabs {
+    border-color: #dee2e6;
+    border-radius: 0.25rem;
+    background: #ffffff;
+}
+
+body.office-mode .subview-tabs button,
+body.office-mode .action-tabs button {
+    border-color: transparent;
+    background: transparent;
+    color: #495057;
+}
+
+body.office-mode .subview-tabs button:hover,
+body.office-mode .action-tabs button:hover {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+    color: #0d6efd;
+}
+
+body.office-mode .subview-tabs button[aria-selected="true"],
+body.office-mode .action-tabs button[aria-selected="true"] {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #ffffff;
+}
+
+body.office-mode .list {
+    gap: 0.5rem;
+}
+
+body.office-mode .item,
+body.office-mode .fleet-item,
+body.office-mode .chronicle-entry,
+body.office-mode .event-entry,
+body.office-mode .topology-sector,
+body.office-mode .topology-system,
+body.office-mode .topology-route {
+    border-color: #dee2e6;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #212529;
+}
+
+body.office-mode .item strong,
+body.office-mode .item span,
+body.office-mode .chronicle-summary,
+body.office-mode .chronicle-narrative,
+body.office-mode .event-entry p,
+body.office-mode .topology-system-select,
+body.office-mode .topology-system-facts dd {
+    color: #212529;
+}
+
+body.office-mode .fleet-item:hover,
+body.office-mode .fleet-item.selected,
+body.office-mode .topology-route:hover,
+body.office-mode .topology-system-select:hover {
+    border-color: #0d6efd;
+    background: #e7f1ff;
+    color: #212529;
+}
+
+body.office-mode .fleet-item.is-in-transit,
+body.office-mode .fleet-journey-block {
+    border-left-color: #0d6efd;
+    background: #e7f1ff;
+}
+
+body.office-mode .fleet-transit-track {
+    border-color: #ced4da;
+    background: #e9ecef;
+}
+
+body.office-mode .status-chip,
+body.office-mode .cycle-pill,
+body.office-mode .history-tick,
+body.office-mode .importance-chip,
+body.office-mode .priority-effect-status {
+    border-radius: 10rem;
+    box-shadow: none;
+}
+
+body.office-mode .status-active,
+body.office-mode .status-pending,
+body.office-mode .status-intransit,
+body.office-mode .status-completed,
+body.office-mode .status-processed {
+    border-color: #badbcc;
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+body.office-mode .status-cancelled,
+body.office-mode .status-superseded,
+body.office-mode .status-low {
+    border-color: #d3d6d8;
+    background: #e2e3e5;
+    color: #41464b;
+}
+
+body.office-mode .status-rejected,
+body.office-mode .status-destroyed,
+body.office-mode .status-failed,
+body.office-mode .status-high {
+    border-color: #f5c2c7;
+    background: #f8d7da;
+    color: #842029;
+}
+
+body.office-mode .status-historic,
+body.office-mode .importance-chip {
+    border-color: #ffecb5;
+    background: #fff3cd;
+    color: #664d03;
+}
+
+body.office-mode .history-tick {
+    border-color: #b6d4fe;
+    background: #cfe2ff;
+    color: #084298;
+}
+
+body.office-mode .chronicle-reading .chronicle-entry {
+    border-left-color: #6f42c1;
+}
+
+body.office-mode .chronicle-reading .chronicle-entry .history-entry-header strong,
+body.office-mode .event-stream .history-entry-header strong {
+    color: #212529;
+}
+
+body.office-mode .chronicle-narrative {
+    border-color: #dee2e6;
+    color: #495057;
+}
+
+body.office-mode .map-panel,
+body.office-mode .map-toolbar,
+body.office-mode .map-stage,
+body.office-mode .galaxy-layout,
+body.office-mode .galaxy-layout.is-maximised {
+    border-color: #dee2e6;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+body.office-mode .map-toolbar {
+    border-bottom: 1px solid #dee2e6;
+}
+
+body.office-mode .map-title,
+body.office-mode .map-insight strong,
+body.office-mode .map-ownership-stats strong {
+    color: #212529;
+}
+
+body.office-mode .map-ownership-stats {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .ownership-stat {
+    border-color: #dee2e6;
+}
+
+body.office-mode .map-ranges,
+body.office-mode .map-lenses,
+body.office-mode .map-recovery {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .map-ranges > span,
+body.office-mode .map-lenses > span,
+body.office-mode .map-recovery > span,
+body.office-mode .map-insight small,
+body.office-mode .ownership-stat em,
+body.office-mode .ownership-stat small {
+    color: #6c757d;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .map-ranges button,
+body.office-mode .map-lenses button,
+body.office-mode .map-recovery button,
+body.office-mode .map-maximise {
+    border-color: transparent;
+    background: transparent;
+    color: #495057;
+}
+
+body.office-mode .map-ranges button:hover,
+body.office-mode .map-lenses button:hover,
+body.office-mode .map-recovery button:hover:not(:disabled),
+body.office-mode .map-maximise:hover {
+    border-color: #dee2e6;
+    background: #e9ecef;
+    color: #0d6efd;
+}
+
+body.office-mode .map-ranges button[aria-pressed="true"],
+body.office-mode .map-lenses button[aria-pressed="true"],
+body.office-mode .map-maximise[aria-pressed="true"] {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #ffffff;
+}
+
+body.office-mode .map-stage::after,
+body.office-mode .atlas-background,
+body.office-mode .atlas-vignette,
+body.office-mode .atlas-local-wash,
+body.office-mode .starfield-layer,
+body.office-mode .galactic-plane {
+    display: none;
+}
+
+body.office-mode .chart-field {
+    fill: #ffffff;
+}
+
+body.office-mode .chart-grid {
+    fill: #f8f9fa;
+}
+
+body.office-mode .chart-grid-line {
+    stroke: rgba(33, 37, 41, 0.08);
+}
+
+body.office-mode .sector-hull,
+body.office-mode #galaxyMap[data-map-range="galaxy"] .sector-hull {
+    fill: rgba(13, 110, 253, 0.05);
+    stroke: rgba(13, 110, 253, 0.38);
+}
+
+body.office-mode .sector-node:nth-child(4n + 2) .sector-hull,
+body.office-mode .sector-node:nth-child(4n + 3) .sector-hull,
+body.office-mode .sector-node:nth-child(4n + 4) .sector-hull {
+    fill: rgba(111, 66, 193, 0.04);
+    stroke: rgba(111, 66, 193, 0.34);
+}
+
+body.office-mode .sector-name,
+body.office-mode .sector-count,
+body.office-mode .system-label,
+body.office-mode .atlas-sector-kicker,
+body.office-mode .atlas-sector-title,
+body.office-mode .atlas-sector-context {
+    fill: #212529;
+    stroke: #ffffff;
+}
+
+body.office-mode .sector-node.is-active .sector-name,
+body.office-mode .system-node.is-important .system-label,
+body.office-mode .system-label.selected-label {
+    fill: #0d6efd;
+}
+
+body.office-mode .link,
+body.office-mode .route-segment.is-bridge .link,
+body.office-mode .atlas-route-overlay .link {
+    stroke: #6c757d;
+}
+
+body.office-mode .route-glow,
+body.office-mode .atlas-route-overlay .route-glow {
+    display: none;
+}
+
+body.office-mode .link.selected-route,
+body.office-mode .atlas-route-overlay.is-selected-sector-route .link {
+    stroke: #0d6efd;
+}
+
+body.office-mode .system {
+    fill: #ffffff;
+    stroke: #495057;
+}
+
+body.office-mode .system.home {
+    fill: #0d6efd;
+}
+
+body.office-mode .system.historic {
+    fill: #6f42c1;
+}
+
+body.office-mode .system.contested {
+    fill: #dc3545;
+}
+
+body.office-mode .system-core {
+    fill: #ffffff;
+}
+
+body.office-mode .selection-reticle,
+body.office-mode .selection-orbit,
+body.office-mode .selection-scan,
+body.office-mode .gateway-ring {
+    stroke: #0d6efd;
+    filter: none;
+}
+
+body.office-mode .system-inspector {
+    background: #ffffff;
+    scrollbar-color: #adb5bd transparent;
+}
+
+body.office-mode .system-inspector > .section-heading {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+    backdrop-filter: none;
+}
+
+body.office-mode .system-overview,
+body.office-mode .system-intel-block {
+    border-color: #dee2e6;
+}
+
+body.office-mode .system-rating > span {
+    border-color: #dee2e6;
+}
+
+body.office-mode .system-rating small,
+body.office-mode .system-signature > span,
+body.office-mode .system-block-heading .section-kicker,
+body.office-mode .system-empty-note,
+body.office-mode .systems-routes-help,
+body.office-mode .topology-system-facts,
+body.office-mode .topology-system-facts dt,
+body.office-mode .topology-system-select small {
+    color: #6c757d;
+}
+
+body.office-mode .system-rating strong {
+    color: #6f42c1;
+}
+
+body.office-mode .system-tags span {
+    border-color: #ced4da;
+    background: #e9ecef;
+    color: #495057;
+}
+
+body.office-mode .system-yield {
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .system-yield span,
+body.office-mode .system-yield strong {
+    color: #212529;
+}
+
+body.office-mode .systems-routes {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+}
+
+body.office-mode .systems-routes-heading h3 {
+    color: #212529;
+}
+
+body.office-mode .topology-system-select {
+    border-color: transparent;
+    background: transparent;
+    color: #212529;
+    text-align: left;
+}
+
+body.office-mode .topology-system-select:hover {
+    border-color: #b6d4fe;
+    background: #e7f1ff;
+    color: #212529;
+}
+
+body.office-mode .topology-system-select[aria-current="location"] {
+    color: #0d6efd;
+}
+
+body.office-mode .turn-progress-ribbon {
+    border-top-color: #ced4da;
+    background: #ffffff;
+    box-shadow: 0 -1px 4px rgba(33, 37, 41, 0.12);
+    backdrop-filter: none;
+}
+
+body.office-mode .turn-progress-summary {
+    border-color: #dee2e6;
+}
+
+body.office-mode .turn-progress-summary span,
+body.office-mode .turn-progress-milestones {
+    color: #6c757d;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+body.office-mode .turn-progress-summary strong {
+    color: #212529;
+    font-family: inherit;
+    letter-spacing: normal;
+}
+
+body.office-mode .turn-progress-track {
+    border-color: #ced4da;
+    background: #e9ecef;
+    box-shadow: none;
+}
+
+body.office-mode .turn-progress-track::after {
+    background-image: linear-gradient(90deg, transparent calc(100% - 1px), rgba(33, 37, 41, 0.12) 0);
+}
+
+body.office-mode .turn-progress-fill {
+    background: #0d6efd;
+    box-shadow: none;
+}
+
+body.office-mode .turn-progress-marker {
+    border-color: #0d6efd;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.18);
+}
+
+body.office-mode .priority-sheet,
+body.office-mode .advance-turn-dialog-card,
+body.office-mode .tutorial-panel {
+    border: 1px solid #ced4da;
+    border-radius: 0.3rem;
+    background: #ffffff;
+    color: #212529;
+    box-shadow: 0 0.5rem 1rem rgba(33, 37, 41, 0.18);
+}
+
+body.office-mode .priority-sheet::backdrop,
+body.office-mode .advance-turn-dialog::backdrop {
+    background: rgba(33, 37, 41, 0.45);
+}
+
+body.office-mode .tutorial-panel h2,
+body.office-mode .tutorial-panel p,
+body.office-mode .advance-turn-dialog h2,
+body.office-mode .advance-turn-dialog p {
+    color: #212529;
+    font-family: inherit;
+}
+
+body.office-mode .tutorial-admiral-frame,
+body.office-mode .tutorial-panel .tutorial-requirement,
+body.office-mode .tutorial-panel .tutorial-hint,
+body.office-mode .advance-turn-dialog-counts,
+body.office-mode .advance-turn-dialog-warning {
+    border-color: #dee2e6;
+    background: #f8f9fa;
+    color: #495057;
+}
+
+body.office-mode .secondary-action,
+body.office-mode .tutorial-pause,
+body.office-mode .tutorial-reset,
+body.office-mode .priority-sheet-close {
+    border-color: #6c757d;
+    background: #ffffff;
+    color: #6c757d;
+}
+
+body.office-mode .secondary-action:hover,
+body.office-mode .tutorial-pause:hover,
+body.office-mode .tutorial-reset:hover,
+body.office-mode .priority-sheet-close:hover {
+    border-color: #5c636a;
+    background: #6c757d;
+    color: #ffffff;
+}
+
+body.office-mode #advanceTurnButton,
+body.office-mode #commandAdvanceTurnButton,
+body.office-mode #confirmAdvanceTurnButton {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #ffffff;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.office-mode *,
+    body.office-mode *::before,
+    body.office-mode *::after {
+        animation-duration: 0.01ms;
+        animation-iteration-count: 1;
+        transition-duration: 0.01ms;
+    }
+}

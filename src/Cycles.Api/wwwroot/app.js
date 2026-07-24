@@ -3,6 +3,7 @@ const state = {
     playerId: null,
     username: null,
     role: null,
+    officeMode: false,
     canAdvanceTurn: false,
     gamesHome: null,
     games: [],
@@ -266,6 +267,7 @@ const tutorial = {
 let priorityActivityTimeout = null;
 let turnWindowProgressTimer = null;
 let prioritySheetReturnFocus = null;
+const officeModeStorageKey = "cycles.officeMode";
 
 const elements = {
     loginForm: document.querySelector("#loginForm"),
@@ -275,6 +277,7 @@ const elements = {
     sessionSummary: document.querySelector("#sessionSummary"),
     appHeaderControls: document.querySelector("#appHeaderControls"),
     sessionUsername: document.querySelector("#sessionUsername"),
+    officeModeButton: document.querySelector("#officeModeButton"),
     signOutButton: document.querySelector("#signOutButton"),
     appShell: document.querySelector("#appShell"),
     gamesHome: document.querySelector("#gamesHome"),
@@ -418,6 +421,7 @@ elements.loginForm.addEventListener("submit", async event => {
 });
 
 elements.signOutButton.addEventListener("click", signOut);
+elements.officeModeButton.addEventListener("click", toggleOfficeMode);
 elements.gamesList.addEventListener("click", async event => {
     const button = event.target.closest("[data-start-tutorial]");
     if (!button) {
@@ -1229,6 +1233,7 @@ function applyAccountSession(login) {
     state.playerId = login.playerId;
     state.username = login.username;
     state.role = login.role;
+    syncOfficeModeAvailability();
     state.canAdvanceTurn = login.canAdvanceTurn ?? false;
     state.empire = login.empire ?? null;
     elements.advanceTurnButton.hidden = !state.canAdvanceTurn;
@@ -1257,6 +1262,7 @@ function showLogin(message, { error = false } = {}) {
     state.playerId = null;
     state.username = null;
     state.role = null;
+    syncOfficeModeAvailability();
     state.canAdvanceTurn = false;
     state.gamesHome = null;
     state.games = [];
@@ -3909,6 +3915,40 @@ function writeStoredValue(key, value) {
         localStorage.setItem(key, value);
     } catch {
         // Storage-restricted browsers continue with in-memory UI preferences.
+    }
+}
+
+function isAdministratorSession() {
+    return String(state.role ?? "").toLowerCase() === "admin";
+}
+
+function syncOfficeModeAvailability() {
+    const isAdministrator = isAdministratorSession();
+    elements.officeModeButton.hidden = !isAdministrator;
+    applyOfficeMode(
+        isAdministrator && readStoredValue(officeModeStorageKey) === "true",
+        { persist: false });
+}
+
+function toggleOfficeMode() {
+    if (!isAdministratorSession()) {
+        return;
+    }
+
+    applyOfficeMode(!state.officeMode);
+}
+
+function applyOfficeMode(enabled, { persist = true } = {}) {
+    const active = Boolean(enabled && isAdministratorSession());
+    state.officeMode = active;
+    document.body.classList.toggle("office-mode", active);
+    elements.officeModeButton.setAttribute("aria-pressed", String(active));
+    elements.officeModeButton.title = active
+        ? "Office mode is on. Restore the Cycles presentation."
+        : "Show the plain administrative presentation.";
+
+    if (persist && isAdministratorSession()) {
+        writeStoredValue(officeModeStorageKey, String(active));
     }
 }
 

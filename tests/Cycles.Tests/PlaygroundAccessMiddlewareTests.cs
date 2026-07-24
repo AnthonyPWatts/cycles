@@ -39,6 +39,7 @@ public sealed class PlaygroundAccessMiddlewareTests
     [InlineData("/app.html")]
     [InlineData("/app.js")]
     [InlineData("/styles.css")]
+    [InlineData("/office-mode.css")]
     [InlineData("/media/PROMO-PRODUCTION.md")]
     [InlineData("/auth/login")]
     [InlineData("/galaxy")]

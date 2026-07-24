@@ -33,6 +33,9 @@
     <None Include="..\..\src\Cycles.Api\wwwroot\styles.css"
           Link="Fixtures\Dashboard\styles.css"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Cycles.Api\wwwroot\office-mode.css"
+          Link="Fixtures\Dashboard\office-mode.css"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\Cycles.Api\wwwroot\assets\icons\*.svg"
           Link="Fixtures\Dashboard\assets\icons\%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
